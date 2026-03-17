@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm init -y)",
+      "Bash(npm install express mongoose bcryptjs jsonwebtoken cors helmet multer uuid axios cheerio dotenv)",
+      "Bash(npm install --save-dev nodemon)",
+      "Bash(npm pkg set scripts.dev=\"nodemon server.js\" scripts.start=\"node server.js\")",
+      "Bash(npx create-react-app client)",
+      "Bash(npm install react-router-dom axios http-proxy-middleware tailwindcss postcss autoprefixer)",
+      "Bash(npx tailwindcss init -p)",
+      "Bash(npx tailwindcss@latest init -p)",
+      "Bash(./node_modules/.bin/tailwindcss init -p)",
+      "Bash(node ./node_modules/tailwindcss/lib/cli.js init -p)",
+      "Bash(npm ls tailwindcss)",
+      "Bash(npm install tailwindcss@3 postcss autoprefixer)",
+      "Bash(npx react-scripts build)"
+    ]
+  }
+}

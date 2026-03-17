@@ -1,0 +1,54 @@
+const nodemailer = require('nodemailer');
+
+let transporter = null;
+
+function getTransporter() {
+  if (transporter) return transporter;
+
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  return transporter;
+}
+
+async function sendInvitationEmail(toEmail, inviterName, projectName, signupUrl) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
+      <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+      </div>
+      <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <h2 style="margin: 0 0 8px; font-size: 18px; color: #111827;">You've been invited!</h2>
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
+          <strong style="color: #111827;">${inviterName}</strong> has invited you to collaborate on
+          <strong style="color: #111827;">${projectName}</strong>.
+        </p>
+        <a href="${signupUrl}"
+           style="display: inline-block; background: #2563eb; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+          Create Your Account
+        </a>
+        <p style="color: #9ca3af; font-size: 12px; margin: 24px 0 0; line-height: 1.5;">
+          This invitation expires in 7 days. If you didn't expect this email, you can safely ignore it.
+        </p>
+      </div>
+    </div>
+  `;
+
+  await getTransporter().sendMail({
+    from,
+    to: toEmail,
+    subject: `${inviterName} invited you to ${projectName} on Markup`,
+    html,
+  });
+}
+
+module.exports = { sendInvitationEmail };
