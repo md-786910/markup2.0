@@ -174,6 +174,9 @@ export default function PinListSidebar({
                         {timeAgo(pin.createdAt)}
                       </span>
                     </div>
+                    <span className="text-[11px] text-gray-700 font-bold">
+                      Pin #{idx + 1}
+                    </span>
                     {pin.latestComment ? (
                       <p className="text-[12px] text-gray-500 mt-1 truncate leading-relaxed">
                         {pin.latestComment.body}
