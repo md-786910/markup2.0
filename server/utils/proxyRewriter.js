@@ -89,22 +89,132 @@ function rewriteHtml(html, pageUrl, projectId, serverBase) {
     }
   });
 
-  // Add base tag to help resolve any remaining relative URLs
-  if ($('base').length === 0) {
-    $('head').prepend(`<base href="${pageUrl}">`);
-  }
+  // Rewrite video poster attributes
+  $('video[poster]').each((_, el) => {
+    $(el).attr('poster', rewriteUrl($(el).attr('poster'), pageUrl, projectId, serverBase));
+  });
+
+  // Rewrite iframe srcs
+  $('iframe[src]').each((_, el) => {
+    const src = $(el).attr('src');
+    if (src && !src.startsWith('about:') && !src.startsWith('data:')) {
+      $(el).attr('src', rewriteUrl(src, pageUrl, projectId, serverBase));
+    }
+  });
+
+  // Rewrite object/embed elements
+  $('object[data]').each((_, el) => {
+    $(el).attr('data', rewriteUrl($(el).attr('data'), pageUrl, projectId, serverBase));
+  });
+  $('embed[src]').each((_, el) => {
+    $(el).attr('src', rewriteUrl($(el).attr('src'), pageUrl, projectId, serverBase));
+  });
+
+  // Rewrite form actions
+  $('form[action]').each((_, el) => {
+    const action = $(el).attr('action');
+    if (action && !action.startsWith('javascript:') && !action.startsWith('#')) {
+      $(el).attr('action', rewriteUrl(action, pageUrl, projectId, serverBase));
+    }
+  });
+
+  // Rewrite common lazy-load data attributes
+  $('[data-src]').each((_, el) => {
+    $(el).attr('data-src', rewriteUrl($(el).attr('data-src'), pageUrl, projectId, serverBase));
+  });
+  $('[data-lazy-src]').each((_, el) => {
+    $(el).attr('data-lazy-src', rewriteUrl($(el).attr('data-lazy-src'), pageUrl, projectId, serverBase));
+  });
+  $('[data-srcset]').each((_, el) => {
+    const srcset = $(el).attr('data-srcset');
+    const rewritten = srcset.split(',').map((entry) => {
+      const parts = entry.trim().split(/\s+/);
+      parts[0] = rewriteUrl(parts[0], pageUrl, projectId, serverBase);
+      return parts.join(' ');
+    }).join(', ');
+    $(el).attr('data-srcset', rewritten);
+  });
+
+  // Rewrite legacy background attributes
+  $('[background]').each((_, el) => {
+    $(el).attr('background', rewriteUrl($(el).attr('background'), pageUrl, projectId, serverBase));
+  });
+
+  // Rewrite meta refresh URLs
+  $('meta[http-equiv="refresh"]').each((_, el) => {
+    const content = $(el).attr('content');
+    if (content) {
+      const match = content.match(/^(\d+;\s*url=)(.+)$/i);
+      if (match) {
+        $(el).attr('content', match[1] + rewriteUrl(match[2].trim(), pageUrl, projectId, serverBase));
+      }
+    }
+  });
+
+  // Remove <base> tags — they'd point to the original domain and cause missed URLs
+  // to bypass the proxy. The client-side MutationObserver handles dynamic URLs instead.
+  $('base').remove();
 
   return $.html();
 }
 
-function injectScript(html, pageUrl, projectId) {
+function injectScript(html, pageUrl, projectId, serverBase) {
+  const safePageUrl = pageUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safeServerBase = (serverBase || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  let pageOrigin;
+  try { pageOrigin = new URL(pageUrl).origin; } catch { pageOrigin = pageUrl; }
+  const safePageOrigin = pageOrigin.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
   const injectionScript = `
 <script>
 (function() {
-  var __markupPageUrl = '${pageUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}';
+  var __markupPageUrl = '${safePageUrl}';
+  var __markupServerBase = '${safeServerBase}';
+  var __markupProjectId = '${projectId}';
+  var __markupPageOrigin = '${safePageOrigin}';
   var pinMode = false;
   var pins = [];
   var pinContainer = null;
+
+  // --- Shared URL rewriter (used by interceptors, MutationObserver, etc.) ---
+  function toProxy(rawUrl) {
+    if (!rawUrl || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:') ||
+        rawUrl.startsWith('#') || rawUrl.startsWith('javascript:') ||
+        rawUrl.startsWith('mailto:') || rawUrl.startsWith('tel:')) return rawUrl;
+    if (rawUrl.indexOf('/api/proxy?') !== -1) return rawUrl;
+    try {
+      var abs = new URL(rawUrl, __markupPageOrigin).href;
+      return __markupServerBase + '/api/proxy?url=' + encodeURIComponent(abs) + '&projectId=' + __markupProjectId;
+    } catch(e) { return rawUrl; }
+  }
+
+  function needsProxy(url) {
+    if (!url || url.indexOf('/api/proxy?') !== -1) return false;
+    try {
+      var parsed = new URL(url, location.href);
+      return parsed.origin !== location.origin;
+    } catch(e) { return false; }
+  }
+
+  // --- Intercept XMLHttpRequest to route through proxy ---
+  var _xhrOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url) {
+    if (typeof url === 'string' && needsProxy(url)) {
+      arguments[1] = toProxy(url);
+    }
+    return _xhrOpen.apply(this, arguments);
+  };
+
+  // --- Intercept fetch to route through proxy ---
+  var _fetch = window.fetch;
+  window.fetch = function(input, init) {
+    if (typeof input === 'string' && needsProxy(input)) {
+      input = toProxy(input);
+    } else if (input && typeof input === 'object' && input.url && needsProxy(input.url)) {
+      input = new Request(toProxy(input.url), input);
+    }
+    return _fetch.call(this, input, init);
+  };
 
   function init() {
     // Create pin container
@@ -256,6 +366,54 @@ function injectScript(html, pageUrl, projectId) {
     renderPins();
   }
 
+  // --- MutationObserver: rewrite URLs the server-side rewriter missed ---
+  try {
+    var URL_ATTRS = ['src','href','poster','data','action','data-src','data-lazy-src'];
+
+    function rewriteElement(el) {
+      for (var i = 0; i < URL_ATTRS.length; i++) {
+        var val = el.getAttribute(URL_ATTRS[i]);
+        if (val && val.indexOf('/api/proxy?') === -1) {
+          var rewritten = toProxy(val);
+          if (rewritten !== val) el.setAttribute(URL_ATTRS[i], rewritten);
+        }
+      }
+      var srcset = el.getAttribute('srcset') || el.getAttribute('data-srcset');
+      var srcsetAttr = el.hasAttribute('srcset') ? 'srcset' : (el.hasAttribute('data-srcset') ? 'data-srcset' : null);
+      if (srcset && srcsetAttr && srcset.indexOf('/api/proxy?') === -1) {
+        el.setAttribute(srcsetAttr, srcset.split(',').map(function(entry) {
+          var parts = entry.trim().split(/\\s+/);
+          parts[0] = toProxy(parts[0]);
+          return parts.join(' ');
+        }).join(', '));
+      }
+    }
+
+    var observer = new MutationObserver(function(mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        var m = mutations[i];
+        if (m.type === 'childList') {
+          for (var j = 0; j < m.addedNodes.length; j++) {
+            var node = m.addedNodes[j];
+            if (node.nodeType === 1) {
+              rewriteElement(node);
+              var children = node.querySelectorAll ? node.querySelectorAll('[src],[href],[poster],[data-src],[data-lazy-src],[srcset],[data-srcset]') : [];
+              for (var k = 0; k < children.length; k++) rewriteElement(children[k]);
+            }
+          }
+        }
+        if (m.type === 'attributes') {
+          rewriteElement(m.target);
+        }
+      }
+    });
+
+    observer.observe(document.documentElement, {
+      childList: true, subtree: true,
+      attributes: true, attributeFilter: URL_ATTRS.concat(['srcset','data-srcset'])
+    });
+  } catch(e) {}
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
@@ -264,9 +422,11 @@ function injectScript(html, pageUrl, projectId) {
 })();
 </script>`;
 
-  // Inject before </body> or at end
-  if (html.includes('</body>')) {
-    return html.replace('</body>', injectionScript + '</body>');
+  // Inject before the LAST </body> to avoid inserting inside inline scripts
+  // that contain "</body>" in string literals (common in WordPress themes)
+  const lastBodyIdx = html.lastIndexOf('</body>');
+  if (lastBodyIdx !== -1) {
+    return html.slice(0, lastBodyIdx) + injectionScript + html.slice(lastBodyIdx);
   }
   return html + injectionScript;
 }

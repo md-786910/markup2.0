@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 
-export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId, loading }) {
+export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId, loading, onLoad }) {
   const iframeRef = useRef(null);
 
   // Send pin mode state to iframe
@@ -53,6 +53,7 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
         title="Website Preview"
         className="w-full h-full border-0"
         sandbox="allow-scripts allow-same-origin allow-forms"
+        onLoad={onLoad}
       />
       {loading && (
         <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-10">

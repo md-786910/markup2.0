@@ -131,6 +131,11 @@ export default function ProjectView({ project, onProjectUpdate }) {
     }
   }, [iframeState.ready]);
 
+  // Fallback: also clear spinner when iframe's native load event fires
+  const handleIframeLoad = useCallback(() => {
+    setTimeout(() => setIframeLoading(false), 500);
+  }, []);
+
   const handlePinNavigate = (pin) => {
     setSelectedPin(pin);
     if (pin.pageUrl !== targetUrl) {
@@ -206,6 +211,7 @@ export default function ProjectView({ project, onProjectUpdate }) {
             pins={pins}
             selectedPinId={selectedPin?._id}
             loading={iframeLoading}
+            onLoad={handleIframeLoad}
           />
         </div>
 
