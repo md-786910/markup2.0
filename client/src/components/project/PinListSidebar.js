@@ -29,6 +29,7 @@ export default function PinListSidebar({
   onStatusChange,
   onDelete,
   onCommentAdded,
+  onEvent,
 }) {
   const [expandedPinId, setExpandedPinId] = useState(null);
   const [comments, setComments] = useState([]);
@@ -44,6 +45,29 @@ export default function PinListSidebar({
     }
     loadComments(expandedPinId);
   }, [expandedPinId]);
+
+  // Real-time: new comment on expanded pin
+  useEffect(() => {
+    if (!onEvent || !expandedPinId) return;
+    return onEvent('comment:created', (data) => {
+      if (data.pinId === expandedPinId) {
+        setComments((prev) => {
+          if (prev.some((c) => c._id === data.comment._id)) return prev;
+          return [...prev, data.comment];
+        });
+      }
+    });
+  }, [onEvent, expandedPinId]);
+
+  // Real-time: comment deleted from expanded pin
+  useEffect(() => {
+    if (!onEvent || !expandedPinId) return;
+    return onEvent('comment:deleted', (data) => {
+      if (data.pinId === expandedPinId) {
+        setComments((prev) => prev.filter((c) => c._id !== data.commentId));
+      }
+    });
+  }, [onEvent, expandedPinId]);
 
   const loadComments = async (pinId) => {
     setLoadingComments(true);

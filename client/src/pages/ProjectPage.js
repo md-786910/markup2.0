@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import ProjectView from '../components/project/ProjectView';
 import { getProjectApi } from '../services/projectService';
 
 export default function ProjectPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialPinId = searchParams.get('pin');
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,6 +47,7 @@ export default function ProjectPage() {
     <ProjectView
       project={project}
       onProjectUpdate={(updated) => setProject(updated)}
+      initialPinId={initialPinId}
     />
   );
 }

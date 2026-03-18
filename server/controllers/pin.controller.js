@@ -1,6 +1,7 @@
 const Pin = require('../models/Pin');
 const Comment = require('../models/Comment');
 const asyncHandler = require('../utils/asyncHandler');
+const { emitToProject, emailProjectMembers } = require('../utils/notifier');
 
 exports.createPin = asyncHandler(async (req, res) => {
   const { xPercent, yPercent, pageUrl } = req.body;
@@ -19,6 +20,17 @@ exports.createPin = asyncHandler(async (req, res) => {
   });
 
   const populated = await Pin.findById(pin._id).populate('createdBy', 'name email');
+
+  // Real-time + email notifications
+  const io = req.app.get('io');
+  emitToProject(io, projectId, 'pin:created', { pin: populated });
+  emailProjectMembers('pin', {
+    projectId,
+    actorUserId: req.user._id,
+    actorName: req.user.name,
+    projectName: req.project?.name || 'Unknown Project',
+    pin: populated,
+  }).catch(() => {});
 
   res.status(201).json({ pin: populated });
 });
@@ -99,6 +111,10 @@ exports.updatePin = asyncHandler(async (req, res) => {
 
   const populated = await Pin.findById(pin._id).populate('createdBy', 'name email');
 
+  // Real-time notification
+  const io = req.app.get('io');
+  emitToProject(io, pin.project.toString(), 'pin:updated', { pin: populated });
+
   res.json({ pin: populated });
 });
 
@@ -110,8 +126,14 @@ exports.deletePin = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Pin not found' });
   }
 
+  const projectId = pin.project.toString();
+
   await Comment.deleteMany({ pin: pinId });
   await Pin.findByIdAndDelete(pinId);
+
+  // Real-time notification
+  const io = req.app.get('io');
+  emitToProject(io, projectId, 'pin:deleted', { pinId });
 
   res.json({ message: 'Pin deleted' });
 });

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getCommentsApi, createCommentApi, deleteCommentApi } from '../../services/commentService';
 import { useAuth } from '../../hooks/useAuth';
 
-export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete }) {
+export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete, onEvent }) {
   const [comments, setComments] = useState([]);
   const [body, setBody] = useState('');
   const [files, setFiles] = useState([]);
@@ -16,6 +16,25 @@ export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete 
       loadComments();
     }
   }, [pin?._id]);
+
+  // Real-time comment updates
+  useEffect(() => {
+    if (!onEvent || !pin?._id) return;
+    const cleanup1 = onEvent('comment:created', (data) => {
+      if (data.pinId === pin._id) {
+        setComments((prev) => {
+          if (prev.some((c) => c._id === data.comment._id)) return prev;
+          return [...prev, data.comment];
+        });
+      }
+    });
+    const cleanup2 = onEvent('comment:deleted', (data) => {
+      if (data.pinId === pin._id) {
+        setComments((prev) => prev.filter((c) => c._id !== data.commentId));
+      }
+    });
+    return () => { cleanup1(); cleanup2(); };
+  }, [onEvent, pin?._id]);
 
   const loadComments = async () => {
     try {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import IframeContainer from "./IframeContainer";
 import CommentSidebar from "./CommentSidebar";
@@ -13,7 +13,9 @@ import {
   deletePinApi,
 } from "../../services/pinService";
 import { TOKEN_KEY } from "../../utils/constants";
-export default function ProjectView({ project, onProjectUpdate }) {
+import { useSocket } from "../../hooks/useSocket";
+
+export default function ProjectView({ project, onProjectUpdate, initialPinId }) {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [pins, setPins] = useState([]);
@@ -24,6 +26,8 @@ export default function ProjectView({ project, onProjectUpdate }) {
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
   const [iframeLoading, setIframeLoading] = useState(true);
   const iframeState = useIframeMessages();
+  const { onEvent } = useSocket(project._id);
+  const deepLinkHandled = useRef(false);
 
   const token = localStorage.getItem(TOKEN_KEY);
   const proxyUrl = `http://localhost:5000/api/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${project._id}&token=${token}`;
@@ -136,6 +140,89 @@ export default function ProjectView({ project, onProjectUpdate }) {
     setTimeout(() => setIframeLoading(false), 500);
   }, []);
 
+  // --- Socket.IO real-time event listeners ---
+
+  // Pin created by another member
+  useEffect(() => {
+    return onEvent('pin:created', (data) => {
+      setAllPins((prev) => {
+        if (prev.some((p) => p._id === data.pin._id)) return prev;
+        return [data.pin, ...prev];
+      });
+      setPins((prev) => {
+        if (data.pin.pageUrl !== currentPageUrl) return prev;
+        if (prev.some((p) => p._id === data.pin._id)) return prev;
+        return [data.pin, ...prev];
+      });
+    });
+  }, [onEvent, currentPageUrl]);
+
+  // Pin updated (status change)
+  useEffect(() => {
+    return onEvent('pin:updated', (data) => {
+      const updater = (prev) =>
+        prev.map((p) => (p._id === data.pin._id ? { ...p, ...data.pin } : p));
+      setPins(updater);
+      setAllPins(updater);
+      setSelectedPin((prev) =>
+        prev && prev._id === data.pin._id ? { ...prev, ...data.pin } : prev
+      );
+    });
+  }, [onEvent]);
+
+  // Pin deleted
+  useEffect(() => {
+    return onEvent('pin:deleted', (data) => {
+      setPins((prev) => prev.filter((p) => p._id !== data.pinId));
+      setAllPins((prev) => prev.filter((p) => p._id !== data.pinId));
+      setSelectedPin((prev) => (prev && prev._id === data.pinId ? null : prev));
+    });
+  }, [onEvent]);
+
+  // Comment created — update counts in pin lists
+  useEffect(() => {
+    return onEvent('comment:created', (data) => {
+      const updater = (prev) =>
+        prev.map((p) => {
+          if (p._id !== data.pinId) return p;
+          return {
+            ...p,
+            commentsCount: (p.commentsCount || 0) + 1,
+            latestComment: {
+              body: data.comment.body,
+              author: data.comment.author,
+              createdAt: data.comment.createdAt,
+            },
+          };
+        });
+      setPins(updater);
+      setAllPins(updater);
+    });
+  }, [onEvent]);
+
+  // Comment deleted — decrement count
+  useEffect(() => {
+    return onEvent('comment:deleted', (data) => {
+      const updater = (prev) =>
+        prev.map((p) => {
+          if (p._id !== data.pinId) return p;
+          return { ...p, commentsCount: Math.max(0, (p.commentsCount || 1) - 1) };
+        });
+      setPins(updater);
+      setAllPins(updater);
+    });
+  }, [onEvent]);
+
+  // --- Deep-link from email: navigate to pin ---
+  useEffect(() => {
+    if (!initialPinId || allPins.length === 0 || deepLinkHandled.current) return;
+    const targetPin = allPins.find((p) => p._id === initialPinId);
+    if (targetPin) {
+      deepLinkHandled.current = true;
+      handlePinNavigate(targetPin);
+    }
+  }, [initialPinId, allPins]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handlePinNavigate = (pin) => {
     setSelectedPin(pin);
     if (pin.pageUrl !== targetUrl) {
@@ -200,6 +287,7 @@ export default function ProjectView({ project, onProjectUpdate }) {
           onStatusChange={handleStatusChange}
           onDelete={handleDeletePin}
           onCommentAdded={() => { loadAllPins(); loadPins(); }}
+          onEvent={onEvent}
         />
 
         {/* Iframe area */}
@@ -222,6 +310,7 @@ export default function ProjectView({ project, onProjectUpdate }) {
             onClose={() => setSelectedPin(null)}
             onStatusChange={handleStatusChange}
             onDelete={handleDeletePin}
+            onEvent={onEvent}
           />
         )}
       </div>
