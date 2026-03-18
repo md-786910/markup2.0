@@ -87,7 +87,7 @@ export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete,
   if (!pin) return null;
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
+    <div className="absolute right-0 top-0 bottom-0 w-80 bg-white border-l border-gray-200 flex flex-col h-full z-20 shadow-lg">
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-200">
         <div className="flex items-center justify-between">

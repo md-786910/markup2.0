@@ -329,18 +329,18 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
             loading={iframeLoading}
             onLoad={handleIframeLoad}
           />
-        </div>
 
-        {/* Right comment sidebar */}
-        {selectedPin && (
-          <CommentSidebar
-            pin={selectedPin}
-            onClose={() => setSelectedPin(null)}
-            onStatusChange={handleStatusChange}
-            onDelete={handleDeletePin}
-            onEvent={onEvent}
-          />
-        )}
+          {/* Right comment sidebar - overlays iframe, doesn't push it */}
+          {selectedPin && (
+            <CommentSidebar
+              pin={selectedPin}
+              onClose={() => setSelectedPin(null)}
+              onStatusChange={handleStatusChange}
+              onDelete={handleDeletePin}
+              onEvent={onEvent}
+            />
+          )}
+        </div>
       </div>
 
       {/* New pin comment popup */}
