@@ -4,6 +4,7 @@ import IframeContainer from "./IframeContainer";
 import CommentSidebar from "./CommentSidebar";
 import PinListSidebar from "./PinListSidebar";
 import InviteMemberModal from "./InviteMemberModal";
+import NewPinCommentPopup from "./NewPinCommentPopup";
 import { useAuth } from "../../hooks/useAuth";
 import { useIframeMessages } from "../../hooks/useIframeMessages";
 import {
@@ -23,6 +24,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [selectedPin, setSelectedPin] = useState(null);
   const [pinMode, setPinMode] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [newlyCreatedPin, setNewlyCreatedPin] = useState(null);
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
   const [iframeLoading, setIframeLoading] = useState(true);
   const iframeState = useIframeMessages();
@@ -87,7 +89,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         elementOffsetY,
       })
         .then((res) => {
-          setSelectedPin(res.data.pin);
+          setNewlyCreatedPin(res.data.pin);
           setPinMode(false);
           loadPins();
           loadAllPins();
@@ -338,6 +340,15 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           />
         )}
       </div>
+
+      {/* New pin comment popup */}
+      {newlyCreatedPin && (
+        <NewPinCommentPopup
+          pin={newlyCreatedPin}
+          onClose={() => setNewlyCreatedPin(null)}
+          onCommentAdded={() => { loadPins(); loadAllPins(); }}
+        />
+      )}
 
       {/* Invite modal */}
       <InviteMemberModal
