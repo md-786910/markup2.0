@@ -35,14 +35,50 @@ connectDB()
       }
     });
 
-    // Connection handler — room management
+    // Connection handler — room management + presence tracking
     io.on("connection", (socket) => {
       socket.on("join:project", (projectId) => {
         socket.join(`project:${projectId}`);
+        socket.data.projectId = projectId;
+
+        // Broadcast to others that this user is online
+        socket.to(`project:${projectId}`).emit("presence:joined", {
+          userId: socket.user._id.toString(),
+          name: socket.user.name,
+        });
+
+        // Send current online user list to the newly joined user
+        const room = io.sockets.adapter.rooms.get(`project:${projectId}`);
+        if (room) {
+          const onlineUserIds = [];
+          for (const sid of room) {
+            const s = io.sockets.sockets.get(sid);
+            if (s?.user?._id) onlineUserIds.push(s.user._id.toString());
+          }
+          socket.emit("presence:online", { userIds: onlineUserIds });
+        }
       });
 
       socket.on("leave:project", (projectId) => {
         socket.leave(`project:${projectId}`);
+        const now = new Date();
+        User.findByIdAndUpdate(socket.user._id, { lastSeen: now }).catch(() => {});
+        socket.to(`project:${projectId}`).emit("presence:left", {
+          userId: socket.user._id.toString(),
+          lastSeen: now.toISOString(),
+        });
+      });
+
+      socket.on("disconnect", () => {
+        const projectId = socket.data.projectId;
+        if (projectId) {
+          const now = new Date();
+          User.findByIdAndUpdate(socket.user._id, { lastSeen: now }).catch(() => {});
+          socket.to(`project:${projectId}`).emit("presence:left", {
+            userId: socket.user._id.toString(),
+            lastSeen: now.toISOString(),
+          });
+        }
       });
     });
 

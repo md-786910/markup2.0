@@ -24,6 +24,10 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'member'],
     default: 'member',
   },
+  lastSeen: {
+    type: Date,
+    default: null,
+  },
 }, { timestamps: true });
 
 userSchema.pre('save', async function () {

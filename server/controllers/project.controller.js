@@ -27,15 +27,15 @@ exports.createProject = asyncHandler(async (req, res) => {
 exports.getProjects = asyncHandler(async (req, res) => {
   const projects = await Project.find({
     members: req.user._id,
-  }).populate('owner', 'name email').populate('members', 'name email role');
+  }).populate('owner', 'name email lastSeen').populate('members', 'name email role lastSeen');
 
   res.json({ projects });
 });
 
 exports.getProject = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.projectId)
-    .populate('owner', 'name email')
-    .populate('members', 'name email role');
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen');
 
   res.json({ project });
 });
@@ -54,8 +54,8 @@ exports.updateProject = asyncHandler(async (req, res) => {
   await project.save();
 
   const updated = await Project.findById(project._id)
-    .populate('owner', 'name email')
-    .populate('members', 'name email role');
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen');
 
   res.json({ project: updated });
 });
@@ -99,8 +99,8 @@ exports.inviteMember = asyncHandler(async (req, res) => {
     await project.save();
 
     const updated = await Project.findById(project._id)
-      .populate('owner', 'name email')
-      .populate('members', 'name email role');
+      .populate('owner', 'name email lastSeen')
+      .populate('members', 'name email role lastSeen');
 
     return res.json({ project: updated });
   }
@@ -167,8 +167,8 @@ exports.updateMemberRole = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(userId, { role });
 
   const updated = await Project.findById(project._id)
-    .populate('owner', 'name email')
-    .populate('members', 'name email role');
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen');
 
   res.json({ project: updated });
 });
@@ -190,8 +190,8 @@ exports.removeMember = asyncHandler(async (req, res) => {
   await project.save();
 
   const updated = await Project.findById(project._id)
-    .populate('owner', 'name email')
-    .populate('members', 'name email role');
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen');
 
   res.json({ project: updated });
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import IframeContainer from "./IframeContainer";
 import CommentSidebar from "./CommentSidebar";
@@ -16,6 +16,31 @@ import {
 import { TOKEN_KEY } from "../../utils/constants";
 import { useSocket } from "../../hooks/useSocket";
 
+const AVATAR_COLORS = [
+  { bg: 'bg-blue-100', text: 'text-blue-700' },
+  { bg: 'bg-purple-100', text: 'text-purple-700' },
+  { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  { bg: 'bg-amber-100', text: 'text-amber-700' },
+  { bg: 'bg-rose-100', text: 'text-rose-700' },
+  { bg: 'bg-cyan-100', text: 'text-cyan-700' },
+  { bg: 'bg-indigo-100', text: 'text-indigo-700' },
+  { bg: 'bg-teal-100', text: 'text-teal-700' },
+];
+
+function getInitials(name) {
+  if (!name) return '??';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function getAvatarColor(id) {
+  let hash = 0;
+  const str = id || '';
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
 export default function ProjectView({ project, onProjectUpdate, initialPinId }) {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
@@ -28,8 +53,49 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
   const [iframeLoading, setIframeLoading] = useState(true);
   const iframeState = useIframeMessages();
-  const { onEvent } = useSocket(project._id);
+  const { onEvent, onlineUsers, lastSeenMap } = useSocket(project._id);
   const deepLinkHandled = useRef(false);
+
+  // Combine owner + members into a unique list for avatar display
+  const allMembers = useMemo(() => {
+    const seen = new Set();
+    const list = [];
+    const add = (u) => {
+      if (u && u._id && !seen.has(u._id)) {
+        seen.add(u._id);
+        list.push(u);
+      }
+    };
+    add(project.owner);
+    (project.members || []).forEach(add);
+    return list;
+  }, [project.owner, project.members]);
+
+  const formatLastSeen = useCallback((dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHr = Math.floor(diffMin / 60);
+    const diffDays = Math.floor(diffHr / 24);
+
+    if (diffSec < 60) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffHr < 24) return `${diffHr}h ago`;
+    if (diffDays === 1) return 'yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }, []);
+
+  const getMemberTooltip = useCallback((member) => {
+    const name = member.name || member.email;
+    if (onlineUsers.has(member._id)) return `${name} — Online`;
+    const lastSeen = lastSeenMap[member._id] || member.lastSeen;
+    if (lastSeen) return `${name} — Last seen ${formatLastSeen(lastSeen)}`;
+    return name;
+  }, [onlineUsers, lastSeenMap, formatLastSeen]);
 
   const token = localStorage.getItem(TOKEN_KEY);
   const proxyUrl = `${process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api'}/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${project._id}&token=${token}`;
@@ -281,6 +347,30 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           </span>
         </div>
         <div className="flex items-center gap-3">
+          {/* Member avatars with online/offline status */}
+          <div className="flex items-center -space-x-2">
+            {allMembers.slice(0, 5).map((member) => {
+              const color = getAvatarColor(member._id);
+              return (
+              <div key={member._id} className="relative" title={getMemberTooltip(member)}>
+                <div className={`w-7 h-7 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-[10px] font-bold border-2 border-white`}>
+                  {getInitials(member.name || member.email)}
+                </div>
+                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                  onlineUsers.has(member._id) ? 'bg-green-500' : 'bg-gray-300'
+                }`} />
+              </div>
+              );
+            })}
+            {allMembers.length > 5 && (
+              <div className="w-7 h-7 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold border-2 border-white">
+                +{allMembers.length - 5}
+              </div>
+            )}
+          </div>
+
+          <div className="w-px h-5 bg-gray-200"></div>
+
           <button
             onClick={() => setPinMode(!pinMode)}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${

@@ -6,11 +6,14 @@ const SOCKET_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:5000';
 
 /**
  * Hook that connects to Socket.IO, joins a project room,
+ * tracks online presence with last-seen timestamps,
  * and provides a method to subscribe to events.
  */
 export function useSocket(projectId) {
   const socketRef = useRef(null);
   const [socketVersion, setSocketVersion] = useState(0);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
+  const [lastSeenMap, setLastSeenMap] = useState({});
 
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY);
@@ -29,6 +32,26 @@ export function useSocket(projectId) {
       console.error('Socket connection error:', err.message);
     });
 
+    // Presence tracking
+    socket.on('presence:online', ({ userIds }) => {
+      setOnlineUsers(new Set(userIds));
+    });
+
+    socket.on('presence:joined', ({ userId }) => {
+      setOnlineUsers((prev) => new Set([...prev, userId]));
+    });
+
+    socket.on('presence:left', ({ userId, lastSeen }) => {
+      setOnlineUsers((prev) => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
+      if (lastSeen) {
+        setLastSeenMap((prev) => ({ ...prev, [userId]: lastSeen }));
+      }
+    });
+
     socketRef.current = socket;
     setSocketVersion((v) => v + 1);
 
@@ -36,6 +59,8 @@ export function useSocket(projectId) {
       socket.emit('leave:project', projectId);
       socket.disconnect();
       socketRef.current = null;
+      setOnlineUsers(new Set());
+      setLastSeenMap({});
     };
   }, [projectId]);
 
@@ -46,5 +71,5 @@ export function useSocket(projectId) {
     return () => socket.off(event, handler);
   }, [socketVersion]);
 
-  return { onEvent };
+  return { onEvent, onlineUsers, lastSeenMap };
 }
