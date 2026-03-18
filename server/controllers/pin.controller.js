@@ -11,6 +11,13 @@ exports.createPin = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'xPercent, yPercent, and pageUrl are required' });
   }
 
+  // Get next incremental pin number for this project
+  const lastPin = await Pin.findOne({ project: projectId })
+    .sort({ pinNumber: -1 })
+    .select('pinNumber')
+    .lean();
+  const pinNumber = (lastPin?.pinNumber || 0) + 1;
+
   const pin = await Pin.create({
     project: projectId,
     pageUrl,
@@ -20,6 +27,7 @@ exports.createPin = asyncHandler(async (req, res) => {
     selector: selector || null,
     elementOffsetX: elementOffsetX != null ? elementOffsetX : null,
     elementOffsetY: elementOffsetY != null ? elementOffsetY : null,
+    pinNumber,
   });
 
   const populated = await Pin.findById(pin._id).populate('createdBy', 'name email');

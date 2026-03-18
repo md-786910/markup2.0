@@ -177,7 +177,7 @@ export default function PinListSidebar({
                         ? 'bg-emerald-500 text-white'
                         : 'bg-blue-500 text-white'
                     }`}>
-                      {idx + 1}
+                      {pin.pinNumber || (idx + 1)}
                     </span>
                     {pin.status === 'resolved' && (
                       <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-white rounded-full flex items-center justify-center">
@@ -199,7 +199,7 @@ export default function PinListSidebar({
                       </span>
                     </div>
                     <span className="text-[11px] text-gray-700 font-bold">
-                      Pin #{idx + 1}
+                      Pin #{pin.pinNumber || (idx + 1)}
                     </span>
                     {pin.latestComment ? (
                       <p className="text-[12px] text-gray-500 mt-1 truncate leading-relaxed">

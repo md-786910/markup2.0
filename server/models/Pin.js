@@ -40,6 +40,10 @@ const pinSchema = new Schema({
     type: Number,
     default: null,
   },
+  pinNumber: {
+    type: Number,
+    default: null,
+  },
   status: {
     type: String,
     enum: ['pending', 'resolved'],
@@ -48,5 +52,6 @@ const pinSchema = new Schema({
 }, { timestamps: true });
 
 pinSchema.index({ project: 1, pageUrl: 1 });
+pinSchema.index({ project: 1, pinNumber: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Pin', pinSchema);

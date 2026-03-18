@@ -549,7 +549,7 @@ function injectScript(html, pageUrl, projectId, serverBase) {
         + 'left:' + (pos.left - 14) + 'px;top:' + (pos.top - 14) + 'px;'
         + 'transform:' + scale + ';transition:transform 0.15s;'
         + 'box-shadow:0 2px 6px rgba(0,0,0,0.3);z-index:1000000;';
-      el.textContent = index + 1;
+      el.textContent = pin.pinNumber || (index + 1);
 
       el.addEventListener('click', function(e) {
         e.preventDefault();
