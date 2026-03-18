@@ -17,7 +17,7 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
       const entry = entries[0];
       if (entry) {
         const { width, height } = entry.contentRect;
-        setScaleFactor(Math.min(width / FIXED_WIDTH, 1));
+        setScaleFactor(width / FIXED_WIDTH);
         setContainerSize({ width, height });
       }
     });
@@ -74,11 +74,6 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
     return () => iframe.removeEventListener('load', sendPins);
   }, [pins, selectedPinId]);
 
-  // Center the iframe when container is wider than FIXED_WIDTH
-  const leftOffset = containerSize.width > FIXED_WIDTH
-    ? (containerSize.width - FIXED_WIDTH) / 2
-    : 0;
-
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden">
       <iframe
@@ -90,7 +85,6 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
           height: `${containerSize.height / scaleFactor}px`,
           transform: `scale(${scaleFactor})`,
           transformOrigin: 'top left',
-          marginLeft: `${leftOffset}px`,
           border: 'none',
         }}
         sandbox="allow-scripts allow-same-origin allow-forms"
