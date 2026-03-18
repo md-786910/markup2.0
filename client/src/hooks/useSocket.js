@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { TOKEN_KEY } from '../utils/constants';
 
@@ -10,6 +10,7 @@ const SOCKET_URL = 'http://localhost:5000';
  */
 export function useSocket(projectId) {
   const socketRef = useRef(null);
+  const [socketVersion, setSocketVersion] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY);
@@ -29,6 +30,7 @@ export function useSocket(projectId) {
     });
 
     socketRef.current = socket;
+    setSocketVersion((v) => v + 1);
 
     return () => {
       socket.emit('leave:project', projectId);
@@ -42,7 +44,7 @@ export function useSocket(projectId) {
     if (!socket) return () => {};
     socket.on(event, handler);
     return () => socket.off(event, handler);
-  }, []);
+  }, [socketVersion]);
 
   return { onEvent };
 }

@@ -21,6 +21,38 @@ function rewriteCssUrls(css, baseUrl, projectId, serverBase) {
   });
 }
 
+function rewriteJsUrls(js, pageUrl, projectId, serverBase) {
+  let pageOrigin;
+  try { pageOrigin = new URL(pageUrl).origin; } catch { return js; }
+
+  const proxyBase = `${serverBase}/api/proxy?`;
+
+  function buildProxy(path) {
+    const abs = new URL(path, pageOrigin).href;
+    return `${proxyBase}url=${encodeURIComponent(abs)}&projectId=${projectId}`;
+  }
+
+  return js
+    // Static ES module imports: from "/path..."
+    .replace(/(from\s*)(["'])(\/[^"']+)\2/g, (match, prefix, quote, path) => {
+      if (path.indexOf('/api/proxy?') !== -1) return match;
+      try { return `${prefix}${quote}${buildProxy(path)}${quote}`; }
+      catch { return match; }
+    })
+    // Dynamic imports: import("/path...")
+    .replace(/(import\s*\(\s*)(["'])(\/[^"']+)\2(\s*\))/g, (match, prefix, quote, path, suffix) => {
+      if (path.indexOf('/api/proxy?') !== -1) return match;
+      try { return `${prefix}${quote}${buildProxy(path)}${quote}${suffix}`; }
+      catch { return match; }
+    })
+    // Quoted absolute paths under known asset directories
+    .replace(/(["'])(\/(?:assets|static|_next|__next|build|dist|chunks?|js|css|media|fonts)\/.+?)\1/g, (match, quote, path) => {
+      if (path.indexOf('/api/proxy?') !== -1) return match;
+      try { return `${quote}${buildProxy(path)}${quote}`; }
+      catch { return match; }
+    });
+}
+
 function rewriteHtml(html, pageUrl, projectId, serverBase) {
   const $ = cheerio.load(html, { decodeEntities: false });
 
@@ -172,6 +204,10 @@ function injectScript(html, pageUrl, projectId, serverBase) {
   var __markupServerBase = '${safeServerBase}';
   var __markupProjectId = '${projectId}';
   var __markupPageOrigin = '${safePageOrigin}';
+  var __markupToken = '';
+  try {
+    __markupToken = new URLSearchParams(window.location.search).get('token') || '';
+  } catch(e) {}
   var pinMode = false;
   var pins = [];
   var pinContainer = null;
@@ -184,16 +220,13 @@ function injectScript(html, pageUrl, projectId, serverBase) {
     if (rawUrl.indexOf('/api/proxy?') !== -1) return rawUrl;
     try {
       var abs = new URL(rawUrl, __markupPageOrigin).href;
-      return __markupServerBase + '/api/proxy?url=' + encodeURIComponent(abs) + '&projectId=' + __markupProjectId;
+      return __markupServerBase + '/api/proxy?url=' + encodeURIComponent(abs) + '&projectId=' + __markupProjectId + '&token=' + encodeURIComponent(__markupToken);
     } catch(e) { return rawUrl; }
   }
 
   function needsProxy(url) {
     if (!url || url.indexOf('/api/proxy?') !== -1) return false;
-    try {
-      var parsed = new URL(url, location.href);
-      return parsed.origin !== location.origin;
-    } catch(e) { return false; }
+    return true;
   }
 
   // --- Intercept XMLHttpRequest to route through proxy ---
@@ -215,6 +248,64 @@ function injectScript(html, pageUrl, projectId, serverBase) {
     }
     return _fetch.call(this, input, init);
   };
+
+  // --- Mirror localStorage auth tokens to cookies for server-side proxy access ---
+  // When the proxied app stores JWT tokens in localStorage, we mirror them to cookies
+  // so the catch-all redirect and proxy can forward them to the upstream server.
+  var _lsSetItem = Storage.prototype.setItem;
+  Storage.prototype.setItem = function(key, value) {
+    _lsSetItem.apply(this, arguments);
+    if (/token|auth|session|jwt|access/i.test(key) && typeof value === 'string' && value.length < 4096) {
+      try { document.cookie = '__markup_ls_' + encodeURIComponent(key) + '=' + encodeURIComponent(value) + '; path=/; max-age=86400; samesite=lax'; } catch(e) {}
+    }
+  };
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var lsKey = localStorage.key(i);
+      if (/token|auth|session|jwt|access/i.test(lsKey)) {
+        var lsVal = localStorage.getItem(lsKey);
+        if (lsVal && lsVal.length < 4096) {
+          document.cookie = '__markup_ls_' + encodeURIComponent(lsKey) + '=' + encodeURIComponent(lsVal) + '; path=/; max-age=86400; samesite=lax';
+        }
+      }
+    }
+  } catch(e) {}
+
+  // --- Intercept history.pushState / replaceState for SPA navigation ---
+  var _pushState = history.pushState;
+  var _replaceState = history.replaceState;
+
+  history.pushState = function(state, title, url) {
+    if (url) {
+      try {
+        var resolved = new URL(url, __markupPageOrigin);
+        var originalPath = resolved.pathname + resolved.search + resolved.hash;
+        _pushState.call(this, state, title, originalPath);
+        window.parent.postMessage({ type: 'MARKUP_READY', pageUrl: resolved.href, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight }, '*');
+        return;
+      } catch(e) {}
+    }
+    return _pushState.apply(this, arguments);
+  };
+
+  history.replaceState = function(state, title, url) {
+    if (url) {
+      try {
+        var resolved = new URL(url, __markupPageOrigin);
+        var originalPath = resolved.pathname + resolved.search + resolved.hash;
+        return _replaceState.call(this, state, title, originalPath);
+      } catch(e) {}
+    }
+    return _replaceState.apply(this, arguments);
+  };
+
+  // --- Set pathname to match original URL so SPA routers match the correct route ---
+  // This runs BEFORE deferred module scripts (Vite/CRA), so React Router sees the
+  // original path (e.g. "/company") instead of "/api/proxy".
+  try {
+    var _origUrl = new URL(__markupPageUrl);
+    _replaceState.call(history, null, '', _origUrl.pathname + _origUrl.search + _origUrl.hash);
+  } catch(e) {}
 
   function init() {
     // Create pin container
@@ -279,6 +370,61 @@ function injectScript(html, pageUrl, projectId, serverBase) {
         documentHeight: doc.scrollHeight
       });
     }, true);
+
+    // --- Intercept <a> clicks for SPA-style navigation ---
+    // Runs in bubbling phase AFTER React Router / framework handlers.
+    // If the framework already prevented default, we skip (no double-nav).
+    document.addEventListener('click', function(e) {
+        if (pinMode) return;
+        if (e.defaultPrevented) return;
+
+        var anchor = e.target;
+        while (anchor && anchor.tagName !== 'A') anchor = anchor.parentElement;
+        if (!anchor) return;
+
+        var href = anchor.getAttribute('href');
+        if (!href || href.startsWith('#') || href.startsWith('javascript:') ||
+            href.startsWith('mailto:') || href.startsWith('tel:')) return;
+
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        var tgt = anchor.getAttribute('target');
+        if (tgt && tgt !== '_self') return;
+
+        var targetUrl;
+        if (href.indexOf('/api/proxy?') !== -1) {
+            try {
+                var params = new URLSearchParams(href.substring(href.indexOf('?')));
+                targetUrl = params.get('url');
+            } catch(ex) { return; }
+        } else {
+            try { targetUrl = new URL(href, __markupPageOrigin).href; }
+            catch(ex) { return; }
+        }
+
+        if (!targetUrl) return;
+
+        try {
+            var parsed = new URL(targetUrl);
+            if (parsed.origin === __markupPageOrigin) {
+                e.preventDefault();
+                var newPath = parsed.pathname + parsed.search + parsed.hash;
+                history.pushState(null, '', newPath);
+                window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+
+                // Fallback for non-SPA sites (WordPress etc.): if no framework
+                // handles the popstate, do a full page navigation through the proxy.
+                var _fallbackTimer = setTimeout(function() {
+                    _fallbackObs.disconnect();
+                    window.location.href = toProxy(targetUrl);
+                }, 150);
+                var _fallbackObs = new MutationObserver(function() {
+                    clearTimeout(_fallbackTimer);
+                    _fallbackObs.disconnect();
+                });
+                _fallbackObs.observe(document.body, { childList: true, subtree: true });
+            }
+        } catch(ex) {}
+    }, false);
 
     // Listen for messages from parent
     window.addEventListener('message', function(e) {
@@ -515,4 +661,4 @@ function injectScript(html, pageUrl, projectId, serverBase) {
   return html + injectionScript;
 }
 
-module.exports = { rewriteHtml, rewriteCssUrls, injectScript };
+module.exports = { rewriteHtml, rewriteCssUrls, rewriteJsUrls, injectScript };

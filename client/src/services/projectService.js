@@ -6,8 +6,8 @@ export const getProjectsApi = () =>
 export const createProjectApi = (name, websiteUrl) =>
   api.post('/projects', { name, websiteUrl });
 
-export const getProjectApi = (projectId) =>
-  api.get(`/projects/${projectId}`);
+export const getProjectApi = (projectId, signal) =>
+  api.get(`/projects/${projectId}`, { signal });
 
 export const updateProjectApi = (projectId, data) =>
   api.patch(`/projects/${projectId}`, data);

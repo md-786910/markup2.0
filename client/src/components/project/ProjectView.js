@@ -52,13 +52,27 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     }
   }, [project._id]);
 
+  // Auto-fetch pins with cancellation when deps change
   useEffect(() => {
-    loadPins();
-  }, [loadPins]);
+    const controller = new AbortController();
+    getPinsApi(project._id, currentPageUrl, controller.signal)
+      .then((res) => setPins(res.data.pins))
+      .catch((err) => {
+        if (err.name !== 'CanceledError') console.error("Failed to load pins:", err);
+      });
+    return () => controller.abort();
+  }, [project._id, currentPageUrl]);
 
+  // Auto-fetch all pins with cancellation
   useEffect(() => {
-    loadAllPins();
-  }, [loadAllPins]);
+    const controller = new AbortController();
+    getPinsApi(project._id, undefined, controller.signal)
+      .then((res) => setAllPins(res.data.pins))
+      .catch((err) => {
+        if (err.name !== 'CanceledError') console.error("Failed to load all pins:", err);
+      });
+    return () => controller.abort();
+  }, [project._id]);
 
   // Handle clicks from iframe (new pin creation)
   useEffect(() => {
@@ -137,6 +151,13 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
       setIframeLoading(false);
     }
   }, [iframeState.ready]);
+
+  // Hard timeout fallback: if iframe hasn't loaded within 15s, remove spinner
+  useEffect(() => {
+    if (!iframeLoading) return;
+    const timer = setTimeout(() => setIframeLoading(false), 15000);
+    return () => clearTimeout(timer);
+  }, [iframeLoading]);
 
   // Fallback: also clear spinner when iframe's native load event fires
   const handleIframeLoad = useCallback(() => {

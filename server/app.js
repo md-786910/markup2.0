@@ -41,6 +41,23 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Catch-all: redirect unmatched requests through proxy when a proxy context cookie exists.
+// Handles window.location navigations from inside the proxied iframe
+// (e.g., after login redirect: window.location.href = '/employee/dashboard').
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  const ctxCookie = req.cookies && req.cookies.__markup_proxy_ctx;
+  if (!ctxCookie) return next();
+  try {
+    const { origin, projectId, token } = JSON.parse(ctxCookie);
+    if (!origin || !projectId) return next();
+    const targetUrl = origin + req.originalUrl;
+    return res.redirect(307, `/api/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${encodeURIComponent(projectId)}&token=${encodeURIComponent(token || '')}`);
+  } catch {
+    return next();
+  }
+});
+
 // Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import ProjectList from '../components/dashboard/ProjectList';
 import CreateProjectModal from '../components/dashboard/CreateProjectModal';
@@ -17,11 +17,15 @@ export default function DashboardPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const initialLoadDone = useRef(false);
 
   const loadProjects = useCallback(() => {
-    setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
     getProjectsApi()
-      .then((res) => setProjects(res.data.projects))
+      .then((res) => {
+        setProjects(res.data.projects);
+        initialLoadDone.current = true;
+      })
       .catch((err) => console.error('Failed to load projects:', err))
       .finally(() => setLoading(false));
   }, []);
@@ -256,8 +260,13 @@ function EditProjectModal({ project, onClose, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    await onSave(project, { name, websiteUrl });
-    setLoading(false);
+    try {
+      await onSave(project, { name, websiteUrl });
+    } catch (err) {
+      console.error('Failed to save project:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

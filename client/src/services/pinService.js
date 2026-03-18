@@ -1,8 +1,8 @@
 import api from './api';
 
-export const getPinsApi = (projectId, pageUrl) => {
+export const getPinsApi = (projectId, pageUrl, signal) => {
   const params = pageUrl ? { pageUrl } : {};
-  return api.get(`/projects/${projectId}/pins`, { params });
+  return api.get(`/projects/${projectId}/pins`, { params, signal });
 };
 
 export const createPinApi = (projectId, data) =>

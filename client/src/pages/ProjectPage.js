@@ -13,15 +13,24 @@ export default function ProjectPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getProjectApi(projectId)
-      .then((res) => setProject(res.data.project))
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
+    getProjectApi(projectId, controller.signal)
+      .then((res) => {
+        if (!controller.signal.aborted) setProject(res.data.project);
+      })
       .catch((err) => {
+        if (controller.signal.aborted) return;
         setError(err.response?.data?.message || 'Failed to load project');
         if (err.response?.status === 404 || err.response?.status === 403) {
           setTimeout(() => navigate('/dashboard'), 2000);
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [projectId, navigate]);
 
   if (loading) {

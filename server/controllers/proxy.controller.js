@@ -4,6 +4,7 @@ const Project = require("../models/Project");
 const {
   rewriteHtml,
   rewriteCssUrls,
+  rewriteJsUrls,
   injectScript,
 } = require("../utils/proxyRewriter");
 const asyncHandler = require("../utils/asyncHandler");
@@ -130,7 +131,9 @@ exports.proxyPage = asyncHandler(async (req, res) => {
   }
 
   try {
-    const response = await axios.get(url, {
+    const axiosConfig = {
+      method: req.method,
+      url: url,
       responseType: "arraybuffer",
       headers: {
         "User-Agent":
@@ -142,9 +145,68 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       maxRedirects: 5,
       timeout: 15000,
       httpsAgent: new https.Agent({ rejectUnauthorized: false }),
-    });
+    };
+
+    // Forward cookies from client to upstream (exclude our internal cookies)
+    const internalCookies = new Set(['__markup_proxy_ctx', 'markup_token']);
+    const upstreamCookies = Object.entries(req.cookies || {})
+      .filter(([name]) => !internalCookies.has(name) && !name.startsWith('__markup_'))
+      .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
+      .join('; ');
+    if (upstreamCookies) {
+      axiosConfig.headers['Cookie'] = upstreamCookies;
+    }
+
+    // Forward Authorization header from proxied app's requests
+    if (req.headers['authorization']) {
+      axiosConfig.headers['Authorization'] = req.headers['authorization'];
+    }
+
+    // Check for mirrored localStorage auth tokens (prefixed __markup_ls_)
+    if (!axiosConfig.headers['Authorization']) {
+      const lsAuth = Object.entries(req.cookies || {})
+        .find(([name]) => name.startsWith('__markup_ls_') && /token|auth|jwt|access/i.test(name));
+      if (lsAuth) {
+        axiosConfig.headers['Authorization'] = 'Bearer ' + lsAuth[1];
+      }
+    }
+
+    // Forward body and Content-Type for non-GET/HEAD requests (POST, PUT, PATCH, DELETE)
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      const incomingContentType = req.headers['content-type'] || '';
+      if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+        if (incomingContentType.includes('application/json')) {
+          axiosConfig.data = JSON.stringify(req.body);
+          axiosConfig.headers['Content-Type'] = 'application/json';
+        } else if (incomingContentType.includes('application/x-www-form-urlencoded')) {
+          axiosConfig.data = new URLSearchParams(req.body).toString();
+          axiosConfig.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+        } else {
+          axiosConfig.data = req.body;
+          if (incomingContentType) axiosConfig.headers['Content-Type'] = incomingContentType;
+        }
+      } else if (req.body) {
+        axiosConfig.data = req.body;
+        if (req.headers['content-type']) axiosConfig.headers['Content-Type'] = req.headers['content-type'];
+      }
+    }
+
+    const response = await axios(axiosConfig);
 
     const contentType = response.headers["content-type"] || "";
+
+    // Rewrite upstream Set-Cookie headers so browser stores them for localhost
+    const upstreamSetCookies = response.headers['set-cookie'];
+    if (upstreamSetCookies) {
+      const setCookies = Array.isArray(upstreamSetCookies) ? upstreamSetCookies : [upstreamSetCookies];
+      const rewritten = setCookies.map(c =>
+        c.replace(/;\s*Domain=[^;]*/gi, '')
+         .replace(/;\s*Secure/gi, '')
+         .replace(/;\s*SameSite=[^;]*/gi, '')
+        + '; SameSite=Lax'
+      );
+      res.setHeader('Set-Cookie', rewritten);
+    }
 
     // Only forward safe headers from upstream, skip ones that conflict
     const headersToSkip = new Set([
@@ -157,6 +219,7 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       "connection",
       "keep-alive",
       "strict-transport-security",
+      "set-cookie",
     ]);
 
     Object.entries(response.headers).forEach(([key, value]) => {
@@ -165,7 +228,20 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       }
     });
 
-    if (contentType.includes("text/html")) {
+    // Only rewrite HTML/CSS/JS for GET requests; non-GET responses (API JSON etc.) pass through
+    const isGetRequest = req.method === 'GET';
+
+    if (isGetRequest && contentType.includes("text/html")) {
+      // Store proxy context cookie for catch-all fallback (handles window.location navigations)
+      try {
+        const pageOrigin = new URL(url).origin;
+        res.cookie('__markup_proxy_ctx', JSON.stringify({
+          origin: pageOrigin,
+          projectId,
+          token: req.query.token || '',
+        }), { httpOnly: false, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 });
+      } catch {}
+
       const html = response.data.toString("utf-8");
       let rewritten = rewriteHtml(html, url, projectId, serverBase);
       rewritten = injectScript(rewritten, url, projectId, serverBase);
@@ -173,14 +249,23 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       return res.send(rewritten);
     }
 
-    if (contentType.includes("text/css")) {
+    if (isGetRequest && contentType.includes("text/css")) {
       const css = response.data.toString("utf-8");
       const rewritten = rewriteCssUrls(css, url, projectId, serverBase);
       res.setHeader("Content-Type", contentType);
       return res.send(rewritten);
     }
 
-    // For everything else (JS, images, fonts), pass through
+    // Rewrite URLs inside JavaScript files (fixes Vite/ESM imports)
+    if (isGetRequest && (contentType.includes("javascript") || contentType.includes("text/javascript") ||
+        contentType.includes("application/x-javascript"))) {
+      const js = response.data.toString("utf-8");
+      const rewritten = rewriteJsUrls(js, url, projectId, serverBase);
+      res.setHeader("Content-Type", contentType);
+      return res.send(rewritten);
+    }
+
+    // For everything else (images, fonts, etc.), pass through
     res.setHeader("Content-Type", contentType);
     return res.send(response.data);
   } catch (err) {

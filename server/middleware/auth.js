@@ -5,11 +5,13 @@ const asyncHandler = require('../utils/asyncHandler');
 const auth = asyncHandler(async (req, res, next) => {
   let token = null;
 
+  // Check query param first (used by proxy routes where the proxied app may send
+  // its own Authorization header that would conflict with our JWT verification)
   const header = req.headers.authorization;
-  if (header && header.startsWith('Bearer ')) {
-    token = header.split(' ')[1];
-  } else if (req.query && req.query.token) {
+  if (req.query && req.query.token) {
     token = req.query.token;
+  } else if (header && header.startsWith('Bearer ')) {
+    token = header.split(' ')[1];
   } else if (req.cookies && req.cookies.markup_token) {
     token = req.cookies.markup_token;
   }

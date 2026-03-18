@@ -7,14 +7,24 @@ export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete,
   const [body, setBody] = useState('');
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(false);
   const [confirmDeletePin, setConfirmDeletePin] = useState(false);
   const [confirmDeleteComment, setConfirmDeleteComment] = useState(null);
   const { user, isAdmin } = useAuth();
 
   useEffect(() => {
-    if (pin) {
-      loadComments();
-    }
+    if (!pin) return;
+    let cancelled = false;
+    setCommentsLoading(true);
+    getCommentsApi(pin._id)
+      .then((res) => {
+        if (!cancelled) setComments(res.data.comments);
+      })
+      .catch((err) => console.error('Failed to load comments:', err))
+      .finally(() => {
+        if (!cancelled) setCommentsLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [pin?._id]);
 
   // Real-time comment updates
@@ -139,13 +149,17 @@ export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete,
 
       {/* Comments List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {comments.length === 0 && (
+        {commentsLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+          </div>
+        ) : comments.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-sm text-gray-400">No comments yet</p>
             <p className="text-xs text-gray-300 mt-1">Add the first comment below</p>
           </div>
-        )}
-        {comments.map((comment) => (
+        ) : null}
+        {!commentsLoading && comments.map((comment) => (
           <div key={comment._id} className="group">
             <div className="flex items-center gap-2 mb-1">
               <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-medium shrink-0">
