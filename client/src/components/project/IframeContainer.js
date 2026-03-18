@@ -1,7 +1,30 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+
+const FIXED_WIDTH = 1440;
 
 export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId, loading, onLoad }) {
   const iframeRef = useRef(null);
+  const containerRef = useRef(null);
+  const [scaleFactor, setScaleFactor] = useState(1);
+  const [containerSize, setContainerSize] = useState({ width: FIXED_WIDTH, height: 900 });
+
+  // Track container size and compute scale factor
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        const { width, height } = entry.contentRect;
+        setScaleFactor(Math.min(width / FIXED_WIDTH, 1));
+        setContainerSize({ width, height });
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   // Send pin mode state to iframe
   useEffect(() => {
@@ -51,13 +74,25 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
     return () => iframe.removeEventListener('load', sendPins);
   }, [pins, selectedPinId]);
 
+  // Center the iframe when container is wider than FIXED_WIDTH
+  const leftOffset = containerSize.width > FIXED_WIDTH
+    ? (containerSize.width - FIXED_WIDTH) / 2
+    : 0;
+
   return (
-    <div className="relative w-full h-full">
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden">
       <iframe
         ref={iframeRef}
         src={proxyUrl}
         title="Website Preview"
-        className="w-full h-full border-0"
+        style={{
+          width: `${FIXED_WIDTH}px`,
+          height: `${containerSize.height / scaleFactor}px`,
+          transform: `scale(${scaleFactor})`,
+          transformOrigin: 'top left',
+          marginLeft: `${leftOffset}px`,
+          border: 'none',
+        }}
         sandbox="allow-scripts allow-same-origin allow-forms"
         onLoad={onLoad}
       />
