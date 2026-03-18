@@ -49,7 +49,14 @@ export function useIframeMessages() {
         case "MARKUP_CLICK":
           setState((prev) => ({
             ...prev,
-            lastClick: { xPercent: data.xPercent, yPercent: data.yPercent, pageUrl: data.pageUrl },
+            lastClick: {
+              xPercent: data.xPercent,
+              yPercent: data.yPercent,
+              pageUrl: data.pageUrl,
+              selector: data.selector || null,
+              elementOffsetX: data.elementOffsetX != null ? data.elementOffsetX : null,
+              elementOffsetY: data.elementOffsetY != null ? data.elementOffsetY : null,
+            },
           }));
           break;
         default:

@@ -252,9 +252,28 @@ function injectScript(html, pageUrl, projectId, serverBase) {
       var xPercent = (xAbs / doc.scrollWidth) * 100;
       var yPercent = (yAbs / doc.scrollHeight) * 100;
 
+      // Element-based anchoring: find the DOM element under click
+      var selector = null;
+      var elementOffsetX = null;
+      var elementOffsetY = null;
+      try {
+        var target = document.elementFromPoint(e.clientX, e.clientY);
+        if (target && target.id !== '__markup_pin_container' && !target.classList.contains('__markup_pin')) {
+          selector = generateSelector(target);
+          var rect = target.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            elementOffsetX = ((e.clientX - rect.left) / rect.width) * 100;
+            elementOffsetY = ((e.clientY - rect.top) / rect.height) * 100;
+          }
+        }
+      } catch (err) { /* fallback to percentage */ }
+
       sendMessage('MARKUP_CLICK', {
         xPercent: xPercent,
         yPercent: yPercent,
+        selector: selector,
+        elementOffsetX: elementOffsetX,
+        elementOffsetY: elementOffsetY,
         pageUrl: __markupPageUrl,
         documentWidth: doc.scrollWidth,
         documentHeight: doc.scrollHeight
@@ -280,6 +299,73 @@ function injectScript(html, pageUrl, projectId, serverBase) {
     });
   }
 
+  function generateSelector(el) {
+    var parts = [];
+    while (el && el !== document.body && el !== document.documentElement) {
+      // Skip our own overlay elements
+      if (el.id === '__markup_pin_container' || el.classList.contains('__markup_pin')) {
+        el = el.parentElement;
+        continue;
+      }
+      var part = el.tagName.toLowerCase();
+      if (el.id) {
+        parts.unshift('#' + CSS.escape(el.id));
+        break;
+      }
+      // Compute nth-child index
+      var parent = el.parentElement;
+      if (parent) {
+        var siblings = parent.children;
+        var index = 1;
+        for (var i = 0; i < siblings.length; i++) {
+          if (siblings[i] === el) break;
+          if (siblings[i].tagName === el.tagName) index++;
+        }
+        var sameTag = 0;
+        for (var j = 0; j < siblings.length; j++) {
+          if (siblings[j].tagName === el.tagName) sameTag++;
+        }
+        if (sameTag > 1) {
+          part += ':nth-of-type(' + index + ')';
+        }
+      }
+      parts.unshift(part);
+      el = el.parentElement;
+    }
+    if (!parts.length) return null;
+    return parts.join(' > ');
+  }
+
+  function getPinPosition(pin) {
+    var doc = document.documentElement;
+    var scrollX = window.scrollX || window.pageXOffset;
+    var scrollY = window.scrollY || window.pageYOffset;
+
+    // Try element-based positioning first
+    if (pin.selector) {
+      try {
+        var anchor = document.querySelector(pin.selector);
+        if (anchor) {
+          var rect = anchor.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            var ox = pin.elementOffsetX != null ? pin.elementOffsetX : 50;
+            var oy = pin.elementOffsetY != null ? pin.elementOffsetY : 50;
+            return {
+              left: rect.left + scrollX + (ox / 100) * rect.width,
+              top: rect.top + scrollY + (oy / 100) * rect.height
+            };
+          }
+        }
+      } catch (err) { /* fall through to percentage */ }
+    }
+
+    // Fallback: document percentage
+    return {
+      left: (pin.xPercent / 100) * doc.scrollWidth,
+      top: (pin.yPercent / 100) * doc.scrollHeight
+    };
+  }
+
   function getDimensions() {
     var doc = document.documentElement;
     return {
@@ -299,12 +385,10 @@ function injectScript(html, pageUrl, projectId, serverBase) {
   function renderPins() {
     if (!pinContainer) return;
     pinContainer.innerHTML = '';
-    var doc = document.documentElement;
 
     pins.forEach(function(pin, index) {
+      var pos = getPinPosition(pin);
       var el = document.createElement('div');
-      var left = (pin.xPercent / 100) * doc.scrollWidth;
-      var top = (pin.yPercent / 100) * doc.scrollHeight;
       var color = pin.status === 'resolved' ? '#22c55e' : '#ef4444';
       var borderColor = pin.selected ? '#3b82f6' : color;
       var scale = pin.selected ? 'scale(1.3)' : 'scale(1)';
@@ -316,7 +400,7 @@ function injectScript(html, pageUrl, projectId, serverBase) {
         + 'background:' + color + ';border:3px solid ' + borderColor + ';'
         + 'display:flex;align-items:center;justify-content:center;'
         + 'color:white;font-size:12px;font-weight:bold;font-family:sans-serif;'
-        + 'left:' + (left - 14) + 'px;top:' + (top - 14) + 'px;'
+        + 'left:' + (pos.left - 14) + 'px;top:' + (pos.top - 14) + 'px;'
         + 'transform:' + scale + ';transition:transform 0.15s;'
         + 'box-shadow:0 2px 6px rgba(0,0,0,0.3);z-index:1000000;';
       el.textContent = index + 1;
@@ -353,8 +437,8 @@ function injectScript(html, pageUrl, projectId, serverBase) {
         return;
       }
 
-      var targetTop = (sel.yPercent / 100) * currentHeight;
-      window.scrollTo({ top: targetTop - (window.innerHeight / 2), behavior: 'smooth' });
+      var pos = getPinPosition(sel);
+      window.scrollTo({ top: pos.top - (window.innerHeight / 2), behavior: 'smooth' });
     }
 
     // Small initial delay to let the page begin rendering
