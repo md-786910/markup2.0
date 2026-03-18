@@ -63,11 +63,14 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   // Handle clicks from iframe (new pin creation)
   useEffect(() => {
     if (iframeState.lastClick && pinMode) {
-      const { xPercent, yPercent } = iframeState.lastClick;
+      const { xPercent, yPercent, selector, elementOffsetX, elementOffsetY } = iframeState.lastClick;
       createPinApi(project._id, {
         xPercent,
         yPercent,
         pageUrl: currentPageUrl,
+        selector,
+        elementOffsetX,
+        elementOffsetY,
       })
         .then((res) => {
           setSelectedPin(res.data.pin);

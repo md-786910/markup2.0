@@ -4,7 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { emitToProject, emailProjectMembers } = require('../utils/notifier');
 
 exports.createPin = asyncHandler(async (req, res) => {
-  const { xPercent, yPercent, pageUrl } = req.body;
+  const { xPercent, yPercent, pageUrl, selector, elementOffsetX, elementOffsetY } = req.body;
   const { projectId } = req.params;
 
   if (xPercent == null || yPercent == null || !pageUrl) {
@@ -17,6 +17,9 @@ exports.createPin = asyncHandler(async (req, res) => {
     createdBy: req.user._id,
     xPercent,
     yPercent,
+    selector: selector || null,
+    elementOffsetX: elementOffsetX != null ? elementOffsetX : null,
+    elementOffsetY: elementOffsetY != null ? elementOffsetY : null,
   });
 
   const populated = await Pin.findById(pin._id).populate('createdBy', 'name email');

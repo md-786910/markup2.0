@@ -31,6 +31,9 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
         id: pin._id,
         xPercent: pin.xPercent,
         yPercent: pin.yPercent,
+        selector: pin.selector || null,
+        elementOffsetX: pin.elementOffsetX != null ? pin.elementOffsetX : null,
+        elementOffsetY: pin.elementOffsetY != null ? pin.elementOffsetY : null,
         status: pin.status,
         selected: pin._id === selectedPinId,
       }));

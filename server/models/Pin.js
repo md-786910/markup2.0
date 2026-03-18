@@ -28,6 +28,18 @@ const pinSchema = new Schema({
     min: 0,
     max: 100,
   },
+  selector: {
+    type: String,
+    default: null,
+  },
+  elementOffsetX: {
+    type: Number,
+    default: null,
+  },
+  elementOffsetY: {
+    type: Number,
+    default: null,
+  },
   status: {
     type: String,
     enum: ['pending', 'resolved'],
