@@ -239,7 +239,7 @@ exports.proxyPage = asyncHandler(async (req, res) => {
           origin: pageOrigin,
           projectId,
           token: req.query.token || '',
-        }), { httpOnly: false, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 });
+        }), { httpOnly: false, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 });
       } catch {}
 
       const html = response.data.toString("utf-8");

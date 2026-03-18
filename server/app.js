@@ -12,6 +12,7 @@ const proxyRoutes = require('./routes/proxy.routes');
 const invitationRoutes = require('./routes/invitation.routes');
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false, frameguard: false }));
