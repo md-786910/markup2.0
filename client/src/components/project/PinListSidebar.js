@@ -257,30 +257,34 @@ export default function PinListSidebar({
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      {pin.latestComment ? (
-                        <p className="text-[12px] text-gray-700 leading-relaxed truncate">
-                          {pin.latestComment.body}
-                        </p>
-                      ) : (
-                        <p className="text-[12px] text-gray-300 italic">No comments</p>
-                      )}
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[11px] font-medium text-gray-500 truncate">
+                      {/* Row 1: Author name + time */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[13px] font-semibold text-gray-900 truncate">
                           {pin.createdBy?.name || 'Unknown'}
                         </span>
-                        <span className="text-gray-300">&middot;</span>
                         <span className="text-[10px] text-gray-400 shrink-0">
                           {timeAgo(pin.createdAt)}
                         </span>
-                        {pin.commentsCount > 0 && (
-                          <>
-                            <span className="text-gray-300">&middot;</span>
-                            <span className="text-[10px] text-gray-400 shrink-0">
-                              {pin.commentsCount} {pin.commentsCount === 1 ? 'reply' : 'replies'}
-                            </span>
-                          </>
-                        )}
                       </div>
+                      {/* Row 2: Comment preview */}
+                      {pin.latestComment ? (
+                        <p className="text-[12px] text-gray-500 mt-0.5 truncate leading-snug">
+                          {pin.latestComment.body}
+                        </p>
+                      ) : (
+                        <p className="text-[12px] text-gray-300 mt-0.5 italic">No comments</p>
+                      )}
+                      {/* Row 3: Reply count */}
+                      {pin.commentsCount > 0 && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                          <span className="text-[10px] text-gray-400">
+                            {pin.commentsCount} {pin.commentsCount === 1 ? 'reply' : 'replies'}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Expand indicator */}
