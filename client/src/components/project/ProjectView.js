@@ -30,7 +30,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const deepLinkHandled = useRef(false);
 
   const token = localStorage.getItem(TOKEN_KEY);
-  const proxyUrl = `http://localhost:5000/api/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${project._id}&token=${token}`;
+  const proxyUrl = `${process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api'}/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${project._id}&token=${token}`;
 
   const currentPageUrl = iframeState.currentPageUrl || project.websiteUrl;
 

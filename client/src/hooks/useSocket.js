@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { TOKEN_KEY } from '../utils/constants';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:5000';
 
 /**
  * Hook that connects to Socket.IO, joins a project room,
