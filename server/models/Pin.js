@@ -40,6 +40,14 @@ const pinSchema = new Schema({
     type: Number,
     default: null,
   },
+  documentWidth: {
+    type: Number,
+    default: null,
+  },
+  documentHeight: {
+    type: Number,
+    default: null,
+  },
   pinNumber: {
     type: Number,
     default: null,

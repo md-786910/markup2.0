@@ -454,11 +454,35 @@ function injectScript(html, pageUrl, projectId, serverBase) {
         continue;
       }
       var part = el.tagName.toLowerCase();
+
+      // Prefer stable unique attributes: id, data-testid, data-id
       if (el.id) {
         parts.unshift('#' + CSS.escape(el.id));
         break;
       }
-      // Compute nth-child index
+      var testId = el.getAttribute('data-testid') || el.getAttribute('data-id');
+      if (testId) {
+        parts.unshift(part + '[data-' + (el.getAttribute('data-testid') ? 'testid' : 'id') + '="' + CSS.escape(testId) + '"]');
+        break;
+      }
+
+      // Use stable class names as disambiguators (skip utility/generated classes)
+      var stableClasses = [];
+      if (el.classList && el.classList.length > 0) {
+        for (var c = 0; c < el.classList.length; c++) {
+          var cls = el.classList[c];
+          // Skip classes that look generated/dynamic (contain hashes, random strings)
+          if (!/^[a-zA-Z][\w-]{2,}$/.test(cls)) continue;
+          if (/[-_][a-f0-9]{4,}/i.test(cls)) continue;
+          stableClasses.push(cls);
+          if (stableClasses.length >= 2) break;
+        }
+      }
+      if (stableClasses.length > 0) {
+        part += '.' + stableClasses.map(function(s) { return CSS.escape(s); }).join('.');
+      }
+
+      // Compute nth-of-type index for disambiguation
       var parent = el.parentElement;
       if (parent) {
         var siblings = parent.children;
@@ -505,10 +529,14 @@ function injectScript(html, pageUrl, projectId, serverBase) {
       } catch (err) { /* fall through to percentage */ }
     }
 
-    // Fallback: document percentage
+    // Fallback: scale from original document dimensions to current
+    var origW = pin.documentWidth || doc.scrollWidth;
+    var origH = pin.documentHeight || doc.scrollHeight;
+    var absX = (pin.xPercent / 100) * origW;
+    var absY = (pin.yPercent / 100) * origH;
     return {
-      left: (pin.xPercent / 100) * doc.scrollWidth,
-      top: (pin.yPercent / 100) * doc.scrollHeight
+      left: absX * (doc.scrollWidth / origW),
+      top: absY * (doc.scrollHeight / origH)
     };
   }
 

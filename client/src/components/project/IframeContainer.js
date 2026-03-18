@@ -36,6 +36,8 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
         elementOffsetY: pin.elementOffsetY != null ? pin.elementOffsetY : null,
         status: pin.status,
         pinNumber: pin.pinNumber,
+        documentWidth: pin.documentWidth || null,
+        documentHeight: pin.documentHeight || null,
         selected: pin._id === selectedPinId,
       }));
       iframe.contentWindow.postMessage(
