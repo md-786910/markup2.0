@@ -211,6 +211,7 @@ function injectScript(html, pageUrl, projectId, serverBase) {
   var pinMode = false;
   var pins = [];
   var pinContainer = null;
+  var prevSelectedId = null;
 
   // --- Shared URL rewriter (used by interceptors, MutationObserver, etc.) ---
   function toProxy(rawUrl) {
@@ -588,8 +589,13 @@ function injectScript(html, pageUrl, projectId, serverBase) {
       pinContainer.appendChild(el);
     });
 
-    // Scroll to selected pin (with retry to handle page-load layout shifts)
-    scrollToSelected();
+    // Only scroll when the selected pin actually changes (not on every pins update)
+    var sel = pins.find(function(p) { return p.selected; });
+    var newSelectedId = sel ? sel.id : null;
+    if (newSelectedId && newSelectedId !== prevSelectedId) {
+      scrollToSelected();
+    }
+    prevSelectedId = newSelectedId;
   }
 
   function scrollToSelected() {

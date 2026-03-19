@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createCommentApi } from '../../services/commentService';
 
 export default function NewPinCommentPopup({ pin, onClose, onCommentAdded }) {
   const [body, setBody] = useState('');
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
