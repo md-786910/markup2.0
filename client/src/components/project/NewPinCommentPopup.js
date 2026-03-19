@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createCommentApi } from '../../services/commentService';
+import { createPinApi } from '../../services/pinService';
 
-export default function NewPinCommentPopup({ pin, onClose, onCommentAdded }) {
+export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinCreated }) {
   const [body, setBody] = useState('');
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -16,14 +17,16 @@ export default function NewPinCommentPopup({ pin, onClose, onCommentAdded }) {
     if (!body.trim()) return;
     setLoading(true);
     try {
+      // Create pin first, then attach the comment
+      const pinRes = await createPinApi(projectId, pinData);
+      const newPin = pinRes.data.pin;
       const formData = new FormData();
       formData.append('body', body);
       files.forEach((f) => formData.append('attachments', f));
-      await createCommentApi(pin._id, formData);
-      if (onCommentAdded) onCommentAdded();
-      onClose();
+      await createCommentApi(newPin._id, formData);
+      if (onPinCreated) onPinCreated();
     } catch (err) {
-      console.error('Failed to create comment:', err);
+      console.error('Failed to create pin/comment:', err);
     } finally {
       setLoading(false);
     }
@@ -42,7 +45,7 @@ export default function NewPinCommentPopup({ pin, onClose, onCommentAdded }) {
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
-              {pin.pinNumber || '#'}
+              +
             </span>
             <span className="text-sm font-semibold text-gray-800">Add a comment</span>
           </div>

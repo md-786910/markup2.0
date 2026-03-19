@@ -335,6 +335,8 @@ function injectScript(html, pageUrl, projectId, serverBase) {
     // Click tracking
     document.addEventListener('click', function(e) {
       if (!pinMode) return;
+      // Don't create new pin when clicking an existing pin marker
+      if (e.target.classList && e.target.classList.contains('__markup_pin')) return;
       e.preventDefault();
       e.stopPropagation();
 

@@ -9,7 +9,6 @@ import { useAuth } from "../../hooks/useAuth";
 import { useIframeMessages } from "../../hooks/useIframeMessages";
 import {
   getPinsApi,
-  createPinApi,
   updatePinApi,
   deletePinApi,
 } from "../../services/pinService";
@@ -49,7 +48,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [selectedPin, setSelectedPin] = useState(null);
   const [pinMode, setPinMode] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
-  const [newlyCreatedPin, setNewlyCreatedPin] = useState(null);
+  const [pendingPinData, setPendingPinData] = useState(null);
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [modeSwitching, setModeSwitching] = useState(false);
@@ -143,11 +142,11 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     return () => controller.abort();
   }, [project._id]);
 
-  // Handle clicks from iframe (new pin creation)
+  // Handle clicks from iframe — store click data for pending pin (don't create yet)
   useEffect(() => {
-    if (iframeState.lastClick && pinMode) {
+    if (iframeState.lastClick && pinMode && !pendingPinData) {
       const { xPercent, yPercent, selector, elementOffsetX, elementOffsetY, documentWidth, documentHeight } = iframeState.lastClick;
-      createPinApi(project._id, {
+      setPendingPinData({
         xPercent,
         yPercent,
         pageUrl: currentPageUrl,
@@ -156,40 +155,26 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         elementOffsetY,
         documentWidth,
         documentHeight,
-      })
-        .then((res) => {
-          setNewlyCreatedPin(res.data.pin);
-          loadPins();
-          loadAllPins();
-          iframeState.clearLastClick();
-        })
-        .catch((err) => {
-          console.error("Failed to create pin:", err);
-          iframeState.clearLastClick();
-        });
+      });
+      iframeState.clearLastClick();
     }
-  }, [
-    iframeState.lastClick,
-    iframeState.clearLastClick,
-    pinMode,
-    project._id,
-    currentPageUrl,
-    loadPins,
-    loadAllPins,
-  ]);
+  }, [iframeState.lastClick, iframeState.clearLastClick, pinMode, pendingPinData, currentPageUrl]);
 
   // Listen for pin clicks from iframe
   useEffect(() => {
     const handler = (event) => {
       const data = event.data;
       if (data?.type === "MARKUP_PIN_CLICK") {
-        const pin = pins.find((p) => p._id === data.pinId);
-        if (pin) setSelectedPin(pin);
+        const pin = pins.find((p) => p._id === data.pinId) || allPins.find((p) => p._id === data.pinId);
+        if (pin) {
+          setPendingPinData(null);
+          setSelectedPin(pin);
+        }
       }
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, [pins]);
+  }, [pins, allPins]);
 
   const handleDeletePin = async (pinId) => {
     try {
@@ -453,12 +438,13 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         </div>
       </div>
 
-      {/* New pin comment popup */}
-      {newlyCreatedPin && (
+      {/* New pin comment popup — pin is created only when comment is submitted */}
+      {pendingPinData && (
         <NewPinCommentPopup
-          pin={newlyCreatedPin}
-          onClose={() => setNewlyCreatedPin(null)}
-          onCommentAdded={() => { loadPins(); loadAllPins(); }}
+          pinData={pendingPinData}
+          projectId={project._id}
+          onClose={() => setPendingPinData(null)}
+          onPinCreated={() => { loadPins(); loadAllPins(); setPendingPinData(null); }}
         />
       )}
 
