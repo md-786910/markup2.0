@@ -312,6 +312,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   }, [initialPinId, allPins]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePinNavigate = (pin) => {
+    setPinMode(true);
     setSelectedPin(pin);
     if (pin.pageUrl !== targetUrl) {
       iframeState.resetReady();
