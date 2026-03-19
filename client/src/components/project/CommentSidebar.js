@@ -1,8 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getCommentsApi, createCommentApi, deleteCommentApi } from '../../services/commentService';
 import { useAuth } from '../../hooks/useAuth';
+import MentionInput from './MentionInput';
 
-export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete, onEvent }) {
+// Renders comment body with highlighted @mentions
+function renderCommentBody(body) {
+  if (!body) return null;
+  const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  while ((match = MENTION_REGEX.exec(body)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(body.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <span key={match.index} className="text-blue-600 font-medium bg-blue-50 rounded px-0.5">
+        @{match[1]}
+      </span>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < body.length) parts.push(body.slice(lastIndex));
+  return parts;
+}
+
+export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete, onEvent, members = [] }) {
   const [comments, setComments] = useState([]);
   const [body, setBody] = useState('');
   const [files, setFiles] = useState([]);
@@ -11,6 +34,7 @@ export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete,
   const [confirmDeletePin, setConfirmDeletePin] = useState(false);
   const [confirmDeleteComment, setConfirmDeleteComment] = useState(null);
   const { user, isAdmin } = useAuth();
+  const mentionRef = useRef(null);
 
   useEffect(() => {
     if (!pin) return;
@@ -61,7 +85,8 @@ export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete,
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('body', body);
+      const encodedBody = mentionRef.current?.getEncodedValue() ?? body;
+      formData.append('body', encodedBody);
       files.forEach((f) => formData.append('attachments', f));
 
       await createCommentApi(pin._id, formData);
@@ -198,7 +223,7 @@ export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete,
               )}
             </div>
             <div className="ml-8">
-              <p className="text-sm text-gray-600 leading-relaxed">{comment.body}</p>
+              <p className="text-sm text-gray-600 leading-relaxed">{renderCommentBody(comment.body)}</p>
               {comment.attachments?.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {comment.attachments.map((att, i) => (
@@ -219,11 +244,15 @@ export default function CommentSidebar({ pin, onClose, onStatusChange, onDelete,
 
       {/* Comment Input */}
       <form onSubmit={handleSubmit} className="p-3 border-t border-gray-200 bg-gray-50">
-        <textarea
+        <MentionInput
+          ref={mentionRef}
           value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Write a comment..."
-          rows={2}
+          onChange={setBody}
+          members={members}
+          placeholder="Write a comment... (@ to mention)"
+          multiline={true}
+          rows={4}
+          disabled={loading}
           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white"
         />
         <div className="flex items-center justify-between mt-2">

@@ -124,4 +124,41 @@ async function sendCommentNotificationEmail(toEmail, actorName, projectName, com
   });
 }
 
-module.exports = { sendInvitationEmail, sendPinNotificationEmail, sendCommentNotificationEmail };
+async function sendMentionNotificationEmail(toEmail, actorName, projectName, commentBody, directLink) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const preview = commentBody.length > 200 ? commentBody.substring(0, 200) + '...' : commentBody;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
+      <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+      </div>
+      <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <h2 style="margin: 0 0 8px; font-size: 18px; color: #111827;">You were mentioned</h2>
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">
+          <strong style="color: #111827;">${actorName}</strong> mentioned you in a comment on
+          <strong style="color: #111827;">${projectName}</strong>:
+        </p>
+        <div style="background: #f9fafb; border-left: 3px solid #2563eb; padding: 12px 16px; margin: 0 0 24px; border-radius: 0 8px 8px 0;">
+          <p style="color: #374151; font-size: 14px; line-height: 1.6; margin: 0;">${preview}</p>
+        </div>
+        <a href="${directLink}"
+           style="display: inline-block; background: #2563eb; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+          View Comment
+        </a>
+        <p style="color: #9ca3af; font-size: 12px; margin: 24px 0 0; line-height: 1.5;">
+          You're receiving this because you were mentioned in a comment.
+        </p>
+      </div>
+    </div>
+  `;
+
+  await getTransporter().sendMail({
+    from,
+    to: toEmail,
+    subject: `${actorName} mentioned you in ${projectName}`,
+    html,
+  });
+}
+
+module.exports = { sendInvitationEmail, sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail };

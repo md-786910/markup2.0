@@ -2,7 +2,7 @@ const Comment = require('../models/Comment');
 const Pin = require('../models/Pin');
 const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
-const { emitToProject, emailProjectMembers } = require('../utils/notifier');
+const { emitToProject, emailProjectMembers, emailMentionedUsers } = require('../utils/notifier');
 
 exports.createComment = asyncHandler(async (req, res) => {
   const { pinId } = req.params;
@@ -15,6 +15,14 @@ exports.createComment = asyncHandler(async (req, res) => {
   const pin = await Pin.findById(pinId);
   if (!pin) {
     return res.status(404).json({ message: 'Pin not found' });
+  }
+
+  // Parse @[Name](userId) mention tokens from body
+  const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
+  const mentionedUserIds = [];
+  let mentionMatch;
+  while ((mentionMatch = MENTION_REGEX.exec(body)) !== null) {
+    mentionedUserIds.push(mentionMatch[2]);
   }
 
   const attachments = (req.files || []).map((file) => ({
@@ -30,10 +38,12 @@ exports.createComment = asyncHandler(async (req, res) => {
     body,
     attachments,
     parentComment: parentComment || null,
+    mentions: mentionedUserIds,
   });
 
   const populated = await Comment.findById(comment._id)
-    .populate('author', 'name email');
+    .populate('author', 'name email')
+    .populate('mentions', 'name email');
 
   // Real-time + email notifications
   const io = req.app.get('io');
@@ -50,6 +60,17 @@ exports.createComment = asyncHandler(async (req, res) => {
       pin,
       comment: populated,
     }).catch(() => {});
+
+    if (mentionedUserIds.length > 0) {
+      emailMentionedUsers({
+        mentionedUserIds,
+        actorUserId: req.user._id,
+        actorName: req.user.name,
+        projectName: proj.name,
+        pin,
+        comment: populated,
+      }).catch(() => {});
+    }
   }).catch(() => {});
 
   res.status(201).json({ comment: populated });

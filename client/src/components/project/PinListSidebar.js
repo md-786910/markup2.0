@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { getCommentsApi, createCommentApi } from '../../services/commentService';
+import MentionInput from './MentionInput';
+import { useAuth } from '../../hooks/useAuth';
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -22,10 +24,71 @@ function getPagePath(url) {
   }
 }
 
-const FILTERS = [
-  { key: 'open', label: 'Open' },
+function getGroupLabel(url) {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname === '/' ? '' : parsed.pathname;
+    return parsed.hostname + path;
+  } catch {
+    return url;
+  }
+}
+
+function getReadPins(userId) {
+  if (!userId) return new Set();
+  try {
+    const stored = localStorage.getItem(`markup_read_pins_${userId}`);
+    return new Set(stored ? JSON.parse(stored) : []);
+  } catch { return new Set(); }
+}
+
+function markPinRead(pinId, userId) {
+  if (!userId) return;
+  const readPins = getReadPins(userId);
+  readPins.add(pinId);
+  localStorage.setItem(`markup_read_pins_${userId}`, JSON.stringify([...readPins]));
+}
+
+function getReadComments(userId) {
+  if (!userId) return {};
+  try {
+    const stored = localStorage.getItem(`markup_read_comments_${userId}`);
+    return stored ? JSON.parse(stored) : {};
+  } catch { return {}; }
+}
+
+function markCommentsRead(pinId, userId) {
+  if (!userId) return;
+  const map = getReadComments(userId);
+  map[pinId] = Date.now();
+  localStorage.setItem(`markup_read_comments_${userId}`, JSON.stringify(map));
+}
+
+// Renders comment body with highlighted @mentions
+function renderCommentBody(body) {
+  if (!body) return null;
+  const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  while ((match = MENTION_REGEX.exec(body)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(body.slice(lastIndex, match.index));
+    }
+    parts.push(
+      <span key={match.index} className="text-blue-600 font-medium bg-blue-50 rounded px-0.5">
+        @{match[1]}
+      </span>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < body.length) parts.push(body.slice(lastIndex));
+  return parts;
+}
+
+const TABS = [
+  { key: 'open', label: 'Active' },
   { key: 'resolved', label: 'Resolved' },
-  { key: 'all', label: 'All' },
 ];
 
 export default function PinListSidebar({
@@ -33,10 +96,14 @@ export default function PinListSidebar({
   selectedPinId,
   onPinClick,
   onStatusChange,
-  onDelete,
   onCommentAdded,
   onEvent,
+  members = [],
+  projectId,
 }) {
+  const { user } = useAuth();
+  const [readPins, setReadPins] = useState(() => getReadPins(user?.id));
+  const [readComments, setReadComments] = useState(() => getReadComments(user?.id));
   const [expandedPinId, setExpandedPinId] = useState(null);
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -45,6 +112,14 @@ export default function PinListSidebar({
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [filterStatus, setFilterStatus] = useState('open');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [sortBy, setSortBy] = useState('page'); // 'page' | 'pin_order' | 'latest_activity'
+  const [sortOpen, setSortOpen] = useState(false);
+  const [filterOption, setFilterOption] = useState(null); // null | 'on_this_page' | 'mentions'
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState(new Set());
+  const sortRef = useRef(null);
+  const filterRef = useRef(null);
 
   useEffect(() => {
     if (!expandedPinId) {
@@ -63,9 +138,12 @@ export default function PinListSidebar({
           if (prev.some((c) => c._id === data.comment._id)) return prev;
           return [...prev, data.comment];
         });
+        // Auto-mark as read since the user is actively viewing this thread
+        markCommentsRead(data.pinId, user?.id);
+        setReadComments((prev) => ({ ...prev, [data.pinId]: Date.now() }));
       }
     });
-  }, [onEvent, expandedPinId]);
+  }, [onEvent, expandedPinId, user?.id]);
 
   // Real-time: comment deleted from expanded pin
   useEffect(() => {
@@ -91,18 +169,33 @@ export default function PinListSidebar({
 
   const handleCardClick = (pin) => {
     onPinClick(pin);
+    const isOpening = expandedPinId !== pin._id;
     setExpandedPinId((prev) => (prev === pin._id ? null : pin._id));
     setReplyBody('');
     setConfirmDelete(null);
+    markPinRead(pin._id, user?.id);
+    setReadPins((prev) => new Set([...prev, pin._id]));
+    if (isOpening) {
+      markCommentsRead(pin._id, user?.id);
+      setReadComments((prev) => ({ ...prev, [pin._id]: Date.now() }));
+    }
   };
 
-  const handleReply = async (e, pinId) => {
-    e.preventDefault();
+  const encodeBody = (text) => {
+    let encoded = text;
+    members.forEach((m) => {
+      const regex = new RegExp(`@${m.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$|[^\\w])`, 'g');
+      encoded = encoded.replace(regex, `@[${m.name}](${m._id})`);
+    });
+    return encoded;
+  };
+
+  const handleReply = async (pinId) => {
     if (!replyBody.trim()) return;
     setSendingReply(true);
     try {
       const formData = new FormData();
-      formData.append('body', replyBody);
+      formData.append('body', encodeBody(replyBody));
       await createCommentApi(pinId, formData);
       setReplyBody('');
       await loadComments(pinId);
@@ -114,11 +207,62 @@ export default function PinListSidebar({
     }
   };
 
-  // Filter and search
+  const toggleGroup = (path) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      next.has(path) ? next.delete(path) : next.add(path);
+      return next;
+    });
+  };
+
+  // Close sort dropdown on outside click
+  useEffect(() => {
+    if (!sortOpen) return;
+    const handler = (e) => {
+      if (sortRef.current && !sortRef.current.contains(e.target)) setSortOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [sortOpen]);
+
+  // Close filter dropdown on outside click
+  useEffect(() => {
+    if (!filterOpen) return;
+    const handler = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [filterOpen]);
+
+  // Close pin action menu on outside click
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const handler = (e) => {
+      if (!e.target.closest('[data-pin-menu]')) setConfirmDelete(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [confirmDelete]);
+
+  // Filter, search, and sort
   const filteredPins = useMemo(() => {
     let result = pins;
+
+    // Status tab filter
     if (filterStatus === 'open') result = result.filter((p) => p.status === 'pending');
     else if (filterStatus === 'resolved') result = result.filter((p) => p.status === 'resolved');
+
+    // Filter option
+    if (filterOption === 'on_this_page') {
+      // Show only pins that share the same page path as the first pin
+      // (mirrors "On this page" — filter to the most common or first page)
+      const pages = [...new Set(result.map((p) => getPagePath(p.pageUrl)))];
+      if (pages.length > 0) result = result.filter((p) => getPagePath(p.pageUrl) === pages[0]);
+    } else if (filterOption === 'mentions') {
+      // Show only pins whose comments mention the viewer — for now show pins with any mentions array
+      result = result.filter((p) => p.commentsCount > 0);
+    }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -127,17 +271,26 @@ export default function PinListSidebar({
         (p.createdBy?.name || '').toLowerCase().includes(q)
       );
     }
+
+    // Sort
+    result = [...result];
+    if (sortBy === 'pin_order') {
+      result.sort((a, b) => (a.pinNumber || 0) - (b.pinNumber || 0));
+    } else if (sortBy === 'latest_activity') {
+      result.sort((a, b) => new Date(b.latestComment?.createdAt || b.createdAt) - new Date(a.latestComment?.createdAt || a.createdAt));
+    }
+
     return result;
-  }, [pins, filterStatus, searchQuery]);
+  }, [pins, filterStatus, searchQuery, sortBy, filterOption]);
 
   // Filter counts
   const openCount = pins.filter((p) => p.status === 'pending').length;
   const resolvedCount = pins.filter((p) => p.status === 'resolved').length;
 
-  // Group by page
+  // Group by page (only when sortBy === 'page'; otherwise flat list)
   const grouped = {};
   filteredPins.forEach((pin) => {
-    const path = getPagePath(pin.pageUrl);
+    const path = sortBy === 'page' ? getPagePath(pin.pageUrl) : '__all__';
     if (!grouped[path]) grouped[path] = [];
     grouped[path].push(pin);
   });
@@ -148,50 +301,166 @@ export default function PinListSidebar({
   return (
     <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[15px] font-semibold text-gray-900">Comments</h3>
-          <span className="text-[11px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
-            {filteredPins.length}
-          </span>
-        </div>
+      <div className="px-4 pt-3 pb-2 border-b border-gray-100">
+        {/* Tabs row + icon buttons */}
+        <div className="flex items-center">
+          {/* Tabs */}
+          <div className="flex items-center gap-4 flex-1">
+            {TABS.map((t) => {
+              const count = t.key === 'open' ? openCount : resolvedCount;
+              const isActive = filterStatus === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => setFilterStatus(t.key)}
+                  className={`text-[13px] pb-1 transition-all ${
+                    isActive
+                      ? 'font-semibold text-gray-900 border-b-2 border-gray-800'
+                      : 'font-medium text-gray-400 hover:text-gray-600 border-b-2 border-transparent'
+                  }`}
+                >
+                  {count} {t.label}
+                </button>
+              );
+            })}
+          </div>
 
-        {/* Filter tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 mb-3">
-          {FILTERS.map((f) => {
-            const count = f.key === 'open' ? openCount : f.key === 'resolved' ? resolvedCount : pins.length;
-            return (
+          {/* Icon buttons */}
+          <div className="flex items-center gap-1">
+            {/* Sort dropdown */}
+            <div className="relative" ref={sortRef}>
               <button
-                key={f.key}
-                onClick={() => setFilterStatus(f.key)}
-                className={`flex-1 text-[11px] font-medium py-1.5 rounded-md transition-all ${
-                  filterStatus === f.key
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                onClick={() => setSortOpen((v) => !v)}
+                className={`p-1.5 rounded transition-colors ${sortOpen ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                title="Sort"
               >
-                {f.label}
-                <span className={`ml-1 ${filterStatus === f.key ? 'text-gray-400' : 'text-gray-400'}`}>
-                  {count}
-                </span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
               </button>
-            );
-          })}
+
+              {sortOpen && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+                  {[
+                    { key: 'page', label: 'Page' },
+                    { key: 'pin_order', label: 'Pin order' },
+                    { key: 'latest_activity', label: 'Latest activity' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => { setSortBy(opt.key); setSortOpen(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                    >
+                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        sortBy === opt.key ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                      }`}>
+                        {sortBy === opt.key && (
+                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className={`text-[13px] ${sortBy === opt.key ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                        {opt.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Filter dropdown */}
+            <div className="relative" ref={filterRef}>
+              <button
+                onClick={() => setFilterOpen((v) => !v)}
+                className={`p-1.5 rounded transition-colors ${filterOpen || filterOption ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                title="Filter"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18l-7 8.5V19l-4-2v-4.5L3 4z" />
+                </svg>
+              </button>
+
+              {filterOpen && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+                  {[
+                    { key: 'on_this_page', label: 'On this page' },
+                    { key: 'mentions', label: 'Mentions' },
+                    { key: 'priority', label: 'Priority', hasArrow: true },
+                  ].map((opt) => {
+                    const isActive = filterOption === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => {
+                          if (!opt.hasArrow) {
+                            setFilterOption(isActive ? null : opt.key);
+                            setFilterOpen(false);
+                          }
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                      >
+                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          isActive ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                        }`}>
+                          {isActive && (
+                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </span>
+                        <span className={`text-[13px] flex-1 ${isActive ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                          {opt.label}
+                        </span>
+                        {opt.hasArrow && (
+                          <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            {/* Search toggle */}
+            <button
+              onClick={() => { setSearchOpen((v) => !v); if (searchOpen) setSearchQuery(''); }}
+              className={`p-1.5 rounded transition-colors ${searchOpen ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+              title="Search"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search comments..."
-            className="w-full text-[12px] pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:bg-white placeholder-gray-400 transition-all"
-          />
-        </div>
+        {/* Search bar — only shown when searchOpen */}
+        {searchOpen && (
+          <div className="relative mt-2">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              autoFocus
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search comments..."
+              className="w-full text-[12px] pl-8 pr-7 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:bg-white placeholder-gray-400 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Scrollable list */}
@@ -204,7 +473,17 @@ export default function PinListSidebar({
               </svg>
             </div>
             <p className="text-sm font-medium text-gray-400">
-              {searchQuery ? 'No matching comments' : filterStatus === 'resolved' ? 'No resolved comments' : filterStatus === 'open' ? 'No open comments' : 'No comments yet'}
+              {searchQuery
+                ? 'No matching comments'
+                : filterOption === 'mentions'
+                ? 'No mentions found'
+                : filterOption === 'on_this_page'
+                ? 'No pins on this page'
+                : filterStatus === 'resolved'
+                ? 'No resolved comments'
+                : filterStatus === 'open'
+                ? 'No open comments'
+                : 'No comments yet'}
             </p>
             {!searchQuery && filterStatus === 'open' && pins.length === 0 && (
               <p className="text-xs text-gray-300 mt-1">Click Pin Mode to start</p>
@@ -212,239 +491,238 @@ export default function PinListSidebar({
           </div>
         )}
 
-        {Object.entries(grouped).map(([path, pagePins]) => (
-          <div key={path}>
-            {/* Page section — subtle divider */}
-            <div className="px-4 py-2 flex items-center gap-2 bg-gray-50/60">
-              <span className="text-[10px] font-medium text-gray-400 truncate" title={path}>
-                {path}
-              </span>
-              <span className="text-[10px] text-gray-300 ml-auto shrink-0">
-                {pagePins.length}
-              </span>
-            </div>
-
-            {/* Pin cards */}
-            {pagePins.map((pin, idx) => (
-              <div key={pin._id}>
-                {/* Card */}
-                <div
-                  onClick={() => handleCardClick(pin)}
-                  className={`cursor-pointer transition-colors border-l-2 ${
-                    isSelected(pin._id)
-                      ? 'border-l-blue-500 bg-blue-50/40'
-                      : 'border-l-transparent hover:bg-gray-50/80'
-                  }`}
+        {Object.entries(grouped).map(([path, pagePins]) => {
+          const isGroupCollapsed = collapsedGroups.has(path);
+          return (
+            <div key={path}>
+              {/* Page section header — only shown when grouping by page */}
+              {sortBy === 'page' && (
+                <button
+                  onClick={() => toggleGroup(path)}
+                  className="w-full px-4 py-2 flex items-center gap-2 bg-gray-50/60 hover:bg-gray-100/60 transition-colors text-left"
                 >
-                  <div className="px-4 py-3 flex items-start gap-3">
-                    {/* Pin badge */}
-                    <div className="relative shrink-0 mt-0.5">
-                      <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                        pin.status === 'resolved'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {pin.pinNumber || (idx + 1)}
-                      </span>
-                      {pin.status === 'resolved' && (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center ring-2 ring-white">
-                          <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </span>
-                      )}
-                    </div>
+                  <span className="text-[10px] font-medium text-gray-400 truncate flex-1" title={path}>
+                    {getGroupLabel(pagePins[0]?.pageUrl || path)}
+                  </span>
+                  <span className="text-[10px] text-gray-300 shrink-0">{pagePins.length}</span>
+                  <svg
+                    className={`w-3 h-3 text-gray-300 shrink-0 transition-transform duration-200 ${isGroupCollapsed ? '-rotate-90' : ''}`}
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      {/* Row 1: Author name + time */}
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[13px] font-semibold text-gray-900 truncate">
-                          {pin.createdBy?.name || 'Unknown'}
+              {/* Pin cards (hidden when group is collapsed in page mode) */}
+              {(sortBy !== 'page' || !isGroupCollapsed) && pagePins.map((pin, idx) => (
+                <div key={pin._id}>
+                  {/* Card */}
+                  <div
+                    onClick={() => handleCardClick(pin)}
+                    className={`cursor-pointer transition-colors ${
+                      isSelected(pin._id) || isExpanded(pin._id)
+                        ? 'bg-gray-50'
+                        : 'bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="px-4 pt-4 pb-3">
+                      {/* Top row: pin badge + action icons */}
+                      <div className="flex items-start justify-between mb-2">
+                        {/* Pin number badge — large filled circle */}
+                        <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold text-white shrink-0 ${
+                          pin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'
+                        }`}>
+                          {pin.pinNumber || (idx + 1)}
                         </span>
-                        <span className="text-[10px] text-gray-400 shrink-0">
-                          {timeAgo(pin.createdAt)}
-                        </span>
-                      </div>
-                      {/* Row 2: Comment preview */}
-                      {pin.latestComment ? (
-                        <p className="text-[12px] text-gray-500 mt-0.5 truncate leading-snug">
-                          {pin.latestComment.body}
-                        </p>
-                      ) : (
-                        <p className="text-[12px] text-gray-300 mt-0.5 italic">No comments</p>
-                      )}
-                      {/* Row 3: Reply count */}
-                      {pin.commentsCount > 0 && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                          </svg>
-                          <span className="text-[10px] text-gray-400">
-                            {pin.commentsCount} {pin.commentsCount === 1 ? 'reply' : 'replies'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Expand indicator */}
-                    <svg
-                      className={`w-4 h-4 text-gray-300 shrink-0 mt-1 transition-transform duration-200 ${
-                        isExpanded(pin._id) ? 'rotate-180 text-blue-400' : ''
-                      }`}
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* Expanded thread */}
-                {isExpanded(pin._id) && (
-                  <div className="bg-gray-50/60 border-t border-gray-100">
-                    {/* Comments thread */}
-                    <div className="max-h-64 overflow-y-auto">
-                      {loadingComments ? (
-                        <div className="py-8 text-center">
-                          <div className="inline-block w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
-                        </div>
-                      ) : comments.length === 0 ? (
-                        <div className="py-8 text-center">
-                          <p className="text-[11px] text-gray-400">No comments yet</p>
-                        </div>
-                      ) : (
-                        <div className="px-4 py-2">
-                          {comments.map((comment, ci) => (
-                            <div key={comment._id} className={`py-2.5 flex gap-2.5 ${ci > 0 ? 'border-t border-gray-100' : ''}`}>
-                              <span className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
-                                {(comment.author?.name || '?')[0].toUpperCase()}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-baseline gap-2">
-                                  <span className="text-[12px] font-semibold text-gray-800">
-                                    {comment.author?.name || 'Unknown'}
-                                  </span>
-                                  <span className="text-[10px] text-gray-400">
-                                    {timeAgo(comment.createdAt)}
-                                  </span>
-                                </div>
-                                <p className="text-[12px] text-gray-600 leading-relaxed break-words mt-0.5">
-                                  {comment.body}
-                                </p>
-                                {comment.attachments?.length > 0 && (
-                                  <div className="mt-2 flex gap-1.5 flex-wrap">
-                                    {comment.attachments.map((att, i) => (
-                                      <img
-                                        key={i}
-                                        src={`/${att.path}`}
-                                        alt={att.originalName}
-                                        className="w-14 h-14 object-cover rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer transition-colors"
-                                        onClick={() => window.open(`/${att.path}`, '_blank')}
-                                      />
-                                    ))}
-                                  </div>
-                                )}
+                        {/* Action icons: ... menu + resolve checkmark */}
+                        <div className="relative flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          {/* Three-dot menu → dropdown */}
+                          <div className="relative" data-pin-menu>
+                            <button
+                              onClick={() => setConfirmDelete((prev) => prev === pin._id ? null : pin._id)}
+                              className="p-1 rounded text-gray-300 hover:text-gray-500 hover:bg-gray-200 transition-colors"
+                              title="More options"
+                            >
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                              </svg>
+                            </button>
+                            {confirmDelete === pin._id && (
+                              <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+                                <button
+                                  onClick={() => {
+                                    const link = `${window.location.origin}/project/${projectId}?pin=${pin._id}`;
+                                    navigator.clipboard.writeText(link);
+                                    setConfirmDelete(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                  Copy link
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    onPinClick(pin);
+                                    setExpandedPinId(null);
+                                    setConfirmDelete(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                  Get info
+                                </button>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Reply input */}
-                    <form
-                      onSubmit={(e) => handleReply(e, pin._id)}
-                      className="px-4 py-2.5 flex items-center gap-2 border-t border-gray-100 bg-white"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="text"
-                        value={replyBody}
-                        onChange={(e) => setReplyBody(e.target.value)}
-                        placeholder="Write a reply..."
-                        className="flex-1 text-[12px] px-3 py-1.5 bg-gray-100 border-0 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white placeholder-gray-400 transition-all"
-                      />
-                      <button
-                        type="submit"
-                        disabled={sendingReply || !replyBody.trim()}
-                        className="w-7 h-7 flex items-center justify-center bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-30 shrink-0 transition-colors"
-                      >
-                        {sendingReply ? (
-                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19V5m0 0l-7 7m7-7l7 7" />
-                          </svg>
-                        )}
-                      </button>
-                    </form>
-
-                    {/* Actions — subtle, at bottom */}
-                    <div className="px-4 py-2 flex items-center gap-1 border-t border-gray-100 bg-gray-50/40" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => onStatusChange(pin._id, pin.status === 'resolved' ? 'pending' : 'resolved')}
-                        className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md font-medium transition-colors ${
-                          pin.status === 'resolved'
-                            ? 'text-amber-600 hover:bg-amber-50'
-                            : 'text-emerald-600 hover:bg-emerald-50'
-                        }`}
-                      >
-                        {pin.status === 'resolved' ? (
-                          <>
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Reopen
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Resolve
-                          </>
-                        )}
-                      </button>
-
-                      <div className="ml-auto">
-                        {confirmDelete === pin._id ? (
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="text-[11px] text-gray-500">Delete?</span>
-                            <button
-                              onClick={() => { onDelete(pin._id); setConfirmDelete(null); setExpandedPinId(null); }}
-                              className="text-[11px] px-2 py-0.5 rounded font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
-                            >
-                              Yes
-                            </button>
-                            <button
-                              onClick={() => setConfirmDelete(null)}
-                              className="text-[11px] px-2 py-0.5 rounded font-medium text-gray-600 hover:bg-gray-200 transition-colors"
-                            >
-                              No
-                            </button>
-                          </span>
-                        ) : (
+                            )}
+                          </div>
+                          {/* Resolve toggle */}
                           <button
-                            onClick={() => setConfirmDelete(pin._id)}
-                            className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                            title="Delete pin"
+                            onClick={() => onStatusChange(pin._id, pin.status === 'resolved' ? 'pending' : 'resolved')}
+                            className={`p-1 rounded transition-colors ${
+                              pin.status === 'resolved'
+                                ? 'text-emerald-500 hover:bg-emerald-50'
+                                : 'text-gray-300 hover:text-emerald-500 hover:bg-emerald-50'
+                            }`}
+                            title={pin.status === 'resolved' ? 'Reopen' : 'Resolve'}
                           >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <circle cx="12" cy="12" r="9"/>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12l3 3 5-5"/>
                             </svg>
                           </button>
+                        </div>
+                      </div>
+
+                      {/* Author + New badge + Unread comments badge */}
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[13px] font-semibold text-gray-900">
+                          {pin.createdBy?.name || 'Unknown'}
+                        </span>
+                        {!readPins.has(pin._id) && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-500 text-white">
+                            New
+                          </span>
+                        )}
+                        {readPins.has(pin._id) && pin.latestComment && (
+                          (() => {
+                            const lastRead = readComments[pin._id] || 0;
+                            const commentTime = new Date(pin.latestComment.createdAt).getTime();
+                            return commentTime > lastRead ? (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500 text-white">
+                                Unread
+                              </span>
+                            ) : null;
+                          })()
                         )}
                       </div>
+
+                      {/* Time */}
+                      <p className="text-[11px] text-gray-400 mb-1.5">{timeAgo(pin.createdAt)}</p>
+
+                      {/* Comment preview */}
+                      {pin.latestComment ? (
+                        <p className="text-[13px] text-gray-700 leading-snug">
+                          {renderCommentBody(pin.latestComment.body)}
+                        </p>
+                      ) : (
+                        <p className="text-[12px] text-gray-300 italic">No comments</p>
+                      )}
+
                     </div>
                   </div>
-                )}
 
-                {/* Separator between cards */}
-                <div className="border-b border-gray-100"></div>
-              </div>
-            ))}
-          </div>
-        ))}
+                  {/* Expanded thread */}
+                  {isExpanded(pin._id) && (
+                    <div className="bg-gray-50/60 border-t border-gray-100">
+                      {/* Comments thread */}
+                      <div className="max-h-64 overflow-y-auto">
+                        {loadingComments ? (
+                          <div className="py-8 text-center">
+                            <div className="inline-block w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+                          </div>
+                        ) : comments.length === 0 ? (
+                          <div className="py-8 text-center">
+                            <p className="text-[11px] text-gray-400">No comments yet</p>
+                          </div>
+                        ) : (
+                          <div className="px-4 py-2">
+                            {comments.map((comment, ci) => (
+                              <div key={comment._id} className={`py-2.5 flex gap-2.5 ${ci > 0 ? 'border-t border-gray-100' : ''}`}>
+                                <span className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
+                                  {(comment.author?.name || '?')[0].toUpperCase()}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-[12px] font-semibold text-gray-800">
+                                      {comment.author?.name || 'Unknown'}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400">
+                                      {timeAgo(comment.createdAt)}
+                                    </span>
+                                  </div>
+                                  <p className="text-[12px] text-gray-600 leading-relaxed break-words mt-0.5">
+                                    {renderCommentBody(comment.body)}
+                                  </p>
+                                  {comment.attachments?.length > 0 && (
+                                    <div className="mt-2 flex gap-1.5 flex-wrap">
+                                      {comment.attachments.map((att, i) => (
+                                        <img
+                                          key={i}
+                                          src={`/${att.path}`}
+                                          alt={att.originalName}
+                                          className="w-14 h-14 object-cover rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer transition-colors"
+                                          onClick={() => window.open(`/${att.path}`, '_blank')}
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Reply input with @mention support */}
+                      <div
+                        className="px-4 py-3 flex items-start gap-2 border-t border-gray-100 bg-white"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex-1 flex flex-col gap-2">
+                          <MentionInput
+                            value={replyBody}
+                            onChange={setReplyBody}
+                            members={members}
+                            placeholder="Write a reply... (@ to mention)"
+                            multiline={true}
+                            rows={3}
+                            disabled={sendingReply}
+                            className="w-full text-[12px] px-3 py-2 bg-gray-100 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white placeholder-gray-400 transition-all resize-none"
+                          />
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleReply(pin._id)}
+                              disabled={sendingReply || !replyBody.trim()}
+                              className="px-3 py-1.5 text-[12px] font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-30 transition-colors flex items-center gap-1.5"
+                            >
+                              {sendingReply ? (
+                                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              ) : 'Reply'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+
+                  {/* Separator between cards */}
+                  <div className="border-b border-gray-100 mx-4"></div>
+                </div>
+              ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

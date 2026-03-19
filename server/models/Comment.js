@@ -27,6 +27,10 @@ const commentSchema = new Schema({
     ref: 'Comment',
     default: null,
   },
+  mentions: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+  }],
 }, { timestamps: true });
 
 commentSchema.index({ pin: 1, createdAt: 1 });

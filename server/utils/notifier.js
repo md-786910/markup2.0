@@ -1,5 +1,6 @@
 const Project = require('../models/Project');
-const { sendPinNotificationEmail, sendCommentNotificationEmail } = require('./mailer');
+const User = require('../models/User');
+const { sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail } = require('./mailer');
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 
@@ -61,4 +62,27 @@ async function emailProjectMembers(type, { projectId, actorUserId, actorName, pr
   }
 }
 
-module.exports = { emitToProject, emailProjectMembers };
+/**
+ * Send mention notification emails to specifically mentioned users.
+ * Fire-and-forget — does not throw.
+ */
+async function emailMentionedUsers({ mentionedUserIds, actorUserId, actorName, projectName, pin, comment }) {
+  try {
+    if (!mentionedUserIds || mentionedUserIds.length === 0) return;
+    const actorStr = actorUserId.toString();
+    const users = await User.find({ _id: { $in: mentionedUserIds } }).select('name email');
+    const link = buildPinLink(pin.project.toString(), pin._id);
+    for (const user of users) {
+      if (user._id.toString() === actorStr) continue;
+      try {
+        await sendMentionNotificationEmail(user.email, actorName, projectName, comment.body, link);
+      } catch (emailErr) {
+        console.error(`Failed to send mention notification to ${user.email}:`, emailErr.message);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to send mention email notifications:', err.message);
+  }
+}
+
+module.exports = { emitToProject, emailProjectMembers, emailMentionedUsers };

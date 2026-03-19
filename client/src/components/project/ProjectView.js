@@ -406,6 +406,8 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           onDelete={handleDeletePin}
           onCommentAdded={() => { loadAllPins(); loadPins(); }}
           onEvent={onEvent}
+          members={allMembers}
+          projectId={project._id}
         />
 
         {/* Iframe area */}
@@ -428,6 +430,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
               onStatusChange={handleStatusChange}
               onDelete={handleDeletePin}
               onEvent={onEvent}
+              members={allMembers}
             />
           )}
         </div>
