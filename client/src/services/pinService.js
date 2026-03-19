@@ -1,7 +1,9 @@
 import api from './api';
 
-export const getPinsApi = (projectId, pageUrl, signal) => {
-  const params = pageUrl ? { pageUrl } : {};
+export const getPinsApi = (projectId, pageUrl, signal, deviceMode) => {
+  const params = {};
+  if (pageUrl) params.pageUrl = pageUrl;
+  if (deviceMode) params.deviceMode = deviceMode;
   return api.get(`/projects/${projectId}/pins`, { params, signal });
 };
 

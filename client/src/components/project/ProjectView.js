@@ -52,6 +52,8 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [modeSwitching, setModeSwitching] = useState(false);
+  const [viewportWidth, setViewportWidth] = useState(1440);
+  const [deviceMode, setDeviceMode] = useState('desktop');
   const iframeState = useIframeMessages();
   const { onEvent, onlineUsers, lastSeenMap } = useSocket(project._id);
   const deepLinkHandled = useRef(false);
@@ -104,12 +106,12 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
 
   const loadPins = useCallback(async () => {
     try {
-      const res = await getPinsApi(project._id, currentPageUrl);
+      const res = await getPinsApi(project._id, currentPageUrl, undefined, deviceMode);
       setPins(res.data.pins);
     } catch (err) {
       console.error("Failed to load pins:", err);
     }
-  }, [project._id, currentPageUrl]);
+  }, [project._id, currentPageUrl, deviceMode]);
 
   const loadAllPins = useCallback(async () => {
     try {
@@ -123,13 +125,13 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   // Auto-fetch pins with cancellation when deps change
   useEffect(() => {
     const controller = new AbortController();
-    getPinsApi(project._id, currentPageUrl, controller.signal)
+    getPinsApi(project._id, currentPageUrl, controller.signal, deviceMode)
       .then((res) => setPins(res.data.pins))
       .catch((err) => {
         if (err.name !== 'CanceledError') console.error("Failed to load pins:", err);
       });
     return () => controller.abort();
-  }, [project._id, currentPageUrl]);
+  }, [project._id, currentPageUrl, deviceMode]);
 
   // Auto-fetch all pins with cancellation
   useEffect(() => {
@@ -155,10 +157,11 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         elementOffsetY,
         documentWidth,
         documentHeight,
+        deviceMode,
       });
       iframeState.clearLastClick();
     }
-  }, [iframeState.lastClick, iframeState.clearLastClick, pinMode, pendingPinData, currentPageUrl]);
+  }, [iframeState.lastClick, iframeState.clearLastClick, pinMode, pendingPinData, currentPageUrl, deviceMode]);
 
   // Listen for pin clicks from iframe
   useEffect(() => {
@@ -295,9 +298,19 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     }
   }, [initialPinId, allPins]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const DEVICE_WIDTHS = { desktop: 1440, tablet: 768, mobile: 375 };
+
+  const handleDeviceChange = (mode) => {
+    setDeviceMode(mode);
+    setViewportWidth(DEVICE_WIDTHS[mode]);
+  };
+
   const handlePinNavigate = (pin) => {
     setPinMode(true);
     setSelectedPin(pin);
+    if (pin.deviceMode && pin.deviceMode !== deviceMode) {
+      handleDeviceChange(pin.deviceMode);
+    }
     if (pin.pageUrl !== targetUrl) {
       setTargetUrl(pin.pageUrl);
     }
@@ -323,6 +336,41 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
             {currentPageUrl}
           </span>
         </div>
+
+        {/* Device preview icons — centered */}
+        <div className="flex items-center gap-1">
+          {/* Desktop */}
+          <button
+            onClick={() => handleDeviceChange('desktop')}
+            className={`p-1.5 rounded-md transition-colors ${deviceMode === 'desktop' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+            title="Desktop (1440px)"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
+            </svg>
+          </button>
+          {/* Tablet */}
+          <button
+            onClick={() => handleDeviceChange('tablet')}
+            className={`p-1.5 rounded-md transition-colors ${deviceMode === 'tablet' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+            title="Tablet (768px)"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5h3m-6.75 2.25h10.5a2.25 2.25 0 002.25-2.25V4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 4.5v15a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </button>
+          {/* Mobile */}
+          <button
+            onClick={() => handleDeviceChange('mobile')}
+            className={`p-1.5 rounded-md transition-colors ${deviceMode === 'mobile' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+            title="Mobile (375px)"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+            </svg>
+          </button>
+        </div>
+
         <div className="flex items-center gap-3">
           {/* Browser / Comment mode tabs */}
           <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
@@ -405,6 +453,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
             loading={iframeLoading || modeSwitching}
             hidePins={!pinMode}
             onLoad={handleIframeLoad}
+            viewportWidth={viewportWidth}
           />
 
           {/* Right comment sidebar - overlays iframe, doesn't push it */}

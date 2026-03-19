@@ -1,12 +1,13 @@
 import React, { useRef, useEffect, useState } from 'react';
 
-const FIXED_WIDTH = 1440;
+const DESKTOP_WIDTH = 1440;
 
-export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId, loading, hidePins, onLoad }) {
+export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId, loading, hidePins, onLoad, viewportWidth = DESKTOP_WIDTH }) {
+  const isDesktop = viewportWidth >= DESKTOP_WIDTH;
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
   const [scaleFactor, setScaleFactor] = useState(1);
-  const [containerSize, setContainerSize] = useState({ width: FIXED_WIDTH, height: 900 });
+  const [containerSize, setContainerSize] = useState({ width: viewportWidth, height: 900 });
 
   // Track container size and compute scale factor
   useEffect(() => {
@@ -17,14 +18,23 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
       const entry = entries[0];
       if (entry) {
         const { width, height } = entry.contentRect;
-        setScaleFactor(width / FIXED_WIDTH);
+        const rawScale = width / viewportWidth;
+        setScaleFactor(isDesktop ? rawScale : Math.min(rawScale, 1));
         setContainerSize({ width, height });
       }
     });
 
     observer.observe(container);
     return () => observer.disconnect();
-  }, []);
+  }, [viewportWidth]);
+
+  // Recompute scale when viewportWidth changes
+  useEffect(() => {
+    if (containerSize.width) {
+      const rawScale = containerSize.width / viewportWidth;
+      setScaleFactor(isDesktop ? rawScale : Math.min(rawScale, 1));
+    }
+  }, [viewportWidth, containerSize.width, isDesktop]);
 
   // Send pin mode state to iframe
   useEffect(() => {
@@ -74,16 +84,20 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
     return () => iframe.removeEventListener('load', sendPins);
   }, [pins, selectedPinId, hidePins]);
 
+  // Center the iframe when it's narrower than the container (tablet/mobile only)
+  const iframeScaledWidth = viewportWidth * scaleFactor;
+  const offsetX = !isDesktop && iframeScaledWidth < containerSize.width ? (containerSize.width - iframeScaledWidth) / 2 : 0;
+
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-hidden">
+    <div ref={containerRef} className={`relative w-full h-full overflow-hidden ${isDesktop ? '' : 'bg-gray-100'}`}>
       <iframe
         ref={iframeRef}
         src={proxyUrl}
         title="Website Preview"
         style={{
-          width: `${FIXED_WIDTH}px`,
+          width: `${viewportWidth}px`,
           height: `${containerSize.height / scaleFactor}px`,
-          transform: `scale(${scaleFactor})`,
+          transform: `translateX(${offsetX}px) scale(${scaleFactor})`,
           transformOrigin: 'top left',
           border: 'none',
         }}

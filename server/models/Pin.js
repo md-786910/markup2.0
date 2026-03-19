@@ -48,6 +48,11 @@ const pinSchema = new Schema({
     type: Number,
     default: null,
   },
+  deviceMode: {
+    type: String,
+    enum: ['desktop', 'tablet', 'mobile'],
+    default: 'desktop',
+  },
   pinNumber: {
     type: Number,
     default: null,
@@ -59,7 +64,7 @@ const pinSchema = new Schema({
   },
 }, { timestamps: true });
 
-pinSchema.index({ project: 1, pageUrl: 1 });
+pinSchema.index({ project: 1, pageUrl: 1, deviceMode: 1 });
 pinSchema.index({ project: 1, pinNumber: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Pin', pinSchema);

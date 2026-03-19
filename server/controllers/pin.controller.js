@@ -4,7 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { emitToProject, emailProjectMembers } = require('../utils/notifier');
 
 exports.createPin = asyncHandler(async (req, res) => {
-  const { xPercent, yPercent, pageUrl, selector, elementOffsetX, elementOffsetY, documentWidth, documentHeight } = req.body;
+  const { xPercent, yPercent, pageUrl, selector, elementOffsetX, elementOffsetY, documentWidth, documentHeight, deviceMode } = req.body;
   const { projectId } = req.params;
 
   if (xPercent == null || yPercent == null || !pageUrl) {
@@ -29,6 +29,7 @@ exports.createPin = asyncHandler(async (req, res) => {
     elementOffsetY: elementOffsetY != null ? elementOffsetY : null,
     documentWidth: documentWidth != null ? documentWidth : null,
     documentHeight: documentHeight != null ? documentHeight : null,
+    deviceMode: deviceMode || 'desktop',
     pinNumber,
   });
 
@@ -50,11 +51,14 @@ exports.createPin = asyncHandler(async (req, res) => {
 
 exports.getPins = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  const { pageUrl } = req.query;
+  const { pageUrl, deviceMode } = req.query;
 
   const filter = { project: projectId };
   if (pageUrl) {
     filter.pageUrl = pageUrl;
+  }
+  if (deviceMode) {
+    filter.deviceMode = deviceMode;
   }
 
   const pins = await Pin.find(filter)
