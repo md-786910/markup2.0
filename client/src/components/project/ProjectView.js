@@ -52,6 +52,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [newlyCreatedPin, setNewlyCreatedPin] = useState(null);
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
   const [iframeLoading, setIframeLoading] = useState(true);
+  const [modeSwitching, setModeSwitching] = useState(false);
   const iframeState = useIframeMessages();
   const { onEvent, onlineUsers, lastSeenMap } = useSocket(project._id);
   const deepLinkHandled = useRef(false);
@@ -158,7 +159,6 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
       })
         .then((res) => {
           setNewlyCreatedPin(res.data.pin);
-          setPinMode(false);
           loadPins();
           loadAllPins();
           iframeState.clearLastClick();
@@ -347,6 +347,26 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           </span>
         </div>
         <div className="flex items-center gap-3">
+          {/* Browser / Comment mode tabs */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+            <button
+              onClick={() => { setModeSwitching(true); setPinMode(false); setTimeout(() => setModeSwitching(false), 400); }}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                !pinMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              View
+            </button>
+            <button
+              onClick={() => { setModeSwitching(true); setPinMode(true); setTimeout(() => setModeSwitching(false), 400); }}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                pinMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Comment
+            </button>
+          </div>
+
           {/* Member avatars with online/offline status */}
           <div className="flex items-center -space-x-2">
             {allMembers.slice(0, 5).map((member) => {
@@ -371,19 +391,6 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
 
           <div className="w-px h-5 bg-gray-200"></div>
 
-          <button
-            onClick={() => setPinMode(!pinMode)}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              pinMode
-                ? "bg-red-500 text-white hover:bg-red-600"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            {pinMode ? "📌 Pin Mode ON" : "📌 Pin Mode"}
-          </button>
-          <span className="text-sm text-gray-500">
-            {pins.length} pin{pins.length !== 1 ? "s" : ""}
-          </span>
           {isAdmin && (
             <button
               onClick={() => setShowInvite(true)}
@@ -418,7 +425,8 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
             pinMode={pinMode}
             pins={pins}
             selectedPinId={selectedPin?._id}
-            loading={iframeLoading}
+            loading={iframeLoading || modeSwitching}
+            hidePins={!pinMode}
             onLoad={handleIframeLoad}
           />
 

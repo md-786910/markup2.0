@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 
 const FIXED_WIDTH = 1440;
 
-export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId, loading, onLoad }) {
+export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId, loading, hidePins, onLoad }) {
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
   const [scaleFactor, setScaleFactor] = useState(1);
@@ -50,7 +50,7 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
     if (!iframe) return;
 
     const sendPins = () => {
-      const pinData = pins.map((pin) => ({
+      const pinData = hidePins ? [] : pins.map((pin) => ({
         id: pin._id,
         xPercent: pin.xPercent,
         yPercent: pin.yPercent,
@@ -72,7 +72,7 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
     sendPins();
     iframe.addEventListener('load', sendPins);
     return () => iframe.removeEventListener('load', sendPins);
-  }, [pins, selectedPinId]);
+  }, [pins, selectedPinId, hidePins]);
 
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden">
