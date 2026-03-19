@@ -222,6 +222,15 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     }
   }, [iframeState.ready]);
 
+  // Show loader when user navigates inside iframe (URL changes)
+  const prevPageUrlRef = useRef(currentPageUrl);
+  useEffect(() => {
+    if (prevPageUrlRef.current && prevPageUrlRef.current !== currentPageUrl) {
+      setIframeLoading(true);
+    }
+    prevPageUrlRef.current = currentPageUrl;
+  }, [currentPageUrl]);
+
   // Hard timeout fallback: if iframe hasn't loaded within 15s, remove spinner
   useEffect(() => {
     if (!iframeLoading) return;
