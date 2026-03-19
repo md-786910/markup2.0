@@ -3,12 +3,16 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const { createBullBoard } = require('@bull-board/api');
+const { BullMQAdapter } = require('@bull-board/api/bullMQAdapter');
+const { ExpressAdapter } = require('@bull-board/express');
+const { Queue } = require('bullmq');
+const IORedis = require('ioredis');
 
 const authRoutes = require('./routes/auth.routes');
 const projectRoutes = require('./routes/project.routes');
 const pinRoutes = require('./routes/pin.routes');
 const commentRoutes = require('./routes/comment.routes');
-const proxyRoutes = require('./routes/proxy.routes');
 const invitationRoutes = require('./routes/invitation.routes');
 
 const app = express();
@@ -34,29 +38,25 @@ app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/projects', pinRoutes);
 app.use('/api/pins', commentRoutes);
-app.use('/api/proxy', proxyRoutes);
 app.use('/api/invitations', invitationRoutes);
+
+// --- Bull Board dashboard (BullMQ job monitoring) ---
+const redisConnection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+});
+const cacheCheckQueue = new Queue('cache-check', { connection: redisConnection });
+
+const bullServerAdapter = new ExpressAdapter();
+bullServerAdapter.setBasePath('/admin/queues');
+createBullBoard({
+  queues: [new BullMQAdapter(cacheCheckQueue)],
+  serverAdapter: bullServerAdapter,
+});
+app.use('/admin/queues', bullServerAdapter.getRouter());
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
-});
-
-// Catch-all: redirect unmatched requests through proxy when a proxy context cookie exists.
-// Handles window.location navigations from inside the proxied iframe
-// (e.g., after login redirect: window.location.href = '/employee/dashboard').
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/')) return next();
-  const ctxCookie = req.cookies && req.cookies.__markup_proxy_ctx;
-  if (!ctxCookie) return next();
-  try {
-    const { origin, projectId, token } = JSON.parse(ctxCookie);
-    if (!origin || !projectId) return next();
-    const targetUrl = origin + req.originalUrl;
-    return res.redirect(307, `/api/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${encodeURIComponent(projectId)}&token=${encodeURIComponent(token || '')}`);
-  } catch {
-    return next();
-  }
 });
 
 // Error handler

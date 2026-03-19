@@ -1,5 +1,6 @@
 const axios = require("axios");
 const https = require("https");
+const crypto = require("crypto");
 const Project = require("../models/Project");
 const {
   rewriteHtml,
@@ -8,6 +9,43 @@ const {
   injectScript,
 } = require("../utils/proxyRewriter");
 const asyncHandler = require("../utils/asyncHandler");
+const { setCache, getCache, deleteCache, clearCache, setAsset, getAsset } = require("../utils/redisCache");
+
+// --- Shared HTTPS agent with connection pooling (reused across all requests) ---
+const upstreamAgent = new https.Agent({
+  rejectUnauthorized: false,
+  keepAlive: true,
+  maxSockets: 100,
+  maxFreeSockets: 20,
+});
+
+// --- Project lookup cache (avoids DB hit on every sub-resource request) ---
+const projectCache = new Map();
+const PROJECT_CACHE_TTL = 60000; // 60 seconds
+
+function getCachedProject(projectId) {
+  const entry = projectCache.get(projectId);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > PROJECT_CACHE_TTL) {
+    projectCache.delete(projectId);
+    return null;
+  }
+  return entry.project;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of projectCache) {
+    if (now - v.ts > PROJECT_CACHE_TTL) projectCache.delete(k);
+  }
+}, 120000);
+
+function hashContent(buffer) {
+  return crypto.createHash('md5').update(buffer).digest('hex');
+}
+
+// --- Cached serverBase (same for all requests, no need to rebuild per-request) ---
+let cachedServerBase = null;
 
 // --- Domain failure cache (reduces console spam and skips known-bad domains) ---
 const failedDomains = new Map();
@@ -105,10 +143,19 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       .json({ message: "url and projectId query params are required" });
   }
 
-  // Verify project exists and user has access
-  const project = await Project.findById(projectId);
+  // Skip browser-generated blank frames — not a real request
+  if (url.startsWith('about:')) {
+    return res.status(204).send('');
+  }
+
+  // Verify project exists and user has access (cached)
+  let project = getCachedProject(projectId);
   if (!project) {
-    return res.status(404).json({ message: "Project not found" });
+    project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    projectCache.set(projectId, { project, ts: Date.now() });
   }
 
   // const userId = req.user._id.toString();
@@ -121,13 +168,41 @@ exports.proxyPage = asyncHandler(async (req, res) => {
   // Remove X-Frame-Options set by Helmet so iframe can display proxy content
   res.removeHeader('X-Frame-Options');
 
-  const serverBase = `${req.protocol}://${req.get('host')}`;
+  // Cache serverBase — same value for the lifetime of this process
+  const serverBase = cachedServerBase || (cachedServerBase = `${req.protocol}://${req.get('host')}`);
 
   // Early exit: if this domain recently failed, skip the request
   const cachedFailure = getFailedDomain(url);
   if (cachedFailure) {
     const domain = getDomain(url) || url;
     return sendContentAwareError(req, res, url, domain, cachedFailure.message);
+  }
+
+  // Serve cached HTML instantly from Redis (shared across all cluster workers)
+  const isGetRequest = req.method === 'GET';
+  const isDocumentRequest = (req.headers.accept || '').includes('text/html');
+  if (isGetRequest && isDocumentRequest) {
+    const cacheKey = url + '|' + projectId;
+    try {
+      const cachedHtml = await getCache(cacheKey);
+      if (cachedHtml) {
+        res.removeHeader('X-Frame-Options');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(cachedHtml);
+      }
+    } catch {}
+  }
+
+  // Serve cached sub-resources (CSS, JS, images, fonts) from Redis
+  if (isGetRequest && !isDocumentRequest) {
+    try {
+      const cached = await getAsset(url);
+      if (cached) {
+        res.removeHeader('X-Frame-Options');
+        res.setHeader('Content-Type', cached.contentType);
+        return res.send(cached.body);
+      }
+    } catch {}
   }
 
   try {
@@ -141,10 +216,12 @@ exports.proxyPage = asyncHandler(async (req, res) => {
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate, br",
       },
       maxRedirects: 5,
-      timeout: 15000,
-      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+      timeout: isDocumentRequest ? 20000 : 8000,
+      decompress: true,
+      httpsAgent: upstreamAgent,
     };
 
     // Forward cookies from client to upstream (exclude our internal cookies)
@@ -229,7 +306,6 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     });
 
     // Only rewrite HTML/CSS/JS for GET requests; non-GET responses (API JSON etc.) pass through
-    const isGetRequest = req.method === 'GET';
 
     if (isGetRequest && contentType.includes("text/html")) {
       // Store proxy context cookie for catch-all fallback (handles window.location navigations)
@@ -245,6 +321,19 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       const html = response.data.toString("utf-8");
       let rewritten = rewriteHtml(html, url, projectId, serverBase);
       rewritten = injectScript(rewritten, url, projectId, serverBase);
+
+      // Cache rewritten HTML in Redis — shared across cluster workers, invalidated by BullMQ watcher
+      const hasEtag = !!response.headers['etag'];
+      const hasLastMod = !!response.headers['last-modified'];
+      setCache(url + '|' + projectId, {
+        html: rewritten,
+        etag: response.headers['etag'] || null,
+        lastModified: response.headers['last-modified'] || null,
+        contentHash: (!hasEtag && !hasLastMod) ? hashContent(response.data) : null,
+        originalUrl: url,
+        projectId,
+      }).catch(() => {});
+
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       return res.send(rewritten);
     }
@@ -252,6 +341,7 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     if (isGetRequest && contentType.includes("text/css")) {
       const css = response.data.toString("utf-8");
       const rewritten = rewriteCssUrls(css, url, projectId, serverBase);
+      setAsset(url, { contentType, body: rewritten }).catch(() => {});
       res.setHeader("Content-Type", contentType);
       return res.send(rewritten);
     }
@@ -261,11 +351,15 @@ exports.proxyPage = asyncHandler(async (req, res) => {
         contentType.includes("application/x-javascript"))) {
       const js = response.data.toString("utf-8");
       const rewritten = rewriteJsUrls(js, url, projectId, serverBase);
+      setAsset(url, { contentType, body: rewritten }).catch(() => {});
       res.setHeader("Content-Type", contentType);
       return res.send(rewritten);
     }
 
-    // For everything else (images, fonts, etc.), pass through
+    // For everything else (images, fonts, etc.), pass through + cache
+    if (isGetRequest && contentType && !contentType.includes('text/html')) {
+      setAsset(url, { contentType, body: response.data }).catch(() => {});
+    }
     res.setHeader("Content-Type", contentType);
     return res.send(response.data);
   } catch (err) {
@@ -273,21 +367,24 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     const domainErrors = ['ENOTFOUND', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'ERR_TLS_CERT_ALTNAME_INVALID'];
 
     if (domainErrors.includes(err.code) && getDomain(url)) {
-      const alreadyCached = failedDomains.has(getDomain(url));
       failedDomains.set(getDomain(url), {
         timestamp: Date.now(),
         errorCode: err.code,
         message: errorMessages[err.code] || err.message,
       });
-      // Log only the first failure per domain within the TTL window
-      if (!alreadyCached) {
-        console.error(`Proxy error for domain ${domain} (${err.code}): ${err.message}`);
-      }
     } else {
-      console.error(`Proxy error for ${url}: ${err.message}`);
+      // Silence HTTP 4xx (upstream's problem) and known noisy beacon URLs
+      const status = err.response?.status;
+      const isNoisyUrl = /google\.com\/ccm\/collect|cdn-cgi\/rum/.test(url);
+      if (!isNoisyUrl && (!status || status >= 500)) {
+        console.error(`Proxy error for ${url}: ${err.message}`);
+      }
     }
 
     const reason = errorMessages[err.code] || `Could not load the page (${err.message}).`;
     return sendContentAwareError(req, res, url, domain, reason);
   }
 });
+
+// Expose for cache watcher worker
+exports.upstreamAgent = upstreamAgent;

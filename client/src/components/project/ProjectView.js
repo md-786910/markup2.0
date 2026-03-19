@@ -51,6 +51,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [showInvite, setShowInvite] = useState(false);
   const [newlyCreatedPin, setNewlyCreatedPin] = useState(null);
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [modeSwitching, setModeSwitching] = useState(false);
   const iframeState = useIframeMessages();
@@ -99,9 +100,28 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   }, [onlineUsers, lastSeenMap, formatLastSeen]);
 
   const token = localStorage.getItem(TOKEN_KEY);
-  const proxyUrl = `${process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api'}/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${project._id}&token=${token}`;
+  const proxyUrl = `${process.env.REACT_APP_PROXY_URL || 'http://localhost:5000'}/api/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${project._id}&token=${token}`;
 
   const currentPageUrl = iframeState.currentPageUrl || project.websiteUrl;
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const proxyBase = process.env.REACT_APP_PROXY_URL || 'http://localhost:5000';
+      await fetch(
+        `${proxyBase}/api/proxy/cache?url=${encodeURIComponent(currentPageUrl)}&projectId=${encodeURIComponent(project._id)}&token=${encodeURIComponent(token)}`,
+        { method: 'DELETE' }
+      );
+    } catch (err) {
+      console.error('Cache sync failed:', err);
+    }
+    // Remount iframe to load fresh from upstream
+    iframeState.resetReady();
+    setIframeLoading(true);
+    setRefreshKey((k) => k + 1);
+    setSyncing(false);
+  }, [currentPageUrl, project._id, token, iframeState]);
 
   const loadPins = useCallback(async () => {
     try {
@@ -234,7 +254,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   // Hard timeout fallback: if iframe hasn't loaded within 15s, remove spinner
   useEffect(() => {
     if (!iframeLoading) return;
-    const timer = setTimeout(() => setIframeLoading(false), 15000);
+    const timer = setTimeout(() => setIframeLoading(false), 8000);
     return () => clearTimeout(timer);
   }, [iframeLoading]);
 
@@ -354,6 +374,16 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded truncate max-w-md" title={currentPageUrl}>
             {currentPageUrl}
           </span>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            title="Sync — reload page from source (clears cache)"
+            className={`p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors shrink-0 ${syncing ? 'animate-spin' : ''}`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
         </div>
         <div className="flex items-center gap-3">
           {/* Browser / Comment mode tabs */}
@@ -429,7 +459,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         {/* Iframe area */}
         <div className="flex-1 relative">
           <IframeContainer
-            key={targetUrl}
+            key={targetUrl + refreshKey}
             proxyUrl={proxyUrl}
             pinMode={pinMode}
             pins={pins}

@@ -190,20 +190,16 @@ function rewriteHtml(html, pageUrl, projectId, serverBase) {
   return $.html();
 }
 
-function injectScript(html, pageUrl, projectId, serverBase) {
-  const safePageUrl = pageUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  const safeServerBase = (serverBase || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  let pageOrigin;
-  try { pageOrigin = new URL(pageUrl).origin; } catch { pageOrigin = pageUrl; }
-  const safePageOrigin = pageOrigin.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-
-  const injectionScript = `
+// --- Pre-built script template (static body built once at module load) ---
+// Placeholders are replaced per-request with simple string substitution.
+// This avoids reconstructing the entire ~700-line string on every HTML response.
+const SCRIPT_TEMPLATE = `
 <script>
 (function() {
-  var __markupPageUrl = '${safePageUrl}';
-  var __markupServerBase = '${safeServerBase}';
-  var __markupProjectId = '${projectId}';
-  var __markupPageOrigin = '${safePageOrigin}';
+  var __markupPageUrl = '__MARKUP_PAGE_URL__';
+  var __markupServerBase = '__MARKUP_SERVER_BASE__';
+  var __markupProjectId = '__MARKUP_PROJECT_ID__';
+  var __markupPageOrigin = '__MARKUP_PAGE_ORIGIN__';
   var __markupToken = '';
   try {
     __markupToken = new URLSearchParams(window.location.search).get('token') || '';
@@ -685,6 +681,19 @@ function injectScript(html, pageUrl, projectId, serverBase) {
   }
 })();
 </script>`;
+
+function injectScript(html, pageUrl, projectId, serverBase) {
+  const safePageUrl = pageUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safeServerBase = (serverBase || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  let pageOrigin;
+  try { pageOrigin = new URL(pageUrl).origin; } catch { pageOrigin = pageUrl; }
+  const safePageOrigin = pageOrigin.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+  const injectionScript = SCRIPT_TEMPLATE
+    .replace("'__MARKUP_PAGE_URL__'", "'" + safePageUrl + "'")
+    .replace("'__MARKUP_SERVER_BASE__'", "'" + safeServerBase + "'")
+    .replace("'__MARKUP_PROJECT_ID__'", "'" + projectId + "'")
+    .replace("'__MARKUP_PAGE_ORIGIN__'", "'" + safePageOrigin + "'");
 
   // Inject before the LAST </body> to avoid inserting inside inline scripts
   // that contain "</body>" in string literals (common in WordPress themes)
