@@ -25,9 +25,11 @@ exports.createProject = asyncHandler(async (req, res) => {
 });
 
 exports.getProjects = asyncHandler(async (req, res) => {
-  const projects = await Project.find({
-    members: req.user._id,
-  }).populate('owner', 'name email lastSeen').populate('members', 'name email role lastSeen');
+  const query = req.user.role === 'admin' ? {} : { members: req.user._id };
+
+  const projects = await Project.find(query)
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen');
 
   res.json({ projects });
 });
