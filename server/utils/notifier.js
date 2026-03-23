@@ -41,12 +41,14 @@ function emitToProject(io, projectId, event, data) {
  * Send email notifications to all project members (except actor).
  * Fire-and-forget — does not throw.
  */
-async function emailProjectMembers(type, { projectId, actorUserId, actorName, projectName, pin, comment }) {
+async function emailProjectMembers(type, { projectId, actorUserId, actorName, projectName, pin, comment, excludeUserIds }) {
   try {
     const recipients = await getRecipients(projectId, actorUserId);
     const link = buildPinLink(projectId, pin._id);
+    const excludeSet = new Set((excludeUserIds || []).map(String));
 
     for (const recipient of recipients) {
+      if (excludeSet.has(recipient._id.toString())) continue;
       try {
         if (type === 'pin') {
           await sendPinNotificationEmail(recipient.email, actorName, projectName, pin.pageUrl, link);

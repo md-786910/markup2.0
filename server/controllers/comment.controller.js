@@ -59,6 +59,7 @@ exports.createComment = asyncHandler(async (req, res) => {
       projectName: proj.name,
       pin,
       comment: populated,
+      excludeUserIds: mentionedUserIds,
     }).catch(() => {});
 
     if (mentionedUserIds.length > 0) {
