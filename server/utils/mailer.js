@@ -161,4 +161,36 @@ async function sendMentionNotificationEmail(toEmail, actorName, projectName, com
   });
 }
 
-module.exports = { sendInvitationEmail, sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail };
+async function sendPasswordResetEmail(toEmail, resetUrl) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
+      <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+      </div>
+      <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <h2 style="margin: 0 0 8px; font-size: 18px; color: #111827;">Reset Your Password</h2>
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
+          We received a request to reset your password. Click the button below to choose a new password.
+        </p>
+        <a href="${resetUrl}"
+           style="display: inline-block; background: #2563eb; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+          Reset Password
+        </a>
+        <p style="color: #9ca3af; font-size: 12px; margin: 24px 0 0; line-height: 1.5;">
+          This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.
+        </p>
+      </div>
+    </div>
+  `;
+
+  await getTransporter().sendMail({
+    from,
+    to: toEmail,
+    subject: 'Reset your Markup password',
+    html,
+  });
+}
+
+module.exports = { sendInvitationEmail, sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail, sendPasswordResetEmail };
