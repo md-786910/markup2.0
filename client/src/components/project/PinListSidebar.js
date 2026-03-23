@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { getCommentsApi, createCommentApi } from '../../services/commentService';
-import MentionInput from './MentionInput';
+import CommentSidebar from './CommentSidebar';
 import { useAuth } from '../../hooks/useAuth';
 
 function timeAgo(date) {
@@ -94,9 +93,12 @@ const TABS = [
 export default function PinListSidebar({
   pins,
   selectedPinId,
+  selectedPin,
   onPinClick,
+  onClosePin,
+  onDeletePin,
+  onNavigatePin,
   onStatusChange,
-  onCommentAdded,
   onEvent,
   members = [],
   projectId,
@@ -104,11 +106,6 @@ export default function PinListSidebar({
   const { user } = useAuth();
   const [readPins, setReadPins] = useState(() => getReadPins(user?.id));
   const [readComments, setReadComments] = useState(() => getReadComments(user?.id));
-  const [expandedPinId, setExpandedPinId] = useState(null);
-  const [comments, setComments] = useState([]);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [replyBody, setReplyBody] = useState('');
-  const [sendingReply, setSendingReply] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [filterStatus, setFilterStatus] = useState('open');
   const [searchQuery, setSearchQuery] = useState('');
@@ -121,90 +118,13 @@ export default function PinListSidebar({
   const sortRef = useRef(null);
   const filterRef = useRef(null);
 
-  useEffect(() => {
-    if (!expandedPinId) {
-      setComments([]);
-      return;
-    }
-    loadComments(expandedPinId);
-  }, [expandedPinId]);
-
-  // Real-time: new comment on expanded pin
-  useEffect(() => {
-    if (!onEvent || !expandedPinId) return;
-    return onEvent('comment:created', (data) => {
-      if (data.pinId === expandedPinId) {
-        setComments((prev) => {
-          if (prev.some((c) => c._id === data.comment._id)) return prev;
-          return [...prev, data.comment];
-        });
-        // Auto-mark as read since the user is actively viewing this thread
-        markCommentsRead(data.pinId, user?.id);
-        setReadComments((prev) => ({ ...prev, [data.pinId]: Date.now() }));
-      }
-    });
-  }, [onEvent, expandedPinId, user?.id]);
-
-  // Real-time: comment deleted from expanded pin
-  useEffect(() => {
-    if (!onEvent || !expandedPinId) return;
-    return onEvent('comment:deleted', (data) => {
-      if (data.pinId === expandedPinId) {
-        setComments((prev) => prev.filter((c) => c._id !== data.commentId));
-      }
-    });
-  }, [onEvent, expandedPinId]);
-
-  const loadComments = async (pinId) => {
-    setLoadingComments(true);
-    try {
-      const res = await getCommentsApi(pinId);
-      setComments(res.data.comments);
-    } catch (err) {
-      console.error('Failed to load comments:', err);
-    } finally {
-      setLoadingComments(false);
-    }
-  };
-
   const handleCardClick = (pin) => {
     onPinClick(pin);
-    const isOpening = expandedPinId !== pin._id;
-    setExpandedPinId((prev) => (prev === pin._id ? null : pin._id));
-    setReplyBody('');
     setConfirmDelete(null);
     markPinRead(pin._id, user?.id);
     setReadPins((prev) => new Set([...prev, pin._id]));
-    if (isOpening) {
-      markCommentsRead(pin._id, user?.id);
-      setReadComments((prev) => ({ ...prev, [pin._id]: Date.now() }));
-    }
-  };
-
-  const encodeBody = (text) => {
-    let encoded = text;
-    members.forEach((m) => {
-      const regex = new RegExp(`@${m.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s|$|[^\\w])`, 'g');
-      encoded = encoded.replace(regex, `@[${m.name}](${m._id})`);
-    });
-    return encoded;
-  };
-
-  const handleReply = async (pinId) => {
-    if (!replyBody.trim()) return;
-    setSendingReply(true);
-    try {
-      const formData = new FormData();
-      formData.append('body', encodeBody(replyBody));
-      await createCommentApi(pinId, formData);
-      setReplyBody('');
-      await loadComments(pinId);
-      if (onCommentAdded) onCommentAdded();
-    } catch (err) {
-      console.error('Failed to send reply:', err);
-    } finally {
-      setSendingReply(false);
-    }
+    markCommentsRead(pin._id, user?.id);
+    setReadComments((prev) => ({ ...prev, [pin._id]: Date.now() }));
   };
 
   const toggleGroup = (path) => {
@@ -267,6 +187,7 @@ export default function PinListSidebar({
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter((p) =>
+        (p.firstComment?.body || '').toLowerCase().includes(q) ||
         (p.latestComment?.body || '').toLowerCase().includes(q) ||
         (p.createdBy?.name || '').toLowerCase().includes(q)
       );
@@ -295,11 +216,32 @@ export default function PinListSidebar({
     grouped[path].push(pin);
   });
 
-  const isExpanded = (pinId) => expandedPinId === pinId;
   const isSelected = (pinId) => selectedPinId === pinId;
 
   return (
-    <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
+    <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden relative">
+      {/* Detail view — slides in from right */}
+      <div
+        className="absolute inset-0 z-10 transition-transform duration-300 ease-in-out"
+        style={{ transform: selectedPin ? 'translateX(0)' : 'translateX(100%)' }}
+      >
+        {selectedPin && (
+          <CommentSidebar
+            pin={selectedPin}
+            pins={filteredPins}
+            onBack={onClosePin}
+            onClose={onClosePin}
+            onStatusChange={onStatusChange}
+            onDelete={onDeletePin}
+            onNavigate={onNavigatePin}
+            onEvent={onEvent}
+            members={members}
+          />
+        )}
+      </div>
+
+      {/* Pin list view */}
+      <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-4 pt-3 pb-2 border-b border-gray-100">
         {/* Tabs row + icon buttons */}
@@ -521,7 +463,7 @@ export default function PinListSidebar({
                   <div
                     onClick={() => handleCardClick(pin)}
                     className={`cursor-pointer transition-colors ${
-                      isSelected(pin._id) || isExpanded(pin._id)
+                      isSelected(pin._id)
                         ? 'bg-gray-50'
                         : 'bg-white hover:bg-gray-50'
                     }`}
@@ -564,7 +506,6 @@ export default function PinListSidebar({
                                 <button
                                   onClick={() => {
                                     onPinClick(pin);
-                                    setExpandedPinId(null);
                                     setConfirmDelete(null);
                                   }}
                                   className="w-full px-4 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
@@ -618,103 +559,24 @@ export default function PinListSidebar({
                       {/* Time */}
                       <p className="text-[11px] text-gray-400 mb-1.5">{timeAgo(pin.createdAt)}</p>
 
-                      {/* Comment preview */}
-                      {pin.latestComment ? (
-                        <p className="text-[13px] text-gray-700 leading-snug">
-                          {renderCommentBody(pin.latestComment.body)}
+                      {/* Comment preview — first comment as title */}
+                      {pin.firstComment ? (
+                        <p className="text-[13px] text-gray-700 leading-snug line-clamp-2">
+                          {renderCommentBody(pin.firstComment.body)}
                         </p>
                       ) : (
                         <p className="text-[12px] text-gray-300 italic">No comments</p>
                       )}
 
+                      {/* Comment count indicator */}
+                      {pin.commentsCount > 1 && (
+                        <p className="text-[11px] text-gray-400 mt-1">
+                          {pin.commentsCount - 1} {pin.commentsCount - 1 === 1 ? 'reply' : 'replies'}
+                        </p>
+                      )}
+
                     </div>
                   </div>
-
-                  {/* Expanded thread */}
-                  {isExpanded(pin._id) && (
-                    <div className="bg-gray-50/60 border-t border-gray-100">
-                      {/* Comments thread */}
-                      <div className="max-h-64 overflow-y-auto">
-                        {loadingComments ? (
-                          <div className="py-8 text-center">
-                            <div className="inline-block w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
-                          </div>
-                        ) : comments.length === 0 ? (
-                          <div className="py-8 text-center">
-                            <p className="text-[11px] text-gray-400">No comments yet</p>
-                          </div>
-                        ) : (
-                          <div className="px-4 py-2">
-                            {comments.map((comment, ci) => (
-                              <div key={comment._id} className={`py-2.5 flex gap-2.5 ${ci > 0 ? 'border-t border-gray-100' : ''}`}>
-                                <span className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
-                                  {(comment.author?.name || '?')[0].toUpperCase()}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-baseline gap-2">
-                                    <span className="text-[12px] font-semibold text-gray-800">
-                                      {comment.author?.name || 'Unknown'}
-                                    </span>
-                                    <span className="text-[10px] text-gray-400">
-                                      {timeAgo(comment.createdAt)}
-                                    </span>
-                                  </div>
-                                  <p className="text-[12px] text-gray-600 leading-relaxed break-words mt-0.5">
-                                    {renderCommentBody(comment.body)}
-                                  </p>
-                                  {comment.attachments?.length > 0 && (
-                                    <div className="mt-2 flex gap-1.5 flex-wrap">
-                                      {comment.attachments.map((att, i) => (
-                                        <img
-                                          key={i}
-                                          src={`/${att.path}`}
-                                          alt={att.originalName}
-                                          className="w-14 h-14 object-cover rounded-lg border border-gray-200 hover:border-blue-300 cursor-pointer transition-colors"
-                                          onClick={() => window.open(`/${att.path}`, '_blank')}
-                                        />
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Reply input with @mention support */}
-                      <div
-                        className="px-4 py-3 flex items-start gap-2 border-t border-gray-100 bg-white"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex-1 flex flex-col gap-2">
-                          <MentionInput
-                            value={replyBody}
-                            onChange={setReplyBody}
-                            members={members}
-                            placeholder="Write a reply... (@ to mention)"
-                            multiline={true}
-                            rows={3}
-                            disabled={sendingReply}
-                            className="w-full text-[12px] px-3 py-2 bg-gray-100 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white placeholder-gray-400 transition-all resize-none"
-                          />
-                          <div className="flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => handleReply(pin._id)}
-                              disabled={sendingReply || !replyBody.trim()}
-                              className="px-3 py-1.5 text-[12px] font-medium bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-30 transition-colors flex items-center gap-1.5"
-                            >
-                              {sendingReply ? (
-                                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                              ) : 'Reply'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-                  )}
 
                   {/* Separator between cards */}
                   <div className="border-b border-gray-100 mx-4"></div>
@@ -723,6 +585,8 @@ export default function PinListSidebar({
             </div>
           );
         })}
+      </div>
+
       </div>
     </div>
   );

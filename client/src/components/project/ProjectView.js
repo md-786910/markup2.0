@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import IframeContainer from "./IframeContainer";
-import CommentSidebar from "./CommentSidebar";
 import PinListSidebar from "./PinListSidebar";
 import InviteMemberModal from "./InviteMemberModal";
 import NewPinCommentPopup from "./NewPinCommentPopup";
@@ -11,6 +10,7 @@ import {
   getPinsApi,
   updatePinApi,
   deletePinApi,
+  uploadPinScreenshotApi,
 } from "../../services/pinService";
 import { TOKEN_KEY } from "../../utils/constants";
 import { useSocket } from "../../hooks/useSocket";
@@ -49,6 +49,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [pinMode, setPinMode] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [pendingPinData, setPendingPinData] = useState(null);
+  const [lastCreatedPinId, setLastCreatedPinId] = useState(null);
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [modeSwitching, setModeSwitching] = useState(false);
@@ -115,12 +116,12 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
 
   const loadAllPins = useCallback(async () => {
     try {
-      const res = await getPinsApi(project._id);
+      const res = await getPinsApi(project._id, undefined, undefined, deviceMode);
       setAllPins(res.data.pins);
     } catch (err) {
       console.error("Failed to load all pins:", err);
     }
-  }, [project._id]);
+  }, [project._id, deviceMode]);
 
   // Auto-fetch pins with cancellation when deps change
   useEffect(() => {
@@ -133,24 +134,27 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     return () => controller.abort();
   }, [project._id, currentPageUrl, deviceMode]);
 
-  // Auto-fetch all pins with cancellation
+  // Auto-fetch all pins with cancellation (filtered by device mode)
   useEffect(() => {
     const controller = new AbortController();
-    getPinsApi(project._id, undefined, controller.signal)
+    getPinsApi(project._id, undefined, controller.signal, deviceMode)
       .then((res) => setAllPins(res.data.pins))
       .catch((err) => {
         if (err.name !== 'CanceledError') console.error("Failed to load all pins:", err);
       });
     return () => controller.abort();
-  }, [project._id]);
+  }, [project._id, deviceMode]);
 
   // Handle clicks from iframe — store click data for pending pin (don't create yet)
   useEffect(() => {
     if (iframeState.lastClick && pinMode && !pendingPinData) {
-      const { xPercent, yPercent, selector, elementOffsetX, elementOffsetY, documentWidth, documentHeight } = iframeState.lastClick;
+      const { xPercent, yPercent, viewportXPercent, viewportYPercent, selector, elementOffsetX, elementOffsetY, documentWidth, documentHeight } = iframeState.lastClick;
+      setLastCreatedPinId(null);
       setPendingPinData({
         xPercent,
         yPercent,
+        viewportXPercent,
+        viewportYPercent,
         pageUrl: currentPageUrl,
         selector,
         elementOffsetX,
@@ -162,6 +166,36 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
       iframeState.clearLastClick();
     }
   }, [iframeState.lastClick, iframeState.clearLastClick, pinMode, pendingPinData, currentPageUrl, deviceMode]);
+
+  // Attach screenshot to pending pin data when it arrives asynchronously
+  useEffect(() => {
+    // Path 1: popup still open — attach screenshot to pending pin data
+    if (iframeState.screenshot && pendingPinData && !pendingPinData.screenshot) {
+      setPendingPinData((prev) => prev ? { ...prev, screenshot: iframeState.screenshot } : prev);
+      iframeState.clearScreenshot();
+      return;
+    }
+    // Path 2: pin already created (fast user) — upload screenshot retroactively
+    if (iframeState.screenshot && lastCreatedPinId && !pendingPinData) {
+      const pinId = lastCreatedPinId;
+      const dataUrl = iframeState.screenshot;
+      setLastCreatedPinId(null);
+      iframeState.clearScreenshot();
+      (async () => {
+        try {
+          const res = await fetch(dataUrl);
+          const blob = await res.blob();
+          const formData = new FormData();
+          formData.append('screenshot', blob, 'screenshot.jpg');
+          await uploadPinScreenshotApi(project._id, pinId, formData);
+          loadAllPins();
+          loadPins();
+        } catch (err) {
+          console.warn('Late screenshot upload failed:', err);
+        }
+      })();
+    }
+  }, [iframeState.screenshot, iframeState.clearScreenshot, pendingPinData, lastCreatedPinId]);
 
   // Listen for pin clicks from iframe
   useEffect(() => {
@@ -222,15 +256,17 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     return onEvent('pin:created', (data) => {
       setAllPins((prev) => {
         if (prev.some((p) => p._id === data.pin._id)) return prev;
+        if (data.pin.deviceMode && data.pin.deviceMode !== deviceMode) return prev;
         return [data.pin, ...prev];
       });
       setPins((prev) => {
         if (data.pin.pageUrl !== currentPageUrl) return prev;
+        if (data.pin.deviceMode && data.pin.deviceMode !== deviceMode) return prev;
         if (prev.some((p) => p._id === data.pin._id)) return prev;
         return [data.pin, ...prev];
       });
     });
-  }, [onEvent, currentPageUrl]);
+  }, [onEvent, currentPageUrl, deviceMode]);
 
   // Pin updated (status change)
   useEffect(() => {
@@ -429,13 +465,16 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar - all pins list */}
+        {/* Left sidebar - pin list or pin detail */}
         <PinListSidebar
           pins={allPins}
           selectedPinId={selectedPin?._id}
+          selectedPin={selectedPin}
           onPinClick={handlePinNavigate}
+          onClosePin={() => setSelectedPin(null)}
+          onDeletePin={handleDeletePin}
+          onNavigatePin={handlePinNavigate}
           onStatusChange={handleStatusChange}
-          onDelete={handleDeletePin}
           onCommentAdded={() => { loadAllPins(); loadPins(); }}
           onEvent={onEvent}
           members={allMembers}
@@ -455,18 +494,6 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
             onLoad={handleIframeLoad}
             viewportWidth={viewportWidth}
           />
-
-          {/* Right comment sidebar - overlays iframe, doesn't push it */}
-          {selectedPin && (
-            <CommentSidebar
-              pin={selectedPin}
-              onClose={() => setSelectedPin(null)}
-              onStatusChange={handleStatusChange}
-              onDelete={handleDeletePin}
-              onEvent={onEvent}
-              members={allMembers}
-            />
-          )}
         </div>
       </div>
 
@@ -475,8 +502,8 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         <NewPinCommentPopup
           pinData={pendingPinData}
           projectId={project._id}
-          onClose={() => setPendingPinData(null)}
-          onPinCreated={() => { loadPins(); loadAllPins(); setPendingPinData(null); }}
+          onClose={() => { setPendingPinData(null); iframeState.clearScreenshot(); setLastCreatedPinId(null); }}
+          onPinCreated={(pinId) => { loadPins(); loadAllPins(); setPendingPinData(null); setLastCreatedPinId(pinId); }}
         />
       )}
 
