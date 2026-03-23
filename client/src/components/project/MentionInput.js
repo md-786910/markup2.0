@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
+import { useState, useRef, useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * MentionInput — textarea/input with @mention support.
@@ -37,6 +38,8 @@ const MentionInput = forwardRef(function MentionInput({
   // Map of display name → _id for all @mentions inserted this session
   const [mentionMap, setMentionMap] = useState({});
   const inputRef = useRef(null);
+  const wrapperRef = useRef(null);
+  const [dropdownPos, setDropdownPos] = useState(null);
 
   // Expose getEncodedValue() to parent via ref
   useImperativeHandle(ref, () => ({
@@ -65,6 +68,15 @@ const MentionInput = forwardRef(function MentionInput({
     : [];
 
   const dropdownOpen = mentionQuery !== null && filtered.length > 0;
+
+  useEffect(() => {
+    if (dropdownOpen && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setDropdownPos({ left: rect.left, top: rect.top, width: rect.width });
+    } else {
+      setDropdownPos(null);
+    }
+  }, [dropdownOpen, mentionQuery]);
 
   const detectMention = useCallback((text, cursorPos) => {
     const textBefore = text.slice(0, cursorPos);
@@ -147,15 +159,25 @@ const MentionInput = forwardRef(function MentionInput({
   };
 
   return (
-    <div className="relative w-full">
+    <div ref={wrapperRef} className="relative w-full">
       {multiline ? (
         <textarea {...sharedProps} rows={rows} />
       ) : (
         <input type="text" {...sharedProps} />
       )}
 
-      {dropdownOpen && (
-        <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+      {dropdownOpen && dropdownPos && createPortal(
+        <div
+          className="bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto"
+          style={{
+            position: 'fixed',
+            left: dropdownPos.left,
+            top: dropdownPos.top - 4,
+            width: dropdownPos.width,
+            transform: 'translateY(-100%)',
+            zIndex: 99999,
+          }}
+        >
           {filtered.map((member, idx) => (
             <button
               key={member._id}
@@ -174,7 +196,8 @@ const MentionInput = forwardRef(function MentionInput({
               </div>
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -29,6 +29,9 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Serve html2canvas for iframe screenshot capture
+app.use('/vendor', express.static(path.join(__dirname, 'node_modules', 'html2canvas', 'dist')));
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);

@@ -113,3 +113,50 @@ exports.deleteComment = asyncHandler(async (req, res) => {
 
   res.json({ message: 'Comment deleted' });
 });
+
+exports.updateComment = asyncHandler(async (req, res) => {
+  const { commentId } = req.params;
+  const { body } = req.body;
+
+  if (!body || !body.trim()) {
+    return res.status(400).json({ message: 'Comment body is required' });
+  }
+
+  const comment = await Comment.findById(commentId);
+  if (!comment) {
+    return res.status(404).json({ message: 'Comment not found' });
+  }
+
+  // Only the author can edit their own comment
+  if (comment.author.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized to edit this comment' });
+  }
+
+  // Re-parse mentions from updated body
+  const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
+  const mentionedUserIds = [];
+  let match;
+  while ((match = MENTION_REGEX.exec(body)) !== null) {
+    mentionedUserIds.push(match[2]);
+  }
+
+  comment.body = body;
+  comment.mentions = mentionedUserIds;
+  await comment.save();
+
+  const populated = await Comment.findById(comment._id)
+    .populate('author', 'name email')
+    .populate('mentions', 'name email');
+
+  // Real-time notification
+  const io = req.app.get('io');
+  const pin = await Pin.findById(comment.pin);
+  if (pin) {
+    emitToProject(io, pin.project.toString(), 'comment:updated', {
+      comment: populated,
+      pinId: comment.pin.toString(),
+    });
+  }
+
+  res.json({ comment: populated });
+});

@@ -57,6 +57,18 @@ const pinSchema = new Schema({
     type: Number,
     default: null,
   },
+  viewportXPercent: {
+    type: Number,
+    default: null,
+  },
+  viewportYPercent: {
+    type: Number,
+    default: null,
+  },
+  screenshot: {
+    filename: { type: String, default: null },
+    path: { type: String, default: null },
+  },
   status: {
     type: String,
     enum: ['pending', 'resolved'],

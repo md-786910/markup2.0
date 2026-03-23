@@ -10,6 +10,7 @@ const INITIAL_STATE = {
   ready: false,
   lastClick: null,
   currentPageUrl: null,
+  screenshot: null,
 };
 
 export function useIframeMessages() {
@@ -49,9 +50,12 @@ export function useIframeMessages() {
         case "MARKUP_CLICK":
           setState((prev) => ({
             ...prev,
+            screenshot: null,
             lastClick: {
               xPercent: data.xPercent,
               yPercent: data.yPercent,
+              viewportXPercent: data.viewportXPercent != null ? data.viewportXPercent : null,
+              viewportYPercent: data.viewportYPercent != null ? data.viewportYPercent : null,
               pageUrl: data.pageUrl,
               selector: data.selector || null,
               elementOffsetX: data.elementOffsetX != null ? data.elementOffsetX : null,
@@ -59,6 +63,12 @@ export function useIframeMessages() {
               documentWidth: data.documentWidth != null ? data.documentWidth : null,
               documentHeight: data.documentHeight != null ? data.documentHeight : null,
             },
+          }));
+          break;
+        case "MARKUP_SCREENSHOT":
+          setState((prev) => ({
+            ...prev,
+            screenshot: data.screenshot,
           }));
           break;
         default:
@@ -78,5 +88,9 @@ export function useIframeMessages() {
     setState((prev) => ({ ...prev, ready: false }));
   }, []);
 
-  return { ...state, clearLastClick, resetReady };
+  const clearScreenshot = useCallback(() => {
+    setState((prev) => ({ ...prev, screenshot: null }));
+  }, []);
+
+  return { ...state, clearLastClick, resetReady, clearScreenshot };
 }

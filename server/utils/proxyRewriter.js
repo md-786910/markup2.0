@@ -198,6 +198,7 @@ function injectScript(html, pageUrl, projectId, serverBase) {
   const safePageOrigin = pageOrigin.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
   const injectionScript = `
+<script src="${safeServerBase}/vendor/html2canvas.min.js"></script>
 <script>
 (function() {
   var __markupPageUrl = '${safePageUrl}';
@@ -332,6 +333,26 @@ function injectScript(html, pageUrl, projectId, serverBase) {
       renderPins();
     });
 
+    // Re-render pins when images/media finish loading (may shift layout)
+    document.addEventListener('load', function(e) {
+      var tag = e.target && e.target.tagName;
+      if (tag === 'IMG' || tag === 'VIDEO' || tag === 'IFRAME') {
+        scheduleRenderPins();
+      }
+    }, true); // capture phase — load doesn't bubble
+
+    // Re-render pins when CSS transitions/animations complete
+    document.addEventListener('transitionend', scheduleRenderPins, true);
+    document.addEventListener('animationend', scheduleRenderPins, true);
+
+    // Stabilization: re-render pins at intervals during initial page load
+    // to catch late-loading resources that shift layout
+    [500, 1500, 3000, 6000].forEach(function(delay) {
+      setTimeout(function() {
+        if (pins.length > 0) renderPins();
+      }, delay);
+    });
+
     // Click tracking
     document.addEventListener('click', function(e) {
       if (!pinMode) return;
@@ -362,9 +383,14 @@ function injectScript(html, pageUrl, projectId, serverBase) {
         }
       } catch (err) { /* fallback to percentage */ }
 
+      var viewportXPercent = (e.clientX / doc.clientWidth) * 100;
+      var viewportYPercent = (e.clientY / doc.clientHeight) * 100;
+
       sendMessage('MARKUP_CLICK', {
         xPercent: xPercent,
         yPercent: yPercent,
+        viewportXPercent: viewportXPercent,
+        viewportYPercent: viewportYPercent,
         selector: selector,
         elementOffsetX: elementOffsetX,
         elementOffsetY: elementOffsetY,
@@ -372,6 +398,31 @@ function injectScript(html, pageUrl, projectId, serverBase) {
         documentWidth: doc.scrollWidth,
         documentHeight: doc.scrollHeight
       });
+
+      // Capture viewport screenshot asynchronously (don't block pin creation)
+      if (typeof html2canvas === 'function') {
+        if (pinContainer) pinContainer.style.display = 'none';
+        html2canvas(document.body, {
+          x: window.scrollX || window.pageXOffset,
+          y: window.scrollY || window.pageYOffset,
+          width: doc.clientWidth,
+          height: doc.clientHeight,
+          scale: 0.5,
+          useCORS: true,
+          logging: false,
+          imageTimeout: 5000,
+        }).then(function(canvas) {
+          if (pinContainer) pinContainer.style.display = '';
+          var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          sendMessage('MARKUP_SCREENSHOT', { screenshot: dataUrl });
+        }).catch(function(err) {
+          if (pinContainer) pinContainer.style.display = '';
+          console.warn('Screenshot capture failed:', err);
+          sendMessage('MARKUP_SCREENSHOT', { screenshot: null });
+        });
+      } else {
+        sendMessage('MARKUP_SCREENSHOT', { screenshot: null });
+      }
     }, true);
 
     // --- Intercept <a> clicks for SPA-style navigation ---
@@ -600,6 +651,22 @@ function injectScript(html, pageUrl, projectId, serverBase) {
     prevSelectedId = newSelectedId;
   }
 
+  // Debounced re-render for layout-shift compensation
+  var _layoutRenderTimer = null;
+  var _isRendering = false;
+
+  function scheduleRenderPins() {
+    if (_layoutRenderTimer || _isRendering) return;
+    _layoutRenderTimer = setTimeout(function() {
+      _layoutRenderTimer = null;
+      if (pins.length > 0) {
+        _isRendering = true;
+        renderPins();
+        _isRendering = false;
+      }
+    }, 200);
+  }
+
   function scrollToSelected() {
     var sel = pins.find(function(p) { return p.selected; });
     if (!sel) return;
@@ -672,11 +739,14 @@ function injectScript(html, pageUrl, projectId, serverBase) {
           rewriteElement(m.target);
         }
       }
+
+      // Re-render pins after layout-affecting DOM changes
+      if (!_isRendering) scheduleRenderPins();
     });
 
     observer.observe(document.documentElement, {
       childList: true, subtree: true,
-      attributes: true, attributeFilter: URL_ATTRS.concat(['srcset','data-srcset'])
+      attributes: true, attributeFilter: URL_ATTRS.concat(['srcset','data-srcset','style','class','width','height'])
     });
   } catch(e) {}
 

@@ -17,14 +17,40 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
     if (!body.trim()) return;
     setLoading(true);
     try {
-      // Create pin first, then attach the comment
-      const pinRes = await createPinApi(projectId, pinData);
+      // Build FormData for pin creation (to include screenshot file)
+      const pinFormData = new FormData();
+      pinFormData.append('xPercent', pinData.xPercent);
+      pinFormData.append('yPercent', pinData.yPercent);
+      pinFormData.append('pageUrl', pinData.pageUrl);
+      if (pinData.selector) pinFormData.append('selector', pinData.selector);
+      if (pinData.elementOffsetX != null) pinFormData.append('elementOffsetX', pinData.elementOffsetX);
+      if (pinData.elementOffsetY != null) pinFormData.append('elementOffsetY', pinData.elementOffsetY);
+      if (pinData.documentWidth != null) pinFormData.append('documentWidth', pinData.documentWidth);
+      if (pinData.documentHeight != null) pinFormData.append('documentHeight', pinData.documentHeight);
+      if (pinData.deviceMode) pinFormData.append('deviceMode', pinData.deviceMode);
+      if (pinData.viewportXPercent != null) pinFormData.append('viewportXPercent', pinData.viewportXPercent);
+      if (pinData.viewportYPercent != null) pinFormData.append('viewportYPercent', pinData.viewportYPercent);
+
+      // Attach screenshot if available (convert base64 data URL to blob)
+      if (pinData.screenshot) {
+        try {
+          const res = await fetch(pinData.screenshot);
+          const blob = await res.blob();
+          pinFormData.append('screenshot', blob, 'screenshot.jpg');
+        } catch (screenshotErr) {
+          console.warn('Failed to attach screenshot:', screenshotErr);
+        }
+      }
+
+      const pinRes = await createPinApi(projectId, pinFormData);
       const newPin = pinRes.data.pin;
-      const formData = new FormData();
-      formData.append('body', body);
-      files.forEach((f) => formData.append('attachments', f));
-      await createCommentApi(newPin._id, formData);
-      if (onPinCreated) onPinCreated();
+
+      // Create comment with attachments
+      const commentFormData = new FormData();
+      commentFormData.append('body', body);
+      files.forEach((f) => commentFormData.append('attachments', f));
+      await createCommentApi(newPin._id, commentFormData);
+      if (onPinCreated) onPinCreated(newPin._id);
     } catch (err) {
       console.error('Failed to create pin/comment:', err);
     } finally {
@@ -57,6 +83,21 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+        </div>
+
+        {/* Screenshot preview */}
+        <div className="px-4 pt-3">
+          {pinData.screenshot ? (
+            <div className="relative rounded-lg overflow-hidden border border-gray-200 bg-gray-50 mb-2" style={{ maxHeight: '80px' }}>
+              <img src={pinData.screenshot} alt="" className="w-full block" />
+              <span className="absolute bottom-1 right-1 text-[10px] bg-black/50 text-white px-1.5 py-0.5 rounded">Screenshot captured</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mb-2">
+              <div className="w-3 h-3 border border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+              Capturing screenshot...
+            </div>
+          )}
         </div>
 
         {/* Comment form */}
