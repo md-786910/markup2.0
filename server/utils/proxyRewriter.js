@@ -383,8 +383,8 @@ function injectScript(html, pageUrl, projectId, serverBase) {
         }
       } catch (err) { /* fallback to percentage */ }
 
-      var viewportXPercent = (e.clientX / doc.clientWidth) * 100;
-      var viewportYPercent = (e.clientY / doc.clientHeight) * 100;
+      var viewportXPercent = (e.clientX / window.innerWidth) * 100;
+      var viewportYPercent = (e.clientY / window.innerHeight) * 100;
 
       sendMessage('MARKUP_CLICK', {
         xPercent: xPercent,
@@ -405,8 +405,10 @@ function injectScript(html, pageUrl, projectId, serverBase) {
         html2canvas(document.body, {
           x: window.scrollX || window.pageXOffset,
           y: window.scrollY || window.pageYOffset,
-          width: doc.clientWidth,
-          height: doc.clientHeight,
+          width: window.innerWidth,
+          height: window.innerHeight,
+          windowWidth: window.innerWidth,
+          windowHeight: window.innerHeight,
           scale: 0.5,
           useCORS: true,
           logging: false,
