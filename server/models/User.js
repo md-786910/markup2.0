@@ -28,6 +28,14 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  resetPasswordToken: {
+    type: String,
+    select: false,
+  },
+  resetPasswordExpires: {
+    type: Date,
+    select: false,
+  },
 }, { timestamps: true });
 
 userSchema.pre('save', async function () {

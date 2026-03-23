@@ -8,3 +8,9 @@ export const signupApi = (name, email, password) =>
 
 export const getMeApi = () =>
   api.get('/auth/me');
+
+export const forgotPasswordApi = (email) =>
+  api.post('/auth/forgot-password', { email });
+
+export const resetPasswordApi = (token, password) =>
+  api.post(`/auth/reset-password/${token}`, { password });
