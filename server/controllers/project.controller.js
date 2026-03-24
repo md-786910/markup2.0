@@ -14,6 +14,11 @@ exports.createProject = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Name and website URL are required' });
   }
 
+  const existing = await Project.findOne({ name: { $regex: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } });
+  if (existing) {
+    return res.status(400).json({ message: 'A project with this name already exists' });
+  }
+
   const project = await Project.create({
     name,
     websiteUrl,
@@ -46,8 +51,8 @@ exports.updateProject = asyncHandler(async (req, res) => {
   const { name, websiteUrl, status } = req.body;
   const project = req.project;
 
-  if (project.owner.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: 'Only the project owner can update' });
+  if (project.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Only the project owner or admin can update' });
   }
 
   if (name) project.name = name;
@@ -65,8 +70,8 @@ exports.updateProject = asyncHandler(async (req, res) => {
 exports.deleteProject = asyncHandler(async (req, res) => {
   const project = req.project;
 
-  if (project.owner.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: 'Only the project owner can delete' });
+  if (project.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Only the project owner or admin can delete' });
   }
 
   // Cascade delete pins and comments
