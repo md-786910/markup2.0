@@ -143,7 +143,7 @@ exports.proxyPage = asyncHandler(async (req, res) => {
         "Accept-Language": "en-US,en;q=0.5",
       },
       maxRedirects: 5,
-      timeout: 15000,
+      timeout: 300000,
       validateStatus: () => true, // forward all upstream HTTP statuses (400, 404, etc.) transparently
       httpsAgent: new https.Agent({ rejectUnauthorized: false }),
     };
