@@ -23,6 +23,10 @@ if (proxyAgent) console.log(`Outbound proxy configured: ${OUTBOUND_PROXY}`);
 const failedDomains = new Map();
 const DOMAIN_FAIL_TTL = 30000; // 30 seconds
 
+// --- Fallback domain cache (skip direct attempt for domains that need fallback) ---
+const fallbackDomains = new Map();
+const FALLBACK_DOMAIN_TTL = 300000; // 5 minutes
+
 const errorMessages = {
   ENOTFOUND: 'Domain not found — the website address may be incorrect or the site no longer exists.',
   ETIMEDOUT: 'Connection timed out — the website took too long to respond.',
@@ -45,6 +49,18 @@ function getFailedDomain(urlString) {
     return null;
   }
   return entry;
+}
+
+function isFallbackDomain(urlString) {
+  const domain = getDomain(urlString);
+  if (!domain) return false;
+  const ts = fallbackDomains.get(domain);
+  if (!ts) return false;
+  if (Date.now() - ts > FALLBACK_DOMAIN_TTL) {
+    fallbackDomains.delete(domain);
+    return false;
+  }
+  return true;
 }
 
 // 1x1 transparent PNG
@@ -170,6 +186,42 @@ async function processResponse(req, res, response, url, projectId, serverBase) {
   return res.send(response.data);
 }
 
+// Try fallback proxies for a blocked domain. Returns true if handled, false otherwise.
+async function tryFallback(req, res, url, projectId, serverBase) {
+  // Fallback 1: Outbound proxy (if configured via OUTBOUND_PROXY env var)
+  if (proxyAgent) {
+    try {
+      const proxyResp = await axios({
+        method: 'GET', url, responseType: 'arraybuffer', timeout: 60000,
+        httpsAgent: proxyAgent, httpAgent: proxyAgent,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        },
+        validateStatus: () => true,
+      });
+      fallbackDomains.set(getDomain(url), Date.now());
+      return processResponse(req, res, proxyResp, url, projectId, serverBase);
+    } catch (proxyErr) {
+      console.error(`Outbound proxy failed for ${url}: ${proxyErr.message}`);
+    }
+  }
+
+  // Fallback 2: allorigins.win public proxy
+  try {
+    const fallbackResp = await axios({
+      method: 'GET',
+      url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      responseType: 'arraybuffer', timeout: 60000,
+    });
+    fallbackDomains.set(getDomain(url), Date.now());
+    return processResponse(req, res, fallbackResp, url, projectId, serverBase);
+  } catch (fallbackErr) {
+    console.error(`allorigins fallback also failed for ${url}: ${fallbackErr.message}`);
+  }
+  return null;
+}
+
 exports.proxyPage = asyncHandler(async (req, res) => {
   const { url, projectId } = req.query;
 
@@ -197,11 +249,18 @@ exports.proxyPage = asyncHandler(async (req, res) => {
 
   const serverBase = `${req.protocol}://${req.get('host')}`;
 
-  // Early exit: if this domain recently failed, skip the request
+  // Early exit: if this domain recently failed completely, skip the request
   const cachedFailure = getFailedDomain(url);
   if (cachedFailure) {
     const domain = getDomain(url) || url;
     return sendContentAwareError(req, res, url, domain, cachedFailure.message);
+  }
+
+  // Fast path: if this domain is known to need fallback, skip the 15s direct attempt
+  if (isFallbackDomain(url)) {
+    const result = await tryFallback(req, res, url, projectId, serverBase);
+    if (result) return;
+    // If fallback also failed this time, fall through to direct attempt
   }
 
   try {
@@ -263,43 +322,8 @@ exports.proxyPage = asyncHandler(async (req, res) => {
                         (err.message && err.message.includes('timeout'));
     if (isRetryable && !req.query._fallback) {
       console.log(`Direct connection failed for ${url} (${err.code}), trying fallbacks...`);
-
-      // Fallback 1: Outbound proxy (if configured via OUTBOUND_PROXY env var)
-      if (proxyAgent) {
-        try {
-          const proxyResp = await axios({
-            method: 'GET',
-            url: url,
-            responseType: 'arraybuffer',
-            timeout: 60000,
-            httpsAgent: proxyAgent,
-            httpAgent: proxyAgent,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            },
-            validateStatus: () => true,
-          });
-          console.log(`Outbound proxy succeeded for ${url}`);
-          return processResponse(req, res, proxyResp, url, projectId, serverBase);
-        } catch (proxyErr) {
-          console.error(`Outbound proxy failed for ${url}: ${proxyErr.message}`);
-        }
-      }
-
-      // Fallback 2: allorigins.win public proxy
-      try {
-        const fallbackResp = await axios({
-          method: 'GET',
-          url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-          responseType: 'arraybuffer',
-          timeout: 60000,
-        });
-        console.log(`allorigins fallback succeeded for ${url}`);
-        return processResponse(req, res, fallbackResp, url, projectId, serverBase);
-      } catch (fallbackErr) {
-        console.error(`allorigins fallback also failed for ${url}: ${fallbackErr.message}`);
-      }
+      const result = await tryFallback(req, res, url, projectId, serverBase);
+      if (result) return;
     }
 
     const domain = getDomain(url) || url;
