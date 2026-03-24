@@ -1,5 +1,9 @@
 const axios = require("axios");
+const dns = require("dns");
 const https = require("https");
+
+// Force IPv4-first DNS resolution (Node.js v22 defaults to IPv6 which causes timeouts with NAT64)
+dns.setDefaultResultOrder('ipv4first');
 const HttpsProxyAgent = require("https-proxy-agent");
 const Project = require("../models/Project");
 const {
@@ -264,8 +268,11 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     res.setHeader("Content-Type", contentType);
     return res.send(response.data);
   } catch (err) {
-    // Retry via fallbacks for connection-blocked domains
-    if (['ETIMEDOUT', 'ECONNREFUSED', 'ECONNABORTED'].includes(err.code) && !req.query._fallback) {
+    console.log(`Proxy catch: code=${err.code} msg=${err.message} url=${url}`);
+    // Retry via fallbacks for connection-blocked/timed-out domains
+    const isRetryable = ['ETIMEDOUT', 'ECONNREFUSED', 'ECONNABORTED', 'ERR_CANCELED'].includes(err.code) ||
+                        (err.message && err.message.includes('timeout'));
+    if (isRetryable && !req.query._fallback) {
       console.log(`Direct connection failed for ${url} (${err.code}), trying fallbacks...`);
 
       // Fallback 1: Outbound proxy (if configured via OUTBOUND_PROXY env var)
