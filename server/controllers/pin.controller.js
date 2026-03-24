@@ -1,7 +1,8 @@
 const Pin = require('../models/Pin');
 const Comment = require('../models/Comment');
+const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
-const { emitToProject } = require('../utils/notifier');
+const { emitToProject, emailProjectMembers } = require('../utils/notifier');
 
 exports.createPin = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
@@ -157,6 +158,20 @@ exports.updatePin = asyncHandler(async (req, res) => {
   // Real-time notification
   const io = req.app.get('io');
   emitToProject(io, pin.project.toString(), 'pin:updated', { pin: populated });
+
+  // Email notification for status changes (fire-and-forget)
+  if (status) {
+    const project = await Project.findById(pin.project).select('name');
+    if (project) {
+      emailProjectMembers('status', {
+        projectId: pin.project.toString(),
+        actorUserId: req.user._id,
+        actorName: req.user.name,
+        projectName: project.name,
+        pin: populated,
+      });
+    }
+  }
 
   res.json({ pin: populated });
 });

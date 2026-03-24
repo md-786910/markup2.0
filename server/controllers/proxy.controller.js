@@ -144,6 +144,7 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       },
       maxRedirects: 5,
       timeout: 15000,
+      validateStatus: () => true, // forward all upstream HTTP statuses (400, 404, etc.) transparently
       httpsAgent: new https.Agent({ rejectUnauthorized: false }),
     };
 
@@ -171,23 +172,11 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       }
     }
 
-    // Forward body and Content-Type for non-GET/HEAD requests (POST, PUT, PATCH, DELETE)
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      const incomingContentType = req.headers['content-type'] || '';
-      if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
-        if (incomingContentType.includes('application/json')) {
-          axiosConfig.data = JSON.stringify(req.body);
-          axiosConfig.headers['Content-Type'] = 'application/json';
-        } else if (incomingContentType.includes('application/x-www-form-urlencoded')) {
-          axiosConfig.data = new URLSearchParams(req.body).toString();
-          axiosConfig.headers['Content-Type'] = 'application/x-www-form-urlencoded';
-        } else {
-          axiosConfig.data = req.body;
-          if (incomingContentType) axiosConfig.headers['Content-Type'] = incomingContentType;
-        }
-      } else if (req.body) {
-        axiosConfig.data = req.body;
-        if (req.headers['content-type']) axiosConfig.headers['Content-Type'] = req.headers['content-type'];
+    // Forward raw body for non-GET/HEAD requests (body is a Buffer from express.raw())
+    if (req.method !== 'GET' && req.method !== 'HEAD' && req.body && req.body.length > 0) {
+      axiosConfig.data = req.body;
+      if (req.headers['content-type']) {
+        axiosConfig.headers['Content-Type'] = req.headers['content-type'];
       }
     }
 

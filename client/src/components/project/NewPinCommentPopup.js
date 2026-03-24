@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createCommentApi } from '../../services/commentService';
 import { createPinApi } from '../../services/pinService';
+import MentionInput from './MentionInput';
 
-export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinCreated }) {
+export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinCreated, members = [] }) {
   const [body, setBody] = useState('');
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const mentionRef = useRef(null);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -47,7 +49,8 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
 
       // Create comment with attachments
       const commentFormData = new FormData();
-      commentFormData.append('body', body);
+      const encodedBody = mentionRef.current?.getEncodedValue() ?? body;
+      commentFormData.append('body', encodedBody);
       files.forEach((f) => commentFormData.append('attachments', f));
       await createCommentApi(newPin._id, commentFormData);
       if (onPinCreated) onPinCreated(newPin._id);
@@ -103,12 +106,14 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
         {/* Comment form */}
         <form onSubmit={handleSubmit} className="flex flex-col">
           <div className="px-4 py-3">
-            <textarea
+            <MentionInput
+              ref={mentionRef}
               value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Write your comment..."
+              onChange={setBody}
+              members={members}
+              placeholder="Write your comment... Use @ to mention"
+              multiline
               rows={3}
-              autoFocus
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white placeholder-gray-400"
             />
           </div>

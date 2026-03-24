@@ -342,7 +342,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   };
 
   const handlePinNavigate = (pin) => {
-    setPinMode(true);
+    if (!pinMode) setPinMode(true);
     setSelectedPin(pin);
     if (pin.deviceMode && pin.deviceMode !== deviceMode) {
       handleDeviceChange(pin.deviceMode);
@@ -502,6 +502,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         <NewPinCommentPopup
           pinData={pendingPinData}
           projectId={project._id}
+          members={allMembers}
           onClose={() => { setPendingPinData(null); iframeState.clearScreenshot(); setLastCreatedPinId(null); }}
           onPinCreated={(pinId) => { loadPins(); loadAllPins(); setPendingPinData(null); setLastCreatedPinId(pinId); }}
         />

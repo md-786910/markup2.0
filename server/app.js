@@ -23,21 +23,26 @@ app.use(cors({
   credentials: true,
 }));
 app.use(cookieParser());
+
+// Proxy routes with raw body passthrough (mounted BEFORE json/urlencoded parsers
+// to avoid BadRequestError on deeply nested URL-encoded analytics data)
+app.use('/api/proxy', express.raw({ type: '*/*', limit: '10mb' }), proxyRoutes);
+
+// Body parsers for all other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Serve html2canvas for iframe screenshot capture
-app.use('/vendor', express.static(path.join(__dirname, 'node_modules', 'html2canvas', 'dist')));
+// Serve html2canvas for iframe screenshot capture (under /api/ so Nginx forwards to Express)
+app.use('/api/vendor', express.static(path.join(__dirname, 'node_modules', 'html2canvas', 'dist')));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/projects', pinRoutes);
 app.use('/api/pins', commentRoutes);
-app.use('/api/proxy', proxyRoutes);
 app.use('/api/invitations', invitationRoutes);
 
 // Health check

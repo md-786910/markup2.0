@@ -223,7 +223,10 @@ export default function PinListSidebar({
       {/* Detail view — slides in from right */}
       <div
         className="absolute inset-0 z-10 transition-transform duration-300 ease-in-out"
-        style={{ transform: selectedPin ? 'translateX(0)' : 'translateX(100%)' }}
+        style={{
+          transform: selectedPin ? 'translateX(0)' : 'translateX(100%)',
+          pointerEvents: selectedPin ? 'auto' : 'none',
+        }}
       >
         {selectedPin && (
           <CommentSidebar

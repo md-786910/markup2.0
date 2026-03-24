@@ -161,6 +161,45 @@ async function sendMentionNotificationEmail(toEmail, actorName, projectName, com
   });
 }
 
+async function sendPinStatusEmail(toEmail, actorName, projectName, newStatus, directLink) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const isResolved = newStatus === 'resolved';
+  const statusLabel = isResolved ? 'Resolved' : 'Reopened';
+  const accentColor = isResolved ? '#22c55e' : '#f59e0b';
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
+      <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+      </div>
+      <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin: 0 0 8px;">
+          <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${accentColor};"></span>
+          <h2 style="margin: 0; font-size: 18px; color: #111827;">Pin ${statusLabel}</h2>
+        </div>
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
+          <strong style="color: #111827;">${actorName}</strong> ${isResolved ? 'resolved' : 'reopened'} a pin on
+          <strong style="color: #111827;">${projectName}</strong>.
+        </p>
+        <a href="${directLink}"
+           style="display: inline-block; background: #2563eb; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+          View Pin
+        </a>
+        <p style="color: #9ca3af; font-size: 12px; margin: 24px 0 0; line-height: 1.5;">
+          You're receiving this because you're a member of this project.
+        </p>
+      </div>
+    </div>
+  `;
+
+  await getTransporter().sendMail({
+    from,
+    to: toEmail,
+    subject: `Pin ${isResolved ? 'resolved' : 'reopened'} on ${projectName} by ${actorName}`,
+    html,
+  });
+}
+
 async function sendPasswordResetEmail(toEmail, resetUrl) {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
 
@@ -193,4 +232,4 @@ async function sendPasswordResetEmail(toEmail, resetUrl) {
   });
 }
 
-module.exports = { sendInvitationEmail, sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail, sendPasswordResetEmail };
+module.exports = { sendInvitationEmail, sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail, sendPinStatusEmail, sendPasswordResetEmail };
