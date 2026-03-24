@@ -265,7 +265,7 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     return res.send(response.data);
   } catch (err) {
     // Retry via fallbacks for connection-blocked domains
-    if (['ETIMEDOUT', 'ECONNREFUSED'].includes(err.code) && !req.query._fallback) {
+    if (['ETIMEDOUT', 'ECONNREFUSED', 'ECONNABORTED'].includes(err.code) && !req.query._fallback) {
       console.log(`Direct connection failed for ${url} (${err.code}), trying fallbacks...`);
 
       // Fallback 1: Outbound proxy (if configured via OUTBOUND_PROXY env var)
