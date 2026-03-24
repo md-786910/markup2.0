@@ -1,6 +1,6 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
-const { sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail } = require('./mailer');
+const { sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail, sendPinStatusEmail } = require('./mailer');
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 
@@ -54,6 +54,8 @@ async function emailProjectMembers(type, { projectId, actorUserId, actorName, pr
           await sendPinNotificationEmail(recipient.email, actorName, projectName, pin.pageUrl, link);
         } else if (type === 'comment') {
           await sendCommentNotificationEmail(recipient.email, actorName, projectName, comment.body, link);
+        } else if (type === 'status') {
+          await sendPinStatusEmail(recipient.email, actorName, projectName, pin.status, link);
         }
       } catch (emailErr) {
         console.error(`Failed to send ${type} notification to ${recipient.email}:`, emailErr.message);
