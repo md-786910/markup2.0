@@ -19,6 +19,10 @@ const OUTBOUND_PROXY = process.env.OUTBOUND_PROXY;
 const proxyAgent = OUTBOUND_PROXY ? new HttpsProxyAgent(OUTBOUND_PROXY) : null;
 if (proxyAgent) console.log(`Outbound proxy configured: ${OUTBOUND_PROXY}`);
 
+// --- Cloudflare Worker relay (fast fallback for blocked domains) ---
+const FALLBACK_RELAY_URL = process.env.FALLBACK_RELAY_URL;
+if (FALLBACK_RELAY_URL) console.log(`Fallback relay configured: ${FALLBACK_RELAY_URL}`);
+
 // --- Domain failure cache (reduces console spam and skips known-bad domains) ---
 const failedDomains = new Map();
 const DOMAIN_FAIL_TTL = 30000; // 30 seconds
@@ -186,13 +190,29 @@ async function processResponse(req, res, response, url, projectId, serverBase) {
   return res.send(response.data);
 }
 
-// Try fallback proxies for a blocked domain. Returns true if handled, false otherwise.
+// Try fallback proxies for a blocked domain. Returns response or null.
 async function tryFallback(req, res, url, projectId, serverBase) {
-  // Fallback 1: Outbound proxy (if configured via OUTBOUND_PROXY env var)
+  // Fallback 1: Cloudflare Worker relay (fastest, user-controlled)
+  if (FALLBACK_RELAY_URL) {
+    try {
+      const relayResp = await axios({
+        method: 'GET',
+        url: `${FALLBACK_RELAY_URL}/?url=${encodeURIComponent(url)}`,
+        responseType: 'arraybuffer', timeout: 30000,
+        validateStatus: () => true,
+      });
+      fallbackDomains.set(getDomain(url), Date.now());
+      return processResponse(req, res, relayResp, url, projectId, serverBase);
+    } catch (relayErr) {
+      console.error(`Relay failed for ${url}: ${relayErr.message}`);
+    }
+  }
+
+  // Fallback 2: Outbound HTTP proxy (if configured)
   if (proxyAgent) {
     try {
       const proxyResp = await axios({
-        method: 'GET', url, responseType: 'arraybuffer', timeout: 60000,
+        method: 'GET', url, responseType: 'arraybuffer', timeout: 30000,
         httpsAgent: proxyAgent, httpAgent: proxyAgent,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -207,12 +227,12 @@ async function tryFallback(req, res, url, projectId, serverBase) {
     }
   }
 
-  // Fallback 2: allorigins.win public proxy
+  // Fallback 3: allorigins.win (last resort, free but slow/unreliable)
   try {
     const fallbackResp = await axios({
       method: 'GET',
       url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-      responseType: 'arraybuffer', timeout: 60000,
+      responseType: 'arraybuffer', timeout: 30000,
     });
     fallbackDomains.set(getDomain(url), Date.now());
     return processResponse(req, res, fallbackResp, url, projectId, serverBase);
