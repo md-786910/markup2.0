@@ -232,4 +232,89 @@ async function sendPasswordResetEmail(toEmail, resetUrl) {
   });
 }
 
-module.exports = { sendInvitationEmail, sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail, sendPinStatusEmail, sendPasswordResetEmail };
+async function sendDigestEmail(toEmail, projectName, events) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+
+  // Group events by type
+  const groups = {};
+  for (const ev of events) {
+    if (!groups[ev.type]) groups[ev.type] = [];
+    groups[ev.type].push(ev);
+  }
+
+  const typeLabels = {
+    pin: 'New Pins',
+    status: 'Status Changes',
+    comment: 'New Comments',
+    mention: 'Mentions',
+  };
+
+  const typeOrder = ['pin', 'status', 'comment', 'mention'];
+
+  function renderEvent(ev) {
+    const preview = ev.commentBody ? (ev.commentBody.length > 80 ? ev.commentBody.substring(0, 80) + '...' : ev.commentBody) : '';
+    let description = '';
+    switch (ev.type) {
+      case 'pin':
+        description = `<strong>${ev.actorName}</strong> added a new pin`;
+        if (ev.pinNumber) description += ` #${ev.pinNumber}`;
+        break;
+      case 'status':
+        description = `<strong>${ev.actorName}</strong> ${ev.pinStatus === 'resolved' ? 'resolved' : 'reopened'} pin`;
+        if (ev.pinNumber) description += ` #${ev.pinNumber}`;
+        break;
+      case 'comment':
+        description = `<strong>${ev.actorName}</strong>: "${preview}"`;
+        break;
+      case 'mention':
+        description = `<strong>${ev.actorName}</strong> mentioned you: "${preview}"`;
+        break;
+    }
+    return `
+      <tr>
+        <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
+          <span style="color: #374151; font-size: 13px;">${description}</span>
+          <a href="${ev.link}" style="color: #2563eb; font-size: 12px; text-decoration: none; margin-left: 8px;">View &rarr;</a>
+        </td>
+      </tr>`;
+  }
+
+  let sectionsHtml = '';
+  for (const type of typeOrder) {
+    const items = groups[type];
+    if (!items || items.length === 0) continue;
+    sectionsHtml += `
+      <div style="margin-bottom: 20px;">
+        <h3 style="margin: 0 0 8px; font-size: 14px; color: #6b7280; font-weight: 600;">${typeLabels[type]} (${items.length})</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          ${items.map(renderEvent).join('')}
+        </table>
+      </div>`;
+  }
+
+  const totalCount = events.length;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
+      <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+      </div>
+      <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <h2 style="margin: 0 0 16px; font-size: 18px; color: #111827;">${totalCount} update${totalCount > 1 ? 's' : ''} on ${projectName}</h2>
+        ${sectionsHtml}
+        <p style="color: #9ca3af; font-size: 12px; margin: 16px 0 0; line-height: 1.5;">
+          You're receiving this because you're a member of this project.
+        </p>
+      </div>
+    </div>
+  `;
+
+  await getTransporter().sendMail({
+    from,
+    to: toEmail,
+    subject: `${totalCount} update${totalCount > 1 ? 's' : ''} on ${projectName}`,
+    html,
+  });
+}
+
+module.exports = { sendInvitationEmail, sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail, sendPinStatusEmail, sendDigestEmail, sendPasswordResetEmail };

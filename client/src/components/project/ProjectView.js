@@ -55,6 +55,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [modeSwitching, setModeSwitching] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [deviceMode, setDeviceMode] = useState('desktop');
+  const [devicePinCounts, setDevicePinCounts] = useState({ desktop: 0, tablet: 0, mobile: 0 });
   const iframeState = useIframeMessages();
   const { onEvent, onlineUsers, lastSeenMap } = useSocket(project._id);
   const deepLinkHandled = useRef(false);
@@ -145,6 +146,21 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     return () => controller.abort();
   }, [project._id, deviceMode]);
 
+  // Fetch pin counts per device mode (all devices, for indicator dots)
+  useEffect(() => {
+    getPinsApi(project._id)
+      .then((res) => {
+        const counts = { desktop: 0, tablet: 0, mobile: 0 };
+        for (const pin of res.data.pins) {
+          if (pin.status === 'pending' && counts[pin.deviceMode || 'desktop'] !== undefined) {
+            counts[pin.deviceMode || 'desktop']++;
+          }
+        }
+        setDevicePinCounts(counts);
+      })
+      .catch(() => {});
+  }, [project._id]);
+
   // Handle clicks from iframe — store click data for pending pin (don't create yet)
   useEffect(() => {
     if (iframeState.lastClick && pinMode && !pendingPinData) {
@@ -215,6 +231,12 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
 
   const handleDeletePin = async (pinId) => {
     try {
+      // Decrement count before deleting
+      const pin = allPins.find((p) => p._id === pinId);
+      if (pin && pin.status === 'pending') {
+        const mode = pin.deviceMode || 'desktop';
+        setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
+      }
       await deletePinApi(project._id, pinId);
       setSelectedPin(null);
       await loadPins();
@@ -226,6 +248,13 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
 
   const handleStatusChange = async (pinId, newStatus) => {
     try {
+      // Update device count
+      const mode = deviceMode;
+      if (newStatus === 'resolved') {
+        setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
+      } else if (newStatus === 'pending') {
+        setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
+      }
       await updatePinApi(project._id, pinId, { status: newStatus });
       await loadPins();
       await loadAllPins();
@@ -265,6 +294,11 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         if (prev.some((p) => p._id === data.pin._id)) return prev;
         return [data.pin, ...prev];
       });
+      // Update device pin counts
+      if (data.pin.status === 'pending') {
+        const mode = data.pin.deviceMode || 'desktop';
+        setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
+      }
     });
   }, [onEvent, currentPageUrl, deviceMode]);
 
@@ -278,14 +312,29 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
       setSelectedPin((prev) =>
         prev && prev._id === data.pin._id ? { ...prev, ...data.pin } : prev
       );
+      // Update device pin counts on status change
+      const mode = data.pin.deviceMode || 'desktop';
+      if (data.pin.status === 'resolved') {
+        setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
+      } else if (data.pin.status === 'pending') {
+        setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
+      }
     });
   }, [onEvent]);
 
   // Pin deleted
   useEffect(() => {
     return onEvent('pin:deleted', (data) => {
+      // Decrement device count if the deleted pin was pending
+      setAllPins((prev) => {
+        const deleted = prev.find((p) => p._id === data.pinId);
+        if (deleted && deleted.status === 'pending') {
+          const mode = deleted.deviceMode || 'desktop';
+          setDevicePinCounts((c) => ({ ...c, [mode]: Math.max(0, (c[mode] || 0) - 1) }));
+        }
+        return prev.filter((p) => p._id !== data.pinId);
+      });
       setPins((prev) => prev.filter((p) => p._id !== data.pinId));
-      setAllPins((prev) => prev.filter((p) => p._id !== data.pinId));
       setSelectedPin((prev) => (prev && prev._id === data.pinId ? null : prev));
     });
   }, [onEvent]);
@@ -378,50 +427,66 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           {/* Desktop */}
           <button
             onClick={() => handleDeviceChange('desktop')}
-            className={`p-1.5 rounded-md transition-colors ${deviceMode === 'desktop' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`p-1.5 rounded-md transition-colors relative ${deviceMode === 'desktop' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
             title="Desktop (1440px)"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
             </svg>
+            {devicePinCounts.desktop > 0 && deviceMode !== 'desktop' && (
+              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+            )}
           </button>
           {/* Tablet */}
           <button
             onClick={() => handleDeviceChange('tablet')}
-            className={`p-1.5 rounded-md transition-colors ${deviceMode === 'tablet' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`p-1.5 rounded-md transition-colors relative ${deviceMode === 'tablet' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
             title="Tablet (768px)"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5h3m-6.75 2.25h10.5a2.25 2.25 0 002.25-2.25V4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 4.5v15a2.25 2.25 0 002.25 2.25z" />
             </svg>
+            {devicePinCounts.tablet > 0 && deviceMode !== 'tablet' && (
+              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+            )}
           </button>
           {/* Mobile */}
           <button
             onClick={() => handleDeviceChange('mobile')}
-            className={`p-1.5 rounded-md transition-colors ${deviceMode === 'mobile' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`p-1.5 rounded-md transition-colors relative ${deviceMode === 'mobile' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
             title="Mobile (375px)"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
             </svg>
+            {devicePinCounts.mobile > 0 && deviceMode !== 'mobile' && (
+              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+            )}
           </button>
         </div>
 
         <div className="flex items-center gap-3">
           {/* Browser / Comment mode tabs */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+          <div className="relative flex bg-gray-100 rounded-md p-1">
+            <div
+              className="absolute top-1 bottom-1 rounded-md bg-blue-600 shadow-sm transition-all duration-200 ease-in-out"
+              style={{
+                width: 'calc(50% - 4px)',
+                left: pinMode ? 'calc(50%)' : '4px',
+              }}
+            />
             <button
               onClick={() => { setModeSwitching(true); setPinMode(false); setTimeout(() => setModeSwitching(false), 400); }}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                !pinMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              className={`relative z-10 flex-1 text-center py-1 px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
+                !pinMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               View
             </button>
             <button
               onClick={() => { setModeSwitching(true); setPinMode(true); setTimeout(() => setModeSwitching(false), 400); }}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                pinMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              className={`relative z-10 flex-1 text-center py-1 px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
+                pinMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               Comment
