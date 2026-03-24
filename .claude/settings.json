@@ -13,7 +13,9 @@
       "Bash(node ./node_modules/tailwindcss/lib/cli.js init -p)",
       "Bash(npm ls tailwindcss)",
       "Bash(npm install tailwindcss@3 postcss autoprefixer)",
-      "Bash(npx react-scripts build)"
+      "Bash(npx react-scripts build)",
+      "Bash(find /d/markup_mvp -name iframe* -o -name inject*)",
+      "Bash(find /d/markup_mvp -path */node_modules -prune -o -path */.git -prune -o -type f \\\\\\(-name *inject* -o -name *overlay* -o -name *canvas* \\\\\\) -print)"
     ]
   }
 }

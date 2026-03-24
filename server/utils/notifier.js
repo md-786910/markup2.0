@@ -1,6 +1,6 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
-const { sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail, sendPinStatusEmail } = require('./mailer');
+const { queueNotification } = require('./emailQueue');
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 
@@ -38,7 +38,8 @@ function emitToProject(io, projectId, event, data) {
 }
 
 /**
- * Send email notifications to all project members (except actor).
+ * Queue email notifications to all project members (except actor).
+ * Events are batched per recipient — rapid actions become a single digest email.
  * Fire-and-forget — does not throw.
  */
 async function emailProjectMembers(type, { projectId, actorUserId, actorName, projectName, pin, comment, excludeUserIds }) {
@@ -49,25 +50,33 @@ async function emailProjectMembers(type, { projectId, actorUserId, actorName, pr
 
     for (const recipient of recipients) {
       if (excludeSet.has(recipient._id.toString())) continue;
-      try {
-        if (type === 'pin') {
-          await sendPinNotificationEmail(recipient.email, actorName, projectName, pin.pageUrl, link);
-        } else if (type === 'comment') {
-          await sendCommentNotificationEmail(recipient.email, actorName, projectName, comment.body, link);
-        } else if (type === 'status') {
-          await sendPinStatusEmail(recipient.email, actorName, projectName, pin.status, link);
-        }
-      } catch (emailErr) {
-        console.error(`Failed to send ${type} notification to ${recipient.email}:`, emailErr.message);
+
+      const event = {
+        projectId,
+        projectName,
+        type,
+        actorName,
+        link,
+        pinNumber: pin.pinNumber || null,
+      };
+
+      if (type === 'pin') {
+        event.pinPageUrl = pin.pageUrl;
+      } else if (type === 'comment') {
+        event.commentBody = comment.body;
+      } else if (type === 'status') {
+        event.pinStatus = pin.status;
       }
+
+      queueNotification(recipient.email, event);
     }
   } catch (err) {
-    console.error(`Failed to send ${type} email notifications:`, err.message);
+    console.error(`Failed to queue ${type} email notifications:`, err.message);
   }
 }
 
 /**
- * Send mention notification emails to specifically mentioned users.
+ * Queue mention notification emails to specifically mentioned users.
  * Fire-and-forget — does not throw.
  */
 async function emailMentionedUsers({ mentionedUserIds, actorUserId, actorName, projectName, pin, comment }) {
@@ -76,16 +85,21 @@ async function emailMentionedUsers({ mentionedUserIds, actorUserId, actorName, p
     const actorStr = actorUserId.toString();
     const users = await User.find({ _id: { $in: mentionedUserIds } }).select('name email');
     const link = buildPinLink(pin.project.toString(), pin._id);
+    const projectId = pin.project.toString();
+
     for (const user of users) {
       if (user._id.toString() === actorStr) continue;
-      try {
-        await sendMentionNotificationEmail(user.email, actorName, projectName, comment.body, link);
-      } catch (emailErr) {
-        console.error(`Failed to send mention notification to ${user.email}:`, emailErr.message);
-      }
+      queueNotification(user.email, {
+        projectId,
+        projectName,
+        type: 'mention',
+        actorName,
+        commentBody: comment.body,
+        link,
+      });
     }
   } catch (err) {
-    console.error('Failed to send mention email notifications:', err.message);
+    console.error('Failed to queue mention email notifications:', err.message);
   }
 }
 
