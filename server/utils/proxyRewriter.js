@@ -198,7 +198,7 @@ function injectScript(html, pageUrl, projectId, serverBase) {
   const safePageOrigin = pageOrigin.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
   const injectionScript = `
-<script src="${safeServerBase}/vendor/html2canvas.min.js"></script>
+<script src="${safeServerBase}/api/vendor/html2canvas.min.js"></script>
 <script>
 (function() {
   var __markupPageUrl = '${safePageUrl}';
