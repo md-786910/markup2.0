@@ -96,6 +96,85 @@ function sendContentAwareError(req, res, url, domain, reason) {
   return res.status(502).send(errorHtml);
 }
 
+// Shared response processing: rewrite HTML/CSS/JS and forward headers
+async function processResponse(req, res, response, url, projectId, serverBase) {
+  const contentType = response.headers["content-type"] || "";
+
+  // Rewrite upstream Set-Cookie headers so browser stores them for localhost
+  const upstreamSetCookies = response.headers['set-cookie'];
+  if (upstreamSetCookies) {
+    const setCookies = Array.isArray(upstreamSetCookies) ? upstreamSetCookies : [upstreamSetCookies];
+    const rewritten = setCookies.map(c =>
+      c.replace(/;\s*Domain=[^;]*/gi, '')
+       .replace(/;\s*Secure/gi, '')
+       .replace(/;\s*SameSite=[^;]*/gi, '')
+      + '; SameSite=Lax'
+    );
+    res.setHeader('Set-Cookie', rewritten);
+  }
+
+  // Only forward safe headers from upstream, skip ones that conflict
+  const headersToSkip = new Set([
+    "x-frame-options",
+    "content-security-policy",
+    "content-security-policy-report-only",
+    "content-length",
+    "content-encoding",
+    "transfer-encoding",
+    "connection",
+    "keep-alive",
+    "strict-transport-security",
+    "set-cookie",
+  ]);
+
+  Object.entries(response.headers).forEach(([key, value]) => {
+    if (!headersToSkip.has(key.toLowerCase())) {
+      try { res.setHeader(key, value); } catch {}
+    }
+  });
+
+  // Only rewrite HTML/CSS/JS for GET requests; non-GET responses (API JSON etc.) pass through
+  const isGetRequest = req.method === 'GET';
+
+  if (isGetRequest && contentType.includes("text/html")) {
+    // Store proxy context cookie for catch-all fallback (handles window.location navigations)
+    try {
+      const pageOrigin = new URL(url).origin;
+      res.cookie('__markup_proxy_ctx', JSON.stringify({
+        origin: pageOrigin,
+        projectId,
+        token: req.query.token || '',
+      }), { httpOnly: false, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 });
+    } catch {}
+
+    const html = response.data.toString("utf-8");
+    let rewritten = rewriteHtml(html, url, projectId, serverBase);
+    rewritten = injectScript(rewritten, url, projectId, serverBase);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.send(rewritten);
+  }
+
+  if (isGetRequest && contentType.includes("text/css")) {
+    const css = response.data.toString("utf-8");
+    const rewritten = rewriteCssUrls(css, url, projectId, serverBase);
+    res.setHeader("Content-Type", contentType);
+    return res.send(rewritten);
+  }
+
+  // Rewrite URLs inside JavaScript files (fixes Vite/ESM imports)
+  if (isGetRequest && (contentType.includes("javascript") || contentType.includes("text/javascript") ||
+      contentType.includes("application/x-javascript"))) {
+    const js = response.data.toString("utf-8");
+    const rewritten = rewriteJsUrls(js, url, projectId, serverBase);
+    res.setHeader("Content-Type", contentType);
+    return res.send(rewritten);
+  }
+
+  // For everything else (images, fonts, etc.), pass through
+  res.setHeader("Content-Type", contentType);
+  return res.send(response.data);
+}
+
 exports.proxyPage = asyncHandler(async (req, res) => {
   const { url, projectId } = req.query;
 
@@ -181,83 +260,25 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     }
 
     const response = await axios(axiosConfig);
-
-    const contentType = response.headers["content-type"] || "";
-
-    // Rewrite upstream Set-Cookie headers so browser stores them for localhost
-    const upstreamSetCookies = response.headers['set-cookie'];
-    if (upstreamSetCookies) {
-      const setCookies = Array.isArray(upstreamSetCookies) ? upstreamSetCookies : [upstreamSetCookies];
-      const rewritten = setCookies.map(c =>
-        c.replace(/;\s*Domain=[^;]*/gi, '')
-         .replace(/;\s*Secure/gi, '')
-         .replace(/;\s*SameSite=[^;]*/gi, '')
-        + '; SameSite=Lax'
-      );
-      res.setHeader('Set-Cookie', rewritten);
-    }
-
-    // Only forward safe headers from upstream, skip ones that conflict
-    const headersToSkip = new Set([
-      "x-frame-options",
-      "content-security-policy",
-      "content-security-policy-report-only",
-      "content-length",
-      "content-encoding",
-      "transfer-encoding",
-      "connection",
-      "keep-alive",
-      "strict-transport-security",
-      "set-cookie",
-    ]);
-
-    Object.entries(response.headers).forEach(([key, value]) => {
-      if (!headersToSkip.has(key.toLowerCase())) {
-        try { res.setHeader(key, value); } catch {}
-      }
-    });
-
-    // Only rewrite HTML/CSS/JS for GET requests; non-GET responses (API JSON etc.) pass through
-    const isGetRequest = req.method === 'GET';
-
-    if (isGetRequest && contentType.includes("text/html")) {
-      // Store proxy context cookie for catch-all fallback (handles window.location navigations)
-      try {
-        const pageOrigin = new URL(url).origin;
-        res.cookie('__markup_proxy_ctx', JSON.stringify({
-          origin: pageOrigin,
-          projectId,
-          token: req.query.token || '',
-        }), { httpOnly: false, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 });
-      } catch {}
-
-      const html = response.data.toString("utf-8");
-      let rewritten = rewriteHtml(html, url, projectId, serverBase);
-      rewritten = injectScript(rewritten, url, projectId, serverBase);
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      return res.send(rewritten);
-    }
-
-    if (isGetRequest && contentType.includes("text/css")) {
-      const css = response.data.toString("utf-8");
-      const rewritten = rewriteCssUrls(css, url, projectId, serverBase);
-      res.setHeader("Content-Type", contentType);
-      return res.send(rewritten);
-    }
-
-    // Rewrite URLs inside JavaScript files (fixes Vite/ESM imports)
-    if (isGetRequest && (contentType.includes("javascript") || contentType.includes("text/javascript") ||
-        contentType.includes("application/x-javascript"))) {
-      const js = response.data.toString("utf-8");
-      const rewritten = rewriteJsUrls(js, url, projectId, serverBase);
-      res.setHeader("Content-Type", contentType);
-      return res.send(rewritten);
-    }
-
-    // For everything else (images, fonts, etc.), pass through
-    res.setHeader("Content-Type", contentType);
-    return res.send(response.data);
+    return processResponse(req, res, response, url, projectId, serverBase);
   } catch (err) {
+    // Retry via fallback proxy for connection-blocked domains (ETIMEDOUT/ECONNREFUSED)
+    if (['ETIMEDOUT', 'ECONNREFUSED'].includes(err.code) && !req.query._fallback) {
+      try {
+        console.log(`Direct connection failed for ${url} (${err.code}), trying fallback proxy...`);
+        const fallbackResp = await axios({
+          method: 'GET',
+          url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+          responseType: 'arraybuffer',
+          timeout: 60000,
+        });
+        console.log(`Fallback proxy succeeded for ${url}`);
+        return processResponse(req, res, fallbackResp, url, projectId, serverBase);
+      } catch (fallbackErr) {
+        console.error(`Fallback proxy also failed for ${url}: ${fallbackErr.message}`);
+      }
+    }
+
     const domain = getDomain(url) || url;
     const domainErrors = ['ENOTFOUND', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'ERR_TLS_CERT_ALTNAME_INVALID'];
 
