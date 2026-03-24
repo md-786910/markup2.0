@@ -467,19 +467,26 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
 
         <div className="flex items-center gap-3">
           {/* Browser / Comment mode tabs */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+          <div className="relative flex bg-gray-100 rounded-md p-1">
+            <div
+              className="absolute top-1 bottom-1 rounded-md bg-blue-600 shadow-sm transition-all duration-200 ease-in-out"
+              style={{
+                width: 'calc(50% - 4px)',
+                left: pinMode ? 'calc(50%)' : '4px',
+              }}
+            />
             <button
               onClick={() => { setModeSwitching(true); setPinMode(false); setTimeout(() => setModeSwitching(false), 400); }}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                !pinMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              className={`relative z-10 flex-1 text-center py-1 px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
+                !pinMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               View
             </button>
             <button
               onClick={() => { setModeSwitching(true); setPinMode(true); setTimeout(() => setModeSwitching(false), 400); }}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                pinMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              className={`relative z-10 flex-1 text-center py-1 px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
+                pinMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               Comment
