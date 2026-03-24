@@ -402,30 +402,30 @@ function injectScript(html, pageUrl, projectId, serverBase) {
       // Capture viewport screenshot asynchronously (don't block pin creation)
       if (typeof html2canvas === 'function') {
         if (pinContainer) pinContainer.style.display = 'none';
+        var capture = html2canvas(document.body, {
+          x: window.scrollX || window.pageXOffset,
+          y: window.scrollY || window.pageYOffset,
+          width: window.innerWidth,
+          height: window.innerHeight,
+          windowWidth: window.innerWidth,
+          windowHeight: window.innerHeight,
+          scale: 0.5,
+          useCORS: true,
+          allowTaint: false,
+          logging: false,
+          imageTimeout: 3000,
+        });
+        // Show pins back immediately — html2canvas already read/cloned the DOM
+        setTimeout(function() {
+          if (pinContainer) pinContainer.style.display = '';
+        }, 0);
         var screenshotTimeout = new Promise(function(_, reject) {
           setTimeout(function() { reject(new Error('Screenshot timeout')); }, 8000);
         });
-        Promise.race([
-          html2canvas(document.body, {
-            x: window.scrollX || window.pageXOffset,
-            y: window.scrollY || window.pageYOffset,
-            width: window.innerWidth,
-            height: window.innerHeight,
-            windowWidth: window.innerWidth,
-            windowHeight: window.innerHeight,
-            scale: 0.5,
-            useCORS: true,
-            allowTaint: false,
-            logging: false,
-            imageTimeout: 3000,
-          }),
-          screenshotTimeout
-        ]).then(function(canvas) {
-          if (pinContainer) pinContainer.style.display = '';
+        Promise.race([capture, screenshotTimeout]).then(function(canvas) {
           var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
           sendMessage('MARKUP_SCREENSHOT', { screenshot: dataUrl });
         }).catch(function(err) {
-          if (pinContainer) pinContainer.style.display = '';
           console.warn('Screenshot capture failed:', err);
           sendMessage('MARKUP_SCREENSHOT', { screenshot: null });
         });
@@ -619,39 +619,58 @@ function injectScript(html, pageUrl, projectId, serverBase) {
     window.parent.postMessage(Object.assign({ type: type }, data), '*');
   }
 
+  var _pinElements = {};
+
   function renderPins() {
     if (!pinContainer) return;
-    pinContainer.innerHTML = '';
+    var seen = {};
 
     pins.forEach(function(pin, index) {
+      seen[pin.id] = true;
       var pos = getPinPosition(pin);
-      var el = document.createElement('div');
       var color = pin.status === 'resolved' ? '#22c55e' : '#ef4444';
       var borderColor = pin.selected ? '#3b82f6' : color;
       var scale = pin.selected ? 'scale(1.3)' : 'scale(1)';
+      var el = _pinElements[pin.id];
 
-      el.className = '__markup_pin';
-      el.dataset.pinId = pin.id;
-      el.style.cssText = 'position:absolute;pointer-events:auto;cursor:pointer;'
-        + 'width:28px;height:28px;border-radius:50%;'
-        + 'background:' + color + ';border:3px solid ' + borderColor + ';'
-        + 'display:flex;align-items:center;justify-content:center;'
-        + 'color:white;font-size:12px;font-weight:bold;font-family:sans-serif;'
-        + 'left:' + (pos.left - 14) + 'px;top:' + (pos.top - 14) + 'px;'
-        + 'transform:' + scale + ';transition:transform 0.15s;'
-        + 'box-shadow:0 2px 6px rgba(0,0,0,0.3);z-index:1000000;';
+      if (!el) {
+        el = document.createElement('div');
+        el.className = '__markup_pin';
+        el.dataset.pinId = pin.id;
+        el.style.cssText = 'position:absolute;pointer-events:auto;cursor:pointer;'
+          + 'width:28px;height:28px;border-radius:50%;'
+          + 'display:flex;align-items:center;justify-content:center;'
+          + 'color:white;font-size:12px;font-weight:bold;font-family:sans-serif;'
+          + 'box-shadow:0 2px 6px rgba(0,0,0,0.3);z-index:1000000;'
+          + 'transition:transform 0.15s;';
+        el.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          sendMessage('MARKUP_PIN_CLICK', { pinId: pin.id });
+        });
+        pinContainer.appendChild(el);
+        _pinElements[pin.id] = el;
+      }
+
+      el.style.left = (pos.left - 14) + 'px';
+      el.style.top = (pos.top - 14) + 'px';
+      el.style.background = color;
+      el.style.borderWidth = '3px';
+      el.style.borderStyle = 'solid';
+      el.style.borderColor = borderColor;
+      el.style.transform = scale;
       el.textContent = pin.pinNumber || (index + 1);
-
-      el.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        sendMessage('MARKUP_PIN_CLICK', { pinId: pin.id });
-      });
-
-      pinContainer.appendChild(el);
     });
 
-    // Only scroll when the selected pin actually changes (not on every pins update)
+    // Remove elements for pins no longer in the list
+    for (var id in _pinElements) {
+      if (!seen[id]) {
+        _pinElements[id].remove();
+        delete _pinElements[id];
+      }
+    }
+
+    // Only scroll when the selected pin actually changes
     var sel = pins.find(function(p) { return p.selected; });
     var newSelectedId = sel ? sel.id : null;
     if (newSelectedId && newSelectedId !== prevSelectedId) {
@@ -676,7 +695,15 @@ function injectScript(html, pageUrl, projectId, serverBase) {
     }, 200);
   }
 
+  var _scrollTimer = null;
+
   function scrollToSelected() {
+    // Cancel any previous scroll polling chain
+    if (_scrollTimer) {
+      clearTimeout(_scrollTimer);
+      _scrollTimer = null;
+    }
+
     var sel = pins.find(function(p) { return p.selected; });
     if (!sel) return;
 
@@ -691,16 +718,17 @@ function injectScript(html, pageUrl, projectId, serverBase) {
       if (currentHeight !== lastHeight && attempts < 10) {
         lastHeight = currentHeight;
         attempts++;
-        setTimeout(tryScroll, 200);
+        _scrollTimer = setTimeout(tryScroll, 200);
         return;
       }
 
+      _scrollTimer = null;
       var pos = getPinPosition(sel);
       window.scrollTo({ top: pos.top - (window.innerHeight / 2), behavior: 'smooth' });
     }
 
     // Small initial delay to let the page begin rendering
-    setTimeout(tryScroll, 100);
+    _scrollTimer = setTimeout(tryScroll, 100);
   }
 
   function highlightPin(pinId) {
