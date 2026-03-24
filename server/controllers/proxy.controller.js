@@ -1,5 +1,6 @@
 const axios = require("axios");
 const https = require("https");
+const HttpsProxyAgent = require("https-proxy-agent");
 const Project = require("../models/Project");
 const {
   rewriteHtml,
@@ -8,6 +9,11 @@ const {
   injectScript,
 } = require("../utils/proxyRewriter");
 const asyncHandler = require("../utils/asyncHandler");
+
+// --- Outbound proxy for blocked connections ---
+const OUTBOUND_PROXY = process.env.OUTBOUND_PROXY;
+const proxyAgent = OUTBOUND_PROXY ? new HttpsProxyAgent(OUTBOUND_PROXY) : null;
+if (proxyAgent) console.log(`Outbound proxy configured: ${OUTBOUND_PROXY}`);
 
 // --- Domain failure cache (reduces console spam and skips known-bad domains) ---
 const failedDomains = new Map();
@@ -143,7 +149,7 @@ exports.proxyPage = asyncHandler(async (req, res) => {
         "Accept-Language": "en-US,en;q=0.5",
       },
       maxRedirects: 5,
-      timeout: 300000,
+      timeout: 15000,
       validateStatus: () => true, // forward all upstream HTTP statuses (400, 404, etc.) transparently
       httpsAgent: new https.Agent({ rejectUnauthorized: false, family: 4 }),
     };
@@ -258,6 +264,48 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     res.setHeader("Content-Type", contentType);
     return res.send(response.data);
   } catch (err) {
+    // Retry via fallbacks for connection-blocked domains
+    if (['ETIMEDOUT', 'ECONNREFUSED'].includes(err.code) && !req.query._fallback) {
+      console.log(`Direct connection failed for ${url} (${err.code}), trying fallbacks...`);
+
+      // Fallback 1: Outbound proxy (if configured via OUTBOUND_PROXY env var)
+      if (proxyAgent) {
+        try {
+          const proxyResp = await axios({
+            method: 'GET',
+            url: url,
+            responseType: 'arraybuffer',
+            timeout: 60000,
+            httpsAgent: proxyAgent,
+            httpAgent: proxyAgent,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            },
+            validateStatus: () => true,
+          });
+          console.log(`Outbound proxy succeeded for ${url}`);
+          return processResponse(req, res, proxyResp, url, projectId, serverBase);
+        } catch (proxyErr) {
+          console.error(`Outbound proxy failed for ${url}: ${proxyErr.message}`);
+        }
+      }
+
+      // Fallback 2: allorigins.win public proxy
+      try {
+        const fallbackResp = await axios({
+          method: 'GET',
+          url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+          responseType: 'arraybuffer',
+          timeout: 60000,
+        });
+        console.log(`allorigins fallback succeeded for ${url}`);
+        return processResponse(req, res, fallbackResp, url, projectId, serverBase);
+      } catch (fallbackErr) {
+        console.error(`allorigins fallback also failed for ${url}: ${fallbackErr.message}`);
+      }
+    }
+
     const domain = getDomain(url) || url;
     const domainErrors = ['ENOTFOUND', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'ERR_TLS_CERT_ALTNAME_INVALID'];
 
@@ -268,7 +316,6 @@ exports.proxyPage = asyncHandler(async (req, res) => {
         errorCode: err.code,
         message: errorMessages[err.code] || err.message,
       });
-      // Log only the first failure per domain within the TTL window
       if (!alreadyCached) {
         console.error(`Proxy error for domain ${domain} (${err.code}): ${err.message}`);
       }
