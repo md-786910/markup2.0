@@ -60,7 +60,7 @@ exports.getProject = asyncHandler(async (req, res) => {
 });
 
 exports.updateProject = asyncHandler(async (req, res) => {
-  const { name, websiteUrl, status } = req.body;
+  const { name, websiteUrl, status, projectStatus } = req.body;
   const project = req.project;
 
   const isProjectOwner = project.owner.toString() === req.user._id.toString();
@@ -72,6 +72,7 @@ exports.updateProject = asyncHandler(async (req, res) => {
   if (name) project.name = name;
   if (websiteUrl) project.websiteUrl = websiteUrl;
   if (status && ['active', 'archived'].includes(status)) project.status = status;
+  if (projectStatus && ['not_started', 'in_progress', 'in_review', 'approved', 'completed'].includes(projectStatus)) project.projectStatus = projectStatus;
   await project.save();
 
   const updated = await Project.findById(project._id)

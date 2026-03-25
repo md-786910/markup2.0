@@ -30,6 +30,11 @@ const projectSchema = new Schema({
     enum: ['active', 'archived'],
     default: 'active',
   },
+  projectStatus: {
+    type: String,
+    enum: ['not_started', 'in_progress', 'in_review', 'approved', 'completed'],
+    default: 'not_started',
+  },
 }, { timestamps: true });
 
 projectSchema.index({ owner: 1 });

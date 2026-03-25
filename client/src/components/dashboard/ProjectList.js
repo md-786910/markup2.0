@@ -14,6 +14,7 @@ export default function ProjectList({
   onDelete,
   onConfirmDelete,
   onManageMembers,
+  onStatusChange,
 }) {
   if (loading) {
     return (
@@ -69,6 +70,7 @@ export default function ProjectList({
           onDelete={onDelete}
           onConfirmDelete={onConfirmDelete}
           onManageMembers={onManageMembers}
+          onStatusChange={onStatusChange}
         />
       ))}
     </div>
