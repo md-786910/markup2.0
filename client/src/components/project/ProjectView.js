@@ -404,20 +404,24 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   return (
     <div className="flex flex-col h-screen">
       {/* Toolbar */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 transition-colors shrink-0"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors shrink-0 pr-1"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+              <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
+            </div>
+            <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back
           </button>
           <div className="w-px h-5 bg-gray-200 shrink-0"></div>
-          <h2 className="font-semibold text-gray-800 shrink-0">{project.name}</h2>
-          <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded truncate max-w-md" title={currentPageUrl}>
+          <h2 className="font-semibold text-gray-800 shrink-0 text-sm">{project.name}</h2>
+          <span className="text-xs text-gray-400 bg-gray-50 px-2.5 py-1 rounded-md truncate max-w-md border border-gray-100" title={currentPageUrl}>
             {currentPageUrl}
           </span>
         </div>
@@ -520,9 +524,9 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           {isAdmin && (
             <button
               onClick={() => setShowInvite(true)}
-              className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+              className="px-3.5 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
             >
-              Invite Member
+              Invite
             </button>
           )}
         </div>

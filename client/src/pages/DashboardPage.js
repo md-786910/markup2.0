@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import ProjectList from '../components/dashboard/ProjectList';
 import CreateProjectModal from '../components/dashboard/CreateProjectModal';
@@ -10,10 +11,12 @@ import {
 } from '../services/projectService';
 
 export default function DashboardPage() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'active';
+
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('active');
   const [showCreate, setShowCreate] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -36,7 +39,7 @@ export default function DashboardPage() {
 
   const activeProjects = projects.filter((p) => p.status === 'active');
   const archivedProjects = projects.filter((p) => p.status === 'archived');
-  const filtered = tab === 'active' ? activeProjects : archivedProjects;
+  const filtered = tab === 'archived' ? archivedProjects : activeProjects;
 
   // Collect unique members across all projects
   const allMembers = [];
@@ -45,7 +48,6 @@ export default function DashboardPage() {
     (project.members || []).forEach((member) => {
       if (!seenIds.has(member._id)) {
         seenIds.add(member._id);
-        // Attach which projects this member belongs to
         const memberProjects = projects.filter((p) =>
           (p.members || []).some((m) => m._id === member._id)
         );
@@ -88,120 +90,56 @@ export default function DashboardPage() {
     }
   };
 
-  const tabs = [
-    { id: 'active', label: 'Active', count: activeProjects.length },
-    { id: 'archived', label: 'Archived', count: archivedProjects.length },
-    { id: 'members', label: 'Manage Members', count: allMembers.length },
-  ];
+  const pageTitle = tab === 'members' ? 'Team' : tab === 'archived' ? 'Archive' : 'Dashboard';
+  const pageSubtitle = tab === 'members'
+    ? `${allMembers.length} member${allMembers.length !== 1 ? 's' : ''} across ${projects.length} project${projects.length !== 1 ? 's' : ''}`
+    : `${activeProjects.length} active${archivedProjects.length > 0 ? ` · ${archivedProjects.length} archived` : ''}`;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-              </svg>
-            </div>
-            <h1 className="text-lg font-bold text-gray-900">LeanComment</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold">
-                {(user?.name || '?')[0].toUpperCase()}
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-800 leading-tight">{user?.name}</p>
-                <p className="text-[10px] text-gray-400 leading-tight">{user?.role}</p>
-              </div>
-            </div>
-            <button
-              onClick={logout}
-              className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors"
-            >
-              Logout
-            </button>
-          </div>
+    <div className="px-6 lg:px-8 py-6 lg:py-8">
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">{pageTitle}</h2>
+          <p className="text-sm text-gray-500 mt-1">{pageSubtitle}</p>
         </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        {/* Title + Create */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Projects</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {activeProjects.length} active{archivedProjects.length > 0 && ` · ${archivedProjects.length} archived`} · {allMembers.length} member{allMembers.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          {isAdmin && tab !== 'members' && (
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              New Project
-            </button>
-          )}
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6 border-b border-gray-200">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
-                tab === t.id
-                  ? 'text-blue-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {t.label}
-              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
-                tab === t.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
-              }`}>
-                {t.count}
-              </span>
-              {tab === t.id && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"></span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab content */}
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-          </div>
-        ) : tab === 'members' ? (
-          <MembersTab
-            members={allMembers}
-            projects={projects}
-            isAdmin={isAdmin}
-            currentUserId={user?.id}
-            onProjectsChanged={loadProjects}
-          />
-        ) : (
-          <ProjectList
-            projects={filtered}
-            tab={tab}
-            isAdmin={isAdmin}
-            userId={user?.id}
-            confirmDelete={confirmDelete}
-            onEdit={setEditingProject}
-            onArchive={handleArchiveToggle}
-            onDelete={handleDelete}
-            onConfirmDelete={setConfirmDelete}
-            onManageMembers={() => {}}
-          />
+        {isAdmin && tab !== 'members' && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm hover:shadow transition-all"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Project
+          </button>
         )}
-      </main>
+      </div>
+
+      {/* Content */}
+      {tab === 'members' ? (
+        <MembersTab
+          members={allMembers}
+          projects={projects}
+          isAdmin={isAdmin}
+          currentUserId={user?.id}
+          onProjectsChanged={loadProjects}
+        />
+      ) : (
+        <ProjectList
+          projects={filtered}
+          tab={tab}
+          isAdmin={isAdmin}
+          userId={user?.id}
+          loading={loading}
+          confirmDelete={confirmDelete}
+          onEdit={setEditingProject}
+          onArchive={handleArchiveToggle}
+          onDelete={handleDelete}
+          onConfirmDelete={setConfirmDelete}
+          onManageMembers={() => {}}
+        />
+      )}
 
       {/* Create Modal */}
       <CreateProjectModal
@@ -224,22 +162,27 @@ export default function DashboardPage() {
 
       {/* Delete confirm overlay */}
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Project</h3>
-            <p className="text-sm text-gray-500 mb-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm mx-4 animate-scale-in">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">Delete Project</h3>
+            <p className="text-sm text-gray-500 text-center mb-6">
               This will permanently delete the project, all pins, and all comments. This action cannot be undone.
             </p>
-            <div className="flex justify-end gap-3">
+            <div className="flex gap-3">
               <button
                 onClick={() => setConfirmDelete(null)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(confirmDelete)}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
               >
                 Delete
               </button>
@@ -270,38 +213,42 @@ function EditProjectModal({ project, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scale-in">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">Edit Project</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Project Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Website URL</label>
             <input
               type="url"
               value={websiteUrl}
               onChange={(e) => setWebsiteUrl(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+            <button type="button" onClick={onClose} className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            <button type="submit" disabled={loading} className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
               {loading ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
