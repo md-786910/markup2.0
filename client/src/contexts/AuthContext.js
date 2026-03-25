@@ -35,6 +35,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem(TOKEN_KEY, res.data.token);
     setToken(res.data.token);
     setUser(res.data.user);
+    return res.data; // Return full response so caller can check isNewOrg
   }, []);
 
   const logout = useCallback(() => {
@@ -47,13 +48,21 @@ export function AuthProvider({ children }) {
     setUser((prev) => (prev ? { ...prev, ...userData } : prev));
   }, []);
 
+  const role = user?.role;
+  const orgLocked = user?.orgLocked || false;
+
   return (
     <AuthContext.Provider value={{
       user,
       token,
       loading,
       isAuthenticated: !!user,
-      isAdmin: user?.role === 'admin',
+      isOwner: role === 'owner',
+      isAdmin: role === 'admin' || role === 'owner',
+      isGuest: role === 'guest',
+      canManage: role === 'owner' || role === 'admin',
+      canCreate: role !== 'guest' && !orgLocked,
+      orgLocked,
       login,
       signup,
       logout,

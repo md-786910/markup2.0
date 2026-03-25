@@ -115,11 +115,11 @@ export default function AppSidebar({ collapsed, onToggle }) {
               />
             ) : (
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-sm font-bold shrink-0">
-                {(user?.name || '?')[0].toUpperCase()}
+                {(user?.orgName || user?.name || '?')[0].toUpperCase()}
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
+              <p className="text-sm font-semibold text-white truncate">{user?.orgName || user?.name}</p>
               <p className="text-[11px] text-gray-400 capitalize">{user?.role || 'Member'}</p>
             </div>
             <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import AppSidebar from './AppSidebar';
+import OrgLockedBanner from '../common/OrgLockedBanner';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { orgLocked } = useAuth();
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -32,6 +35,9 @@ export default function AppLayout() {
             <span className="text-base font-bold text-gray-900">Feedbackly</span>
           </div>
         </div>
+
+        {/* Org locked banner */}
+        {orgLocked && <OrgLockedBanner />}
 
         {/* Scrollable main content */}
         <main className="flex-1 overflow-y-auto scrollbar-thin">

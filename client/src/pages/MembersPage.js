@@ -16,6 +16,7 @@ export default function MembersPage() {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('member');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState('');
@@ -71,10 +72,11 @@ export default function MembersPage() {
     setInviteSuccess('');
     setInviteLoading(true);
     try {
-      const res = await inviteMemberApi(projectId, email);
+      const res = await inviteMemberApi(projectId, email, inviteRole);
       setProject(res.data.project);
       setInviteSuccess(`${email} has been invited`);
       setEmail('');
+      setInviteRole('member');
       setTimeout(() => setInviteSuccess(''), 3000);
     } catch (err) {
       setInviteError(err.response?.data?.message || 'Failed to invite member');
@@ -158,15 +160,24 @@ export default function MembersPage() {
             </div>
           )}
 
-          <form onSubmit={handleInvite} className="flex gap-3">
+          <form onSubmit={handleInvite} className="flex gap-3 flex-wrap sm:flex-nowrap">
             <input
               type="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); setInviteError(''); }}
               placeholder="member@example.com"
               required
-              className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[200px]"
             />
+            <select
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value)}
+              className="px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="admin">Admin</option>
+              <option value="member">Member</option>
+              <option value="guest">Guest</option>
+            </select>
             <button
               type="submit"
               disabled={inviteLoading}
@@ -218,11 +229,12 @@ export default function MembersPage() {
 
                 {/* Role */}
                 <div className="w-28 flex justify-center">
-                  {!canManage || isMemberOwner || isSelf ? (
+                  {!canManage || isMemberOwner || isSelf || member.role === 'owner' ? (
                     <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-                      (member.role || 'member') === 'admin'
-                        ? 'bg-purple-50 text-purple-700'
-                        : 'bg-gray-100 text-gray-600'
+                      member.role === 'owner' ? 'bg-amber-50 text-amber-700'
+                      : member.role === 'admin' ? 'bg-purple-50 text-purple-700'
+                      : member.role === 'guest' ? 'bg-blue-50 text-blue-500'
+                      : 'bg-gray-100 text-gray-600'
                     }`}>
                       {member.role || 'member'}
                     </span>
@@ -235,6 +247,7 @@ export default function MembersPage() {
                     >
                       <option value="admin">Admin</option>
                       <option value="member">Member</option>
+                      <option value="guest">Guest</option>
                     </select>
                   )}
                 </div>

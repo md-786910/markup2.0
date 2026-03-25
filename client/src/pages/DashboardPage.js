@@ -56,6 +56,17 @@ export default function DashboardPage() {
     });
   });
 
+  const handleStatusChange = async (project, projectStatus) => {
+    try {
+      const res = await updateProjectApi(project._id, { projectStatus });
+      setProjects((prev) =>
+        prev.map((p) => (p._id === res.data.project._id ? res.data.project : p))
+      );
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    }
+  };
+
   const handleArchiveToggle = async (project) => {
     try {
       const newStatus = project.status === 'active' ? 'archived' : 'active';
@@ -138,6 +149,7 @@ export default function DashboardPage() {
           onDelete={handleDelete}
           onConfirmDelete={setConfirmDelete}
           onManageMembers={() => {}}
+          onStatusChange={handleStatusChange}
         />
       )}
 

@@ -37,8 +37,8 @@ export default function SignupForm() {
     setError('');
     setLoading(true);
     try {
-      await signup(name, email, password);
-      navigate('/dashboard');
+      const data = await signup(name, email, password);
+      navigate(data?.isNewOrg ? '/onboarding' : '/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Signup failed');
     } finally {
@@ -82,7 +82,7 @@ export default function SignupForm() {
         </div>
       ) : (
         <p className="text-sm text-gray-500 mb-8">
-          First user automatically becomes admin
+          First user becomes the workspace owner
         </p>
       )}
 
