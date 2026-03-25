@@ -43,6 +43,10 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((userData) => {
+    setUser((prev) => (prev ? { ...prev, ...userData } : prev));
+  }, []);
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -53,6 +57,7 @@ export function AuthProvider({ children }) {
       login,
       signup,
       logout,
+      updateUser,
     }}>
       {children}
     </AuthContext.Provider>

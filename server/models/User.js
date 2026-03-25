@@ -24,6 +24,10 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'member'],
     default: 'member',
   },
+  avatar: {
+    type: String,
+    default: null,
+  },
   lastSeen: {
     type: Date,
     default: null,

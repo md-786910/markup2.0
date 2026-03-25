@@ -12,6 +12,8 @@ const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ProjectPage = lazy(() => import('./pages/ProjectPage'));
 const MembersPage = lazy(() => import('./pages/MembersPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
 function PageLoader() {
   return (
@@ -39,6 +41,8 @@ function App() {
               <Route element={<AppLayout />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/project/:projectId/members" element={<MembersPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
               </Route>
               {/* Routes WITHOUT sidebar (full-bleed for annotation tool) */}
               <Route path="/project/:projectId" element={<ProjectPage />} />

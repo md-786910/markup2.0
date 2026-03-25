@@ -14,3 +14,17 @@ export const forgotPasswordApi = (email) =>
 
 export const resetPasswordApi = (token, password) =>
   api.post(`/auth/reset-password/${token}`, { password });
+
+export const updateProfileApi = (data) =>
+  api.patch('/auth/profile', data);
+
+export const changePasswordApi = (currentPassword, newPassword) =>
+  api.patch('/auth/change-password', { currentPassword, newPassword });
+
+export const uploadAvatarApi = (formData) =>
+  api.post('/auth/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+export const deleteAccountApi = () =>
+  api.delete('/auth/account');

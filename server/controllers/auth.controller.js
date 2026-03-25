@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Project = require('../models/Project');
+const Pin = require('../models/Pin');
+const Comment = require('../models/Comment');
 const Invitation = require('../models/Invitation');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendPasswordResetEmail } = require('../utils/mailer');
@@ -13,6 +15,14 @@ const generateToken = (user) => {
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 };
+
+const userResponse = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  avatar: user.avatar || null,
+});
 
 exports.signup = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
@@ -57,12 +67,7 @@ exports.signup = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     token,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
+    user: userResponse(user),
   });
 });
 
@@ -95,24 +100,114 @@ exports.login = asyncHandler(async (req, res) => {
 
   res.json({
     token,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
+    user: userResponse(user),
   });
 });
 
 exports.getMe = asyncHandler(async (req, res) => {
-  res.json({
-    user: {
-      id: req.user._id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role,
-    },
-  });
+  res.json({ user: userResponse(req.user) });
+});
+
+// Update profile (name, email)
+exports.updateProfile = asyncHandler(async (req, res) => {
+  const { name, email } = req.body;
+  const user = req.user;
+
+  if (name !== undefined) {
+    if (!name.trim()) {
+      return res.status(400).json({ message: 'Name cannot be empty' });
+    }
+    user.name = name.trim();
+  }
+
+  if (email !== undefined) {
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: 'Email cannot be empty' });
+    }
+    if (normalizedEmail !== user.email) {
+      const existing = await User.findOne({ email: normalizedEmail });
+      if (existing) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+      user.email = normalizedEmail;
+    }
+  }
+
+  await user.save({ validateBeforeSave: true });
+  res.json({ user: userResponse(user) });
+});
+
+// Change password (requires current password)
+exports.changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ message: 'Current password and new password are required' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'New password must be at least 6 characters' });
+  }
+
+  const user = await User.findById(req.user._id).select('+passwordHash');
+  const isMatch = await user.comparePassword(currentPassword);
+  if (!isMatch) {
+    return res.status(401).json({ message: 'Current password is incorrect' });
+  }
+
+  user.passwordHash = newPassword; // pre-save hook will hash it
+  await user.save();
+
+  res.json({ message: 'Password changed successfully' });
+});
+
+// Upload avatar
+exports.uploadAvatar = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded' });
+  }
+
+  const user = req.user;
+  user.avatar = req.file.filename;
+  await user.save({ validateBeforeSave: false });
+
+  res.json({ user: userResponse(user) });
+});
+
+// Delete account
+exports.deleteAccount = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  // Find projects owned by this user
+  const ownedProjects = await Project.find({ owner: userId });
+  const ownedProjectIds = ownedProjects.map((p) => p._id);
+
+  // Delete pins and comments for owned projects
+  if (ownedProjectIds.length > 0) {
+    const pins = await Pin.find({ project: { $in: ownedProjectIds } });
+    const pinIds = pins.map((p) => p._id);
+    await Comment.deleteMany({ pin: { $in: pinIds } });
+    await Pin.deleteMany({ project: { $in: ownedProjectIds } });
+    await Project.deleteMany({ owner: userId });
+  }
+
+  // Remove user from member lists of other projects
+  await Project.updateMany(
+    { members: userId },
+    { $pull: { members: userId } }
+  );
+
+  // Delete invitations created for this user's email
+  await Invitation.deleteMany({ email: req.user.email });
+
+  // Delete the user
+  await User.findByIdAndDelete(userId);
+
+  // Clear auth cookie
+  res.clearCookie('markup_token', { path: '/' });
+
+  res.json({ message: 'Account deleted successfully' });
 });
 
 exports.forgotPassword = asyncHandler(async (req, res) => {

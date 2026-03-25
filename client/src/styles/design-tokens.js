@@ -1,5 +1,5 @@
 /**
- * MarkUp Design Palette — Source of Truth
+ * Feedbackly Design Palette — Source of Truth
  *
  * This file documents the design conventions used across the app.
  * It is NOT imported at runtime (Tailwind utility classes handle styling).
