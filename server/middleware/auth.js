@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Organization = require('../models/Organization');
 const asyncHandler = require('../utils/asyncHandler');
+const { checkTrialExpiry } = require('../utils/orgUtils');
 
 const auth = asyncHandler(async (req, res, next) => {
   let token = null;
@@ -25,7 +27,26 @@ const auth = asyncHandler(async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
+
+    // Single-device session enforcement
+    if (decoded.sessionToken && user.sessionToken && decoded.sessionToken !== user.sessionToken) {
+      return res.status(401).json({
+        message: 'Session expired. You have been logged in on another device.',
+        code: 'SESSION_REPLACED',
+      });
+    }
+
     req.user = user;
+
+    // Populate organization context if user has one
+    if (user.organization) {
+      const org = await Organization.findById(user.organization);
+      if (org) {
+        await checkTrialExpiry(org);
+        req.organization = org;
+      }
+    }
+
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Invalid token' });

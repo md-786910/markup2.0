@@ -21,10 +21,19 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'member'],
+    enum: ['owner', 'admin', 'member', 'guest'],
     default: 'member',
   },
+  organization: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    default: null,
+  },
   avatar: {
+    type: String,
+    default: null,
+  },
+  sessionToken: {
     type: String,
     default: null,
   },
@@ -54,6 +63,7 @@ userSchema.methods.comparePassword = async function (candidate) {
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.passwordHash;
+  delete obj.sessionToken;
   return obj;
 };
 

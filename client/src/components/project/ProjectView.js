@@ -42,7 +42,7 @@ function getAvatarColor(id) {
 
 export default function ProjectView({ project, onProjectUpdate, initialPinId }) {
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, canCreate } = useAuth();
   const [pins, setPins] = useState([]);
   const [allPins, setAllPins] = useState([]);
   const [selectedPin, setSelectedPin] = useState(null);
@@ -470,8 +470,8 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Browser / Comment mode tabs */}
-          <div className="relative flex bg-gray-100 rounded-md p-1">
+          {/* Browser / Comment mode tabs — hidden for guests */}
+          {canCreate && <div className="relative flex bg-gray-100 rounded-md p-1">
             <div
               className="absolute top-1 bottom-1 rounded-md bg-blue-600 shadow-sm transition-all duration-200 ease-in-out"
               style={{
@@ -495,7 +495,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
             >
               Comment
             </button>
-          </div>
+          </div>}
 
           {/* Member avatars with online/offline status */}
           <div className="flex items-center -space-x-2">

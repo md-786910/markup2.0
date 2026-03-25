@@ -14,6 +14,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
   const navigate = useNavigate();
   const [inviteProjectId, setInviteProjectId] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('member');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState('');
@@ -75,7 +76,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
     setInviteSuccess('');
     setInviteLoading(true);
     try {
-      const res = await inviteMemberApi(inviteProjectId, inviteEmail);
+      const res = await inviteMemberApi(inviteProjectId, inviteEmail, inviteRole);
       const msg = res.data?.invitation
         ? `Invitation sent to ${inviteEmail}`
         : `${inviteEmail} added successfully`;
@@ -166,6 +167,15 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
               required
               className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white min-w-[200px]"
             />
+            <select
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value)}
+              className="px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="admin">Admin</option>
+              <option value="member">Member</option>
+              <option value="guest">Guest</option>
+            </select>
             <button
               type="submit"
               disabled={inviteLoading}
@@ -288,11 +298,12 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
 
                   {/* Role */}
                   <div className="w-32 flex justify-center">
-                    {!isAdmin || isSelf ? (
+                    {!isAdmin || isSelf || member.role === 'owner' ? (
                       <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-                        (member.role || 'member') === 'admin'
-                          ? 'bg-purple-50 text-purple-700'
-                          : 'bg-gray-100 text-gray-600'
+                        member.role === 'owner' ? 'bg-amber-50 text-amber-700'
+                        : member.role === 'admin' ? 'bg-purple-50 text-purple-700'
+                        : member.role === 'guest' ? 'bg-blue-50 text-blue-500'
+                        : 'bg-gray-100 text-gray-600'
                       }`}>
                         {member.role || 'member'}
                       </span>
@@ -305,6 +316,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                       >
                         <option value="admin">Admin</option>
                         <option value="member">Member</option>
+                        <option value="guest">Guest</option>
                       </select>
                     )}
                   </div>

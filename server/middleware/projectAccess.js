@@ -15,9 +15,9 @@ const projectAccess = asyncHandler(async (req, res, next) => {
   const userId = req.user._id.toString();
   const isMember = project.members.some((m) => m.toString() === userId);
   const isOwner = project.owner.toString() === userId;
-  const isAdmin = req.user.role === 'admin';
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
 
-  if (!isMember && !isOwner && !isAdmin) {
+  if (!isMember && !isOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Not a member of this project' });
   }
 

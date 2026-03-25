@@ -21,8 +21,15 @@ api.interceptors.response.use(
     const url = error.config?.url || "";
     const isAuthRoute =
       url.includes("/auth/login") || url.includes("/auth/signup");
+
     if (error.response?.status === 401 && !isAuthRoute) {
       localStorage.removeItem(TOKEN_KEY);
+
+      const code = error.response?.data?.code;
+      if (code === "SESSION_REPLACED") {
+        sessionStorage.setItem("session_replaced", "true");
+      }
+
       window.location.href = "/login";
     }
     return Promise.reject(error);
