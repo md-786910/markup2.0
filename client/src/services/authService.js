@@ -28,3 +28,8 @@ export const uploadAvatarApi = (formData) =>
 
 export const deleteAccountApi = () =>
   api.delete('/auth/account');
+
+export const updateOrganizationApi = (formData) =>
+  api.patch('/auth/organization', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });

@@ -33,7 +33,7 @@ const userResponse = (user, org) => ({
   orgTrialEndsAt: org ? org.trialEndsAt : null,
 });
 
-const setCookieAndRespond = (res, user, org, statusCode = 200) => {
+const setCookieAndRespond = (res, user, org, statusCode = 200, extra = {}) => {
   const token = generateToken(user);
   res.cookie('markup_token', token, {
     httpOnly: true,
@@ -42,7 +42,7 @@ const setCookieAndRespond = (res, user, org, statusCode = 200) => {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: '/',
   });
-  res.status(statusCode).json({ token, user: userResponse(user, org) });
+  res.status(statusCode).json({ token, user: userResponse(user, org), ...extra });
 };
 
 exports.signup = asyncHandler(async (req, res) => {
@@ -120,7 +120,7 @@ exports.signup = asyncHandler(async (req, res) => {
     }
   }
 
-  setCookieAndRespond(res, user, org, 201);
+  setCookieAndRespond(res, user, org, 201, { isNewOrg: isFirstUser });
 });
 
 exports.login = asyncHandler(async (req, res) => {
@@ -325,4 +325,46 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   await user.save();
 
   res.json({ message: 'Password has been reset successfully' });
+});
+
+// Update organization (name, logo) — also creates org if missing
+exports.updateOrganization = asyncHandler(async (req, res) => {
+  let org = null;
+
+  if (req.user.organization) {
+    org = await Organization.findById(req.user.organization);
+  }
+
+  // If no org exists yet (e.g. first-time setup), create one and promote user to owner
+  if (!org) {
+    const { name } = req.body;
+    org = await Organization.create({
+      name: (name && name.trim()) || req.user.name + "'s Workspace",
+      owner: req.user._id,
+    });
+    req.user.organization = org._id;
+    req.user.role = 'owner';
+    await req.user.save({ validateBeforeSave: false });
+  } else {
+    // Only owner can update existing org
+    if (org.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the organization owner can update settings' });
+    }
+  }
+
+  const { name } = req.body;
+  if (name !== undefined) {
+    if (!name.trim()) {
+      return res.status(400).json({ message: 'Organization name cannot be empty' });
+    }
+    org.name = name.trim();
+  }
+
+  if (req.file) {
+    org.logo = req.file.filename;
+  }
+
+  await org.save();
+
+  res.json({ user: userResponse(req.user, org) });
 });

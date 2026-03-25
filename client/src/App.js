@@ -14,6 +14,7 @@ const ProjectPage = lazy(() => import('./pages/ProjectPage'));
 const MembersPage = lazy(() => import('./pages/MembersPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
 
 function PageLoader() {
   return (
@@ -34,6 +35,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
             <Route element={<PrivateRoute />}>
@@ -44,7 +46,7 @@ function App() {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
-              {/* Routes WITHOUT sidebar (full-bleed for annotation tool) */}
+              {/* Routes WITHOUT sidebar */}
               <Route path="/project/:projectId" element={<ProjectPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" />} />
