@@ -2,12 +2,13 @@ import React, { useRef, useEffect, useState } from 'react';
 
 const DESKTOP_WIDTH = 1440;
 
-export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId, loading, hidePins, onLoad, viewportWidth = DESKTOP_WIDTH }) {
+export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, selectedPinId, loading, hidePins, onLoad, viewportWidth = DESKTOP_WIDTH }) {
   const isDesktop = viewportWidth >= DESKTOP_WIDTH;
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
   const [scaleFactor, setScaleFactor] = useState(1);
   const [containerSize, setContainerSize] = useState({ width: viewportWidth, height: 900 });
+  const prevTargetUrl = useRef(targetUrl);
 
   // Track container size and compute scale factor
   useEffect(() => {
@@ -35,6 +36,24 @@ export default function IframeContainer({ proxyUrl, pinMode, pins, selectedPinId
       setScaleFactor(isDesktop ? rawScale : Math.min(rawScale, 1));
     }
   }, [viewportWidth, containerSize.width, isDesktop]);
+
+  // Navigate within iframe via postMessage when targetUrl changes (avoids full remount)
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !targetUrl) return;
+    // Skip the initial render — the iframe src already handles the first load
+    if (prevTargetUrl.current === targetUrl) return;
+    prevTargetUrl.current = targetUrl;
+    try {
+      iframe.contentWindow.postMessage(
+        { type: 'MARKUP_NAVIGATE', url: targetUrl },
+        '*'
+      );
+    } catch {
+      // If postMessage fails (cross-origin), fall back to setting src directly
+      // This shouldn't happen since iframe is same-origin (proxy), but just in case
+    }
+  }, [targetUrl]);
 
   // Send pin mode state to iframe
   useEffect(() => {

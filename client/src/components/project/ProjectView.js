@@ -404,74 +404,79 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   return (
     <div className="flex flex-col h-screen">
       {/* Toolbar */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between shadow-sm">
+      <div className="bg-white border-b border-gray-200/80 px-4 h-14 flex items-center justify-between">
+        {/* Left: Brand + Project + URL */}
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors shrink-0 pr-1"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors shrink-0 group"
           >
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-              <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-500/20">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
               </svg>
             </div>
-            <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div className="w-px h-5 bg-gray-200 shrink-0"></div>
-          <h2 className="font-semibold text-gray-800 shrink-0 text-sm">{project.name}</h2>
-          <span className="text-xs text-gray-400 bg-gray-50 px-2.5 py-1 rounded-md truncate max-w-md border border-gray-100" title={currentPageUrl}>
-            {currentPageUrl}
-          </span>
+          <div className="w-px h-6 bg-gray-200/80 shrink-0"></div>
+          <h2 className="font-semibold text-gray-900 shrink-0 text-[14px] tracking-tight">{project.name}</h2>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 hover:bg-gray-100/60 transition-colors cursor-default" title={currentPageUrl}>
+            <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+            </svg>
+            <span className="truncate">{currentPageUrl}</span>
+          </div>
         </div>
 
-        {/* Device preview icons — centered */}
-        <div className="flex items-center gap-1">
+        {/* Center: Device switcher — segmented control style */}
+        <div className="flex items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">
           {/* Desktop */}
           <button
             onClick={() => handleDeviceChange('desktop')}
-            className={`p-1.5 rounded-md transition-colors relative ${deviceMode === 'desktop' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'desktop' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
             title="Desktop (1440px)"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
             </svg>
             {devicePinCounts.desktop > 0 && deviceMode !== 'desktop' && (
-              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
             )}
           </button>
           {/* Tablet */}
           <button
             onClick={() => handleDeviceChange('tablet')}
-            className={`p-1.5 rounded-md transition-colors relative ${deviceMode === 'tablet' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'tablet' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
             title="Tablet (768px)"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5h3m-6.75 2.25h10.5a2.25 2.25 0 002.25-2.25V4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 4.5v15a2.25 2.25 0 002.25 2.25z" />
             </svg>
             {devicePinCounts.tablet > 0 && deviceMode !== 'tablet' && (
-              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
             )}
           </button>
           {/* Mobile */}
           <button
             onClick={() => handleDeviceChange('mobile')}
-            className={`p-1.5 rounded-md transition-colors relative ${deviceMode === 'mobile' ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'}`}
+            className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'mobile' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
             title="Mobile (375px)"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
             </svg>
             {devicePinCounts.mobile > 0 && deviceMode !== 'mobile' && (
-              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
             )}
           </button>
         </div>
 
+        {/* Right: Mode toggle + Avatars + Invite */}
         <div className="flex items-center gap-3">
-          {/* Browser / Comment mode tabs — hidden for guests */}
-          {canCreate && <div className="relative flex bg-gray-100 rounded-md p-1">
+          {/* View / Comment mode toggle */}
+          {canCreate && <div className="relative flex bg-gray-100/80 rounded-lg p-1">
             <div
               className="absolute top-1 bottom-1 rounded-md bg-blue-600 shadow-sm transition-all duration-200 ease-in-out"
               style={{
@@ -497,35 +502,38 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
             </button>
           </div>}
 
-          {/* Member avatars with online/offline status */}
+          {/* Member avatars */}
           <div className="flex items-center -space-x-2">
             {allMembers.slice(0, 5).map((member) => {
               const color = getAvatarColor(member._id);
               return (
               <div key={member._id} className="relative" title={getMemberTooltip(member)}>
-                <div className={`w-7 h-7 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-[10px] font-bold border-2 border-white`}>
+                <div className={`w-8 h-8 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-[11px] font-bold border-[2.5px] border-white`}>
                   {getInitials(member.name || member.email)}
                 </div>
-                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-[2px] border-white ${
                   onlineUsers.has(member._id) ? 'bg-green-500' : 'bg-gray-300'
                 }`} />
               </div>
               );
             })}
             {allMembers.length > 5 && (
-              <div className="w-7 h-7 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold border-2 border-white">
+              <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-bold border-[2.5px] border-white">
                 +{allMembers.length - 5}
               </div>
             )}
           </div>
 
-          <div className="w-px h-5 bg-gray-200"></div>
+          <div className="w-px h-6 bg-gray-200/80"></div>
 
           {isAdmin && (
             <button
               onClick={() => setShowInvite(true)}
-              className="px-3.5 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 text-white text-[13px] font-medium rounded-lg hover:bg-blue-700 shadow-sm shadow-blue-600/20 transition-all hover:shadow-md hover:shadow-blue-600/25"
             >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
+              </svg>
               Invite
             </button>
           )}
@@ -553,8 +561,9 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         {/* Iframe area */}
         <div className="flex-1 relative">
           <IframeContainer
-            key={targetUrl}
+            key={(() => { try { return new URL(targetUrl).origin; } catch { return targetUrl; } })()}
             proxyUrl={proxyUrl}
+            targetUrl={targetUrl}
             pinMode={pinMode}
             pins={pins}
             selectedPinId={selectedPin?._id}

@@ -31,6 +31,25 @@ const DOMAIN_FAIL_TTL = 30000; // 30 seconds
 const fallbackDomains = new Map();
 const FALLBACK_DOMAIN_TTL = 300000; // 5 minutes
 
+// --- Project existence cache (avoids DB lookup on every sub-resource) ---
+const projectCache = new Map();
+const PROJECT_CACHE_TTL = 60000; // 60 seconds
+
+function getCachedProject(projectId) {
+  const entry = projectCache.get(projectId);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > PROJECT_CACHE_TTL) {
+    projectCache.delete(projectId);
+    return null;
+  }
+  return entry.project;
+}
+
+// --- Rewrite cache for CSS/JS (avoids re-fetching + re-rewriting identical resources) ---
+const rewriteCache = new Map();
+const REWRITE_CACHE_TTL = 300000; // 5 minutes
+const REWRITE_CACHE_MAX = 500;
+
 const errorMessages = {
   ENOTFOUND: 'Domain not found — the website address may be incorrect or the site no longer exists.',
   ETIMEDOUT: 'Connection timed out — the website took too long to respond.',
@@ -127,7 +146,7 @@ function sendContentAwareError(req, res, url, domain, reason) {
 }
 
 // Shared response processing: rewrite HTML/CSS/JS and forward headers
-async function processResponse(req, res, response, url, projectId, serverBase) {
+async function processResponse(req, res, response, url, projectId, serverBase, workerBase) {
   const contentType = (response.headers["content-type"] || "").toLowerCase();
 
   // Rewrite upstream Set-Cookie headers so browser stores them for localhost
@@ -147,12 +166,23 @@ async function processResponse(req, res, response, url, projectId, serverBase) {
     "x-frame-options", "content-security-policy", "content-security-policy-report-only",
     "content-length", "content-encoding", "transfer-encoding", "connection",
     "keep-alive", "strict-transport-security", "set-cookie",
+    "cache-control", "expires", "pragma",
   ]);
   Object.entries(response.headers).forEach(([key, value]) => {
     if (!headersToSkip.has(key.toLowerCase())) {
       try { res.setHeader(key, value); } catch {}
     }
   });
+
+  // --- Cache-Control headers based on content type ---
+  if (contentType.includes("text/html")) {
+    res.setHeader('Cache-Control', 'no-cache');
+  } else if (contentType.includes("text/css") || contentType.includes("javascript")) {
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+  } else if (/image\/|font\/|application\/font|application\/x-font|audio\/|video\//.test(contentType) ||
+             /\.(woff2?|ttf|otf|eot|png|jpe?g|gif|webp|svg|ico|avif|bmp|mp4|webm)(\?|$)/i.test(url)) {
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+  }
 
   const isGetRequest = req.method === 'GET';
 
@@ -165,23 +195,45 @@ async function processResponse(req, res, response, url, projectId, serverBase) {
       }), { httpOnly: false, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 });
     } catch {}
     const html = response.data.toString("utf-8");
-    let rewritten = rewriteHtml(html, url, projectId, serverBase);
-    rewritten = injectScript(rewritten, url, projectId, serverBase);
+    let rewritten = rewriteHtml(html, url, projectId, serverBase, workerBase);
+    rewritten = injectScript(rewritten, url, projectId, serverBase, workerBase);
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.send(rewritten);
   }
 
   if (isGetRequest && contentType.includes("text/css")) {
+    const cacheKey = `css:${url}:${projectId}:${serverBase}`;
+    const cached = rewriteCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < REWRITE_CACHE_TTL) {
+      res.setHeader("Content-Type", contentType);
+      return res.send(cached.value);
+    }
     const css = response.data.toString("utf-8");
-    const rewritten = rewriteCssUrls(css, url, projectId, serverBase);
+    const rewritten = rewriteCssUrls(css, url, projectId, serverBase, workerBase);
+    if (rewriteCache.size >= REWRITE_CACHE_MAX) {
+      const firstKey = rewriteCache.keys().next().value;
+      rewriteCache.delete(firstKey);
+    }
+    rewriteCache.set(cacheKey, { value: rewritten, timestamp: Date.now() });
     res.setHeader("Content-Type", contentType);
     return res.send(rewritten);
   }
 
   if (isGetRequest && (contentType.includes("javascript") || contentType.includes("text/javascript") ||
       contentType.includes("application/x-javascript"))) {
+    const cacheKey = `js:${url}:${projectId}:${serverBase}`;
+    const cached = rewriteCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < REWRITE_CACHE_TTL) {
+      res.setHeader("Content-Type", contentType);
+      return res.send(cached.value);
+    }
     const js = response.data.toString("utf-8");
-    const rewritten = rewriteJsUrls(js, url, projectId, serverBase);
+    const rewritten = rewriteJsUrls(js, url, projectId, serverBase, workerBase);
+    if (rewriteCache.size >= REWRITE_CACHE_MAX) {
+      const firstKey = rewriteCache.keys().next().value;
+      rewriteCache.delete(firstKey);
+    }
+    rewriteCache.set(cacheKey, { value: rewritten, timestamp: Date.now() });
     res.setHeader("Content-Type", contentType);
     return res.send(rewritten);
   }
@@ -191,7 +243,7 @@ async function processResponse(req, res, response, url, projectId, serverBase) {
 }
 
 // Try fallback proxies for a blocked domain. Returns response or null.
-async function tryFallback(req, res, url, projectId, serverBase) {
+async function tryFallback(req, res, url, projectId, serverBase, workerBase) {
   // Fallback 1: Cloudflare Worker relay (fastest, user-controlled)
   if (FALLBACK_RELAY_URL) {
     try {
@@ -202,7 +254,7 @@ async function tryFallback(req, res, url, projectId, serverBase) {
         validateStatus: () => true,
       });
       fallbackDomains.set(getDomain(url), Date.now());
-      return processResponse(req, res, relayResp, url, projectId, serverBase);
+      return processResponse(req, res, relayResp, url, projectId, serverBase, workerBase);
     } catch (relayErr) {
       console.error(`Relay failed for ${url}: ${relayErr.message}`);
     }
@@ -221,7 +273,7 @@ async function tryFallback(req, res, url, projectId, serverBase) {
         validateStatus: () => true,
       });
       fallbackDomains.set(getDomain(url), Date.now());
-      return processResponse(req, res, proxyResp, url, projectId, serverBase);
+      return processResponse(req, res, proxyResp, url, projectId, serverBase, workerBase);
     } catch (proxyErr) {
       console.error(`Outbound proxy failed for ${url}: ${proxyErr.message}`);
     }
@@ -235,7 +287,7 @@ async function tryFallback(req, res, url, projectId, serverBase) {
       responseType: 'arraybuffer', timeout: 30000,
     });
     fallbackDomains.set(getDomain(url), Date.now());
-    return processResponse(req, res, fallbackResp, url, projectId, serverBase);
+    return processResponse(req, res, fallbackResp, url, projectId, serverBase, workerBase);
   } catch (fallbackErr) {
     console.error(`allorigins fallback also failed for ${url}: ${fallbackErr.message}`);
   }
@@ -251,10 +303,14 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       .json({ message: "url and projectId query params are required" });
   }
 
-  // Verify project exists and user has access
-  const project = await Project.findById(projectId);
+  // Verify project exists (cache-first to avoid DB lookup on every sub-resource)
+  let project = getCachedProject(projectId);
   if (!project) {
-    return res.status(404).json({ message: "Project not found" });
+    project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    projectCache.set(projectId, { project, timestamp: Date.now() });
   }
 
   // const userId = req.user._id.toString();
@@ -268,6 +324,7 @@ exports.proxyPage = asyncHandler(async (req, res) => {
   res.removeHeader('X-Frame-Options');
 
   const serverBase = `${req.protocol}://${req.get('host')}`;
+  const workerBase = FALLBACK_RELAY_URL || null; // CF Worker for sub-resources (null = all through Express)
 
   // Early exit: if this domain recently failed completely, skip the request
   const cachedFailure = getFailedDomain(url);
@@ -276,13 +333,24 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     return sendContentAwareError(req, res, url, domain, cachedFailure.message);
   }
 
-  // Fast path: if this domain is known to need fallback, skip the 15s direct attempt
-  if (isFallbackDomain(url)) {
-    const result = await tryFallback(req, res, url, projectId, serverBase);
-    if (result) return;
-    // If fallback also failed this time, fall through to direct attempt
+  // --- Primary path: CF Worker fetch (fast, edge) when available ---
+  if (FALLBACK_RELAY_URL && req.method === 'GET') {
+    try {
+      const workerResp = await axios({
+        method: 'GET',
+        url: `${FALLBACK_RELAY_URL}/?url=${encodeURIComponent(url)}`,
+        responseType: 'arraybuffer',
+        timeout: 15000, // 15s — generous but way faster than direct+fallback chain (27s+)
+        validateStatus: () => true,
+      });
+      return processResponse(req, res, workerResp, url, projectId, serverBase, workerBase);
+    } catch (workerErr) {
+      console.log(`Worker-first fetch failed for ${url}: ${workerErr.message}, falling back to direct...`);
+      // Fall through to direct connection below
+    }
   }
 
+  // --- Fallback: direct connection (used when Worker is unavailable or for non-GET) ---
   try {
     const axiosConfig = {
       method: req.method,
@@ -296,8 +364,8 @@ exports.proxyPage = asyncHandler(async (req, res) => {
         "Accept-Language": "en-US,en;q=0.5",
       },
       maxRedirects: 5,
-      timeout: 5000, // 5s — fast fail if site is blocked, triggers fallback quickly
-      validateStatus: () => true, // forward all upstream HTTP statuses (400, 404, etc.) transparently
+      timeout: 10000,
+      validateStatus: () => true,
       httpsAgent: new https.Agent({ rejectUnauthorized: false, family: 4 }),
     };
 
@@ -334,17 +402,9 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     }
 
     const response = await axios(axiosConfig);
-    return processResponse(req, res, response, url, projectId, serverBase);
+    return processResponse(req, res, response, url, projectId, serverBase, workerBase);
   } catch (err) {
-    console.log(`Proxy catch: code=${err.code} msg=${err.message} url=${url}`);
-    // Retry via fallbacks for connection-blocked/timed-out domains
-    const isRetryable = ['ETIMEDOUT', 'ECONNREFUSED', 'ECONNABORTED', 'ERR_CANCELED'].includes(err.code) ||
-                        (err.message && err.message.includes('timeout'));
-    if (isRetryable && !req.query._fallback) {
-      console.log(`Direct connection failed for ${url} (${err.code}), trying fallbacks...`);
-      const result = await tryFallback(req, res, url, projectId, serverBase);
-      if (result) return;
-    }
+    console.log(`Direct proxy failed: code=${err.code} msg=${err.message} url=${url}`);
 
     const domain = getDomain(url) || url;
     const domainErrors = ['ENOTFOUND', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'ERR_TLS_CERT_ALTNAME_INVALID'];

@@ -54,6 +54,7 @@ const MentionInput = forwardRef(function MentionInput({
       return encoded;
     },
     focus: () => inputRef.current?.focus(),
+    getInputElement: () => inputRef.current,
   }));
 
   function escapeRegex(str) {

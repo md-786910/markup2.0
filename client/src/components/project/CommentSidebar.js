@@ -6,6 +6,16 @@ import MentionInput from './MentionInput';
 
 function renderCommentBody(body) {
   if (!body) return null;
+  // If body contains HTML tags, render as rich HTML
+  if (/<[a-z][\s\S]*>/i.test(body)) {
+    // Process @mentions inside HTML
+    const processed = body.replace(
+      /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g,
+      '<span class="text-blue-600 font-medium bg-blue-50 rounded px-0.5">@$1</span>'
+    );
+    return <div className="comment-rich-content" dangerouslySetInnerHTML={{ __html: processed }} />;
+  }
+  // Plain text fallback — handle @mentions
   const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
   const parts = [];
   let lastIndex = 0;
@@ -44,7 +54,30 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
   const [editingComment, setEditingComment] = useState(null);
   const [editBody, setEditBody] = useState('');
   const [lightbox, setLightbox] = useState(null);
+  const [lightboxExpanded, setLightboxExpanded] = useState(false);
+  const [copyToast, setCopyToast] = useState(false);
   const { user, isAdmin } = useAuth();
+
+  const handleDownload = (src) => {
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = `screenshot-${Date.now()}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleCopy = async (src) => {
+    try {
+      const res = await fetch(src);
+      const blob = await res.blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      setCopyToast(true);
+      setTimeout(() => setCopyToast(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy screenshot:', err);
+    }
+  };
   const mentionRef = useRef(null);
   const editMentionRef = useRef(null);
 
@@ -226,12 +259,11 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
 
       {/* Screenshot */}
       {pin.screenshot?.path && (
-        <div
-          className="px-3 py-2 border-b border-gray-200 shrink-0 cursor-pointer"
-          onClick={() => setLightbox({ src: `/${pin.screenshot.path}`, pin })}
-        >
+        <div className="px-3 py-2 border-b border-gray-200 shrink-0">
           <p className="text-[11px] text-gray-400 mb-1.5 font-medium">Screenshot</p>
-          <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-50" style={{ maxHeight: '160px' }}>
+          <div className="group/ss rounded-lg overflow-hidden border border-gray-200 bg-gray-50 relative cursor-pointer" style={{ maxHeight: '160px' }}
+            onClick={() => setLightbox({ src: `/${pin.screenshot.path}`, pin })}
+          >
             <div className="relative">
               <img
                 src={`/${pin.screenshot.path}`}
@@ -249,6 +281,36 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
                   }}
                 />
               )}
+            </div>
+            {/* Hover action buttons */}
+            <div className="absolute top-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover/ss:opacity-100 transition-opacity">
+              <button
+                onClick={(e) => { e.stopPropagation(); setLightbox({ src: `/${pin.screenshot.path}`, pin }); }}
+                className="w-7 h-7 flex items-center justify-center rounded-md bg-black/60 text-white/90 hover:bg-black/80 transition-colors"
+                title="View"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                </svg>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDownload(`/${pin.screenshot.path}`); }}
+                className="w-7 h-7 flex items-center justify-center rounded-md bg-black/60 text-white/90 hover:bg-black/80 transition-colors"
+                title="Download"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleCopy(`/${pin.screenshot.path}`); }}
+                className="w-7 h-7 flex items-center justify-center rounded-md bg-black/60 text-white/90 hover:bg-black/80 transition-colors"
+                title="Copy"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -420,21 +482,56 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
       {lightbox && createPortal(
         <div
           className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center"
-          onClick={() => setLightbox(null)}
+          onClick={() => { setLightbox(null); setLightboxExpanded(false); }}
         >
-          <button
-            onClick={() => setLightbox(null)}
-            className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
-          >
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          {/* Toolbar */}
+          <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => handleDownload(lightbox.src)}
+              className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/15 text-white/80 hover:bg-white/25 hover:text-white transition-colors backdrop-blur-sm"
+              title="Download"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </button>
+            <button
+              onClick={() => handleCopy(lightbox.src)}
+              className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/15 text-white/80 hover:bg-white/25 hover:text-white transition-colors backdrop-blur-sm"
+              title="Copy to clipboard"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setLightboxExpanded((prev) => !prev)}
+              className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/15 text-white/80 hover:bg-white/25 hover:text-white transition-colors backdrop-blur-sm"
+              title={lightboxExpanded ? 'Shrink' : 'Expand'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                {lightboxExpanded ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                )}
+              </svg>
+            </button>
+            <button
+              onClick={() => { setLightbox(null); setLightboxExpanded(false); }}
+              className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/15 text-white/80 hover:bg-white/25 hover:text-white transition-colors backdrop-blur-sm"
+              title="Close"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="relative inline-flex" onClick={(e) => e.stopPropagation()}>
             <img
               src={lightbox.src}
               alt=""
-              className="max-w-[90vw] max-h-[90vh] rounded-lg"
+              className={`rounded-lg transition-all duration-200 ${lightboxExpanded ? 'max-w-[98vw] max-h-[96vh]' : 'max-w-[90vw] max-h-[90vh]'}`}
             />
             {lightbox.pin?.viewportXPercent != null && lightbox.pin?.viewportYPercent != null && (
               <div
@@ -447,6 +544,19 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
               />
             )}
           </div>
+          {/* Copy toast */}
+          {copyToast && (
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-white rounded-lg shadow-lg text-sm font-medium text-gray-800">
+              Copied to clipboard
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
+      {/* Copy toast (outside lightbox) */}
+      {copyToast && !lightbox && createPortal(
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] px-4 py-2 bg-white rounded-lg shadow-lg text-sm font-medium text-gray-800">
+          Copied to clipboard
         </div>,
         document.body
       )}

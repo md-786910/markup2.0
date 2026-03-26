@@ -1,34 +1,51 @@
 /**
- * Cloudflare Worker — URL Relay Proxy
+ * Cloudflare Worker — Asset Proxy with URL Rewriting
  *
- * Fetches any URL and returns the response. Used as a fallback
- * when the main server can't reach certain hosting providers.
+ * Primary proxy for sub-resources (CSS, JS, images, fonts).
+ * HTML pages are handled by the Express server (needs script injection).
+ *
+ * Features:
+ * - CSS url() rewriting (routes nested resources back through Worker)
+ * - JS asset path rewriting (known directories: assets/, static/, _next/, etc.)
+ * - Strips X-Frame-Options, CSP, HSTS headers
+ * - Cache-Control headers per content type
+ * - Cloudflare edge caching via Cache API
  *
  * Deploy: npx wrangler deploy
- * Usage:  https://your-worker.workers.dev/?url=https://example.com
+ * Usage:  https://your-worker.workers.dev/?url=https://example.com/style.css
  *
  * Free tier: 100,000 requests/day
  */
 
 export default {
-  async fetch(request) {
+  async fetch(request, env, ctx) {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
       'Access-Control-Allow-Headers': '*',
     };
 
-    // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
 
-    const { searchParams } = new URL(request.url);
-    const targetUrl = searchParams.get('url');
+    const requestUrl = new URL(request.url);
+    const targetUrl = requestUrl.searchParams.get('url');
 
     if (!targetUrl) {
       return new Response('Missing ?url= parameter', { status: 400, headers: corsHeaders });
     }
+
+    // --- Edge cache: check if we already have this response cached ---
+    const cache = caches.default;
+    const cacheKey = new Request(request.url, { method: 'GET' });
+    let cached = await cache.match(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Worker base URL for self-referential rewriting
+    const workerBase = `${requestUrl.origin}`;
 
     try {
       const response = await fetch(targetUrl, {
@@ -40,20 +57,110 @@ export default {
         redirect: 'follow',
       });
 
-      // Forward the response with CORS headers
+      const contentType = (response.headers.get('content-type') || '').toLowerCase();
       const headers = new Headers(response.headers);
-      headers.set('Access-Control-Allow-Origin', '*');
-      // Remove headers that interfere with proxy
+
+      // --- Strip security headers that block iframe rendering ---
+      headers.delete('x-frame-options');
+      headers.delete('content-security-policy');
+      headers.delete('content-security-policy-report-only');
+      headers.delete('strict-transport-security');
       headers.delete('content-encoding');
       headers.delete('transfer-encoding');
       headers.delete('content-length');
 
-      return new Response(response.body, {
+      // --- CORS ---
+      headers.set('Access-Control-Allow-Origin', '*');
+
+      // --- Cache-Control based on content type ---
+      if (contentType.includes('text/css') || contentType.includes('javascript')) {
+        headers.set('Cache-Control', 'public, max-age=3600');
+      } else if (/image\/|font\/|application\/font|application\/x-font|audio\/|video\//.test(contentType)) {
+        headers.set('Cache-Control', 'public, max-age=86400, immutable');
+      } else {
+        headers.set('Cache-Control', 'public, max-age=600');
+      }
+
+      let body;
+
+      // --- CSS: rewrite url() to route nested resources through Worker ---
+      if (contentType.includes('text/css')) {
+        let css = await response.text();
+        css = rewriteCssUrls(css, targetUrl, workerBase);
+        body = css;
+        headers.set('Content-Type', contentType);
+      }
+      // --- JS: rewrite asset paths to route through Worker ---
+      else if (contentType.includes('javascript') || contentType.includes('text/javascript') ||
+               contentType.includes('application/x-javascript')) {
+        let js = await response.text();
+        js = rewriteJsUrls(js, targetUrl, workerBase);
+        body = js;
+        headers.set('Content-Type', contentType);
+      }
+      // --- Binary (images, fonts, etc.): pass through ---
+      else {
+        body = response.body;
+      }
+
+      const result = new Response(body, {
         status: response.status,
         headers,
       });
+
+      // --- Store in edge cache (non-blocking) ---
+      ctx.waitUntil(cache.put(cacheKey, result.clone()));
+
+      return result;
     } catch (err) {
       return new Response(`Relay error: ${err.message}`, { status: 502, headers: corsHeaders });
     }
   },
 };
+
+// --- CSS url() rewriting ---
+function rewriteCssUrls(css, baseUrl, workerBase) {
+  return css.replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/g, (match, quote, rawUrl) => {
+    if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:') || rawUrl.startsWith('#')) return match;
+    // Already proxied
+    if (rawUrl.indexOf('?url=') !== -1) return match;
+    try {
+      const absolute = new URL(rawUrl.trim(), baseUrl).href;
+      const proxied = `${workerBase}/?url=${encodeURIComponent(absolute)}`;
+      return `url(${quote}${proxied}${quote})`;
+    } catch {
+      return match;
+    }
+  });
+}
+
+// --- JS asset path rewriting ---
+function rewriteJsUrls(js, pageUrl, workerBase) {
+  let pageOrigin;
+  try { pageOrigin = new URL(pageUrl).origin; } catch { return js; }
+
+  function buildProxy(path) {
+    const abs = new URL(path, pageOrigin).href;
+    return `${workerBase}/?url=${encodeURIComponent(abs)}`;
+  }
+
+  return js
+    // Static ES module imports: from "/path..."
+    .replace(/(from\s*)(["'])(\/[^"']+)\2/g, (match, prefix, quote, path) => {
+      if (path.indexOf('?url=') !== -1) return match;
+      try { return `${prefix}${quote}${buildProxy(path)}${quote}`; }
+      catch { return match; }
+    })
+    // Dynamic imports: import("/path...")
+    .replace(/(import\s*\(\s*)(["'])(\/[^"']+)\2(\s*\))/g, (match, prefix, quote, path, suffix) => {
+      if (path.indexOf('?url=') !== -1) return match;
+      try { return `${prefix}${quote}${buildProxy(path)}${quote}${suffix}`; }
+      catch { return match; }
+    })
+    // Quoted absolute paths under known asset directories
+    .replace(/(["'])(\/(?:assets|static|_next|__next|build|dist|chunks?|js|css|media|fonts)\/.+?)\1/g, (match, quote, path) => {
+      if (path.indexOf('?url=') !== -1) return match;
+      try { return `${quote}${buildProxy(path)}${quote}`; }
+      catch { return match; }
+    });
+}
