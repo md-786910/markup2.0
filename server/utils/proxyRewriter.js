@@ -353,8 +353,8 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
         }
       } catch (err) { /* fallback to percentage */ }
 
-      var viewportXPercent = (e.clientX / window.innerWidth) * 100;
-      var viewportYPercent = (e.clientY / window.innerHeight) * 100;
+      var viewportXPercent = (e.clientX / doc.clientWidth) * 100;
+      var viewportYPercent = (e.clientY / doc.clientHeight) * 100;
 
       sendMessage('MARKUP_CLICK', {
         xPercent: xPercent,
@@ -370,15 +370,19 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
       });
 
       // Capture viewport screenshot asynchronously (don't block pin creation)
+      var clickClientX = e.clientX;
+      var clickClientY = e.clientY;
+      var captureScrollX = window.scrollX || window.pageXOffset;
+      var captureScrollY = window.scrollY || window.pageYOffset;
       if (typeof html2canvas === 'function') {
         if (pinContainer) pinContainer.style.display = 'none';
         var capture = html2canvas(document.documentElement, {
-          x: window.scrollX || window.pageXOffset,
-          y: window.scrollY || window.pageYOffset,
-          width: window.innerWidth,
-          height: window.innerHeight,
-          windowWidth: window.innerWidth,
-          windowHeight: window.innerHeight,
+          x: captureScrollX,
+          y: captureScrollY,
+          width: doc.clientWidth,
+          height: doc.clientHeight,
+          windowWidth: doc.clientWidth,
+          windowHeight: doc.clientHeight,
           scale: 1,
           useCORS: true,
           allowTaint: false,
@@ -394,7 +398,15 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
         });
         Promise.race([capture, screenshotTimeout]).then(function(canvas) {
           var dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          sendMessage('MARKUP_SCREENSHOT', { screenshot: dataUrl });
+          // Compute pin position as percentage of actual canvas dimensions
+          // so the dot on the screenshot thumbnail/lightbox is pixel-accurate
+          var correctedXPercent = canvas.width > 0 ? (clickClientX / canvas.width) * 100 : viewportXPercent;
+          var correctedYPercent = canvas.height > 0 ? (clickClientY / canvas.height) * 100 : viewportYPercent;
+          sendMessage('MARKUP_SCREENSHOT', {
+            screenshot: dataUrl,
+            viewportXPercent: correctedXPercent,
+            viewportYPercent: correctedYPercent,
+          });
         }).catch(function(err) {
           console.warn('Screenshot capture failed:', err);
           sendMessage('MARKUP_SCREENSHOT', { screenshot: null });

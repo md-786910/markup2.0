@@ -512,11 +512,11 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
               </svg>
             </button>
           </div>
-          <div className="relative inline-flex" onClick={(e) => e.stopPropagation()}>
+          <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
             <img
               src={lightbox.src}
               alt=""
-              className="max-w-[90vw] max-h-[90vh] rounded-lg"
+              className="block max-w-[90vw] max-h-[90vh] rounded-lg"
             />
             {lightbox.pin?.viewportXPercent != null && lightbox.pin?.viewportYPercent != null && (
               <div
