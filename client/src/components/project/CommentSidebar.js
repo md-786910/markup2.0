@@ -6,6 +6,16 @@ import MentionInput from './MentionInput';
 
 function renderCommentBody(body) {
   if (!body) return null;
+  // If body contains HTML tags, render as rich HTML
+  if (/<[a-z][\s\S]*>/i.test(body)) {
+    // Process @mentions inside HTML
+    const processed = body.replace(
+      /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g,
+      '<span class="text-blue-600 font-medium bg-blue-50 rounded px-0.5">@$1</span>'
+    );
+    return <div className="comment-rich-content" dangerouslySetInnerHTML={{ __html: processed }} />;
+  }
+  // Plain text fallback — handle @mentions
   const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
   const parts = [];
   let lastIndex = 0;
@@ -44,6 +54,7 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
   const [editingComment, setEditingComment] = useState(null);
   const [editBody, setEditBody] = useState('');
   const [lightbox, setLightbox] = useState(null);
+  const [lightboxExpanded, setLightboxExpanded] = useState(false);
   const [copyToast, setCopyToast] = useState(false);
   const { user, isAdmin } = useAuth();
 
@@ -471,7 +482,7 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
       {lightbox && createPortal(
         <div
           className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center"
-          onClick={() => setLightbox(null)}
+          onClick={() => { setLightbox(null); setLightboxExpanded(false); }}
         >
           {/* Toolbar */}
           <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10" onClick={(e) => e.stopPropagation()}>
@@ -494,16 +505,20 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
               </svg>
             </button>
             <button
-              onClick={() => window.open(lightbox.src, '_blank')}
+              onClick={() => setLightboxExpanded((prev) => !prev)}
               className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/15 text-white/80 hover:bg-white/25 hover:text-white transition-colors backdrop-blur-sm"
-              title="Open fullscreen"
+              title={lightboxExpanded ? 'Shrink' : 'Expand'}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                {lightboxExpanded ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                )}
               </svg>
             </button>
             <button
-              onClick={() => setLightbox(null)}
+              onClick={() => { setLightbox(null); setLightboxExpanded(false); }}
               className="w-9 h-9 flex items-center justify-center rounded-lg bg-white/15 text-white/80 hover:bg-white/25 hover:text-white transition-colors backdrop-blur-sm"
               title="Close"
             >
@@ -512,11 +527,11 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
               </svg>
             </button>
           </div>
-          <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+          <div className="relative inline-flex" onClick={(e) => e.stopPropagation()}>
             <img
               src={lightbox.src}
               alt=""
-              className="block max-w-[90vw] max-h-[90vh] rounded-lg"
+              className={`rounded-lg transition-all duration-200 ${lightboxExpanded ? 'max-w-[98vw] max-h-[96vh]' : 'max-w-[90vw] max-h-[90vh]'}`}
             />
             {lightbox.pin?.viewportXPercent != null && lightbox.pin?.viewportYPercent != null && (
               <div

@@ -63,9 +63,17 @@ function markCommentsRead(pinId, userId) {
   localStorage.setItem(`markup_read_comments_${userId}`, JSON.stringify(map));
 }
 
-// Renders comment body with highlighted @mentions
+// Renders comment body with highlighted @mentions (supports both HTML and plain text)
 function renderCommentBody(body) {
   if (!body) return null;
+  // If body contains HTML tags, render as rich HTML
+  if (/<[a-z][\s\S]*>/i.test(body)) {
+    // Strip tags for preview text, keep it short
+    const text = body.replace(/<[^>]*>/g, '').trim();
+    if (!text) return null;
+    return <span className="comment-rich-content" dangerouslySetInnerHTML={{ __html: body }} />;
+  }
+  // Plain text fallback — handle @mentions
   const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
   const parts = [];
   let lastIndex = 0;

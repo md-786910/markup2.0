@@ -54,8 +54,6 @@ export function useIframeMessages() {
           setState((prev) => ({
             ...prev,
             screenshot: null,
-            screenshotViewportXPercent: null,
-            screenshotViewportYPercent: null,
             lastClick: {
               xPercent: data.xPercent,
               yPercent: data.yPercent,
@@ -74,8 +72,6 @@ export function useIframeMessages() {
           setState((prev) => ({
             ...prev,
             screenshot: data.screenshot,
-            screenshotViewportXPercent: data.viewportXPercent != null ? data.viewportXPercent : null,
-            screenshotViewportYPercent: data.viewportYPercent != null ? data.viewportYPercent : null,
           }));
           break;
         default:
@@ -96,7 +92,7 @@ export function useIframeMessages() {
   }, []);
 
   const clearScreenshot = useCallback(() => {
-    setState((prev) => ({ ...prev, screenshot: null, screenshotViewportXPercent: null, screenshotViewportYPercent: null }));
+    setState((prev) => ({ ...prev, screenshot: null }));
   }, []);
 
   return { ...state, scroll: scrollRef, clearLastClick, resetReady, clearScreenshot };

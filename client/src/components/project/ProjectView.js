@@ -187,14 +187,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   useEffect(() => {
     // Path 1: popup still open — attach screenshot to pending pin data
     if (iframeState.screenshot && pendingPinData && !pendingPinData.screenshot) {
-      const correctedX = iframeState.screenshotViewportXPercent;
-      const correctedY = iframeState.screenshotViewportYPercent;
-      setPendingPinData((prev) => prev ? {
-        ...prev,
-        screenshot: iframeState.screenshot,
-        viewportXPercent: correctedX != null ? correctedX : prev.viewportXPercent,
-        viewportYPercent: correctedY != null ? correctedY : prev.viewportYPercent,
-      } : prev);
+      setPendingPinData((prev) => prev ? { ...prev, screenshot: iframeState.screenshot } : prev);
       iframeState.clearScreenshot();
       return;
     }

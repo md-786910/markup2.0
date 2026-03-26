@@ -353,8 +353,8 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
         }
       } catch (err) { /* fallback to percentage */ }
 
-      var viewportXPercent = (e.clientX / doc.clientWidth) * 100;
-      var viewportYPercent = (e.clientY / doc.clientHeight) * 100;
+      var viewportXPercent = (e.clientX / window.innerWidth) * 100;
+      var viewportYPercent = (e.clientY / window.innerHeight) * 100;
 
       sendMessage('MARKUP_CLICK', {
         xPercent: xPercent,
@@ -370,19 +370,15 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
       });
 
       // Capture viewport screenshot asynchronously (don't block pin creation)
-      var clickClientX = e.clientX;
-      var clickClientY = e.clientY;
-      var captureScrollX = window.scrollX || window.pageXOffset;
-      var captureScrollY = window.scrollY || window.pageYOffset;
       if (typeof html2canvas === 'function') {
         if (pinContainer) pinContainer.style.display = 'none';
         var capture = html2canvas(document.documentElement, {
-          x: captureScrollX,
-          y: captureScrollY,
-          width: doc.clientWidth,
-          height: doc.clientHeight,
-          windowWidth: doc.clientWidth,
-          windowHeight: doc.clientHeight,
+          x: window.scrollX || window.pageXOffset,
+          y: window.scrollY || window.pageYOffset,
+          width: window.innerWidth,
+          height: window.innerHeight,
+          windowWidth: window.innerWidth,
+          windowHeight: window.innerHeight,
           scale: 1,
           useCORS: true,
           allowTaint: false,
@@ -398,15 +394,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
         });
         Promise.race([capture, screenshotTimeout]).then(function(canvas) {
           var dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          // Compute pin position as percentage of actual canvas dimensions
-          // so the dot on the screenshot thumbnail/lightbox is pixel-accurate
-          var correctedXPercent = canvas.width > 0 ? (clickClientX / canvas.width) * 100 : viewportXPercent;
-          var correctedYPercent = canvas.height > 0 ? (clickClientY / canvas.height) * 100 : viewportYPercent;
-          sendMessage('MARKUP_SCREENSHOT', {
-            screenshot: dataUrl,
-            viewportXPercent: correctedXPercent,
-            viewportYPercent: correctedYPercent,
-          });
+          sendMessage('MARKUP_SCREENSHOT', { screenshot: dataUrl });
         }).catch(function(err) {
           console.warn('Screenshot capture failed:', err);
           sendMessage('MARKUP_SCREENSHOT', { screenshot: null });
@@ -477,7 +465,20 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
       switch (e.data.type) {
         case 'MARKUP_PIN_MODE':
           pinMode = e.data.enabled;
-          document.body.style.cursor = pinMode ? 'crosshair' : '';
+          var cursorStyleId = '__markup_cursor_style';
+          var existing = document.getElementById(cursorStyleId);
+          if (pinMode) {
+            var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="32" viewBox="0 0 28 32"><path d="M2 3a2 2 0 012-2h20a2 2 0 012 2v16a2 2 0 01-2 2H10l-6 7V21H4a2 2 0 01-2-2V3z" fill="#3b82f6"/><circle cx="9" cy="11" r="1.5" fill="#fff"/><circle cx="14" cy="11" r="1.5" fill="#fff"/><circle cx="19" cy="11" r="1.5" fill="#fff"/></svg>';
+            var cursorUrl = 'url(data:image/svg+xml;base64,' + btoa(svg) + ') 4 28, crosshair';
+            if (!existing) {
+              existing = document.createElement('style');
+              existing.id = cursorStyleId;
+              document.head.appendChild(existing);
+            }
+            existing.textContent = 'html, body, body * { cursor: ' + cursorUrl + ' !important; } .__markup_pin { cursor: pointer !important; }';
+          } else {
+            if (existing) existing.textContent = '';
+          }
           break;
         case 'MARKUP_UPDATE_PINS':
           pins = e.data.pins || [];
