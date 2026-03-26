@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+const API_BASE = (process.env.REACT_APP_BASE_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
   if (seconds < 60) return "just now";
@@ -292,36 +294,34 @@ export default function ProjectCard({
         </div>
       )}
 
-      {/* Thumbnail area */}
+      {/* Thumbnail area — live website preview */}
       <div
         onClick={() => navigate(`/project/${project._id}`)}
         className="cursor-pointer"
       >
-        <div className="h-32 bg-gray-50 border-b border-gray-100 flex flex-col items-center justify-center relative rounded-t-xl overflow-hidden">
-          {/* Browser chrome mockup */}
-          <div className="w-[80%] bg-white rounded-t-lg shadow-sm overflow-hidden border border-gray-200">
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 border-b border-gray-100">
-              <div className="flex gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
-                <div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
-                <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
-              </div>
-              <div className="flex-1 mx-1.5">
-                <div className="bg-white rounded px-2 py-0.5 text-[8px] text-gray-400 truncate border border-gray-100">
-                  {domain}
-                </div>
-              </div>
-            </div>
-            <div className="px-2.5 py-2 space-y-1.5">
-              <div className="h-1.5 bg-gray-100 rounded w-3/4"></div>
-              <div className="h-1.5 bg-gray-100 rounded w-1/2"></div>
-              <div className="h-1.5 bg-gray-50 rounded w-5/6"></div>
-              <div className="h-1.5 bg-gray-50 rounded w-2/3"></div>
-            </div>
+        <div className="h-40 bg-gray-50 border-b border-gray-100 relative rounded-t-xl overflow-hidden">
+          {/* Live iframe preview */}
+          <div className="absolute inset-0" style={{ overflow: 'hidden' }}>
+            <iframe
+              src={`${API_BASE}/api/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}`}
+              title={project.name}
+              loading="lazy"
+              sandbox="allow-same-origin"
+              style={{
+                width: '1440px',
+                height: '900px',
+                transform: 'scale(0.22)',
+                transformOrigin: 'top left',
+                border: 'none',
+                pointerEvents: 'none',
+              }}
+            />
           </div>
+          {/* Gradient overlay for clean bottom edge */}
+          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-gray-50 to-transparent" />
 
           {/* Status badges */}
-          <div className="absolute top-2 left-2 flex gap-1.5">
+          <div className="absolute top-2 left-2 flex gap-1.5 z-10">
             {project.status === "archived" && (
               <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-gray-900/70 text-white backdrop-blur-sm">
                 Archived
