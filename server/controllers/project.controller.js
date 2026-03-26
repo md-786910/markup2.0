@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Pin = require('../models/Pin');
@@ -9,10 +11,18 @@ const { sendInvitationEmail } = require('../utils/mailer');
 const { canAssignRole } = require('../middleware/roles');
 
 exports.createProject = asyncHandler(async (req, res) => {
-  const { name, websiteUrl } = req.body;
+  const { name, websiteUrl, projectType = 'website' } = req.body;
 
-  if (!name || !websiteUrl) {
-    return res.status(400).json({ message: 'Name and website URL are required' });
+  if (!name) {
+    return res.status(400).json({ message: 'Project name is required' });
+  }
+
+  if (projectType === 'website' && !websiteUrl) {
+    return res.status(400).json({ message: 'Website URL is required for website projects' });
+  }
+
+  if (projectType === 'document' && (!req.files || req.files.length === 0)) {
+    return res.status(400).json({ message: 'At least one document file is required' });
   }
 
   const orgId = req.user.organization;
@@ -24,13 +34,48 @@ exports.createProject = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'A project with this name already exists' });
   }
 
-  const project = await Project.create({
+  const projectData = {
     name,
-    websiteUrl,
+    projectType,
     owner: req.user._id,
     organization: orgId,
     members: [req.user._id],
-  });
+  };
+
+  if (projectType === 'website') {
+    projectData.websiteUrl = websiteUrl;
+  } else {
+    // Build documents array from uploaded files
+    const documents = [];
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i];
+      let pageCount = 1;
+
+      if (file.mimetype === 'application/pdf') {
+        try {
+          const pdfParse = require('pdf-parse');
+          const dataBuffer = fs.readFileSync(file.path);
+          const pdfData = await pdfParse(dataBuffer);
+          pageCount = pdfData.numpages || 1;
+        } catch (err) {
+          console.error('Failed to parse PDF page count:', err.message);
+        }
+      }
+
+      documents.push({
+        filename: file.filename,
+        originalName: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        path: `uploads/documents/${file.filename}`,
+        pageCount,
+        order: i,
+      });
+    }
+    projectData.documents = documents;
+  }
+
+  const project = await Project.create(projectData);
 
   res.status(201).json({ project });
 });
@@ -96,6 +141,15 @@ exports.deleteProject = asyncHandler(async (req, res) => {
   const pinIds = pins.map((p) => p._id);
   await Comment.deleteMany({ pin: { $in: pinIds } });
   await Pin.deleteMany({ project: project._id });
+
+  // Clean up uploaded document files
+  if (project.projectType === 'document' && project.documents) {
+    for (const doc of project.documents) {
+      const filePath = path.join(__dirname, '..', doc.path);
+      try { fs.unlinkSync(filePath); } catch {}
+    }
+  }
+
   await Project.findByIdAndDelete(project._id);
 
   res.json({ message: 'Project deleted' });

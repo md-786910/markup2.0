@@ -15,6 +15,10 @@ function timeAgo(date) {
 }
 
 function getPagePath(url) {
+  if (url && url.startsWith('doc:')) {
+    const parts = url.split(':');
+    return `Page ${parts[3] || '1'}`;
+  }
   try {
     const parsed = new URL(url);
     return parsed.pathname === '/' ? '/' : parsed.pathname;
@@ -24,6 +28,10 @@ function getPagePath(url) {
 }
 
 function getGroupLabel(url) {
+  if (url && url.startsWith('doc:')) {
+    const parts = url.split(':');
+    return `Page ${parts[3] || '1'}`;
+  }
   try {
     const parsed = new URL(url);
     const path = parsed.pathname === '/' ? '' : parsed.pathname;

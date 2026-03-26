@@ -115,7 +115,10 @@ export default function ProjectCard({
   const isOwner = project.owner?._id === userId || project.owner === userId;
   const canManage = isAdmin || isOwner;
   const members = project.members || [];
-  const domain = getDomain(project.websiteUrl);
+  const isDocProject = project.projectType === 'document';
+  const domain = isDocProject
+    ? (project.documents?.[0]?.mimetype === 'application/pdf' ? 'PDF Document' : 'Image')
+    : getDomain(project.websiteUrl);
   const statusInfo = getStatusInfo(project.projectStatus);
 
   return (
@@ -294,29 +297,51 @@ export default function ProjectCard({
         </div>
       )}
 
-      {/* Thumbnail area — live website preview */}
+      {/* Thumbnail area */}
       <div
         onClick={() => navigate(`/project/${project._id}`)}
         className="cursor-pointer"
       >
         <div className="h-40 bg-gray-50 border-b border-gray-100 relative rounded-t-xl overflow-hidden">
-          {/* Live iframe preview */}
-          <div className="absolute inset-0" style={{ overflow: 'hidden' }}>
-            <iframe
-              src={`${API_BASE}/api/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}`}
-              title={project.name}
-              loading="lazy"
-              sandbox="allow-same-origin"
-              style={{
-                width: '1440px',
-                height: '900px',
-                transform: 'scale(0.22)',
-                transformOrigin: 'top left',
-                border: 'none',
-                pointerEvents: 'none',
-              }}
-            />
-          </div>
+          {isDocProject ? (
+            /* Document thumbnail */
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+              {project.documents?.[0]?.mimetype?.startsWith('image/') ? (
+                <img
+                  src={`${API_BASE}/${project.documents[0].path}`}
+                  alt={project.documents[0].originalName}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-gray-400">
+                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                  <span className="text-xs font-medium">{project.documents[0]?.originalName}</span>
+                  <span className="text-[10px]">{project.documents[0]?.pageCount || 1} page{(project.documents[0]?.pageCount || 1) > 1 ? 's' : ''}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Live iframe preview */
+            <div className="absolute inset-0" style={{ overflow: 'hidden' }}>
+              <iframe
+                src={`${API_BASE}/api/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}`}
+                title={project.name}
+                loading="lazy"
+                sandbox="allow-same-origin"
+                style={{
+                  width: '1440px',
+                  height: '900px',
+                  transform: 'scale(0.22)',
+                  transformOrigin: 'top left',
+                  border: 'none',
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
+          )}
           {/* Gradient overlay for clean bottom edge */}
           <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-gray-50 to-transparent" />
 
