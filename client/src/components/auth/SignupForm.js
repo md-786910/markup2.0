@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { getInvitationApi } from '../../services/invitationService';
 
 export default function SignupForm() {
@@ -32,13 +32,18 @@ export default function SignupForm() {
       .finally(() => setInviteLoading(false));
   }, [token]);
 
+  // If no invitation token, redirect to fresh onboarding
+  if (!token) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
       const data = await signup(name, email, password);
-      navigate(data?.isNewOrg ? '/onboarding' : '/dashboard');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Signup failed');
     } finally {

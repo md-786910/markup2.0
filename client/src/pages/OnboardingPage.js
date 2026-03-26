@@ -1,14 +1,41 @@
 import React, { useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { updateOrganizationApi, uploadAvatarApi } from '../services/authService';
+import { updateOrganizationApi, uploadAvatarApi, validateEmailApi } from '../services/authService';
 import AuthLayout from '../components/layout/AuthLayout';
 
 const STEPS = [
-  { id: 'account', label: 'Create Account' },
   { id: 'organization', label: 'Organization' },
-  { id: 'profile', label: 'Profile' },
+  { id: 'account', label: 'Account' },
   { id: 'review', label: 'Review' },
+  { id: 'payment', label: 'Payment' },
+];
+
+const PLANS = [
+  {
+    id: 'trial',
+    name: 'Free Trial',
+    price: '$0',
+    period: '30 days',
+    features: ['5 projects', '10 members', '5 guests', 'All core features'],
+    available: true,
+  },
+  {
+    id: 'starter',
+    name: 'Starter',
+    price: '$12',
+    period: '/month',
+    features: ['15 projects', '25 members', '10 guests', 'Priority support'],
+    available: false,
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: '$29',
+    period: '/month',
+    features: ['Unlimited projects', 'Unlimited members', '50 guests', 'Custom branding'],
+    available: false,
+  },
 ];
 
 export default function OnboardingPage() {
@@ -17,66 +44,86 @@ export default function OnboardingPage() {
   const logoRef = useRef(null);
   const avatarRef = useRef(null);
 
-  const [step, setStep] = useState(user ? 1 : 0);
-
-  // Account fields
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [accountLoading, setAccountLoading] = useState(false);
-  const [accountError, setAccountError] = useState('');
+  const [step, setStep] = useState(0);
 
   // Org fields
   const [orgName, setOrgName] = useState('');
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
 
+  // Account fields
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
   // Profile fields
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
+
+  // Payment
+  const [selectedPlan, setSelectedPlan] = useState('trial');
+
+  // Email validation
+  const [emailValidating, setEmailValidating] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   // General
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const currentStep = STEPS[step].id;
+  // Already authenticated → go to dashboard
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  const currentStep = STEPS[step]?.id;
   const progress = ((step + 1) / STEPS.length) * 100;
 
-  const handleCreateAccount = async (e) => {
-    e.preventDefault();
-    if (!name.trim() || !email.trim() || !password) return;
-    setAccountLoading(true);
-    setAccountError('');
-    try {
-      await signup(name, email, password);
-      setOrgName(name + "'s Workspace");
-      setStep(1);
-    } catch (err) {
-      setAccountError(err.response?.data?.message || 'Signup failed');
-    } finally {
-      setAccountLoading(false);
-    }
+  const handleBack = () => {
+    if (step > 0) setStep(step - 1);
   };
 
   const handleOrgNext = () => {
     if (!orgName.trim()) return;
-    setStep(2);
+    setStep(step + 1);
   };
 
-  const handleProfileNext = () => {
-    setStep(3);
+  const handleAccountNext = async (e) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim() || !password || password.length < 6) return;
+
+    setEmailValidating(true);
+    setEmailError('');
+    try {
+      await validateEmailApi(email.trim());
+      setStep(step + 1);
+    } catch (err) {
+      setEmailError(err.response?.data?.message || 'Email validation failed');
+    } finally {
+      setEmailValidating(false);
+    }
   };
 
+  const handleReviewNext = () => {
+    setStep(step + 1);
+  };
+
+  // Batch submit — all API calls happen here at the final step
   const handleFinish = async () => {
     setLoading(true);
     setError('');
     try {
+      // 1. Create account
+      await signup(name, email, password);
+
+      // 2. Update organization name + logo
       const orgForm = new FormData();
       orgForm.append('name', orgName.trim());
       if (logoFile) orgForm.append('logo', logoFile);
       const orgRes = await updateOrganizationApi(orgForm);
       updateUser(orgRes.data.user);
 
+      // 3. Upload avatar if provided
       if (avatarFile) {
         const avatarForm = new FormData();
         avatarForm.append('avatar', avatarFile);
@@ -113,52 +160,7 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* ===== STEP 1: CREATE ACCOUNT ===== */}
-      {currentStep === 'account' && (
-        <>
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Create your account</h2>
-          <p className="text-sm text-gray-500 mb-8">Get started with Feedbackly in seconds</p>
-
-          {accountError && (
-            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-5 text-sm flex items-center gap-2">
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {accountError}
-            </div>
-          )}
-
-          <form onSubmit={handleCreateAccount} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required autoFocus
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
-                placeholder="John Doe" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Work Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
-                placeholder="you@company.com" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
-                placeholder="Min 6 characters" />
-            </div>
-            <button type="submit" disabled={accountLoading}
-              className="w-full py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
-              {accountLoading ? 'Creating...' : 'Continue'}
-            </button>
-          </form>
-          <p className="text-center mt-6 text-sm text-gray-500">
-            Already have an account? <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign in</Link>
-          </p>
-        </>
-      )}
-
-      {/* ===== STEP 2: ORGANIZATION ===== */}
+      {/* ===== STEP 1: ORGANIZATION ===== */}
       {currentStep === 'organization' && (
         <>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Set up your workspace</h2>
@@ -166,7 +168,7 @@ export default function OnboardingPage() {
 
           <div className="mb-5">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace Name</label>
-            <input type="text" value={orgName} onChange={(e) => { setOrgName(e.target.value); setError(''); }}
+            <input type="text" value={orgName} onChange={(e) => setOrgName(e.target.value)}
               placeholder="Acme Inc." autoFocus
               className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow" />
           </div>
@@ -198,64 +200,92 @@ export default function OnboardingPage() {
             className="w-full py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors text-sm">
             Continue
           </button>
+          <p className="text-center mt-6 text-sm text-gray-500">
+            Already have an account? <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign in</Link>
+          </p>
         </>
       )}
 
-      {/* ===== STEP 3: PROFILE ===== */}
-      {currentStep === 'profile' && (
+      {/* ===== STEP 2: ACCOUNT ===== */}
+      {currentStep === 'account' && (
         <>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Your profile</h2>
-          <p className="text-sm text-gray-500 mb-8">This helps your team recognize you.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">Create your account</h2>
+          <p className="text-sm text-gray-500 mb-8">Set up your account for {orgName}</p>
 
-          <div className="flex flex-col items-center mb-6">
-            <div onClick={() => avatarRef.current?.click()}
-              className="w-20 h-20 rounded-full cursor-pointer overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors flex items-center justify-center bg-gray-50 mb-2">
-              {avatarPreview ? (
-                <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold">
-                  {(user?.name || name || '?')[0].toUpperCase()}
+          {emailError && (
+            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-5 text-sm flex items-center gap-2">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {emailError}
+            </div>
+          )}
+
+          <form onSubmit={handleAccountNext} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required autoFocus
+                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+                placeholder="John Doe" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Work Email</label>
+              <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setEmailError(''); }} required
+                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+                placeholder="you@company.com" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
+                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+                placeholder="Min 6 characters" />
+            </div>
+
+            {/* Avatar upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Profile Photo <span className="text-gray-400 font-normal">(optional)</span></label>
+              <div className="flex items-center gap-3">
+                <div onClick={() => avatarRef.current?.click()}
+                  className="w-12 h-12 rounded-full cursor-pointer overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors flex items-center justify-center bg-gray-50 shrink-0">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  )}
                 </div>
-              )}
+                <button type="button" onClick={() => avatarRef.current?.click()} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                  {avatarPreview ? 'Change photo' : 'Upload photo'}
+                </button>
+                <input ref={avatarRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) { setAvatarFile(f); setAvatarPreview(URL.createObjectURL(f)); } }}
+                  className="hidden" />
+              </div>
             </div>
-            <button onClick={() => avatarRef.current?.click()} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-              {avatarPreview ? 'Change photo' : 'Upload photo'}
-            </button>
-            <input ref={avatarRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) { setAvatarFile(f); setAvatarPreview(URL.createObjectURL(f)); } }}
-              className="hidden" />
-          </div>
 
-          <div className="bg-gray-50 rounded-lg p-4 mb-8 space-y-2.5">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Name</span>
-              <span className="text-gray-900 font-medium">{user?.name || name}</span>
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={handleBack}
+                className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
+                Back
+              </button>
+              <button type="submit" disabled={emailValidating}
+                className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
+                {emailValidating ? 'Verifying email...' : 'Continue'}
+              </button>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Email</span>
-              <span className="text-gray-900 font-medium">{user?.email || email}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Role</span>
-              <span className="text-gray-900 font-medium capitalize">{user?.role || 'Owner'}</span>
-            </div>
-          </div>
-
-          <button onClick={handleProfileNext}
-            className="w-full py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
-            Continue
-          </button>
+          </form>
         </>
       )}
 
-      {/* ===== STEP 4: REVIEW ===== */}
+      {/* ===== STEP 3: REVIEW ===== */}
       {currentStep === 'review' && (
         <>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Review & finish</h2>
-          <p className="text-sm text-gray-500 mb-6">Make sure everything looks good.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Review & confirm</h2>
+          <p className="text-sm text-gray-500 mb-6">Make sure everything looks good before we set things up.</p>
 
           <div className="space-y-3 mb-8">
-            {/* Org summary */}
+            {/* Workspace summary */}
             <div className="border border-gray-200 rounded-xl p-4">
               <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Workspace</h3>
               <div className="flex items-center gap-3">
@@ -273,43 +303,102 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            {/* Profile summary */}
+            {/* Account summary */}
             <div className="border border-gray-200 rounded-xl p-4">
-              <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Profile</h3>
+              <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Account</h3>
               <div className="flex items-center gap-3">
                 {avatarPreview ? (
                   <img src={avatarPreview} alt="" className="w-9 h-9 rounded-full object-cover" />
                 ) : (
                   <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
-                    {(user?.name || name || '?')[0].toUpperCase()}
+                    {(name || '?')[0].toUpperCase()}
                   </div>
                 )}
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">{user?.name || name}</p>
-                  <p className="text-xs text-gray-400">{user?.email || email} · Owner</p>
+                  <p className="text-sm font-semibold text-gray-900">{name}</p>
+                  <p className="text-xs text-gray-400">{email} · Owner</p>
                 </div>
-              </div>
-            </div>
-
-            {/* Plan summary */}
-            <div className="border border-gray-200 rounded-xl p-4">
-              <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Plan</h3>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Free Trial</p>
-                  <p className="text-xs text-gray-400">5 projects · 10 members · 5 guests</p>
-                </div>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700">Active</span>
               </div>
             </div>
           </div>
 
+          <div className="flex gap-3">
+            <button onClick={handleBack}
+              className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
+              Back
+            </button>
+            <button onClick={handleReviewNext}
+              className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
+              Continue
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ===== STEP 4: PAYMENT (dummy Stripe) ===== */}
+      {currentStep === 'payment' && (
+        <>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose your plan</h2>
+          <p className="text-sm text-gray-500 mb-6">Start with a free trial. Upgrade anytime.</p>
+
+          <div className="space-y-3 mb-8">
+            {PLANS.map((plan) => (
+              <div
+                key={plan.id}
+                onClick={() => plan.available && setSelectedPlan(plan.id)}
+                className={`border rounded-xl p-4 transition-all ${
+                  !plan.available
+                    ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                    : selectedPlan === plan.id
+                    ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500 cursor-pointer'
+                    : 'border-gray-200 hover:border-gray-300 cursor-pointer'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-gray-900">{plan.name}</h3>
+                    {!plan.available && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500">Coming soon</span>
+                    )}
+                    {plan.id === 'trial' && selectedPlan === 'trial' && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">Selected</span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-lg font-bold text-gray-900">{plan.price}</span>
+                    <span className="text-xs text-gray-400 ml-0.5">{plan.period}</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  {plan.features.map((f, i) => (
+                    <span key={i} className="text-xs text-gray-500 flex items-center gap-1">
+                      <svg className="w-3 h-3 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
           {error && <p className="text-sm text-red-500 mb-4 text-center">{error}</p>}
 
-          <button onClick={handleFinish} disabled={loading}
-            className="w-full py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
-            {loading ? 'Setting up your workspace...' : 'Launch Workspace'}
-          </button>
+          <div className="flex gap-3">
+            <button onClick={handleBack}
+              className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
+              Back
+            </button>
+            <button onClick={handleFinish} disabled={loading}
+              className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
+              {loading ? 'Setting up your workspace...' : 'Start Free Trial'}
+            </button>
+          </div>
+
+          <p className="text-center mt-4 text-xs text-gray-400">
+            No credit card required. You can upgrade after your trial ends.
+          </p>
         </>
       )}
     </AuthLayout>

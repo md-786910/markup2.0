@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const dns = require('dns');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
@@ -367,4 +368,37 @@ exports.updateOrganization = asyncHandler(async (req, res) => {
   await org.save();
 
   res.json({ user: userResponse(req.user, org) });
+});
+
+exports.validateEmail = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ valid: false, message: 'Email is required' });
+  }
+
+  // Format check
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ valid: false, message: 'Invalid email format' });
+  }
+
+  // Check if email already registered
+  const existing = await User.findOne({ email: email.toLowerCase().trim() });
+  if (existing) {
+    return res.status(400).json({ valid: false, message: 'Email already registered' });
+  }
+
+  // DNS MX record check
+  const domain = email.split('@')[1];
+  try {
+    const mxRecords = await dns.promises.resolveMx(domain);
+    if (!mxRecords || mxRecords.length === 0) {
+      return res.status(400).json({ valid: false, message: 'This email domain cannot receive emails' });
+    }
+  } catch (err) {
+    return res.status(400).json({ valid: false, message: 'This email domain does not exist' });
+  }
+
+  res.json({ valid: true });
 });

@@ -3,6 +3,9 @@ import api from './api';
 export const loginApi = (email, password) =>
   api.post('/auth/login', { email, password });
 
+export const validateEmailApi = (email) =>
+  api.post('/auth/validate-email', { email });
+
 export const signupApi = (name, email, password) =>
   api.post('/auth/signup', { name, email, password });
 
