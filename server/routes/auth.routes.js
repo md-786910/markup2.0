@@ -1,8 +1,9 @@
 const router = require('express').Router();
-const { signup, login, getMe, forgotPassword, resetPassword, updateProfile, changePassword, uploadAvatar, deleteAccount, updateOrganization } = require('../controllers/auth.controller');
+const { signup, login, getMe, forgotPassword, resetPassword, updateProfile, changePassword, uploadAvatar, deleteAccount, updateOrganization, validateEmail } = require('../controllers/auth.controller');
 const auth = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
+router.post('/validate-email', validateEmail);
 router.post('/signup', signup);
 router.post('/login', login);
 router.get('/me', auth, getMe);

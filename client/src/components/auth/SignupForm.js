@@ -43,7 +43,7 @@ export default function SignupForm() {
     setLoading(true);
     try {
       const data = await signup(name, email, password);
-      navigate('/onboarding');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Signup failed');
     } finally {

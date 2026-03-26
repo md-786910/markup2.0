@@ -41,11 +41,11 @@ export default function ProjectPage() {
     );
   }
 
-  if (error) {
+  if (error || !project) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <p className="text-red-600 text-lg">{error}</p>
+          <p className="text-red-600 text-lg">{error || 'Project not found'}</p>
           <p className="text-gray-400 text-sm mt-2">Redirecting to dashboard...</p>
         </div>
       </div>

@@ -1,20 +1,14 @@
 import React, { useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { updateOrganizationApi, uploadAvatarApi } from '../services/authService';
+import { updateOrganizationApi, uploadAvatarApi, validateEmailApi } from '../services/authService';
 import AuthLayout from '../components/layout/AuthLayout';
 
-const STEPS_OWNER = [
+const STEPS = [
   { id: 'organization', label: 'Organization' },
   { id: 'account', label: 'Account' },
   { id: 'review', label: 'Review' },
   { id: 'payment', label: 'Payment' },
-];
-
-const STEPS_INVITED = [
-  { id: 'account', label: 'Create Account' },
-  { id: 'profile', label: 'Profile' },
-  { id: 'review', label: 'Review' },
 ];
 
 const PLANS = [
@@ -50,10 +44,7 @@ export default function OnboardingPage() {
   const logoRef = useRef(null);
   const avatarRef = useRef(null);
 
-  const isInvited = user && user.role !== 'owner';
-  const steps = isInvited ? STEPS_INVITED : STEPS_OWNER;
-
-  const [step, setStep] = useState(isInvited ? 1 : 0);
+  const [step, setStep] = useState(0);
 
   // Org fields
   const [orgName, setOrgName] = useState('');
@@ -72,12 +63,21 @@ export default function OnboardingPage() {
   // Payment
   const [selectedPlan, setSelectedPlan] = useState('trial');
 
+  // Email validation
+  const [emailValidating, setEmailValidating] = useState(false);
+  const [emailError, setEmailError] = useState('');
+
   // General
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const currentStep = steps[step]?.id;
-  const progress = ((step + 1) / steps.length) * 100;
+  // Already authenticated → go to dashboard
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  const currentStep = STEPS[step]?.id;
+  const progress = ((step + 1) / STEPS.length) * 100;
 
   const handleBack = () => {
     if (step > 0) setStep(step - 1);
@@ -88,14 +88,20 @@ export default function OnboardingPage() {
     setStep(step + 1);
   };
 
-  const handleAccountNext = (e) => {
+  const handleAccountNext = async (e) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !password || password.length < 6) return;
-    setStep(step + 1);
-  };
 
-  const handleProfileNext = () => {
-    setStep(step + 1);
+    setEmailValidating(true);
+    setEmailError('');
+    try {
+      await validateEmailApi(email.trim());
+      setStep(step + 1);
+    } catch (err) {
+      setEmailError(err.response?.data?.message || 'Email validation failed');
+    } finally {
+      setEmailValidating(false);
+    }
   };
 
   const handleReviewNext = () => {
@@ -107,30 +113,22 @@ export default function OnboardingPage() {
     setLoading(true);
     setError('');
     try {
-      if (isInvited) {
-        // Invited user — only upload avatar
-        if (avatarFile) {
-          const avatarForm = new FormData();
-          avatarForm.append('avatar', avatarFile);
-          const avatarRes = await uploadAvatarApi(avatarForm);
-          updateUser(avatarRes.data.user);
-        }
-      } else {
-        // Owner flow — batch: signup → update org → upload avatar
-        await signup(name, email, password);
+      // 1. Create account
+      await signup(name, email, password);
 
-        const orgForm = new FormData();
-        orgForm.append('name', orgName.trim());
-        if (logoFile) orgForm.append('logo', logoFile);
-        const orgRes = await updateOrganizationApi(orgForm);
-        updateUser(orgRes.data.user);
+      // 2. Update organization name + logo
+      const orgForm = new FormData();
+      orgForm.append('name', orgName.trim());
+      if (logoFile) orgForm.append('logo', logoFile);
+      const orgRes = await updateOrganizationApi(orgForm);
+      updateUser(orgRes.data.user);
 
-        if (avatarFile) {
-          const avatarForm = new FormData();
-          avatarForm.append('avatar', avatarFile);
-          const avatarRes = await uploadAvatarApi(avatarForm);
-          updateUser(avatarRes.data.user);
-        }
+      // 3. Upload avatar if provided
+      if (avatarFile) {
+        const avatarForm = new FormData();
+        avatarForm.append('avatar', avatarFile);
+        const avatarRes = await uploadAvatarApi(avatarForm);
+        updateUser(avatarRes.data.user);
       }
 
       navigate('/dashboard');
@@ -146,7 +144,7 @@ export default function OnboardingPage() {
       {/* Progress bar */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          {steps.map((s, i) => (
+          {STEPS.map((s, i) => (
             <span key={s.id} className={`text-[11px] font-medium ${
               i < step ? 'text-blue-600' : i === step ? 'text-gray-900' : 'text-gray-300'
             }`}>
@@ -162,7 +160,7 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* ===== STEP: ORGANIZATION (owners, step 1) ===== */}
+      {/* ===== STEP 1: ORGANIZATION ===== */}
       {currentStep === 'organization' && (
         <>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Set up your workspace</h2>
@@ -202,23 +200,24 @@ export default function OnboardingPage() {
             className="w-full py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors text-sm">
             Continue
           </button>
+          <p className="text-center mt-6 text-sm text-gray-500">
+            Already have an account? <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign in</Link>
+          </p>
         </>
       )}
 
-      {/* ===== STEP: ACCOUNT SETUP ===== */}
+      {/* ===== STEP 2: ACCOUNT ===== */}
       {currentStep === 'account' && (
         <>
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Create your account</h2>
-          <p className="text-sm text-gray-500 mb-8">
-            {isInvited ? 'Create your account to get started' : `Set up your account for ${orgName}`}
-          </p>
+          <p className="text-sm text-gray-500 mb-8">Set up your account for {orgName}</p>
 
-          {error && currentStep === 'account' && (
+          {emailError && (
             <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-5 text-sm flex items-center gap-2">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {error}
+              {emailError}
             </div>
           )}
 
@@ -231,7 +230,7 @@ export default function OnboardingPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Work Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+              <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setEmailError(''); }} required
                 className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
                 placeholder="you@company.com" />
             </div>
@@ -266,84 +265,20 @@ export default function OnboardingPage() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              {step > 0 && (
-                <button type="button" onClick={handleBack}
-                  className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
-                  Back
-                </button>
-              )}
-              <button type="submit"
-                className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
-                Continue
-              </button>
-            </div>
-          </form>
-          <p className="text-center mt-6 text-sm text-gray-500">
-            Already have an account? <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign in</Link>
-          </p>
-        </>
-      )}
-
-      {/* ===== STEP: PROFILE (invited users only) ===== */}
-      {currentStep === 'profile' && (
-        <>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Your profile</h2>
-          <p className="text-sm text-gray-500 mb-8">This helps your team recognize you.</p>
-
-          <div className="flex flex-col items-center mb-6">
-            <div onClick={() => avatarRef.current?.click()}
-              className="w-20 h-20 rounded-full cursor-pointer overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors flex items-center justify-center bg-gray-50 mb-2">
-              {avatarPreview ? (
-                <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-lg font-bold">
-                  {(user?.name || '?')[0].toUpperCase()}
-                </div>
-              )}
-            </div>
-            <button onClick={() => avatarRef.current?.click()} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-              {avatarPreview ? 'Change photo' : 'Upload photo'}
-            </button>
-            <input ref={avatarRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) { setAvatarFile(f); setAvatarPreview(URL.createObjectURL(f)); } }}
-              className="hidden" />
-          </div>
-
-          <div className="bg-gray-50 rounded-lg p-4 mb-8 space-y-2.5">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Name</span>
-              <span className="text-gray-900 font-medium">{user?.name}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Email</span>
-              <span className="text-gray-900 font-medium">{user?.email}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Workspace</span>
-              <span className="text-gray-900 font-medium">{user?.orgName || '—'}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Role</span>
-              <span className="text-gray-900 font-medium capitalize">{user?.role}</span>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            {step > 1 && (
-              <button onClick={handleBack}
+              <button type="button" onClick={handleBack}
                 className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
                 Back
               </button>
-            )}
-            <button onClick={handleProfileNext}
-              className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
-              Continue
-            </button>
-          </div>
+              <button type="submit" disabled={emailValidating}
+                className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
+                {emailValidating ? 'Verifying email...' : 'Continue'}
+              </button>
+            </div>
+          </form>
         </>
       )}
 
-      {/* ===== STEP: REVIEW ===== */}
+      {/* ===== STEP 3: REVIEW ===== */}
       {currentStep === 'review' && (
         <>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Review & confirm</h2>
@@ -358,12 +293,12 @@ export default function OnboardingPage() {
                   <img src={logoPreview} alt="" className="w-9 h-9 rounded-lg object-cover" />
                 ) : (
                   <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
-                    {((isInvited ? user?.orgName : orgName) || '?')[0].toUpperCase()}
+                    {(orgName || '?')[0].toUpperCase()}
                   </div>
                 )}
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">{isInvited ? user?.orgName : orgName}</p>
-                  <p className="text-xs text-gray-400">{isInvited ? `Joined as ${user?.role}` : 'Free trial · 30 days'}</p>
+                  <p className="text-sm font-semibold text-gray-900">{orgName}</p>
+                  <p className="text-xs text-gray-400">Free trial · 30 days</p>
                 </div>
               </div>
             </div>
@@ -376,12 +311,12 @@ export default function OnboardingPage() {
                   <img src={avatarPreview} alt="" className="w-9 h-9 rounded-full object-cover" />
                 ) : (
                   <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
-                    {((isInvited ? user?.name : name) || '?')[0].toUpperCase()}
+                    {(name || '?')[0].toUpperCase()}
                   </div>
                 )}
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">{isInvited ? user?.name : name}</p>
-                  <p className="text-xs text-gray-400">{isInvited ? user?.email : email}</p>
+                  <p className="text-sm font-semibold text-gray-900">{name}</p>
+                  <p className="text-xs text-gray-400">{email} · Owner</p>
                 </div>
               </div>
             </div>
@@ -392,22 +327,15 @@ export default function OnboardingPage() {
               className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
               Back
             </button>
-            {isInvited ? (
-              <button onClick={handleFinish} disabled={loading}
-                className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
-                {loading ? 'Setting up...' : 'Get Started'}
-              </button>
-            ) : (
-              <button onClick={handleReviewNext}
-                className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
-                Continue
-              </button>
-            )}
+            <button onClick={handleReviewNext}
+              className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
+              Continue
+            </button>
           </div>
         </>
       )}
 
-      {/* ===== STEP: PAYMENT (owners only, dummy Stripe) ===== */}
+      {/* ===== STEP 4: PAYMENT (dummy Stripe) ===== */}
       {currentStep === 'payment' && (
         <>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose your plan</h2>
