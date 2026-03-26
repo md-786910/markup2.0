@@ -372,14 +372,14 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
       // Capture viewport screenshot asynchronously (don't block pin creation)
       if (typeof html2canvas === 'function') {
         if (pinContainer) pinContainer.style.display = 'none';
-        var capture = html2canvas(document.body, {
+        var capture = html2canvas(document.documentElement, {
           x: window.scrollX || window.pageXOffset,
           y: window.scrollY || window.pageYOffset,
           width: window.innerWidth,
           height: window.innerHeight,
           windowWidth: window.innerWidth,
           windowHeight: window.innerHeight,
-          scale: 0.5,
+          scale: 1,
           useCORS: true,
           allowTaint: false,
           logging: false,
@@ -393,7 +393,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
           setTimeout(function() { reject(new Error('Screenshot timeout')); }, 8000);
         });
         Promise.race([capture, screenshotTimeout]).then(function(canvas) {
-          var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          var dataUrl = canvas.toDataURL('image/jpeg', 0.8);
           sendMessage('MARKUP_SCREENSHOT', { screenshot: dataUrl });
         }).catch(function(err) {
           console.warn('Screenshot capture failed:', err);
