@@ -165,12 +165,16 @@ exports.inviteMember = asyncHandler(async (req, res) => {
     token,
   });
 
-  // Send email (non-blocking)
+  // Send email
   const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
   const signupUrl = `${clientOrigin}/signup?token=${token}`;
+  let emailSent = true;
+  let emailError = '';
   try {
     await sendInvitationEmail(email, req.user.name, project.name, signupUrl);
   } catch (err) {
+    emailSent = false;
+    emailError = err.message || 'Unknown email error';
     console.error('Failed to send invitation email:', err.message);
   }
 
@@ -178,8 +182,12 @@ exports.inviteMember = asyncHandler(async (req, res) => {
   await invitation.populate('invitedBy', 'name email');
 
   res.status(201).json({
-    message: 'Invitation sent',
+    message: emailSent
+      ? 'Invitation sent'
+      : 'Invitation created but email could not be sent. Please check your SMTP settings.',
     invitation,
+    emailSent,
+    emailError: emailSent ? undefined : emailError,
   });
 });
 

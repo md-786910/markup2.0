@@ -49,12 +49,14 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
   const [confirmRemove, setConfirmRemove] = useState(null);
   const [removeProjectId, setRemoveProjectId] = useState('');
   const [removeLoading, setRemoveLoading] = useState(null);
+  const [removeError, setRemoveError] = useState('');
   const [search, setSearch] = useState('');
   const [pendingInvitations, setPendingInvitations] = useState([]);
   const [invitationsLoading, setInvitationsLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
   const [confirmRevoke, setConfirmRevoke] = useState(null);
   const [showInvitations, setShowInvitations] = useState(true);
+  const [invitationsError, setInvitationsError] = useState('');
   const [menuOpen, setMenuOpen] = useState(null);
   const menuRef = useRef(null);
 
@@ -71,17 +73,23 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
   const fetchInvitations = useCallback(async () => {
     if (!projects?.length) return;
     setInvitationsLoading(true);
+    setInvitationsError('');
     try {
       const results = await Promise.all(
         projects.filter((p) => p.status === 'active').map((p) =>
           getProjectInvitationsApi(p._id)
             .then((res) => res.data.invitations.map((inv) => ({ ...inv, projectName: p.name })))
-            .catch(() => [])
+            .catch((err) => {
+              console.error(`Failed to fetch invitations for project ${p.name}:`, err);
+              return [];
+            })
         )
       );
       setPendingInvitations(results.flat());
-    } catch {
+    } catch (err) {
+      console.error('Failed to fetch invitations:', err);
       setPendingInvitations([]);
+      setInvitationsError('Failed to load pending invitations');
     } finally {
       setInvitationsLoading(false);
     }
@@ -116,14 +124,18 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
     setInviteLoading(true);
     try {
       const res = await inviteMemberApi(inviteProjectId, inviteEmail, inviteRole);
-      const msg = res.data?.invitation
-        ? `Invitation sent to ${inviteEmail}`
-        : `${inviteEmail} added successfully`;
-      setInviteSuccess(msg);
+      if (res.data?.invitation && res.data?.emailSent === false) {
+        setInviteError(res.data.message || 'Invitation created but email could not be sent');
+      } else {
+        const msg = res.data?.invitation
+          ? `Invitation sent to ${inviteEmail}`
+          : `${inviteEmail} added successfully`;
+        setInviteSuccess(msg);
+        setTimeout(() => setInviteSuccess(''), 3000);
+      }
       setInviteEmail('');
       onProjectsChanged();
-      fetchInvitations();
-      setTimeout(() => setInviteSuccess(''), 3000);
+      setTimeout(() => fetchInvitations(), 500);
     } catch (err) {
       setInviteError(err.response?.data?.message || 'Failed to invite member');
     } finally {
@@ -148,6 +160,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
   const handleRemove = async () => {
     if (!confirmRemove || !removeProjectId) return;
     setRemoveLoading(confirmRemove._id);
+    setRemoveError('');
     try {
       await removeMemberApi(removeProjectId, confirmRemove._id);
       onProjectsChanged();
@@ -155,6 +168,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
       setRemoveProjectId('');
     } catch (err) {
       console.error('Failed to remove member:', err);
+      setRemoveError(err.response?.data?.message || 'Failed to remove member');
     } finally {
       setRemoveLoading(null);
     }
@@ -341,10 +355,19 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
         </div>
       )}
 
+      {invitationsError && (
+        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 px-4 py-2.5 rounded-lg">
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {invitationsError}
+        </div>
+      )}
+
       {/* ===== MEMBERS LIST ===== */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200">
         {/* Header with search */}
-        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-4">
+        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-4 rounded-t-xl overflow-hidden">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-gray-900">Members</h3>
             <span className="text-[10px] font-medium bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{members.length}</span>
@@ -443,7 +466,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                     <div className="relative" ref={isMenuOpen ? menuRef : null}>
                       <button
                         onClick={() => setMenuOpen(isMenuOpen ? null : member._id)}
-                        className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 opacity-0 group-hover:opacity-100 transition-all"
+                        className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
                       >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -494,6 +517,14 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
             <p className="text-sm text-gray-500 text-center mb-5">
               Remove <strong>{confirmRemove.name}</strong> from a project? They'll lose access to that project.
             </p>
+            {removeError && (
+              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg mb-4">
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {removeError}
+              </div>
+            )}
             {(confirmRemove.projects || []).length > 1 && (
               <div className="mb-4">
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Select project to remove from</label>
@@ -510,7 +541,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
             )}
             <div className="flex gap-3">
               <button
-                onClick={() => { setConfirmRemove(null); setRemoveProjectId(''); }}
+                onClick={() => { setConfirmRemove(null); setRemoveProjectId(''); setRemoveError(''); }}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Cancel
