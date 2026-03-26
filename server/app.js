@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 
@@ -15,6 +16,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Middleware
+app.use(compression());
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false, frameguard: false }));
 app.use(cors({
   origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',

@@ -553,8 +553,9 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         {/* Iframe area */}
         <div className="flex-1 relative">
           <IframeContainer
-            key={targetUrl}
+            key={(() => { try { return new URL(targetUrl).origin; } catch { return targetUrl; } })()}
             proxyUrl={proxyUrl}
+            targetUrl={targetUrl}
             pinMode={pinMode}
             pins={pins}
             selectedPinId={selectedPin?._id}

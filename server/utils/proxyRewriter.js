@@ -1,6 +1,7 @@
 const cheerio = require('cheerio');
 const { URL } = require('url');
 
+// rewriteUrl: routes through Express (for page navigations that need script injection)
 function rewriteUrl(href, baseUrl, projectId, serverBase) {
   if (!href || href.startsWith('data:') || href.startsWith('#') || href.startsWith('javascript:')) {
     return href;
@@ -13,186 +14,139 @@ function rewriteUrl(href, baseUrl, projectId, serverBase) {
   }
 }
 
-function rewriteCssUrls(css, baseUrl, projectId, serverBase) {
+// rewriteAssetUrl: routes through CF Worker (for sub-resources: CSS, JS, images, fonts)
+// Falls back to Express if no workerBase is configured.
+function rewriteAssetUrl(href, baseUrl, projectId, serverBase, workerBase) {
+  if (!href || href.startsWith('data:') || href.startsWith('#') || href.startsWith('javascript:')) {
+    return href;
+  }
+  try {
+    const absolute = new URL(href, baseUrl).href;
+    if (workerBase) {
+      return `${workerBase}/?url=${encodeURIComponent(absolute)}`;
+    }
+    return `${serverBase}/api/proxy?url=${encodeURIComponent(absolute)}&projectId=${projectId}`;
+  } catch {
+    return href;
+  }
+}
+
+function rewriteCssUrls(css, baseUrl, projectId, serverBase, workerBase) {
   return css.replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/g, (match, quote, url) => {
     if (url.startsWith('data:')) return match;
-    const rewritten = rewriteUrl(url.trim(), baseUrl, projectId, serverBase);
+    const rewritten = rewriteAssetUrl(url.trim(), baseUrl, projectId, serverBase, workerBase);
     return `url(${quote}${rewritten}${quote})`;
   });
 }
 
-function rewriteJsUrls(js, pageUrl, projectId, serverBase) {
+function rewriteJsUrls(js, pageUrl, projectId, serverBase, workerBase) {
   let pageOrigin;
   try { pageOrigin = new URL(pageUrl).origin; } catch { return js; }
 
-  const proxyBase = `${serverBase}/api/proxy?`;
-
   function buildProxy(path) {
     const abs = new URL(path, pageOrigin).href;
-    return `${proxyBase}url=${encodeURIComponent(abs)}&projectId=${projectId}`;
+    if (workerBase) {
+      return `${workerBase}/?url=${encodeURIComponent(abs)}`;
+    }
+    return `${serverBase}/api/proxy?url=${encodeURIComponent(abs)}&projectId=${projectId}`;
   }
 
   return js
     // Static ES module imports: from "/path..."
     .replace(/(from\s*)(["'])(\/[^"']+)\2/g, (match, prefix, quote, path) => {
-      if (path.indexOf('/api/proxy?') !== -1) return match;
+      if (path.indexOf('/api/proxy?') !== -1 || path.indexOf('?url=') !== -1) return match;
       try { return `${prefix}${quote}${buildProxy(path)}${quote}`; }
       catch { return match; }
     })
     // Dynamic imports: import("/path...")
     .replace(/(import\s*\(\s*)(["'])(\/[^"']+)\2(\s*\))/g, (match, prefix, quote, path, suffix) => {
-      if (path.indexOf('/api/proxy?') !== -1) return match;
+      if (path.indexOf('/api/proxy?') !== -1 || path.indexOf('?url=') !== -1) return match;
       try { return `${prefix}${quote}${buildProxy(path)}${quote}${suffix}`; }
       catch { return match; }
     })
     // Quoted absolute paths under known asset directories
     .replace(/(["'])(\/(?:assets|static|_next|__next|build|dist|chunks?|js|css|media|fonts)\/.+?)\1/g, (match, quote, path) => {
-      if (path.indexOf('/api/proxy?') !== -1) return match;
+      if (path.indexOf('/api/proxy?') !== -1 || path.indexOf('?url=') !== -1) return match;
       try { return `${quote}${buildProxy(path)}${quote}`; }
       catch { return match; }
     });
 }
 
-function rewriteHtml(html, pageUrl, projectId, serverBase) {
+function rewriteHtml(html, pageUrl, projectId, serverBase, workerBase) {
   const $ = cheerio.load(html, { decodeEntities: false });
+  // asset() routes sub-resources through CF Worker; nav() routes pages through Express
+  const asset = (href) => rewriteAssetUrl(href, pageUrl, projectId, serverBase, workerBase);
+  const nav = (href) => rewriteUrl(href, pageUrl, projectId, serverBase);
+  const rewriteSrcset = (srcset, rewriter) => srcset.split(',').map((entry) => {
+    const parts = entry.trim().split(/\s+/);
+    parts[0] = rewriter(parts[0]);
+    return parts.join(' ');
+  }).join(', ');
 
-  // Rewrite link hrefs (stylesheets, icons)
-  $('link[href]').each((_, el) => {
-    const href = $(el).attr('href');
-    $(el).attr('href', rewriteUrl(href, pageUrl, projectId, serverBase));
-  });
-
-  // Rewrite script srcs
-  $('script[src]').each((_, el) => {
-    const src = $(el).attr('src');
-    $(el).attr('src', rewriteUrl(src, pageUrl, projectId, serverBase));
-  });
-
-  // Rewrite img srcs and srcsets
-  $('img[src]').each((_, el) => {
-    const src = $(el).attr('src');
-    $(el).attr('src', rewriteUrl(src, pageUrl, projectId, serverBase));
-  });
-  $('img[srcset]').each((_, el) => {
-    const srcset = $(el).attr('srcset');
-    const rewritten = srcset.split(',').map((entry) => {
-      const parts = entry.trim().split(/\s+/);
-      parts[0] = rewriteUrl(parts[0], pageUrl, projectId, serverBase);
-      return parts.join(' ');
-    }).join(', ');
-    $(el).attr('srcset', rewritten);
-  });
-
-  // Rewrite anchor hrefs
-  $('a[href]').each((_, el) => {
-    const href = $(el).attr('href');
-    if (href && !href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
-      $(el).attr('href', rewriteUrl(href, pageUrl, projectId, serverBase));
-    }
-  });
-
-  // Rewrite source elements (video, picture)
-  $('source[src]').each((_, el) => {
-    $(el).attr('src', rewriteUrl($(el).attr('src'), pageUrl, projectId, serverBase));
-  });
-  $('source[srcset]').each((_, el) => {
-    const srcset = $(el).attr('srcset');
-    const rewritten = srcset.split(',').map((entry) => {
-      const parts = entry.trim().split(/\s+/);
-      parts[0] = rewriteUrl(parts[0], pageUrl, projectId, serverBase);
-      return parts.join(' ');
-    }).join(', ');
-    $(el).attr('srcset', rewritten);
-  });
-
-  // Rewrite CSS url() in inline styles
-  $('style').each((_, el) => {
-    const css = $(el).html();
-    if (css) {
-      $(el).html(rewriteCssUrls(css, pageUrl, projectId, serverBase));
-    }
-  });
-
-  // Rewrite inline style attributes
-  $('[style]').each((_, el) => {
-    const style = $(el).attr('style');
-    if (style && style.includes('url(')) {
-      $(el).attr('style', rewriteCssUrls(style, pageUrl, projectId, serverBase));
-    }
-  });
-
-  // Rewrite video poster attributes
-  $('video[poster]').each((_, el) => {
-    $(el).attr('poster', rewriteUrl($(el).attr('poster'), pageUrl, projectId, serverBase));
-  });
-
-  // Rewrite iframe srcs
+  // --- Sub-resources → CF Worker ---
+  $('link[href]').each((_, el) => { $(el).attr('href', asset($(el).attr('href'))); });
+  $('script[src]').each((_, el) => { $(el).attr('src', asset($(el).attr('src'))); });
+  $('img[src]').each((_, el) => { $(el).attr('src', asset($(el).attr('src'))); });
+  $('img[srcset]').each((_, el) => { $(el).attr('srcset', rewriteSrcset($(el).attr('srcset'), asset)); });
+  $('source[src]').each((_, el) => { $(el).attr('src', asset($(el).attr('src'))); });
+  $('source[srcset]').each((_, el) => { $(el).attr('srcset', rewriteSrcset($(el).attr('srcset'), asset)); });
+  $('video[poster]').each((_, el) => { $(el).attr('poster', asset($(el).attr('poster'))); });
   $('iframe[src]').each((_, el) => {
     const src = $(el).attr('src');
     if (src && !src.startsWith('about:') && !src.startsWith('data:')) {
-      $(el).attr('src', rewriteUrl(src, pageUrl, projectId, serverBase));
+      $(el).attr('src', asset(src));
+    }
+  });
+  $('object[data]').each((_, el) => { $(el).attr('data', asset($(el).attr('data'))); });
+  $('embed[src]').each((_, el) => { $(el).attr('src', asset($(el).attr('src'))); });
+  $('[data-src]').each((_, el) => { $(el).attr('data-src', asset($(el).attr('data-src'))); });
+  $('[data-lazy-src]').each((_, el) => { $(el).attr('data-lazy-src', asset($(el).attr('data-lazy-src'))); });
+  $('[data-srcset]').each((_, el) => { $(el).attr('data-srcset', rewriteSrcset($(el).attr('data-srcset'), asset)); });
+  $('[background]').each((_, el) => { $(el).attr('background', asset($(el).attr('background'))); });
+
+  // Inline CSS url() → CF Worker
+  $('style').each((_, el) => {
+    const css = $(el).html();
+    if (css) $(el).html(rewriteCssUrls(css, pageUrl, projectId, serverBase, workerBase));
+  });
+  $('[style]').each((_, el) => {
+    const style = $(el).attr('style');
+    if (style && style.includes('url(')) {
+      $(el).attr('style', rewriteCssUrls(style, pageUrl, projectId, serverBase, workerBase));
     }
   });
 
-  // Rewrite object/embed elements
-  $('object[data]').each((_, el) => {
-    $(el).attr('data', rewriteUrl($(el).attr('data'), pageUrl, projectId, serverBase));
+  // --- Navigation → Express (needs script injection) ---
+  $('a[href]').each((_, el) => {
+    const href = $(el).attr('href');
+    if (href && !href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
+      $(el).attr('href', nav(href));
+    }
   });
-  $('embed[src]').each((_, el) => {
-    $(el).attr('src', rewriteUrl($(el).attr('src'), pageUrl, projectId, serverBase));
-  });
-
-  // Rewrite form actions
   $('form[action]').each((_, el) => {
     const action = $(el).attr('action');
     if (action && !action.startsWith('javascript:') && !action.startsWith('#')) {
-      $(el).attr('action', rewriteUrl(action, pageUrl, projectId, serverBase));
+      $(el).attr('action', nav(action));
     }
   });
-
-  // Rewrite common lazy-load data attributes
-  $('[data-src]').each((_, el) => {
-    $(el).attr('data-src', rewriteUrl($(el).attr('data-src'), pageUrl, projectId, serverBase));
-  });
-  $('[data-lazy-src]').each((_, el) => {
-    $(el).attr('data-lazy-src', rewriteUrl($(el).attr('data-lazy-src'), pageUrl, projectId, serverBase));
-  });
-  $('[data-srcset]').each((_, el) => {
-    const srcset = $(el).attr('data-srcset');
-    const rewritten = srcset.split(',').map((entry) => {
-      const parts = entry.trim().split(/\s+/);
-      parts[0] = rewriteUrl(parts[0], pageUrl, projectId, serverBase);
-      return parts.join(' ');
-    }).join(', ');
-    $(el).attr('data-srcset', rewritten);
-  });
-
-  // Rewrite legacy background attributes
-  $('[background]').each((_, el) => {
-    $(el).attr('background', rewriteUrl($(el).attr('background'), pageUrl, projectId, serverBase));
-  });
-
-  // Rewrite meta refresh URLs
   $('meta[http-equiv="refresh"]').each((_, el) => {
     const content = $(el).attr('content');
     if (content) {
       const match = content.match(/^(\d+;\s*url=)(.+)$/i);
       if (match) {
-        $(el).attr('content', match[1] + rewriteUrl(match[2].trim(), pageUrl, projectId, serverBase));
+        $(el).attr('content', match[1] + nav(match[2].trim()));
       }
     }
   });
 
-  // Remove <base> tags — they'd point to the original domain and cause missed URLs
-  // to bypass the proxy. The client-side MutationObserver handles dynamic URLs instead.
   $('base').remove();
-
   return $.html();
 }
 
-function injectScript(html, pageUrl, projectId, serverBase) {
+function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
   const safePageUrl = pageUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   const safeServerBase = (serverBase || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const safeWorkerBase = (workerBase || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   let pageOrigin;
   try { pageOrigin = new URL(pageUrl).origin; } catch { pageOrigin = pageUrl; }
   const safePageOrigin = pageOrigin.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -203,6 +157,7 @@ function injectScript(html, pageUrl, projectId, serverBase) {
 (function() {
   var __markupPageUrl = '${safePageUrl}';
   var __markupServerBase = '${safeServerBase}';
+  var __markupWorkerBase = '${safeWorkerBase}';
   var __markupProjectId = '${projectId}';
   var __markupPageOrigin = '${safePageOrigin}';
   var __markupToken = '';
@@ -214,20 +169,35 @@ function injectScript(html, pageUrl, projectId, serverBase) {
   var pinContainer = null;
   var prevSelectedId = null;
 
-  // --- Shared URL rewriter (used by interceptors, MutationObserver, etc.) ---
-  function toProxy(rawUrl) {
-    if (!rawUrl || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:') ||
+  function _skipUrl(rawUrl) {
+    return !rawUrl || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:') ||
         rawUrl.startsWith('#') || rawUrl.startsWith('javascript:') ||
-        rawUrl.startsWith('mailto:') || rawUrl.startsWith('tel:')) return rawUrl;
-    if (rawUrl.indexOf('/api/proxy?') !== -1) return rawUrl;
+        rawUrl.startsWith('mailto:') || rawUrl.startsWith('tel:');
+  }
+
+  // --- toProxy: routes through Express (for page nav + XHR/fetch with auth) ---
+  function toProxy(rawUrl) {
+    if (_skipUrl(rawUrl)) return rawUrl;
+    if (rawUrl.indexOf('/api/proxy?') !== -1 || rawUrl.indexOf('?url=') !== -1) return rawUrl;
     try {
       var abs = new URL(rawUrl, __markupPageOrigin).href;
       return __markupServerBase + '/api/proxy?url=' + encodeURIComponent(abs) + '&projectId=' + __markupProjectId + '&token=' + encodeURIComponent(__markupToken);
     } catch(e) { return rawUrl; }
   }
 
+  // --- toWorker: routes through CF Worker (for sub-resources: images, CSS, JS, fonts) ---
+  function toWorker(rawUrl) {
+    if (_skipUrl(rawUrl)) return rawUrl;
+    if (rawUrl.indexOf('/api/proxy?') !== -1 || rawUrl.indexOf('?url=') !== -1) return rawUrl;
+    if (!__markupWorkerBase) return toProxy(rawUrl);
+    try {
+      var abs = new URL(rawUrl, __markupPageOrigin).href;
+      return __markupWorkerBase + '/?url=' + encodeURIComponent(abs);
+    } catch(e) { return rawUrl; }
+  }
+
   function needsProxy(url) {
-    if (!url || url.indexOf('/api/proxy?') !== -1) return false;
+    if (!url || url.indexOf('/api/proxy?') !== -1 || url.indexOf('?url=') !== -1) return false;
     return true;
   }
 
@@ -504,6 +474,11 @@ function injectScript(html, pageUrl, projectId, serverBase) {
         case 'MARKUP_SELECT_PIN':
           highlightPin(e.data.pinId);
           break;
+        case 'MARKUP_NAVIGATE':
+          if (e.data.url) {
+            window.location.href = toProxy(e.data.url);
+          }
+          break;
       }
     });
   }
@@ -738,22 +713,40 @@ function injectScript(html, pageUrl, projectId, serverBase) {
 
   // --- MutationObserver: rewrite URLs the server-side rewriter missed ---
   try {
-    var URL_ATTRS = ['src','href','poster','data','action','data-src','data-lazy-src'];
+    var ASSET_ATTRS = ['src','poster','data-src','data-lazy-src'];
+    var NAV_ATTRS = ['action'];
 
     function rewriteElement(el) {
-      for (var i = 0; i < URL_ATTRS.length; i++) {
-        var val = el.getAttribute(URL_ATTRS[i]);
-        if (val && val.indexOf('/api/proxy?') === -1) {
-          var rewritten = toProxy(val);
-          if (rewritten !== val) el.setAttribute(URL_ATTRS[i], rewritten);
+      var isNav = (el.tagName === 'A' || el.tagName === 'FORM');
+      // href: Worker for non-nav elements (link, base), Express for a/form
+      var hrefVal = el.getAttribute('href');
+      if (hrefVal && hrefVal.indexOf('/api/proxy?') === -1 && hrefVal.indexOf('?url=') === -1) {
+        var rewriter = isNav ? toProxy : toWorker;
+        var rewritten = rewriter(hrefVal);
+        if (rewritten !== hrefVal) el.setAttribute('href', rewritten);
+      }
+      // Asset attributes → always Worker
+      for (var i = 0; i < ASSET_ATTRS.length; i++) {
+        var val = el.getAttribute(ASSET_ATTRS[i]);
+        if (val && val.indexOf('/api/proxy?') === -1 && val.indexOf('?url=') === -1) {
+          var rw = toWorker(val);
+          if (rw !== val) el.setAttribute(ASSET_ATTRS[i], rw);
+        }
+      }
+      // Navigation attributes → always Express
+      for (var j = 0; j < NAV_ATTRS.length; j++) {
+        var navVal = el.getAttribute(NAV_ATTRS[j]);
+        if (navVal && navVal.indexOf('/api/proxy?') === -1) {
+          var rwNav = toProxy(navVal);
+          if (rwNav !== navVal) el.setAttribute(NAV_ATTRS[j], rwNav);
         }
       }
       var srcset = el.getAttribute('srcset') || el.getAttribute('data-srcset');
       var srcsetAttr = el.hasAttribute('srcset') ? 'srcset' : (el.hasAttribute('data-srcset') ? 'data-srcset' : null);
-      if (srcset && srcsetAttr && srcset.indexOf('/api/proxy?') === -1) {
+      if (srcset && srcsetAttr && srcset.indexOf('/api/proxy?') === -1 && srcset.indexOf('?url=') === -1) {
         el.setAttribute(srcsetAttr, srcset.split(',').map(function(entry) {
           var parts = entry.trim().split(/\\s+/);
-          parts[0] = toProxy(parts[0]);
+          parts[0] = toWorker(parts[0]);
           return parts.join(' ');
         }).join(', '));
       }
@@ -783,7 +776,7 @@ function injectScript(html, pageUrl, projectId, serverBase) {
 
     observer.observe(document.documentElement, {
       childList: true, subtree: true,
-      attributes: true, attributeFilter: URL_ATTRS.concat(['srcset','data-srcset','style','class','width','height'])
+      attributes: true, attributeFilter: ['src','href','poster','data-src','data-lazy-src','action','srcset','data-srcset','style','class','width','height']
     });
   } catch(e) {}
 
