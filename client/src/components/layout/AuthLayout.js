@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function AuthLayout({ children }) {
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex animate-page-enter">
       {/* Left branded panel — hidden on mobile */}
       <div className="hidden lg:flex lg:w-[480px] xl:w-[540px] bg-gray-900 relative overflow-hidden">
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">

@@ -314,6 +314,11 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
 
     sendMessage('MARKUP_READY', Object.assign(getDimensions(), { pageUrl: __markupPageUrl }));
 
+    // Notify parent when page is about to unload (navigation started)
+    window.addEventListener('beforeunload', function() {
+      sendMessage('MARKUP_NAVIGATING', {});
+    });
+
     // Scroll tracking (throttled)
     var scrollTimeout;
     window.addEventListener('scroll', function() {

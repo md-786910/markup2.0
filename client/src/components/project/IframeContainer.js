@@ -113,22 +113,25 @@ export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, se
         ref={iframeRef}
         src={proxyUrl}
         title="Website Preview"
+        className="transition-opacity duration-300 ease-out"
         style={{
           width: `${viewportWidth}px`,
           height: `${containerSize.height / scaleFactor}px`,
           transform: `translateX(${offsetX}px) scale(${scaleFactor})`,
           transformOrigin: 'top left',
           border: 'none',
+          opacity: loading ? 0 : 1,
         }}
         sandbox="allow-scripts allow-same-origin allow-forms"
         onLoad={onLoad}
       />
-      {loading && (
-        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-10">
-          <div className="w-10 h-10 border-[3px] border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
-          <p className="mt-4 text-sm font-medium text-gray-500">Loading site...</p>
-        </div>
-      )}
+      <div
+        className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 transition-opacity duration-300 ease-out"
+        style={{ opacity: loading ? 1 : 0, pointerEvents: loading ? 'auto' : 'none' }}
+      >
+        <div className="w-10 h-10 border-[3px] border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+        <p className="mt-4 text-sm font-medium text-gray-500">Loading site...</p>
+      </div>
     </div>
   );
 }

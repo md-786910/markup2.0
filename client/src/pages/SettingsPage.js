@@ -68,7 +68,7 @@ export default function SettingsPage() {
   const orgInitial = (user?.orgName || user?.name || '?')[0].toUpperCase();
 
   return (
-    <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-3xl">
+    <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-3xl animate-page-enter">
       {/* Page header */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-gray-900">Settings</h2>

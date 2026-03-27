@@ -111,7 +111,7 @@ export default function MembersPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-3xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-3xl mx-auto animate-page-enter">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 mb-6">
         <button

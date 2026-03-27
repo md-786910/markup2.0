@@ -149,7 +149,7 @@ export default function DashboardPage() {
     : `${websiteCount} website${websiteCount !== 1 ? 's' : ''}${documentCount > 0 ? ` · ${documentCount} document${documentCount !== 1 ? 's' : ''}` : ''}${archivedProjects.length > 0 && tab !== 'archived' ? ` · ${archivedProjects.length} archived` : ''}`;
 
   return (
-    <div className="px-6 lg:px-8 py-6 lg:py-8">
+    <div className="px-6 lg:px-8 py-6 lg:py-8 animate-page-enter">
       {/* Trial banner */}
       <TrialDashboardBanner />
 

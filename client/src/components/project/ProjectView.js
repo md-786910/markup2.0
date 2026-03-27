@@ -274,6 +274,13 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     }
   };
 
+  // Show loader when iframe starts navigating
+  useEffect(() => {
+    if (iframeState.navigating) {
+      setIframeLoading(true);
+    }
+  }, [iframeState.navigating]);
+
   // Reset loading when iframe signals ready
   useEffect(() => {
     if (iframeState.ready) {

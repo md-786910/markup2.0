@@ -35,8 +35,8 @@ export default function ProjectPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-screen animate-fade-in">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-blue-600"></div>
       </div>
     );
   }
@@ -53,10 +53,12 @@ export default function ProjectPage() {
   }
 
   return (
-    <ProjectView
-      project={project}
-      onProjectUpdate={(updated) => setProject(updated)}
-      initialPinId={initialPinId}
-    />
+    <div className="animate-page-enter h-screen">
+      <ProjectView
+        project={project}
+        onProjectUpdate={(updated) => setProject(updated)}
+        initialPinId={initialPinId}
+      />
+    </div>
   );
 }

@@ -14,6 +14,7 @@ export function useIframeMessages() {
   // Only data that drives UI re-renders goes in state
   const [state, setState] = useState({
     ready: false,
+    navigating: false,
     lastClick: null,
     currentPageUrl: null,
     screenshot: null,
@@ -30,10 +31,18 @@ export function useIframeMessages() {
         return;
 
       switch (data.type) {
+        case "MARKUP_NAVIGATING":
+          setState((prev) => ({
+            ...prev,
+            navigating: true,
+            ready: false,
+          }));
+          break;
         case "MARKUP_READY":
           setState((prev) => ({
             ...prev,
             ready: true,
+            navigating: false,
             currentPageUrl: data.pageUrl || prev.currentPageUrl,
           }));
           scrollRef.current.documentWidth = data.documentWidth;
