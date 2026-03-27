@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import ProjectList from '../components/dashboard/ProjectList';
 import CreateProjectModal from '../components/dashboard/CreateProjectModal';
 import MembersTab from '../components/dashboard/MembersTab';
+import NewProjectDropdown from '../components/dashboard/NewProjectDropdown';
 import {
   getProjectsApi,
   updateProjectApi,
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [createType, setCreateType] = useState('website');
   const [editingProject, setEditingProject] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const initialLoadDone = useRef(false);
@@ -118,15 +120,12 @@ export default function DashboardPage() {
           <p className="text-sm text-gray-500 mt-1">{pageSubtitle}</p>
         </div>
         {isAdmin && tab !== 'members' && (
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 shadow-sm hover:shadow transition-all"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            New Project
-          </button>
+          <NewProjectDropdown
+            onSelect={(type) => {
+              setCreateType(type);
+              setShowCreate(true);
+            }}
+          />
         )}
       </div>
 
@@ -159,6 +158,7 @@ export default function DashboardPage() {
       {/* Create Modal */}
       <CreateProjectModal
         isOpen={showCreate}
+        defaultType={createType}
         onClose={() => setShowCreate(false)}
         onCreated={(project) => {
           setProjects((prev) => [project, ...prev]);
