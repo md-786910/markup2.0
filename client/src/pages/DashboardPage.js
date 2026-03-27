@@ -6,6 +6,7 @@ import CreateProjectModal from '../components/dashboard/CreateProjectModal';
 import MembersTab from '../components/dashboard/MembersTab';
 import NewProjectDropdown from '../components/dashboard/NewProjectDropdown';
 import FilterBar from '../components/dashboard/FilterBar';
+import TrialDashboardBanner from '../components/common/TrialDashboardBanner';
 import {
   getProjectsApi,
   updateProjectApi,
@@ -149,6 +150,9 @@ export default function DashboardPage() {
 
   return (
     <div className="px-6 lg:px-8 py-6 lg:py-8">
+      {/* Trial banner */}
+      <TrialDashboardBanner />
+
       {/* Page header */}
       <div className="flex items-center justify-between mb-8">
         <div>

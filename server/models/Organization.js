@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { DEFAULT_TRIAL_DAYS } = require('../config/plans');
 
 const organizationSchema = new mongoose.Schema({
   name: {
@@ -31,9 +32,13 @@ const organizationSchema = new mongoose.Schema({
     maxGuests: { type: Number, default: 5 },
     maxProjects: { type: Number, default: 5 },
   },
+  trialDays: {
+    type: Number,
+    default: DEFAULT_TRIAL_DAYS,
+  },
   trialEndsAt: {
     type: Date,
-    default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    default: () => new Date(Date.now() + DEFAULT_TRIAL_DAYS * 24 * 60 * 60 * 1000),
   },
   isLocked: {
     type: Boolean,

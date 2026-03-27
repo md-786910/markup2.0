@@ -32,7 +32,13 @@ const userResponse = (user, org) => ({
   orgPlan: org ? org.plan : null,
   orgName: org ? org.name : null,
   orgTrialEndsAt: org ? org.trialEndsAt : null,
+  orgTrialDays: org ? org.trialDays : null,
+  orgLimits: org ? org.limits : null,
+  orgSubscription: org ? org.subscription : null,
 });
+
+// Exported for reuse in billing controller
+exports.userResponse = userResponse;
 
 const setCookieAndRespond = (res, user, org, statusCode = 200, extra = {}) => {
   const token = generateToken(user);

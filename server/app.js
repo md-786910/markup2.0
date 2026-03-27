@@ -11,6 +11,7 @@ const pinRoutes = require("./routes/pin.routes");
 const commentRoutes = require("./routes/comment.routes");
 const proxyRoutes = require("./routes/proxy.routes");
 const invitationRoutes = require("./routes/invitation.routes");
+const billingRoutes = require("./routes/billing.routes");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -57,6 +58,7 @@ app.use("/api/projects", projectRoutes);
 app.use("/api/projects", pinRoutes);
 app.use("/api/pins", commentRoutes);
 app.use("/api/invitations", invitationRoutes);
+app.use("/api/billing", billingRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import TrialBadge from '../common/TrialBadge';
 
 const navItems = [
   {
@@ -150,6 +151,9 @@ export default function AppSidebar({ collapsed, onToggle }) {
             );
           })}
         </nav>
+
+        {/* Trial status badge */}
+        <TrialBadge />
 
         {/* Bottom user section with dropdown */}
         <div className="border-t border-gray-800 px-4 py-4 relative" ref={userMenuRef}>
