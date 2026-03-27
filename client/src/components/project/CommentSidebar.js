@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { getCommentsApi, createCommentApi, updateCommentApi, deleteCommentApi } from '../../services/commentService';
 import { useAuth } from '../../hooks/useAuth';
 import MentionInput from './MentionInput';
+import { stripHtmlForEdit } from '../../utils/htmlUtils';
 
 function renderCommentBody(body) {
   if (!body) return null;
@@ -56,7 +57,7 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
   const [lightbox, setLightbox] = useState(null);
   const [lightboxExpanded, setLightboxExpanded] = useState(false);
   const [copyToast, setCopyToast] = useState(false);
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
 
   const handleDownload = (src) => {
     const a = document.createElement('a');
@@ -344,11 +345,11 @@ export default function CommentSidebar({ pin, pins = [], onClose, onBack, onStat
               <span className="inline-flex items-center gap-1 ml-auto shrink-0">
                 {comment.author?._id === user?.id && editingComment !== comment._id && (
                   <button
-                    onClick={() => { setEditingComment(comment._id); setEditBody(comment.body); }}
+                    onClick={() => { setEditingComment(comment._id); setEditBody(stripHtmlForEdit(comment.body)); }}
                     className="text-[11px] text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
                   >Edit</button>
                 )}
-                {(comment.author?._id === user?.id || isAdmin) && (
+                {comment.author?._id === user?.id && (
                   confirmDeleteComment === comment._id ? (
                     <span className="inline-flex items-center gap-1">
                       <button
