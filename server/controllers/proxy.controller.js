@@ -31,6 +31,22 @@ const DOMAIN_FAIL_TTL = 30000; // 30 seconds
 const fallbackDomains = new Map();
 const FALLBACK_DOMAIN_TTL = 300000; // 5 minutes
 
+// --- Blocked domain cache (WAF / CDN blocked sites) ---
+const blockedDomains = new Map();
+const BLOCKED_DOMAIN_TTL = 300000; // 5 minutes
+
+function getBlockedDomain(urlString) {
+  const domain = getDomain(urlString);
+  if (!domain) return null;
+  const ts = blockedDomains.get(domain);
+  if (!ts) return null;
+  if (Date.now() - ts > BLOCKED_DOMAIN_TTL) {
+    blockedDomains.delete(domain);
+    return null;
+  }
+  return true;
+}
+
 // --- Project existence cache (avoids DB lookup on every sub-resource) ---
 const projectCache = new Map();
 const PROJECT_CACHE_TTL = 60000; // 60 seconds
@@ -92,6 +108,24 @@ const TRANSPARENT_PIXEL = Buffer.from(
   'base64'
 );
 
+// --- WAF / CDN block detection ---
+const WAF_MARKERS = [
+  'access denied', 'attention required', 'just a moment',
+  'checking your browser', 'cf-error', 'cf-error-details',
+  'akamai', 'reference #', "you don't have permission",
+  'automated access', 'web server is returning an unknown error',
+];
+
+function isBlockedResponse(status, contentType, body) {
+  if (![403, 451, 503].includes(status)) return false;
+  if (!contentType || !contentType.toLowerCase().includes('text/html')) return false;
+  const snippet = (Buffer.isBuffer(body)
+    ? body.toString('utf-8', 0, Math.min(body.length, 4096))
+    : String(body).slice(0, 4096)
+  ).toLowerCase();
+  return WAF_MARKERS.some((m) => snippet.includes(m));
+}
+
 function sendContentAwareError(req, res, url, domain, reason) {
   const lowerUrl = url.toLowerCase();
   const accept = (req.headers.accept || '').toLowerCase();
@@ -139,6 +173,37 @@ function sendContentAwareError(req, res, url, domain, reason) {
   <h1>Unable to load site</h1>
   <p><code>${domain}</code></p>
   <p>${reason}</p>
+</div></body></html>`;
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.status(502).send(errorHtml);
+}
+
+function sendBlockedError(req, res, url, domain) {
+  res.removeHeader('X-Frame-Options');
+  const errorHtml = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Site blocked</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex; align-items: center; justify-content: center; min-height: 100vh;
+    margin: 0; background: #f9fafb; color: #374151; }
+  .card { text-align: center; max-width: 480px; padding: 2.5rem 2rem; }
+  .icon { width: 48px; height: 48px; margin: 0 auto 1rem; border-radius: 50%;
+    background: #fef2f2; display: flex; align-items: center; justify-content: center; }
+  .icon svg { width: 24px; height: 24px; color: #ef4444; }
+  h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+  p { color: #6b7280; font-size: 0.95rem; line-height: 1.6; margin: 0.25rem 0; }
+  code { background: #e5e7eb; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; }
+  .hint { font-size: 0.85rem; color: #9ca3af; margin-top: 1rem; }
+</style></head>
+<body><div class="card">
+  <div class="icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+  </svg></div>
+  <h1>This site can\u2019t be loaded</h1>
+  <p><code>${domain}</code></p>
+  <p>This website uses firewall protection (Cloudflare, Akamai, etc.) that blocks automated access. The proxy was unable to load it through any available method.</p>
+  <p class="hint">Try visiting the site directly in your browser to confirm it\u2019s accessible.</p>
 </div></body></html>`;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -242,25 +307,11 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
   return res.send(response.data);
 }
 
-// Try fallback proxies for a blocked domain. Returns response or null.
-async function tryFallback(req, res, url, projectId, serverBase, workerBase) {
-  // Fallback 1: Cloudflare Worker relay (fastest, user-controlled)
-  if (FALLBACK_RELAY_URL) {
-    try {
-      const relayResp = await axios({
-        method: 'GET',
-        url: `${FALLBACK_RELAY_URL}/?url=${encodeURIComponent(url)}`,
-        responseType: 'arraybuffer', timeout: 30000,
-        validateStatus: () => true,
-      });
-      fallbackDomains.set(getDomain(url), Date.now());
-      return processResponse(req, res, relayResp, url, projectId, serverBase, workerBase);
-    } catch (relayErr) {
-      console.error(`Relay failed for ${url}: ${relayErr.message}`);
-    }
-  }
-
-  // Fallback 2: Outbound HTTP proxy (if configured)
+// Try secondary fallback proxies for a blocked/failed domain.
+// Returns a raw axios response object (caller must call processResponse), or null.
+// Skips CF Worker relay since it's already the primary path in proxyPage().
+async function tryFallback(url) {
+  // Fallback 1: Outbound HTTP proxy (if configured)
   if (proxyAgent) {
     try {
       const proxyResp = await axios({
@@ -272,22 +323,29 @@ async function tryFallback(req, res, url, projectId, serverBase, workerBase) {
         },
         validateStatus: () => true,
       });
-      fallbackDomains.set(getDomain(url), Date.now());
-      return processResponse(req, res, proxyResp, url, projectId, serverBase, workerBase);
+      if (!isBlockedResponse(proxyResp.status, proxyResp.headers['content-type'], proxyResp.data)) {
+        fallbackDomains.set(getDomain(url), Date.now());
+        return proxyResp;
+      }
+      console.log(`Outbound proxy also blocked for ${url} (HTTP ${proxyResp.status})`);
     } catch (proxyErr) {
       console.error(`Outbound proxy failed for ${url}: ${proxyErr.message}`);
     }
   }
 
-  // Fallback 3: allorigins.win (last resort, free but slow/unreliable)
+  // Fallback 2: allorigins.win (last resort, free but slow/unreliable)
   try {
     const fallbackResp = await axios({
       method: 'GET',
       url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
       responseType: 'arraybuffer', timeout: 30000,
+      validateStatus: () => true,
     });
-    fallbackDomains.set(getDomain(url), Date.now());
-    return processResponse(req, res, fallbackResp, url, projectId, serverBase, workerBase);
+    if (!isBlockedResponse(fallbackResp.status, fallbackResp.headers['content-type'], fallbackResp.data)) {
+      fallbackDomains.set(getDomain(url), Date.now());
+      return fallbackResp;
+    }
+    console.log(`allorigins also blocked for ${url} (HTTP ${fallbackResp.status})`);
   } catch (fallbackErr) {
     console.error(`allorigins fallback also failed for ${url}: ${fallbackErr.message}`);
   }
@@ -333,24 +391,44 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     return sendContentAwareError(req, res, url, domain, cachedFailure.message);
   }
 
+  // Early exit: if this domain is known to be WAF-blocked, skip the full chain
+  if (getBlockedDomain(url)) {
+    const domain = getDomain(url) || url;
+    return sendBlockedError(req, res, url, domain);
+  }
+
+  // Determine if this is a page request (vs sub-resource like CSS/JS/image)
+  // WAF block detection only runs for page requests to avoid false positives
+  const accept = (req.headers.accept || '').toLowerCase();
+  const isPageRequest = accept.includes('text/html') ||
+    /\/$/.test(new URL(url, 'http://localhost').pathname) ||
+    !/\.\w{1,5}(\?|$)/.test(url);
+
   // --- Primary path: CF Worker fetch (fast, edge) when available ---
+  let workerBlocked = false;
   if (FALLBACK_RELAY_URL && req.method === 'GET') {
     try {
       const workerResp = await axios({
         method: 'GET',
         url: `${FALLBACK_RELAY_URL}/?url=${encodeURIComponent(url)}`,
         responseType: 'arraybuffer',
-        timeout: 15000, // 15s — generous but way faster than direct+fallback chain (27s+)
+        timeout: 15000,
         validateStatus: () => true,
       });
-      return processResponse(req, res, workerResp, url, projectId, serverBase, workerBase);
+      if (isPageRequest && isBlockedResponse(workerResp.status, workerResp.headers['content-type'], workerResp.data)) {
+        console.log(`Worker response blocked by WAF for ${url} (HTTP ${workerResp.status}), trying direct...`);
+        workerBlocked = true;
+        // Fall through to direct connection below
+      } else {
+        return processResponse(req, res, workerResp, url, projectId, serverBase, workerBase);
+      }
     } catch (workerErr) {
       console.log(`Worker-first fetch failed for ${url}: ${workerErr.message}, falling back to direct...`);
       // Fall through to direct connection below
     }
   }
 
-  // --- Fallback: direct connection (used when Worker is unavailable or for non-GET) ---
+  // --- Direct connection (used when Worker is unavailable, blocked, or for non-GET) ---
   try {
     const axiosConfig = {
       method: req.method,
@@ -402,9 +480,34 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     }
 
     const response = await axios(axiosConfig);
+
+    // Check if the direct response is also WAF-blocked
+    if (isPageRequest && isBlockedResponse(response.status, response.headers['content-type'], response.data)) {
+      console.log(`Direct response also blocked by WAF for ${url} (HTTP ${response.status}), trying fallbacks...`);
+      const fallbackResp = await tryFallback(url);
+      if (fallbackResp) {
+        return processResponse(req, res, fallbackResp, url, projectId, serverBase, workerBase);
+      }
+      // All methods blocked — cache domain and show error
+      const domain = getDomain(url) || url;
+      blockedDomains.set(domain, Date.now());
+      return sendBlockedError(req, res, url, domain);
+    }
+
     return processResponse(req, res, response, url, projectId, serverBase, workerBase);
   } catch (err) {
     console.log(`Direct proxy failed: code=${err.code} msg=${err.message} url=${url}`);
+
+    // If worker was also blocked and direct threw a network error, try remaining fallbacks
+    if (workerBlocked) {
+      const fallbackResp = await tryFallback(url);
+      if (fallbackResp) {
+        return processResponse(req, res, fallbackResp, url, projectId, serverBase, workerBase);
+      }
+      const domain = getDomain(url) || url;
+      blockedDomains.set(domain, Date.now());
+      return sendBlockedError(req, res, url, domain);
+    }
 
     const domain = getDomain(url) || url;
     const domainErrors = ['ENOTFOUND', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'ERR_TLS_CERT_ALTNAME_INVALID'];

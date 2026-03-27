@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import ProjectList from '../components/dashboard/ProjectList';
 import CreateProjectModal from '../components/dashboard/CreateProjectModal';
 import MembersTab from '../components/dashboard/MembersTab';
 import NewProjectDropdown from '../components/dashboard/NewProjectDropdown';
+import FilterBar from '../components/dashboard/FilterBar';
 import {
   getProjectsApi,
   updateProjectApi,
@@ -23,6 +24,12 @@ export default function DashboardPage() {
   const [editingProject, setEditingProject] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const initialLoadDone = useRef(false);
+  const [filters, setFilters] = useState({
+    status: null,
+    type: null,
+    ownership: null,
+    search: '',
+  });
 
   const loadProjects = useCallback(() => {
     if (!initialLoadDone.current) setLoading(true);
@@ -41,7 +48,36 @@ export default function DashboardPage() {
 
   const activeProjects = projects.filter((p) => p.status === 'active');
   const archivedProjects = projects.filter((p) => p.status === 'archived');
-  const filtered = tab === 'archived' ? archivedProjects : activeProjects;
+
+  const filteredProjects = useMemo(() => {
+    let result = tab === 'archived' ? archivedProjects : activeProjects;
+
+    if (filters.status) {
+      result = result.filter((p) => (p.projectStatus || 'not_started') === filters.status);
+    }
+    if (filters.type) {
+      result = result.filter((p) => p.projectType === filters.type);
+    }
+    if (filters.ownership === 'mine') {
+      result = result.filter((p) => p.owner?._id === user?.id || p.owner === user?.id);
+    } else if (filters.ownership === 'shared') {
+      result = result.filter((p) => {
+        const isOwner = p.owner?._id === user?.id || p.owner === user?.id;
+        const isMember = (p.members || []).some((m) => m._id === user?.id);
+        return !isOwner && isMember;
+      });
+    }
+    if (filters.search.trim()) {
+      const searchLower = filters.search.trim().toLowerCase();
+      result = result.filter((p) => p.name.toLowerCase().includes(searchLower));
+    }
+
+    return result;
+  }, [tab, activeProjects, archivedProjects, filters, user?.id]);
+
+  const activeFilterCount =
+    [filters.status, filters.type, filters.ownership].filter(Boolean).length +
+    (filters.search.trim() ? 1 : 0);
 
   // Collect unique members across all projects
   const allMembers = [];
@@ -103,8 +139,8 @@ export default function DashboardPage() {
     }
   };
 
-  const websiteCount = filtered.filter((p) => p.projectType !== 'document').length;
-  const documentCount = filtered.filter((p) => p.projectType === 'document').length;
+  const websiteCount = filteredProjects.filter((p) => p.projectType !== 'document').length;
+  const documentCount = filteredProjects.filter((p) => p.projectType === 'document').length;
 
   const pageTitle = tab === 'members' ? 'Team' : tab === 'archived' ? 'Archive' : 'Dashboard';
   const pageSubtitle = tab === 'members'
@@ -129,6 +165,15 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* Filter Bar */}
+      {tab !== 'members' && (
+        <FilterBar
+          filters={filters}
+          onFiltersChange={setFilters}
+          activeFilterCount={activeFilterCount}
+        />
+      )}
+
       {/* Content */}
       {tab === 'members' ? (
         <MembersTab
@@ -140,12 +185,13 @@ export default function DashboardPage() {
         />
       ) : (
         <ProjectList
-          projects={filtered}
+          projects={filteredProjects}
           tab={tab}
           isAdmin={isAdmin}
           userId={user?.id}
           loading={loading}
           confirmDelete={confirmDelete}
+          hasActiveFilters={activeFilterCount > 0}
           onEdit={setEditingProject}
           onArchive={handleArchiveToggle}
           onDelete={handleDelete}

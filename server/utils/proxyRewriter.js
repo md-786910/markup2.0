@@ -51,6 +51,14 @@ function rewriteJsUrls(js, pageUrl, projectId, serverBase, workerBase) {
     return `${serverBase}/api/proxy?url=${encodeURIComponent(abs)}&projectId=${projectId}`;
   }
 
+  // Resolve relative paths (./file.js, ../dir/file.js) against the JS file's own URL.
+  // Always route through Express (not worker) so the module chain continues getting
+  // relative imports rewritten — the worker doesn't handle relative imports.
+  function buildRelProxy(relPath) {
+    const abs = new URL(relPath, pageUrl).href;
+    return `${serverBase}/api/proxy?url=${encodeURIComponent(abs)}&projectId=${projectId}`;
+  }
+
   return js
     // Static ES module imports: from "/path..."
     .replace(/(from\s*)(["'])(\/[^"']+)\2/g, (match, prefix, quote, path) => {
@@ -58,10 +66,22 @@ function rewriteJsUrls(js, pageUrl, projectId, serverBase, workerBase) {
       try { return `${prefix}${quote}${buildProxy(path)}${quote}`; }
       catch { return match; }
     })
+    // Relative ES module imports: from "./file.js" (Vite/Rollup bundles)
+    .replace(/(from\s*)(["'])(\.\.?\/[^"']+\.m?js)\2/g, (match, prefix, quote, relPath) => {
+      if (relPath.indexOf('?url=') !== -1) return match;
+      try { return `${prefix}${quote}${buildRelProxy(relPath)}${quote}`; }
+      catch { return match; }
+    })
     // Dynamic imports: import("/path...")
     .replace(/(import\s*\(\s*)(["'])(\/[^"']+)\2(\s*\))/g, (match, prefix, quote, path, suffix) => {
       if (path.indexOf('/api/proxy?') !== -1 || path.indexOf('?url=') !== -1) return match;
       try { return `${prefix}${quote}${buildProxy(path)}${quote}${suffix}`; }
+      catch { return match; }
+    })
+    // Dynamic relative imports: import("./file.js")
+    .replace(/(import\s*\(\s*)(["'])(\.\.?\/[^"']+\.m?js)\2(\s*\))/g, (match, prefix, quote, relPath, suffix) => {
+      if (relPath.indexOf('?url=') !== -1) return match;
+      try { return `${prefix}${quote}${buildRelProxy(relPath)}${quote}${suffix}`; }
       catch { return match; }
     })
     // Quoted absolute paths under known asset directories
@@ -84,8 +104,13 @@ function rewriteHtml(html, pageUrl, projectId, serverBase, workerBase) {
   }).join(', ');
 
   // --- Sub-resources → CF Worker ---
-  $('link[href]').each((_, el) => { $(el).attr('href', asset($(el).attr('href'))); });
-  $('script[src]').each((_, el) => { $(el).attr('src', asset($(el).attr('src'))); });
+  // Module scripts + modulepreload → Express (so relative imports get rewritten through the chain)
+  $('script[type="module"][src]').each((_, el) => { $(el).attr('src', nav($(el).attr('src'))); $(el).removeAttr('crossorigin'); });
+  $('link[rel="modulepreload"][href]').each((_, el) => { $(el).attr('href', nav($(el).attr('href'))); $(el).removeAttr('crossorigin'); });
+  // Non-module scripts → CF Worker
+  $('script[src]:not([type="module"])').each((_, el) => { $(el).attr('src', asset($(el).attr('src'))); });
+  // Non-modulepreload links (stylesheets, preconnect, etc.) → CF Worker
+  $('link[href]:not([rel="modulepreload"])').each((_, el) => { $(el).attr('href', asset($(el).attr('href'))); });
   $('img[src]').each((_, el) => { $(el).attr('src', asset($(el).attr('src'))); });
   $('img[srcset]').each((_, el) => { $(el).attr('srcset', rewriteSrcset($(el).attr('srcset'), asset)); });
   $('source[src]').each((_, el) => { $(el).attr('src', asset($(el).attr('src'))); });

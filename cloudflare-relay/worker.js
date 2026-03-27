@@ -108,8 +108,10 @@ export default {
         headers,
       });
 
-      // --- Store in edge cache (non-blocking) ---
-      ctx.waitUntil(cache.put(cacheKey, result.clone()));
+      // --- Store in edge cache (non-blocking) — skip error responses (WAF blocks, etc.) ---
+      if (response.status >= 200 && response.status < 400) {
+        ctx.waitUntil(cache.put(cacheKey, result.clone()));
+      }
 
       return result;
     } catch (err) {
@@ -144,6 +146,12 @@ function rewriteJsUrls(js, pageUrl, workerBase) {
     return `${workerBase}/?url=${encodeURIComponent(abs)}`;
   }
 
+  // Resolve relative paths (./file.js) against the JS file's own URL
+  function buildRelProxy(relPath) {
+    const abs = new URL(relPath, pageUrl).href;
+    return `${workerBase}/?url=${encodeURIComponent(abs)}`;
+  }
+
   return js
     // Static ES module imports: from "/path..."
     .replace(/(from\s*)(["'])(\/[^"']+)\2/g, (match, prefix, quote, path) => {
@@ -151,10 +159,22 @@ function rewriteJsUrls(js, pageUrl, workerBase) {
       try { return `${prefix}${quote}${buildProxy(path)}${quote}`; }
       catch { return match; }
     })
+    // Relative ES module imports: from "./file.js" (Vite/Rollup bundles)
+    .replace(/(from\s*)(["'])(\.\.?\/[^"']+\.m?js)\2/g, (match, prefix, quote, relPath) => {
+      if (relPath.indexOf('?url=') !== -1) return match;
+      try { return `${prefix}${quote}${buildRelProxy(relPath)}${quote}`; }
+      catch { return match; }
+    })
     // Dynamic imports: import("/path...")
     .replace(/(import\s*\(\s*)(["'])(\/[^"']+)\2(\s*\))/g, (match, prefix, quote, path, suffix) => {
       if (path.indexOf('?url=') !== -1) return match;
       try { return `${prefix}${quote}${buildProxy(path)}${quote}${suffix}`; }
+      catch { return match; }
+    })
+    // Dynamic relative imports: import("./file.js")
+    .replace(/(import\s*\(\s*)(["'])(\.\.?\/[^"']+\.m?js)\2(\s*\))/g, (match, prefix, quote, relPath, suffix) => {
+      if (relPath.indexOf('?url=') !== -1) return match;
+      try { return `${prefix}${quote}${buildRelProxy(relPath)}${quote}${suffix}`; }
       catch { return match; }
     })
     // Quoted absolute paths under known asset directories

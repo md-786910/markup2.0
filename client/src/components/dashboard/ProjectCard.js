@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { PROJECT_STATUSES } from "../../utils/projectConstants";
 
 const API_BASE = (process.env.REACT_APP_BASE_URL || "http://localhost:5000/api").replace(/\/api$/, "");
 
@@ -41,38 +42,6 @@ function getAvatarColor(name) {
   return avatarColors[hash % avatarColors.length];
 }
 
-const PROJECT_STATUSES = [
-  {
-    value: "not_started",
-    label: "Not Started",
-    dot: "bg-gray-400",
-    badge: "bg-gray-100 text-gray-600",
-  },
-  {
-    value: "in_progress",
-    label: "In Progress",
-    dot: "bg-blue-500",
-    badge: "bg-blue-50 text-blue-700",
-  },
-  {
-    value: "in_review",
-    label: "In Review",
-    dot: "bg-amber-500",
-    badge: "bg-amber-50 text-amber-700",
-  },
-  {
-    value: "approved",
-    label: "Approved",
-    dot: "bg-green-500",
-    badge: "bg-green-50 text-green-700",
-  },
-  {
-    value: "completed",
-    label: "Completed",
-    dot: "bg-emerald-500",
-    badge: "bg-emerald-50 text-emerald-700",
-  },
-];
 
 function getStatusInfo(status) {
   return (
