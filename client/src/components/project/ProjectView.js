@@ -432,9 +432,9 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   return (
     <div className="flex flex-col h-screen">
       {/* Toolbar */}
-      <div className="bg-white border-b border-gray-200/80 px-4 h-14 flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200/80 px-4 h-14 flex items-center justify-between relative">
         {/* Left: Brand + Project + URL */}
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 z-10">
           <button
             onClick={() => navigate('/dashboard')}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors shrink-0 group"
@@ -464,9 +464,9 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           </div>
         </div>
 
-        {/* Center: Device switcher — segmented control style (website only) */}
+        {/* Center: Device switcher — absolutely centered so it doesn't shift with URL length */}
         {!isDocumentProject ? (
-          <div className="flex items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">
             {/* Desktop */}
             <button
               onClick={() => handleDeviceChange('desktop')}
@@ -508,7 +508,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50/80 px-3 py-1.5 rounded-lg border border-gray-100/80">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50/80 px-3 py-1.5 rounded-lg border border-gray-100/80">
             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
@@ -517,7 +517,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         )}
 
         {/* Right: Mode toggle + Avatars + Invite */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 z-10">
           {/* View / Comment mode toggle */}
           {canCreate && <div className="relative flex bg-gray-100/80 rounded-lg p-1">
             <div

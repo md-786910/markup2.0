@@ -4,6 +4,46 @@ import { PROJECT_STATUSES } from "../../utils/projectConstants";
 
 const API_BASE = (process.env.REACT_APP_BASE_URL || "http://localhost:5000/api").replace(/\/api$/, "");
 
+const IFRAME_WIDTH = 1440;
+const IFRAME_HEIGHT = 900;
+
+function IframeThumbnail({ src, title }) {
+  const wrapperRef = useRef(null);
+  const [scale, setScale] = useState(0.25);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const computeScale = () => {
+      const w = el.clientWidth;
+      if (w > 0) setScale(w / IFRAME_WIDTH);
+    };
+    computeScale();
+    const observer = new ResizeObserver(computeScale);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={wrapperRef} className="absolute inset-0" style={{ overflow: 'hidden' }}>
+      <iframe
+        src={src}
+        title={title}
+        loading="lazy"
+        sandbox="allow-same-origin"
+        style={{
+          width: `${IFRAME_WIDTH}px`,
+          height: `${IFRAME_HEIGHT}px`,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+          border: 'none',
+          pointerEvents: 'none',
+        }}
+      />
+    </div>
+  );
+}
+
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
   if (seconds < 60) return "just now";
@@ -293,23 +333,11 @@ export default function ProjectCard({
               )}
             </div>
           ) : (
-            /* Live iframe preview */
-            <div className="absolute inset-0" style={{ overflow: 'hidden' }}>
-              <iframe
-                src={`${API_BASE}/api/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}`}
-                title={project.name}
-                loading="lazy"
-                sandbox="allow-same-origin"
-                style={{
-                  width: '1440px',
-                  height: '900px',
-                  transform: 'scale(0.22)',
-                  transformOrigin: 'top left',
-                  border: 'none',
-                  pointerEvents: 'none',
-                }}
-              />
-            </div>
+            /* Live iframe preview — use container-query scale to fill width */
+            <IframeThumbnail
+              src={`${API_BASE}/api/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}`}
+              title={project.name}
+            />
           )}
           {/* Gradient overlay for clean bottom edge */}
           <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-gray-50 to-transparent" />
