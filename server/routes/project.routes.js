@@ -3,6 +3,7 @@ const auth = require('../middleware/auth');
 const { authorize } = require('../middleware/roles');
 const projectAccess = require('../middleware/projectAccess');
 const { checkOrgNotLocked, checkProjectLimit, checkMemberLimit, checkGuestLimit } = require('../middleware/orgLimits');
+const uploadDocument = require('../middleware/uploadDocument');
 const {
   createProject,
   getProjects,
@@ -16,7 +17,7 @@ const {
 
 router.use(auth);
 
-router.post('/', authorize('owner', 'admin'), checkOrgNotLocked, checkProjectLimit, createProject);
+router.post('/', authorize('owner', 'admin'), checkOrgNotLocked, checkProjectLimit, uploadDocument.array('documents', 10), createProject);
 router.get('/', getProjects);
 router.get('/:projectId', projectAccess, getProject);
 router.patch('/:projectId', projectAccess, authorize('owner', 'admin'), updateProject);

@@ -4,7 +4,15 @@ export const getProjectsApi = () =>
   api.get('/projects');
 
 export const createProjectApi = (name, websiteUrl) =>
-  api.post('/projects', { name, websiteUrl });
+  api.post('/projects', { name, websiteUrl, projectType: 'website' });
+
+export const createDocumentProjectApi = (name, files) => {
+  const formData = new FormData();
+  formData.append('name', name);
+  formData.append('projectType', 'document');
+  files.forEach((f) => formData.append('documents', f));
+  return api.post('/projects', formData);
+};
 
 export const getProjectApi = (projectId, signal) =>
   api.get(`/projects/${projectId}`, { signal });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import IframeContainer from "./IframeContainer";
+import DocumentViewer, { parseDocPageUrl } from "./DocumentViewer";
 import PinListSidebar from "./PinListSidebar";
 import InviteMemberModal from "./InviteMemberModal";
 import NewPinCommentPopup from "./NewPinCommentPopup";
@@ -56,9 +57,13 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [deviceMode, setDeviceMode] = useState('desktop');
   const [devicePinCounts, setDevicePinCounts] = useState({ desktop: 0, tablet: 0, mobile: 0 });
+  const [currentDocPage, setCurrentDocPage] = useState(1);
+  const [currentDocIndex, setCurrentDocIndex] = useState(0);
   const iframeState = useIframeMessages();
   const { onEvent, onlineUsers, lastSeenMap } = useSocket(project._id);
   const deepLinkHandled = useRef(false);
+
+  const isDocumentProject = project.projectType === 'document';
 
   // Combine owner + members into a unique list for avatar display
   const allMembers = useMemo(() => {
@@ -102,9 +107,12 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   }, [onlineUsers, lastSeenMap, formatLastSeen]);
 
   const token = localStorage.getItem(TOKEN_KEY);
-  const proxyUrl = `${process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api'}/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${project._id}&token=${token}`;
+  const proxyUrl = !isDocumentProject ? `${process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api'}/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${project._id}&token=${token}` : null;
 
-  const currentPageUrl = iframeState.currentPageUrl || project.websiteUrl;
+  const currentDoc = isDocumentProject ? (project.documents?.[currentDocIndex] || project.documents?.[0]) : null;
+  const currentPageUrl = isDocumentProject
+    ? `doc:${currentDoc?.filename}:page:${currentDocPage}`
+    : (iframeState.currentPageUrl || project.websiteUrl);
 
   const loadPins = useCallback(async () => {
     try {
@@ -390,14 +398,34 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     setViewportWidth(DEVICE_WIDTHS[mode]);
   };
 
+  const handleDocumentClick = useCallback((clickData) => {
+    if (pendingPinData) return;
+    setLastCreatedPinId(null);
+    setPendingPinData(clickData);
+  }, [pendingPinData]);
+
+  const handleDocScreenshot = useCallback((screenshot) => {
+    setPendingPinData((prev) => prev ? { ...prev, screenshot } : prev);
+  }, []);
+
   const handlePinNavigate = (pin) => {
     if (!pinMode) setPinMode(true);
     setSelectedPin(pin);
-    if (pin.deviceMode && pin.deviceMode !== deviceMode) {
-      handleDeviceChange(pin.deviceMode);
-    }
-    if (pin.pageUrl !== targetUrl) {
-      setTargetUrl(pin.pageUrl);
+
+    if (isDocumentProject) {
+      const parsed = parseDocPageUrl(pin.pageUrl);
+      if (parsed) {
+        const docIdx = project.documents.findIndex((d) => d.filename === parsed.filename);
+        if (docIdx >= 0 && docIdx !== currentDocIndex) setCurrentDocIndex(docIdx);
+        if (parsed.page !== currentDocPage) setCurrentDocPage(parsed.page);
+      }
+    } else {
+      if (pin.deviceMode && pin.deviceMode !== deviceMode) {
+        handleDeviceChange(pin.deviceMode);
+      }
+      if (pin.pageUrl !== targetUrl) {
+        setTargetUrl(pin.pageUrl);
+      }
     }
   };
 
@@ -422,56 +450,71 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           </button>
           <div className="w-px h-6 bg-gray-200/80 shrink-0"></div>
           <h2 className="font-semibold text-gray-900 shrink-0 text-[14px] tracking-tight">{project.name}</h2>
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 hover:bg-gray-100/60 transition-colors cursor-default" title={currentPageUrl}>
-            <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-            </svg>
-            <span className="truncate">{currentPageUrl}</span>
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 hover:bg-gray-100/60 transition-colors cursor-default" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
+            {isDocumentProject ? (
+              <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+              </svg>
+            )}
+            <span className="truncate">{isDocumentProject ? `${currentDoc?.originalName} — Page ${currentDocPage}` : currentPageUrl}</span>
           </div>
         </div>
 
-        {/* Center: Device switcher — segmented control style */}
-        <div className="flex items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">
-          {/* Desktop */}
-          <button
-            onClick={() => handleDeviceChange('desktop')}
-            className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'desktop' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-            title="Desktop (1440px)"
-          >
-            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
+        {/* Center: Device switcher — segmented control style (website only) */}
+        {!isDocumentProject ? (
+          <div className="flex items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">
+            {/* Desktop */}
+            <button
+              onClick={() => handleDeviceChange('desktop')}
+              className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'desktop' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Desktop (1440px)"
+            >
+              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
+              </svg>
+              {devicePinCounts.desktop > 0 && deviceMode !== 'desktop' && (
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+              )}
+            </button>
+            {/* Tablet */}
+            <button
+              onClick={() => handleDeviceChange('tablet')}
+              className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'tablet' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Tablet (768px)"
+            >
+              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5h3m-6.75 2.25h10.5a2.25 2.25 0 002.25-2.25V4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 4.5v15a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              {devicePinCounts.tablet > 0 && deviceMode !== 'tablet' && (
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+              )}
+            </button>
+            {/* Mobile */}
+            <button
+              onClick={() => handleDeviceChange('mobile')}
+              className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'mobile' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+              title="Mobile (375px)"
+            >
+              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+              </svg>
+              {devicePinCounts.mobile > 0 && deviceMode !== 'mobile' && (
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50/80 px-3 py-1.5 rounded-lg border border-gray-100/80">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
-            {devicePinCounts.desktop > 0 && deviceMode !== 'desktop' && (
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-            )}
-          </button>
-          {/* Tablet */}
-          <button
-            onClick={() => handleDeviceChange('tablet')}
-            className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'tablet' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-            title="Tablet (768px)"
-          >
-            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5h3m-6.75 2.25h10.5a2.25 2.25 0 002.25-2.25V4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 4.5v15a2.25 2.25 0 002.25 2.25z" />
-            </svg>
-            {devicePinCounts.tablet > 0 && deviceMode !== 'tablet' && (
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-            )}
-          </button>
-          {/* Mobile */}
-          <button
-            onClick={() => handleDeviceChange('mobile')}
-            className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'mobile' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-            title="Mobile (375px)"
-          >
-            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-            </svg>
-            {devicePinCounts.mobile > 0 && deviceMode !== 'mobile' && (
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-            )}
-          </button>
-        </div>
+            Document
+          </div>
+        )}
 
         {/* Right: Mode toggle + Avatars + Invite */}
         <div className="flex items-center gap-3">
@@ -558,20 +601,38 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           projectId={project._id}
         />
 
-        {/* Iframe area */}
+        {/* Content area */}
         <div className="flex-1 relative">
-          <IframeContainer
-            key={(() => { try { return new URL(targetUrl).origin; } catch { return targetUrl; } })()}
-            proxyUrl={proxyUrl}
-            targetUrl={targetUrl}
-            pinMode={pinMode}
-            pins={pins}
-            selectedPinId={selectedPin?._id}
-            loading={iframeLoading || modeSwitching}
-            hidePins={!pinMode}
-            onLoad={handleIframeLoad}
-            viewportWidth={viewportWidth}
-          />
+          {isDocumentProject ? (
+            <DocumentViewer
+              documents={project.documents}
+              currentDocIndex={currentDocIndex}
+              currentPage={currentDocPage}
+              onPageChange={setCurrentDocPage}
+              onDocIndexChange={setCurrentDocIndex}
+              pinMode={pinMode}
+              pins={pins}
+              selectedPinId={selectedPin?._id}
+              hidePins={!pinMode}
+              onDocumentClick={handleDocumentClick}
+              onPinClick={(pin) => { setPendingPinData(null); setSelectedPin(pin); }}
+              onScreenshot={handleDocScreenshot}
+              viewportWidth={viewportWidth}
+            />
+          ) : (
+            <IframeContainer
+              key={(() => { try { return new URL(targetUrl).origin; } catch { return targetUrl; } })()}
+              proxyUrl={proxyUrl}
+              targetUrl={targetUrl}
+              pinMode={pinMode}
+              pins={pins}
+              selectedPinId={selectedPin?._id}
+              loading={iframeLoading || modeSwitching}
+              hidePins={!pinMode}
+              onLoad={handleIframeLoad}
+              viewportWidth={viewportWidth}
+            />
+          )}
         </div>
       </div>
 
@@ -581,7 +642,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           pinData={pendingPinData}
           projectId={project._id}
           members={allMembers}
-          onClose={() => { setPendingPinData(null); iframeState.clearScreenshot(); setLastCreatedPinId(null); }}
+          onClose={() => { setPendingPinData(null); if (!isDocumentProject) iframeState.clearScreenshot(); setLastCreatedPinId(null); }}
           onPinCreated={(pinId) => { loadPins(); loadAllPins(); setPendingPinData(null); setLastCreatedPinId(pinId); }}
         />
       )}

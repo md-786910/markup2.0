@@ -101,10 +101,13 @@ export default function DashboardPage() {
     }
   };
 
+  const websiteCount = filtered.filter((p) => p.projectType !== 'document').length;
+  const documentCount = filtered.filter((p) => p.projectType === 'document').length;
+
   const pageTitle = tab === 'members' ? 'Team' : tab === 'archived' ? 'Archive' : 'Dashboard';
   const pageSubtitle = tab === 'members'
     ? `${allMembers.length} member${allMembers.length !== 1 ? 's' : ''} across ${projects.length} project${projects.length !== 1 ? 's' : ''}`
-    : `${activeProjects.length} active${archivedProjects.length > 0 ? ` · ${archivedProjects.length} archived` : ''}`;
+    : `${websiteCount} website${websiteCount !== 1 ? 's' : ''}${documentCount > 0 ? ` · ${documentCount} document${documentCount !== 1 ? 's' : ''}` : ''}${archivedProjects.length > 0 && tab !== 'archived' ? ` · ${archivedProjects.length} archived` : ''}`;
 
   return (
     <div className="px-6 lg:px-8 py-6 lg:py-8">
