@@ -404,6 +404,10 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     setPendingPinData(clickData);
   }, [pendingPinData]);
 
+  const handleDocScreenshot = useCallback((screenshot) => {
+    setPendingPinData((prev) => prev ? { ...prev, screenshot } : prev);
+  }, []);
+
   const handlePinNavigate = (pin) => {
     if (!pinMode) setPinMode(true);
     setSelectedPin(pin);
@@ -612,6 +616,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
               hidePins={!pinMode}
               onDocumentClick={handleDocumentClick}
               onPinClick={(pin) => { setPendingPinData(null); setSelectedPin(pin); }}
+              onScreenshot={handleDocScreenshot}
               viewportWidth={viewportWidth}
             />
           ) : (

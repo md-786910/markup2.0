@@ -33,6 +33,7 @@ export default function DocumentViewer({
   hidePins,
   onDocumentClick,
   onPinClick,
+  onScreenshot,
   viewportWidth,
 }) {
   const containerRef = useRef(null);
@@ -64,7 +65,7 @@ export default function DocumentViewer({
     setLoading(false);
   }, []);
 
-  const handleClick = useCallback(async (e) => {
+  const handleClick = useCallback((e) => {
     if (!pinMode || !pageRef.current) return;
 
     const rect = pageRef.current.getBoundingClientRect();
@@ -75,19 +76,7 @@ export default function DocumentViewer({
 
     if (xPercent < 0 || xPercent > 100 || yPercent < 0 || yPercent > 100) return;
 
-    // Capture screenshot
-    let screenshot = null;
-    try {
-      const canvas = await html2canvas(pageRef.current, {
-        useCORS: true,
-        scale: 1,
-        logging: false,
-      });
-      screenshot = canvas.toDataURL('image/jpeg', 0.8);
-    } catch (err) {
-      console.warn('Screenshot capture failed:', err);
-    }
-
+    // Open popup immediately without screenshot
     onDocumentClick({
       xPercent,
       yPercent,
@@ -100,19 +89,38 @@ export default function DocumentViewer({
       elementOffsetX: null,
       elementOffsetY: null,
       deviceMode: 'desktop',
-      screenshot,
+      screenshot: null,
     });
-  }, [pinMode, currentDoc, currentPage, onDocumentClick]);
+
+    // Capture screenshot in background — delivered via onScreenshot prop
+    const target = pageRef.current;
+    html2canvas(target, { useCORS: true, scale: 1, logging: false })
+      .then((canvas) => {
+        if (onScreenshot) onScreenshot(canvas.toDataURL('image/jpeg', 0.8));
+      })
+      .catch((err) => console.warn('Screenshot capture failed:', err));
+  }, [pinMode, currentDoc, currentPage, onDocumentClick, onScreenshot]);
 
   const totalPages = isPdf ? (numPages || currentDoc.pageCount || 1) : documents.length;
 
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-auto bg-gray-100 flex flex-col">
+      {/* Disable pointer-events on PDF text/annotation layers in pin mode
+          so clicks always reach our handler. Scoped to .pin-mode-active. */}
+      {pinMode && (
+        <style>{`
+          .pin-mode-active .react-pdf__Page__textContent,
+          .pin-mode-active .react-pdf__Page__annotations,
+          .pin-mode-active .react-pdf__Page__annotations section {
+            pointer-events: none !important;
+          }
+        `}</style>
+      )}
       {/* Document content */}
       <div className="flex-1 overflow-auto flex justify-center py-6 px-6">
         <div
           ref={pageRef}
-          className="relative bg-white shadow-lg"
+          className={`relative bg-white shadow-lg${pinMode ? ' pin-mode-active' : ''}`}
           style={{ cursor: pinMode ? 'crosshair' : 'default' }}
           onClick={handleClick}
         >
@@ -144,6 +152,12 @@ export default function DocumentViewer({
               draggable={false}
             />
           ) : null}
+
+          {/* Click-catching overlay for pin mode — sits above PDF text/annotation layers
+              so clicks always reach the parent handler instead of being swallowed */}
+          {pinMode && (
+            <div className="absolute inset-0 z-[5]" style={{ cursor: 'crosshair' }} />
+          )}
 
           {/* Pin overlay */}
           {!hidePins && pins.map((pin) => (
