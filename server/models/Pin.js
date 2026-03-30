@@ -14,7 +14,7 @@ const pinSchema = new Schema({
   createdBy: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    default: null,
   },
   xPercent: {
     type: Number,
