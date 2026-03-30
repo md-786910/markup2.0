@@ -2,7 +2,8 @@ const Pin = require('../models/Pin');
 const Comment = require('../models/Comment');
 const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
-const { emitToProject, emailProjectMembers } = require('../utils/notifier');
+const { emitToProject, emailProjectMembers, notifyIntegrations } = require('../utils/notifier');
+const { logActivity } = require('../utils/activityLogger');
 
 exports.createPin = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
@@ -60,6 +61,27 @@ exports.createPin = asyncHandler(async (req, res) => {
   // Real-time notification (email is sent when the first comment is created)
   const io = req.app.get('io');
   emitToProject(io, projectId, 'pin:created', { pin: populated });
+
+  // Activity log
+  logActivity(projectId, req.user._id, 'pin.created', { pinNumber, pageUrl });
+
+  // Notify integrations (fire-and-forget)
+  // Skip if client signals a comment will follow — the comment endpoint sends a combined notification
+  const hasInitialComment = req.body.initialComment === 'true' || req.body.initialComment === true;
+  if (!hasInitialComment) {
+    const project = await Project.findById(projectId).select('name organization');
+    if (project) {
+      notifyIntegrations(projectId, project.organization, {
+        action: 'pin.created',
+        actorName: req.user.name,
+        projectName: project.name,
+        pinNumber,
+        pinId: pin._id.toString(),
+        projectId,
+        pageUrl,
+      });
+    }
+  }
 
   res.status(201).json({ pin: populated });
 });
@@ -159,9 +181,25 @@ exports.updatePin = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   emitToProject(io, pin.project.toString(), 'pin:updated', { pin: populated });
 
-  // Email notification for status changes (fire-and-forget)
+  // Activity log for status changes
   if (status) {
-    const project = await Project.findById(pin.project).select('name');
+    const action = status === 'resolved' ? 'pin.resolved' : 'pin.reopened';
+    logActivity(pin.project.toString(), req.user._id, action, { pinNumber: pin.pinNumber });
+  }
+
+  // Email + integration notifications for status changes (fire-and-forget)
+  if (status) {
+    const project = await Project.findById(pin.project).select('name organization');
+    if (project) {
+      notifyIntegrations(pin.project.toString(), project.organization, {
+        action: status === 'resolved' ? 'pin.resolved' : 'pin.reopened',
+        actorName: req.user.name,
+        projectName: project.name,
+        pinNumber: pin.pinNumber,
+        pinId: pin._id.toString(),
+        projectId: pin.project.toString(),
+      });
+    }
     if (project) {
       emailProjectMembers('status', {
         projectId: pin.project.toString(),
@@ -206,6 +244,9 @@ exports.deletePin = asyncHandler(async (req, res) => {
   }
 
   const projectId = pin.project.toString();
+
+  // Activity log
+  logActivity(projectId, req.user._id, 'pin.deleted', { pinNumber: pin.pinNumber });
 
   await Comment.deleteMany({ pin: pinId });
   await Pin.findByIdAndDelete(pinId);

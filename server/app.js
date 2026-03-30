@@ -12,6 +12,9 @@ const commentRoutes = require("./routes/comment.routes");
 const proxyRoutes = require("./routes/proxy.routes");
 const invitationRoutes = require("./routes/invitation.routes");
 const billingRoutes = require("./routes/billing.routes");
+const guestRoutes = require("./routes/guest.routes");
+const versionRoutes = require("./routes/version.routes");
+const integrationRoutes = require("./routes/integration.routes");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -34,6 +37,14 @@ app.use(
   }),
 );
 app.use(cookieParser());
+
+// Stripe webhook needs raw body (mounted BEFORE json parser)
+const { handleStripeWebhook } = require("./controllers/stripe.webhook");
+app.post(
+  "/api/billing/webhook",
+  express.raw({ type: "application/json" }),
+  handleStripeWebhook,
+);
 
 // Proxy routes with raw body passthrough (mounted BEFORE json/urlencoded parsers
 // to avoid BadRequestError on deeply nested URL-encoded analytics data)
@@ -59,6 +70,9 @@ app.use("/api/projects", pinRoutes);
 app.use("/api/pins", commentRoutes);
 app.use("/api/invitations", invitationRoutes);
 app.use("/api/billing", billingRoutes);
+app.use("/api/guest", guestRoutes);
+app.use("/api/projects", versionRoutes);
+app.use("/api/integrations", integrationRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

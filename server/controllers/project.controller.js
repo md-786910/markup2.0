@@ -6,9 +6,11 @@ const User = require('../models/User');
 const Pin = require('../models/Pin');
 const Comment = require('../models/Comment');
 const Invitation = require('../models/Invitation');
+const Activity = require('../models/Activity');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendInvitationEmail } = require('../utils/mailer');
 const { canAssignRole } = require('../middleware/roles');
+const { logActivity } = require('../utils/activityLogger');
 
 exports.createProject = asyncHandler(async (req, res) => {
   const { name, websiteUrl, projectType = 'website' } = req.body;
@@ -77,6 +79,9 @@ exports.createProject = asyncHandler(async (req, res) => {
 
   const project = await Project.create(projectData);
 
+  // Activity log
+  logActivity(project._id, req.user._id, 'project.created', { projectName: name });
+
   res.status(201).json({ project });
 });
 
@@ -114,11 +119,24 @@ exports.updateProject = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Only the project owner or admin can update' });
   }
 
+  const oldProjectStatus = project.projectStatus;
+
   if (name) project.name = name;
   if (websiteUrl) project.websiteUrl = websiteUrl;
   if (status && ['active', 'archived'].includes(status)) project.status = status;
   if (projectStatus && ['not_started', 'in_progress', 'in_review', 'approved', 'completed'].includes(projectStatus)) project.projectStatus = projectStatus;
   await project.save();
+
+  // Activity log for status changes
+  if (projectStatus && projectStatus !== oldProjectStatus) {
+    logActivity(project._id, req.user._id, 'project.status_changed', {
+      oldStatus: oldProjectStatus,
+      newStatus: projectStatus,
+    });
+  }
+  if (name || websiteUrl) {
+    logActivity(project._id, req.user._id, 'project.updated', { name, websiteUrl });
+  }
 
   const updated = await Project.findById(project._id)
     .populate('owner', 'name email lastSeen')
@@ -186,6 +204,9 @@ exports.inviteMember = asyncHandler(async (req, res) => {
     project.members.push(user._id);
     await project.save();
 
+    // Activity log
+    logActivity(project._id, req.user._id, 'member.joined', { memberName: user.name, memberEmail: email });
+
     // If user doesn't belong to an org yet, link them
     if (!user.organization && req.user.organization) {
       user.organization = req.user.organization;
@@ -218,6 +239,9 @@ exports.inviteMember = asyncHandler(async (req, res) => {
     role: roleToAssign,
     token,
   });
+
+  // Activity log
+  logActivity(project._id, req.user._id, 'member.invited', { memberEmail: email, role: roleToAssign });
 
   // Send email
   const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
@@ -285,6 +309,12 @@ exports.updateMemberRole = asyncHandler(async (req, res) => {
 
   await User.findByIdAndUpdate(userId, { role });
 
+  // Activity log
+  logActivity(project._id, req.user._id, 'member.role_changed', {
+    memberName: targetUser.name,
+    newRole: role,
+  });
+
   const updated = await Project.findById(project._id)
     .populate('owner', 'name email lastSeen')
     .populate('members', 'name email role lastSeen avatar');
@@ -315,9 +345,143 @@ exports.removeMember = asyncHandler(async (req, res) => {
   project.members = project.members.filter((m) => m.toString() !== userId);
   await project.save();
 
+  // Activity log
+  logActivity(project._id, req.user._id, 'member.removed', {
+    memberName: targetUser?.name,
+  });
+
   const updated = await Project.findById(project._id)
     .populate('owner', 'name email lastSeen')
     .populate('members', 'name email role lastSeen avatar');
 
   res.json({ project: updated });
+});
+
+/**
+ * GET /api/projects/:projectId/activity
+ * Returns paginated activity log for a project.
+ */
+exports.getActivity = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 30));
+  const skip = (page - 1) * limit;
+
+  const [activities, total] = await Promise.all([
+    Activity.find({ project: projectId })
+      .populate('actor', 'name email avatar')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Activity.countDocuments({ project: projectId }),
+  ]);
+
+  res.json({
+    activities,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  });
+});
+
+/**
+ * POST /api/projects/:projectId/share
+ * Enable sharing and generate a share token.
+ */
+exports.enableShare = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  const isProjectOwner = project.owner.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!isProjectOwner && !isPlatformAdmin) {
+    return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
+  }
+
+  const { password, allowComments = true, expiresAt } = req.body;
+
+  if (!project.shareSettings?.token) {
+    project.shareSettings = {
+      enabled: true,
+      token: crypto.randomBytes(16).toString('hex'),
+      password: password || null,
+      allowComments,
+      expiresAt: expiresAt || null,
+    };
+  } else {
+    project.shareSettings.enabled = true;
+    if (password !== undefined) project.shareSettings.password = password || null;
+    if (allowComments !== undefined) project.shareSettings.allowComments = allowComments;
+    if (expiresAt !== undefined) project.shareSettings.expiresAt = expiresAt || null;
+  }
+
+  await project.save();
+
+  // Activity log
+  logActivity(project._id, req.user._id, 'share.enabled');
+
+  const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+  res.json({
+    shareSettings: project.shareSettings,
+    shareUrl: `${clientOrigin}/review/${project.shareSettings.token}`,
+  });
+});
+
+/**
+ * PATCH /api/projects/:projectId/share
+ * Update share settings.
+ */
+exports.updateShare = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  const isProjectOwner = project.owner.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!isProjectOwner && !isPlatformAdmin) {
+    return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
+  }
+
+  const { password, allowComments, expiresAt } = req.body;
+
+  if (!project.shareSettings?.token) {
+    return res.status(400).json({ message: 'Sharing is not enabled for this project.' });
+  }
+
+  if (password !== undefined) project.shareSettings.password = password || null;
+  if (allowComments !== undefined) project.shareSettings.allowComments = allowComments;
+  if (expiresAt !== undefined) project.shareSettings.expiresAt = expiresAt || null;
+
+  await project.save();
+
+  const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+  res.json({
+    shareSettings: project.shareSettings,
+    shareUrl: `${clientOrigin}/review/${project.shareSettings.token}`,
+  });
+});
+
+/**
+ * DELETE /api/projects/:projectId/share
+ * Disable sharing.
+ */
+exports.disableShare = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  const isProjectOwner = project.owner.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!isProjectOwner && !isPlatformAdmin) {
+    return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
+  }
+
+  if (project.shareSettings) {
+    project.shareSettings.enabled = false;
+  }
+  await project.save();
+
+  // Activity log
+  logActivity(project._id, req.user._id, 'share.disabled');
+
+  res.json({ message: 'Sharing disabled' });
 });

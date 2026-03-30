@@ -81,6 +81,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
       if (pinData.deviceMode) pinFormData.append('deviceMode', pinData.deviceMode);
       if (pinData.viewportXPercent != null) pinFormData.append('viewportXPercent', pinData.viewportXPercent);
       if (pinData.viewportYPercent != null) pinFormData.append('viewportYPercent', pinData.viewportYPercent);
+      pinFormData.append('initialComment', 'true');
 
       if (pinData.screenshot) {
         try {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTrialStatus } from '../../hooks/useTrialStatus';
-import { getPlanApi } from '../../services/billingService';
+import { getPlanApi, createPortalSessionApi } from '../../services/billingService';
 import { PLANS, PLAN_LIST } from '../../config/plans';
 import UpgradeModal from './UpgradeModal';
 
@@ -40,10 +41,29 @@ function UsageBar({ label, used, max }) {
 export default function BillingTab() {
   const { user, isOwner, updateUser } = useAuth();
   const { daysLeft, trialDays, progressPercent, isTrialActive, urgency } = useTrialStatus();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [planData, setPlanData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [upgradeTarget, setUpgradeTarget] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  // Handle Stripe redirect status
+  useEffect(() => {
+    const status = searchParams.get('status');
+    if (status === 'success') {
+      setStatusMessage('Payment successful! Your plan has been upgraded.');
+      searchParams.delete('status');
+      setSearchParams(searchParams, { replace: true });
+      setTimeout(() => setStatusMessage(''), 5000);
+    } else if (status === 'canceled') {
+      setStatusMessage('Upgrade canceled. No charges were made.');
+      searchParams.delete('status');
+      setSearchParams(searchParams, { replace: true });
+      setTimeout(() => setStatusMessage(''), 5000);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     getPlanApi()
@@ -77,8 +97,40 @@ export default function BillingTab() {
   const usage = planData?.usage || { projects: 0, members: 0, guests: 0 };
   const limits = planData?.limits || user?.orgLimits || { maxProjects: 5, maxMembers: 10, maxGuests: 5 };
 
+  const hasPaidSubscription = planData?.subscription?.status === 'active' && planData?.subscription?.stripeCustomerId;
+
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    try {
+      const res = await createPortalSessionApi();
+      if (res.data.url) {
+        window.location.href = res.data.url;
+      }
+    } catch (err) {
+      console.error('Failed to open billing portal:', err);
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
+      {/* Status message */}
+      {statusMessage && (
+        <div className={`flex items-center gap-2 p-3 rounded-lg text-sm font-medium ${
+          statusMessage.includes('successful') ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+        }`}>
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            {statusMessage.includes('successful') ? (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            )}
+          </svg>
+          {statusMessage}
+        </div>
+      )}
+
       {/* Current Plan Card */}
       <div className="border border-gray-200 rounded-xl p-6">
         <div className="flex items-start justify-between mb-6">
@@ -109,6 +161,15 @@ export default function BillingTab() {
               </p>
             )}
           </div>
+          {hasPaidSubscription && isOwner && (
+            <button
+              onClick={handleManageSubscription}
+              disabled={portalLoading}
+              className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              {portalLoading ? 'Opening...' : 'Manage Subscription'}
+            </button>
+          )}
         </div>
 
         {/* Trial progress */}

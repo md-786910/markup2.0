@@ -13,6 +13,10 @@ const {
   inviteMember,
   removeMember,
   updateMemberRole,
+  getActivity,
+  enableShare,
+  updateShare,
+  disableShare,
 } = require('../controllers/project.controller');
 
 router.use(auth);
@@ -26,5 +30,9 @@ router.get('/:projectId/invitations', projectAccess, require('../controllers/inv
 router.post('/:projectId/members', projectAccess, checkOrgNotLocked, checkMemberLimit, checkGuestLimit, inviteMember);
 router.patch('/:projectId/members/:userId/role', projectAccess, updateMemberRole);
 router.delete('/:projectId/members/:userId', projectAccess, removeMember);
+router.get('/:projectId/activity', projectAccess, getActivity);
+router.post('/:projectId/share', projectAccess, authorize('owner', 'admin'), enableShare);
+router.patch('/:projectId/share', projectAccess, authorize('owner', 'admin'), updateShare);
+router.delete('/:projectId/share', projectAccess, authorize('owner', 'admin'), disableShare);
 
 module.exports = router;

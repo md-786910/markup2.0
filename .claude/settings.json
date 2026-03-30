@@ -15,7 +15,26 @@
       "Bash(npm install tailwindcss@3 postcss autoprefixer)",
       "Bash(npx react-scripts build)",
       "Bash(find /d/markup_mvp -name iframe* -o -name inject*)",
-      "Bash(find /d/markup_mvp -path */node_modules -prune -o -path */.git -prune -o -type f \\\\\\(-name *inject* -o -name *overlay* -o -name *canvas* \\\\\\) -print)"
+      "Bash(find /d/markup_mvp -path */node_modules -prune -o -path */.git -prune -o -type f \\\\\\(-name *inject* -o -name *overlay* -o -name *canvas* \\\\\\) -print)",
+      "Bash(xargs ls:*)",
+      "Bash(find /home/ashif/markup2.0/client/src -type f -name *.tsx -o -name *.ts)",
+      "Bash(find /home/ashif/markup2.0/server/src -type f -name *.ts)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"console.log\\(require\\(''mongoose''\\).version\\)\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/uploads/documents/c5b69b66-9cde-4111-96c4-ac337d9fe145.png)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/api/health)",
+      "Bash(find /home/ashif/markup2.0 -maxdepth 2 -name README* -o -name .env* -o -name *.md)",
+      "Bash(grep -r \"core purpose\\\\|description\\\\|what is\\\\|overview\" /home/ashif/markup2.0 --include=*.md --include=*.txt --include=*.json)",
+      "Bash(grep -r \"cloudflare\\\\|Cloudflare\\\\|CLOUDFLARE\" /home/ashif/markup2.0 --include=*.js -l)",
+      "Bash(grep -r \"Slack\\\\|slack\\\\|Jira\\\\|jira\" /home/ashif/markup2.0 --include=*.js)",
+      "Bash(find /home/ashif/markup2.0 -name README* -o -name readme*)",
+      "Bash(find /home/ashif/markup2.0/client/src -type f \\\\\\(-name *.ts -o -name *.tsx -o -name *.js -o -name *.jsx \\\\\\))",
+      "Bash(node -e \":*)",
+      "Bash(node -e \"try { require\\(''./server/controllers/proxy.controller.js''\\); console.log\\(''proxy.controller.js OK''\\); } catch\\(e\\) { console.log\\(''Error:'', e.message\\); }\")",
+      "Bash(curl -s \"https://convin.ai\")",
+      "Bash(curl -sI \"https://cdn.prod.website-files.com/606c4d4ed5ba7ca3bc774c4c/css/convin-ai.webflow.shared.6deef501b.css\")",
+      "Bash(node -e \"require\\(''./server/utils/proxyRewriter.js''\\); console.log\\(''OK''\\)\")",
+      "Bash(wc -l /home/ashif/markup2.0/client/src/components/project/*.js)"
     ]
   }
 }

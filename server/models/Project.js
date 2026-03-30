@@ -50,6 +50,13 @@ const projectSchema = new Schema({
     enum: ['not_started', 'in_progress', 'in_review', 'approved', 'completed'],
     default: 'not_started',
   },
+  shareSettings: {
+    enabled: { type: Boolean, default: false },
+    token: { type: String, unique: true, sparse: true },
+    password: { type: String, default: null },
+    allowComments: { type: Boolean, default: true },
+    expiresAt: { type: Date, default: null },
+  },
 }, { timestamps: true });
 
 // Conditionally require websiteUrl for website projects

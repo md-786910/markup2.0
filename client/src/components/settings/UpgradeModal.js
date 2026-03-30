@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { upgradePlanApi } from '../../services/billingService';
+import { createCheckoutSessionApi, upgradePlanApi } from '../../services/billingService';
 import { PLANS } from '../../config/plans';
 
 export default function UpgradeModal({ selectedPlan, currentPlanId, onClose, onUpgradeComplete }) {
@@ -12,11 +12,28 @@ export default function UpgradeModal({ selectedPlan, currentPlanId, onClose, onU
     setLoading(true);
     setError('');
     try {
-      const res = await upgradePlanApi(selectedPlan.id);
-      onUpgradeComplete(res.data.user);
-      onClose();
+      // Try Stripe Checkout first
+      const res = await createCheckoutSessionApi(selectedPlan.id);
+      if (res.data.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = res.data.url;
+        return;
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to upgrade. Please try again.');
+      // If Stripe is not configured, fall back to direct upgrade
+      if (err.response?.status === 400 && err.response?.data?.message?.includes('Stripe price not configured')) {
+        try {
+          const res = await upgradePlanApi(selectedPlan.id);
+          onUpgradeComplete(res.data.user);
+          onClose();
+          return;
+        } catch (fallbackErr) {
+          setError(fallbackErr.response?.data?.message || 'Failed to upgrade. Please try again.');
+          setLoading(false);
+          return;
+        }
+      }
+      setError(err.response?.data?.message || 'Failed to start checkout. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -75,13 +92,13 @@ export default function UpgradeModal({ selectedPlan, currentPlanId, onClose, onU
             </ul>
           </div>
 
-          {/* Info banner */}
+          {/* Secure payment notice */}
           <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex items-start gap-2.5">
             <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
             </svg>
             <p className="text-xs text-blue-700">
-              Payment integration coming soon. Your workspace will be upgraded immediately for now.
+              Secure payment powered by Stripe. You'll be redirected to a secure checkout page.
             </p>
           </div>
 
@@ -102,7 +119,7 @@ export default function UpgradeModal({ selectedPlan, currentPlanId, onClose, onU
               disabled={loading}
               className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Upgrading...' : `Upgrade to ${selectedPlan.name}`}
+              {loading ? 'Redirecting...' : `Upgrade to ${selectedPlan.name}`}
             </button>
           </div>
         </div>

@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import IframeContainer from "./IframeContainer";
 import DocumentViewer, { parseDocPageUrl } from "./DocumentViewer";
 import PinListSidebar from "./PinListSidebar";
+import ActivitySidebar from "./ActivitySidebar";
+import VersionSidebar from "./VersionSidebar";
 import InviteMemberModal from "./InviteMemberModal";
+import ShareProjectModal from "./ShareProjectModal";
 import NewPinCommentPopup from "./NewPinCommentPopup";
 import { useAuth } from "../../hooks/useAuth";
 import { useIframeMessages } from "../../hooks/useIframeMessages";
@@ -49,6 +52,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [selectedPin, setSelectedPin] = useState(null);
   const [pinMode, setPinMode] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [pendingPinData, setPendingPinData] = useState(null);
   const [lastCreatedPinId, setLastCreatedPinId] = useState(null);
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
@@ -59,6 +63,8 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [devicePinCounts, setDevicePinCounts] = useState({ desktop: 0, tablet: 0, mobile: 0 });
   const [currentDocPage, setCurrentDocPage] = useState(1);
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
+  const [sidebarTab, setSidebarTab] = useState('pins');
+  const [selectedVersionId, setSelectedVersionId] = useState(null);
   const iframeState = useIframeMessages();
   const { onEvent, onlineUsers, lastSeenMap } = useSocket(project._id);
   const deepLinkHandled = useRef(false);
@@ -578,6 +584,19 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
 
           {isAdmin && (
             <button
+              onClick={() => setShowShare(true)}
+              className="flex items-center gap-1.5 px-3 py-2 text-gray-600 text-[13px] font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              title="Share with guests"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-4.874a4.5 4.5 0 00-1.242-7.244l4.5-4.5a4.5 4.5 0 016.364 6.364l-1.757 1.757" />
+              </svg>
+              Share
+            </button>
+          )}
+
+          {isAdmin && (
+            <button
               onClick={() => setShowInvite(true)}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 text-white text-[13px] font-medium rounded-lg hover:bg-blue-700 shadow-sm shadow-blue-600/20 transition-all hover:shadow-md hover:shadow-blue-600/25"
             >
@@ -592,21 +611,53 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar - pin list or pin detail */}
-        <PinListSidebar
-          pins={allPins}
-          selectedPinId={selectedPin?._id}
-          selectedPin={selectedPin}
-          onPinClick={handlePinNavigate}
-          onClosePin={() => setSelectedPin(null)}
-          onDeletePin={handleDeletePin}
-          onNavigatePin={handlePinNavigate}
-          onStatusChange={handleStatusChange}
-          onCommentAdded={() => { loadAllPins(); loadPins(); }}
-          onEvent={onEvent}
-          members={allMembers}
-          projectId={project._id}
-        />
+        {/* Left sidebar */}
+        {sidebarTab === 'pins' ? (
+          <PinListSidebar
+            pins={allPins}
+            selectedPinId={selectedPin?._id}
+            selectedPin={selectedPin}
+            onPinClick={handlePinNavigate}
+            onClosePin={() => setSelectedPin(null)}
+            onDeletePin={handleDeletePin}
+            onNavigatePin={handlePinNavigate}
+            onStatusChange={handleStatusChange}
+            onCommentAdded={() => { loadAllPins(); loadPins(); }}
+            onEvent={onEvent}
+            members={allMembers}
+            projectId={project._id}
+            sidebarTab={sidebarTab}
+            onTabChange={setSidebarTab}
+          />
+        ) : (
+          <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden">
+            {/* Tab header */}
+            <div className="flex border-b border-gray-200/80 shrink-0">
+              {['pins', 'activity', 'versions'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setSidebarTab(tab)}
+                  className={`flex-1 py-2.5 text-[13px] font-medium text-center transition-colors relative ${
+                    sidebarTab === tab ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab === 'pins' ? 'Feedback' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {sidebarTab === tab && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+                  )}
+                </button>
+              ))}
+            </div>
+            {sidebarTab === 'activity' && <ActivitySidebar projectId={project._id} />}
+            {sidebarTab === 'versions' && (
+              <VersionSidebar
+                projectId={project._id}
+                selectedVersionId={selectedVersionId}
+                onVersionSelect={setSelectedVersionId}
+              />
+            )}
+          </div>
+        )}
 
         {/* Content area */}
         <div className="flex-1 relative">
@@ -653,6 +704,14 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           onPinCreated={(pinId) => { loadPins(); loadAllPins(); setPendingPinData(null); setLastCreatedPinId(pinId); }}
         />
       )}
+
+      {/* Share modal */}
+      <ShareProjectModal
+        isOpen={showShare}
+        onClose={() => setShowShare(false)}
+        project={project}
+        onProjectUpdate={onProjectUpdate}
+      />
 
       {/* Invite modal */}
       <InviteMemberModal

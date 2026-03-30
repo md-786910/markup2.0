@@ -3,6 +3,9 @@ const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 const { PLANS, UPGRADEABLE_PLANS, getLimitsForPlan } = require('../config/plans');
 const { userResponse } = require('./auth.controller');
+const stripe = require('../config/stripe');
+
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 
 /**
  * GET /api/billing/plan
@@ -51,9 +54,101 @@ exports.getPlan = asyncHandler(async (req, res) => {
 });
 
 /**
+ * POST /api/billing/checkout-session
+ * Creates a Stripe Checkout session for plan upgrade.
+ */
+exports.createCheckoutSession = asyncHandler(async (req, res) => {
+  const org = req.organization;
+  if (!org) {
+    return res.status(500).json({ message: 'Organization context missing' });
+  }
+
+  if (req.user.role !== 'owner') {
+    return res.status(403).json({ message: 'Only the organization owner can upgrade the plan.' });
+  }
+
+  const { plan } = req.body;
+  if (!plan || !UPGRADEABLE_PLANS.includes(plan)) {
+    return res.status(400).json({ message: `Invalid plan. Choose one of: ${UPGRADEABLE_PLANS.join(', ')}` });
+  }
+
+  const planConfig = PLANS[plan];
+  if (!planConfig.stripePriceId) {
+    return res.status(400).json({ message: 'Stripe price not configured for this plan. Contact support.' });
+  }
+
+  // Create or retrieve Stripe customer
+  let customerId = org.subscription.stripeCustomerId;
+  if (!customerId) {
+    const customer = await stripe.customers.create({
+      email: req.user.email,
+      name: org.name,
+      metadata: {
+        orgId: org._id.toString(),
+        userId: req.user._id.toString(),
+      },
+    });
+    customerId = customer.id;
+    org.subscription.stripeCustomerId = customerId;
+    await org.save();
+  }
+
+  // Create Checkout session
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    mode: 'subscription',
+    payment_method_types: ['card'],
+    line_items: [{
+      price: planConfig.stripePriceId,
+      quantity: 1,
+    }],
+    success_url: `${CLIENT_ORIGIN}/settings?tab=billing&status=success`,
+    cancel_url: `${CLIENT_ORIGIN}/settings?tab=billing&status=canceled`,
+    metadata: {
+      orgId: org._id.toString(),
+      planId: plan,
+    },
+    subscription_data: {
+      metadata: {
+        orgId: org._id.toString(),
+        planId: plan,
+      },
+    },
+  });
+
+  res.json({ url: session.url });
+});
+
+/**
+ * POST /api/billing/portal-session
+ * Creates a Stripe Customer Portal session for subscription management.
+ */
+exports.createPortalSession = asyncHandler(async (req, res) => {
+  const org = req.organization;
+  if (!org) {
+    return res.status(500).json({ message: 'Organization context missing' });
+  }
+
+  if (req.user.role !== 'owner') {
+    return res.status(403).json({ message: 'Only the organization owner can manage the subscription.' });
+  }
+
+  const customerId = org.subscription.stripeCustomerId;
+  if (!customerId) {
+    return res.status(400).json({ message: 'No active subscription found.' });
+  }
+
+  const session = await stripe.billingPortal.sessions.create({
+    customer: customerId,
+    return_url: `${CLIENT_ORIGIN}/settings?tab=billing`,
+  });
+
+  res.json({ url: session.url });
+});
+
+/**
  * POST /api/billing/upgrade
- * Upgrades the organization to a paid plan.
- * Only the org owner can upgrade. Locked orgs CAN upgrade (to unlock).
+ * Fallback: upgrades without Stripe (for testing/dev or when Stripe is not configured).
  */
 exports.upgradePlan = asyncHandler(async (req, res) => {
   const org = req.organization;

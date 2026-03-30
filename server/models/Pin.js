@@ -74,6 +74,15 @@ const pinSchema = new Schema({
     enum: ['pending', 'resolved'],
     default: 'pending',
   },
+  createdByGuest: {
+    name: { type: String, default: null },
+    email: { type: String, default: null },
+  },
+  version: {
+    type: Schema.Types.ObjectId,
+    ref: 'Version',
+    default: null,
+  },
 }, { timestamps: true });
 
 pinSchema.index({ project: 1, pageUrl: 1, deviceMode: 1 });

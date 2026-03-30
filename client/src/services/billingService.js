@@ -5,3 +5,9 @@ export const getPlanApi = () =>
 
 export const upgradePlanApi = (plan) =>
   api.post('/billing/upgrade', { plan });
+
+export const createCheckoutSessionApi = (plan) =>
+  api.post('/billing/checkout-session', { plan });
+
+export const createPortalSessionApi = () =>
+  api.post('/billing/portal-session');

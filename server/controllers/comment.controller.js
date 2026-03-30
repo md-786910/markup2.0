@@ -2,7 +2,8 @@ const Comment = require('../models/Comment');
 const Pin = require('../models/Pin');
 const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
-const { emitToProject, emailProjectMembers, emailMentionedUsers } = require('../utils/notifier');
+const { emitToProject, emailProjectMembers, emailMentionedUsers, notifyIntegrations } = require('../utils/notifier');
+const { logActivity } = require('../utils/activityLogger');
 
 exports.createComment = asyncHandler(async (req, res) => {
   const { pinId } = req.params;
@@ -45,13 +46,33 @@ exports.createComment = asyncHandler(async (req, res) => {
     .populate('author', 'name email')
     .populate('mentions', 'name email');
 
+  // Activity log
+  const projectId = pin.project.toString();
+  logActivity(projectId, req.user._id, 'comment.created', { pinNumber: pin.pinNumber });
+
   // Real-time + email notifications
   const io = req.app.get('io');
-  const projectId = pin.project.toString();
   emitToProject(io, projectId, 'comment:created', { comment: populated, pinId });
 
-  Project.findById(projectId).select('name').then((proj) => {
+  // Check if this is the first comment on the pin (combined pin+comment notification)
+  const priorCommentCount = await Comment.countDocuments({ pin: pinId, _id: { $ne: comment._id } });
+  const isFirstComment = priorCommentCount === 0;
+
+  Project.findById(projectId).select('name organization').then((proj) => {
     if (!proj) return;
+
+    // Notify integrations (Slack, Discord, Jira)
+    // First comment uses 'pin.created' action for a combined notification
+    notifyIntegrations(projectId, proj.organization, {
+      action: isFirstComment ? 'pin.created' : 'comment.created',
+      actorName: req.user.name,
+      projectName: proj.name,
+      pinNumber: pin.pinNumber,
+      pinId: pin._id.toString(),
+      projectId,
+      comment: body?.substring(0, 200),
+    });
+
     emailProjectMembers('comment', {
       projectId,
       actorUserId: req.user._id,
@@ -101,9 +122,13 @@ exports.deleteComment = asyncHandler(async (req, res) => {
 
   await Comment.findByIdAndDelete(commentId);
 
-  // Real-time notification
-  const io = req.app.get('io');
+  // Activity log + Real-time notification
   const pin = await Pin.findById(comment.pin);
+  if (pin) {
+    logActivity(pin.project.toString(), req.user._id, 'comment.deleted', { pinNumber: pin.pinNumber });
+  }
+
+  const io = req.app.get('io');
   if (pin) {
     emitToProject(io, pin.project.toString(), 'comment:deleted', {
       commentId,

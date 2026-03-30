@@ -118,6 +118,8 @@ export default function PinListSidebar({
   onEvent,
   members = [],
   projectId,
+  sidebarTab = 'pins',
+  onTabChange,
 }) {
   const { user } = useAuth();
   const [readPins, setReadPins] = useState(() => getReadPins(user?.id));
@@ -236,6 +238,25 @@ export default function PinListSidebar({
 
   return (
     <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden relative">
+      {/* Sidebar tab switcher */}
+      {onTabChange && (
+        <div className="flex border-b border-gray-200/80 shrink-0">
+          {['pins', 'activity', 'versions'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => onTabChange(tab)}
+              className={`flex-1 py-2.5 text-[13px] font-medium text-center transition-colors relative ${
+                sidebarTab === tab ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab === 'pins' ? 'Feedback' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {sidebarTab === tab && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Detail view — slides in from right */}
       <div
         className="absolute inset-0 z-10 transition-transform duration-300 ease-in-out"

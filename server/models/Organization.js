@@ -60,6 +60,8 @@ const organizationSchema = new mongoose.Schema({
     },
     currentPeriodEnd: { type: Date, default: null },
     externalId: { type: String, default: null },
+    stripeCustomerId: { type: String, default: null },
+    stripePriceId: { type: String, default: null },
   },
 }, { timestamps: true });
 

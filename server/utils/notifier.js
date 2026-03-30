@@ -1,6 +1,10 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
+const Integration = require('../models/Integration');
 const { queueNotification } = require('./emailQueue');
+const { sendSlackNotification } = require('./slackNotifier');
+const { sendDiscordNotification } = require('./discordNotifier');
+const { createJiraIssue } = require('./jiraSync');
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 
@@ -103,4 +107,43 @@ async function emailMentionedUsers({ mentionedUserIds, actorUserId, actorName, p
   }
 }
 
-module.exports = { emitToProject, emailProjectMembers, emailMentionedUsers };
+/**
+ * Notify external integrations (Slack, Discord, Jira) for a project event.
+ * Fire-and-forget — does not throw.
+ *
+ * @param {string} projectId
+ * @param {string} orgId
+ * @param {object} eventData - { action, actorName, projectName, pinNumber, pinId, pageUrl, comment }
+ */
+async function notifyIntegrations(projectId, orgId, eventData) {
+  try {
+    if (!orgId) return;
+
+    const integrations = await Integration.find({
+      organization: orgId,
+      enabled: true,
+      $or: [{ project: projectId }, { project: null }],
+    });
+
+    for (const integration of integrations) {
+      const notifyOn = integration.config?.notifyOn;
+      if (notifyOn && !notifyOn.includes(eventData.action)) continue;
+
+      try {
+        if (integration.type === 'slack' && integration.config?.webhookUrl) {
+          await sendSlackNotification(integration.config.webhookUrl, eventData);
+        } else if (integration.type === 'discord' && integration.config?.webhookUrl) {
+          await sendDiscordNotification(integration.config.webhookUrl, eventData);
+        } else if (integration.type === 'jira' && integration.config?.syncPins && eventData.action === 'pin.created') {
+          await createJiraIssue(integration.config, eventData);
+        }
+      } catch (err) {
+        console.error(`Failed to notify ${integration.type} integration ${integration._id}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to notify integrations:', err.message);
+  }
+}
+
+module.exports = { emitToProject, emailProjectMembers, emailMentionedUsers, notifyIntegrations };

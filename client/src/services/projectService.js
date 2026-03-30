@@ -31,3 +31,27 @@ export const updateMemberRoleApi = (projectId, userId, role) =>
 
 export const removeMemberApi = (projectId, userId) =>
   api.delete(`/projects/${projectId}/members/${userId}`);
+
+export const getActivityApi = (projectId, page = 1, limit = 30) =>
+  api.get(`/projects/${projectId}/activity?page=${page}&limit=${limit}`);
+
+export const enableShareApi = (projectId, data = {}) =>
+  api.post(`/projects/${projectId}/share`, data);
+
+export const updateShareApi = (projectId, data) =>
+  api.patch(`/projects/${projectId}/share`, data);
+
+export const disableShareApi = (projectId) =>
+  api.delete(`/projects/${projectId}/share`);
+
+export const getVersionsApi = (projectId) =>
+  api.get(`/projects/${projectId}/versions`);
+
+export const createVersionApi = (projectId, data) =>
+  api.post(`/projects/${projectId}/versions`, data);
+
+export const updateVersionApi = (projectId, versionId, data) =>
+  api.patch(`/projects/${projectId}/versions/${versionId}`, data);
+
+export const deleteVersionApi = (projectId, versionId) =>
+  api.delete(`/projects/${projectId}/versions/${versionId}`);
