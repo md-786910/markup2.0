@@ -212,6 +212,9 @@ function sendBlockedError(req, res, url, domain) {
 
 // Shared response processing: rewrite HTML/CSS/JS and forward headers
 async function processResponse(req, res, response, url, projectId, serverBase, workerBase) {
+  // CORS: allow cross-origin access for fonts/assets loaded from Worker-served CSS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
   const contentType = (response.headers["content-type"] || "").toLowerCase();
 
   // Rewrite upstream Set-Cookie headers so browser stores them for localhost
@@ -266,11 +269,12 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
     return res.send(rewritten);
   }
 
-  if (isGetRequest && contentType.includes("text/css")) {
+  const isCssUrl = /\.css(\?|$)/i.test(url);
+  if (isGetRequest && (contentType.includes("text/css") || (isCssUrl && !contentType.includes("javascript") && !contentType.includes("text/html")))) {
     const cacheKey = `css:${url}:${projectId}:${serverBase}`;
     const cached = rewriteCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < REWRITE_CACHE_TTL) {
-      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Type", "text/css; charset=utf-8");
       return res.send(cached.value);
     }
     const css = response.data.toString("utf-8");
@@ -280,7 +284,7 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
       rewriteCache.delete(firstKey);
     }
     rewriteCache.set(cacheKey, { value: rewritten, timestamp: Date.now() });
-    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Type", "text/css; charset=utf-8");
     return res.send(rewritten);
   }
 
@@ -353,6 +357,15 @@ async function tryFallback(url) {
 }
 
 exports.proxyPage = asyncHandler(async (req, res) => {
+  // Handle CORS preflight for cross-origin font/asset requests
+  if (req.method === 'OPTIONS') {
+    res.removeHeader('X-Frame-Options');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS, POST, PUT, DELETE');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    return res.status(204).send('');
+  }
+
   const { url, projectId } = req.query;
 
   if (!url || !projectId) {

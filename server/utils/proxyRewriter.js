@@ -32,11 +32,19 @@ function rewriteAssetUrl(href, baseUrl, projectId, serverBase, workerBase) {
 }
 
 function rewriteCssUrls(css, baseUrl, projectId, serverBase, workerBase) {
-  return css.replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/g, (match, quote, url) => {
-    if (url.startsWith('data:')) return match;
-    const rewritten = rewriteAssetUrl(url.trim(), baseUrl, projectId, serverBase, workerBase);
-    return `url(${quote}${rewritten}${quote})`;
-  });
+  return css
+    // @import "file.css" (bare string, without url() wrapper)
+    .replace(/@import\s+(['"])([^'"]+)\1/g, (match, quote, importUrl) => {
+      if (importUrl.startsWith('data:') || importUrl.includes('?url=') || importUrl.includes('/api/proxy?')) return match;
+      const rewritten = rewriteAssetUrl(importUrl.trim(), baseUrl, projectId, serverBase, workerBase);
+      return `@import url(${quote}${rewritten}${quote})`;
+    })
+    // url(...) references
+    .replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/g, (match, quote, url) => {
+      if (url.startsWith('data:') || url.includes('?url=') || url.includes('/api/proxy?')) return match;
+      const rewritten = rewriteAssetUrl(url.trim(), baseUrl, projectId, serverBase, workerBase);
+      return `url(${quote}${rewritten}${quote})`;
+    });
 }
 
 function rewriteJsUrls(js, pageUrl, projectId, serverBase, workerBase) {
@@ -104,9 +112,12 @@ function rewriteHtml(html, pageUrl, projectId, serverBase, workerBase) {
   }).join(', ');
 
   // --- Sub-resources → CF Worker ---
+  // Strip integrity + crossorigin from all rewritten elements (proxy modifies content, so hashes won't match)
+  $('[integrity]').removeAttr('integrity');
+  $('[crossorigin]').removeAttr('crossorigin');
   // Module scripts + modulepreload → Express (so relative imports get rewritten through the chain)
-  $('script[type="module"][src]').each((_, el) => { $(el).attr('src', nav($(el).attr('src'))); $(el).removeAttr('crossorigin'); });
-  $('link[rel="modulepreload"][href]').each((_, el) => { $(el).attr('href', nav($(el).attr('href'))); $(el).removeAttr('crossorigin'); });
+  $('script[type="module"][src]').each((_, el) => { $(el).attr('src', nav($(el).attr('src'))); });
+  $('link[rel="modulepreload"][href]').each((_, el) => { $(el).attr('href', nav($(el).attr('href'))); });
   // Non-module scripts → CF Worker
   $('script[src]:not([type="module"])').each((_, el) => { $(el).attr('src', asset($(el).attr('src'))); });
   // Non-modulepreload links (stylesheets, preconnect, etc.) → CF Worker
@@ -219,6 +230,21 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
       var abs = new URL(rawUrl, __markupPageOrigin).href;
       return __markupWorkerBase + '/?url=' + encodeURIComponent(abs);
     } catch(e) { return rawUrl; }
+  }
+
+  // --- Rewrite CSS text (url() + @import) for dynamically-inserted <style> elements ---
+  function rewriteCssText(cssText) {
+    return cssText
+      .replace(/@import\\s+(['"])([^'"]+)\\1/g, function(match, quote, importUrl) {
+        if (_skipUrl(importUrl)) return match;
+        if (importUrl.indexOf('/api/proxy?') !== -1 || importUrl.indexOf('?url=') !== -1) return match;
+        return '@import url(' + quote + toWorker(importUrl) + quote + ')';
+      })
+      .replace(/url\\(\\s*(['"]?)([^)'"]+)\\1\\s*\\)/g, function(match, quote, rawUrl) {
+        if (_skipUrl(rawUrl)) return match;
+        if (rawUrl.indexOf('/api/proxy?') !== -1 || rawUrl.indexOf('?url=') !== -1) return match;
+        return 'url(' + quote + toWorker(rawUrl) + quote + ')';
+      });
   }
 
   function needsProxy(url) {
@@ -760,6 +786,9 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
     var NAV_ATTRS = ['action'];
 
     function rewriteElement(el) {
+      // Strip integrity + crossorigin (proxy modifies content, hashes won't match)
+      if (el.hasAttribute('integrity')) el.removeAttribute('integrity');
+      if (el.hasAttribute('crossorigin')) el.removeAttribute('crossorigin');
       var isNav = (el.tagName === 'A' || el.tagName === 'FORM');
       // href: Worker for non-nav elements (link, base), Express for a/form
       var hrefVal = el.getAttribute('href');
@@ -793,6 +822,18 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
           return parts.join(' ');
         }).join(', '));
       }
+      // Rewrite url() inside <style> element text content
+      if (el.tagName === 'STYLE' && el.textContent) {
+        var originalCss = el.textContent;
+        var rewrittenCss = rewriteCssText(originalCss);
+        if (rewrittenCss !== originalCss) el.textContent = rewrittenCss;
+      }
+      // Rewrite url() inside inline style attributes
+      var inlineStyle = el.getAttribute('style');
+      if (inlineStyle && inlineStyle.indexOf('url(') !== -1) {
+        var rewrittenStyle = rewriteCssText(inlineStyle);
+        if (rewrittenStyle !== inlineStyle) el.setAttribute('style', rewrittenStyle);
+      }
     }
 
     var observer = new MutationObserver(function(mutations) {
@@ -803,7 +844,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
             var node = m.addedNodes[j];
             if (node.nodeType === 1) {
               rewriteElement(node);
-              var children = node.querySelectorAll ? node.querySelectorAll('[src],[href],[poster],[data-src],[data-lazy-src],[srcset],[data-srcset]') : [];
+              var children = node.querySelectorAll ? node.querySelectorAll('[src],[href],[poster],[data-src],[data-lazy-src],[srcset],[data-srcset],style,[style]') : [];
               for (var k = 0; k < children.length; k++) rewriteElement(children[k]);
             }
           }

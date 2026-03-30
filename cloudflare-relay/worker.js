@@ -83,12 +83,13 @@ export default {
 
       let body;
 
-      // --- CSS: rewrite url() to route nested resources through Worker ---
-      if (contentType.includes('text/css')) {
+      // --- CSS: rewrite url() + @import to route nested resources through Worker ---
+      const isCssUrl = /\.css(\?|$)/i.test(targetUrl);
+      if (contentType.includes('text/css') || (isCssUrl && !contentType.includes('javascript') && !contentType.includes('text/html'))) {
         let css = await response.text();
         css = rewriteCssUrls(css, targetUrl, workerBase);
         body = css;
-        headers.set('Content-Type', contentType);
+        headers.set('Content-Type', 'text/css; charset=utf-8');
       }
       // --- JS: rewrite asset paths to route through Worker ---
       else if (contentType.includes('javascript') || contentType.includes('text/javascript') ||
@@ -120,20 +121,33 @@ export default {
   },
 };
 
-// --- CSS url() rewriting ---
+// --- CSS @import + url() rewriting ---
 function rewriteCssUrls(css, baseUrl, workerBase) {
-  return css.replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/g, (match, quote, rawUrl) => {
-    if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:') || rawUrl.startsWith('#')) return match;
-    // Already proxied
-    if (rawUrl.indexOf('?url=') !== -1) return match;
-    try {
-      const absolute = new URL(rawUrl.trim(), baseUrl).href;
-      const proxied = `${workerBase}/?url=${encodeURIComponent(absolute)}`;
-      return `url(${quote}${proxied}${quote})`;
-    } catch {
-      return match;
-    }
-  });
+  return css
+    // @import "file.css" (bare string, without url() wrapper)
+    .replace(/@import\s+(['"])([^'"]+)\1/g, (match, quote, importUrl) => {
+      if (importUrl.startsWith('data:') || importUrl.startsWith('blob:') || importUrl.startsWith('#')) return match;
+      if (importUrl.indexOf('?url=') !== -1) return match;
+      try {
+        const absolute = new URL(importUrl.trim(), baseUrl).href;
+        const proxied = `${workerBase}/?url=${encodeURIComponent(absolute)}`;
+        return `@import url(${quote}${proxied}${quote})`;
+      } catch {
+        return match;
+      }
+    })
+    // url(...) references (also catches @import url("...") from above pass)
+    .replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/g, (match, quote, rawUrl) => {
+      if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:') || rawUrl.startsWith('#')) return match;
+      if (rawUrl.indexOf('?url=') !== -1) return match;
+      try {
+        const absolute = new URL(rawUrl.trim(), baseUrl).href;
+        const proxied = `${workerBase}/?url=${encodeURIComponent(absolute)}`;
+        return `url(${quote}${proxied}${quote})`;
+      } catch {
+        return match;
+      }
+    });
 }
 
 // --- JS asset path rewriting ---
