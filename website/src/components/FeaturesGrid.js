@@ -22,7 +22,7 @@ export default function FeaturesGrid() {
         <div className="text-center max-w-2xl mx-auto" data-reveal>
           <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Features</span>
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mt-3">
-            Everything you need for design feedback
+            Everything Markup.io charges $39/mo for — included free
           </h2>
           <p className="text-lg text-gray-500 mt-4">
             Stop wasting time on scattered feedback. Get everything in one place, right where it matters.

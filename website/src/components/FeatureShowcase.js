@@ -129,7 +129,7 @@ function SharingVisual() {
           <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Share Link</label>
           <div className="mt-1.5 flex items-center gap-2">
             <div className="flex-1 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
-              <span className="text-[10px] text-gray-500 truncate block">feedbackly.io/review/a8f3k...</span>
+              <span className="text-[10px] text-gray-500 truncate block">feedbackly.online/review/a8f3k...</span>
             </div>
             <button className="flex items-center gap-1 bg-blue-50 text-blue-600 px-3 py-2 rounded-lg text-[10px] font-medium hover:bg-blue-100 transition-colors">
               <ClipboardIcon className="w-3 h-3" />
@@ -176,9 +176,9 @@ function ShowcaseRow({ feature, index }) {
       <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col ${reversed ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-12 lg:gap-20`}>
         {/* Text */}
         <div className="flex-1" data-reveal={reversed ? 'right' : 'left'}>
-          <h3 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 leading-tight">
+          <h2 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 leading-tight">
             {feature.title}
-          </h3>
+          </h2>
           <p className="text-gray-500 mt-4 leading-relaxed">{feature.description}</p>
           <ul className="mt-6 space-y-3">
             {feature.bullets.map((bullet) => (

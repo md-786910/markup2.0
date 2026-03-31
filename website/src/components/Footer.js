@@ -7,21 +7,17 @@ const FOOTER_LINKS = {
   Product: [
     { label: 'Features', href: '#features' },
     { label: 'Pricing', href: '#pricing' },
-    { label: 'Integrations', href: '#features' },
-    { label: 'Changelog', href: '#' },
+    { label: 'Comparison', href: '#comparison' },
+    { label: 'FAQ', href: '#faq' },
   ],
   Resources: [
-    { label: 'Documentation', href: '#' },
-    { label: 'API Reference', href: '#' },
-    { label: 'Status', href: '#' },
-    { label: 'Blog', href: '#' },
+    { label: 'Get Started', href: `${APP_URL}/signup` },
+    { label: 'Log In', href: `${APP_URL}/login` },
   ],
-  Company: [
-    { label: 'About', href: '#' },
-    { label: 'Careers', href: '#' },
-    { label: 'Contact', href: '#' },
-    { label: 'Privacy Policy', href: '#' },
-    { label: 'Terms of Service', href: '#' },
+  Legal: [
+    { label: 'Privacy Policy', href: '/privacy' },
+    { label: 'Terms of Service', href: '/terms' },
+    { label: 'Contact', href: 'mailto:hello@feedbackly.online' },
   ],
 };
 
@@ -43,18 +39,8 @@ export default function Footer() {
             <p className="mt-4 text-sm text-gray-400 leading-relaxed max-w-xs">
               Visual feedback for modern teams. Pin comments directly on websites, PDFs, and designs. Ship faster with contextual collaboration.
             </p>
-            {/* Social icons */}
-            <div className="flex items-center gap-3 mt-6">
-              {['twitter', 'github', 'linkedin', 'youtube'].map((social) => (
-                <a
-                  key={social}
-                  href="#"
-                  className="w-9 h-9 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-white transition-all duration-300"
-                >
-                  <span className="text-xs font-medium uppercase">{social[0]}</span>
-                </a>
-              ))}
-            </div>
+            {/* Domain */}
+            <p className="mt-4 text-sm text-blue-400 font-medium">feedbackly.online</p>
           </div>
 
           {/* Link columns */}

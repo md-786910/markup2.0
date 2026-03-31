@@ -1,3 +1,15 @@
-# https://www.robotstxt.org/robotstxt.html
+# Feedbackly App — block indexing of private app routes
 User-agent: *
-Disallow:
+Disallow: /dashboard
+Disallow: /project/
+Disallow: /settings
+Disallow: /integrations
+Disallow: /profile
+Disallow: /login
+Disallow: /signup
+Disallow: /forgot-password
+Disallow: /reset-password/
+Disallow: /onboarding
+Allow: /review/
+
+Sitemap: https://feedbackly.online/sitemap.xml

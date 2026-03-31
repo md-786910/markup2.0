@@ -78,6 +78,8 @@ export default function Navbar() {
           {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
             className={`md:hidden p-2 rounded-lg transition-colors ${
               scrolled ? 'text-gray-600' : 'text-white'
             }`}

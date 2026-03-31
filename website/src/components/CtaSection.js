@@ -27,11 +27,11 @@ export default function CtaSection() {
       {/* Content */}
       <div className="relative z-10 max-w-3xl mx-auto text-center px-4 sm:px-6">
         <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
-          Ready to streamline your{' '}
-          <span className="text-gradient">feedback workflow</span>?
+          Your team is already wasting hours on feedback.{' '}
+          <span className="text-gradient">Fix it in 30 seconds.</span>
         </h2>
         <p className="text-lg text-gray-400 mt-4 max-w-xl mx-auto">
-          Join hundreds of teams shipping better products with visual feedback that actually works.
+          Stop losing time to scattered feedback. Start pinning, collaborating, and shipping — for free.
         </p>
         <div className="mt-10">
           <a
@@ -43,7 +43,7 @@ export default function CtaSection() {
           </a>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mt-6">
-          {['Join 500+ teams', 'Free forever plan', 'No credit card'].map((item) => (
+          {['Free forever plan', 'No credit card required', 'Setup in 30 seconds'].map((item) => (
             <span key={item} className="flex items-center gap-1.5 text-sm text-gray-500">
               <CheckIcon className="w-3.5 h-3.5 text-green-400" />
               {item}

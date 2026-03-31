@@ -34,7 +34,15 @@
       "Bash(curl -s \"https://convin.ai\")",
       "Bash(curl -sI \"https://cdn.prod.website-files.com/606c4d4ed5ba7ca3bc774c4c/css/convin-ai.webflow.shared.6deef501b.css\")",
       "Bash(node -e \"require\\(''./server/utils/proxyRewriter.js''\\); console.log\\(''OK''\\)\")",
-      "Bash(wc -l /home/ashif/markup2.0/client/src/components/project/*.js)"
+      "Bash(wc -l /home/ashif/markup2.0/client/src/components/project/*.js)",
+      "Bash(grep -r \"google\\\\|gtag\\\\|analytics\\\\|tracking\\\\|segment\\\\|amplitude\\\\|mixpanel\\\\|hotjar\" /home/ashif/markup2.0/website/src --include=*.js --include=*.html)",
+      "Bash(find /home/ashif/markup2.0 -type f -name .env*)",
+      "Bash(grep -r \"sitemap\\\\|robots\\\\|canonical\" /home/ashif/markup2.0/server --include=*.js)",
+      "Bash(npm run:*)",
+      "Bash(npx --yes canvas)",
+      "Bash(node -e \"try { require\\(''''canvas''''\\); console.log\\(''''canvas available''''\\); } catch\\(e\\) { console.log\\(''''canvas not available''''\\); }\")",
+      "Bash(node generate-og-image.js)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }

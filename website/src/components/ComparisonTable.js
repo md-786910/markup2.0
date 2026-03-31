@@ -100,7 +100,7 @@ export default function ComparisonTable() {
             Why teams switch from Markup.io
           </h2>
           <p className="text-lg text-gray-500 mt-4">
-            More features, better experience, fraction of the cost.
+            Same workflow you already know. 70% less on your bill. Zero migration headache.
           </p>
         </div>
 

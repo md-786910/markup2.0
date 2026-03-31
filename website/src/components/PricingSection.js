@@ -15,7 +15,7 @@ export default function PricingSection() {
         <div className="text-center max-w-2xl mx-auto" data-reveal>
           <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Pricing</span>
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mt-3">
-            Simple, transparent pricing
+            Pricing that doesn't punish growth
           </h2>
           <p className="text-lg text-gray-500 mt-4">
             Start free, scale as you grow. No hidden fees, no surprises.
@@ -71,7 +71,7 @@ export default function PricingSection() {
               {/* CTA */}
               <div className="mt-8">
                 <a
-                  href={plan.id === 'enterprise' ? '#' : `${APP_URL}/signup`}
+                  href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/signup`}
                   className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${
                     plan.popular
                       ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5'

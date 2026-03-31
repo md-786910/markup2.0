@@ -9,7 +9,7 @@ export const FEATURES = [
   {
     id: 'realtime',
     title: 'Real-time Collaboration',
-    description: 'See who\'s online, get instant updates. No refresh needed. Socket-powered live collaboration for your entire team.',
+    description: 'See who\'s online, get instant updates. No refresh needed. Live collaboration for your entire team.',
     gradient: 'from-purple-500 to-pink-600',
     icon: 'zap',
   },

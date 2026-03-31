@@ -9,6 +9,7 @@ import StatsSection from '../components/StatsSection';
 import ComparisonTable from '../components/ComparisonTable';
 import PricingSection from '../components/PricingSection';
 import TestimonialsSection from '../components/TestimonialsSection';
+import FaqSection from '../components/FaqSection';
 import CtaSection from '../components/CtaSection';
 import Footer from '../components/Footer';
 
@@ -26,6 +27,7 @@ export default function LandingPage() {
         <ComparisonTable />
         <PricingSection />
         <TestimonialsSection />
+        <FaqSection />
         <CtaSection />
       </main>
       <Footer />
