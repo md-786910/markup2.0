@@ -3,7 +3,7 @@ import { CheckIcon, ArrowRightIcon } from './icons';
 import { PLANS } from '../data/pricing';
 import useScrollReveal from '../hooks/useScrollReveal';
 
-const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3001';
+const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 
 export default function PricingSection() {
   const ref = useScrollReveal();
@@ -71,7 +71,7 @@ export default function PricingSection() {
               {/* CTA */}
               <div className="mt-8">
                 <a
-                  href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/signup`}
+                  href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/onboarding`}
                   className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${
                     plan.popular
                       ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5'

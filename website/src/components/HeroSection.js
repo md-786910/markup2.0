@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRightIcon, PlayIcon, CheckIcon, CodeIcon, CursorIcon, ChatIcon } from './icons';
 
-const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3001';
+const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 
 function FloatingIcon({ icon: Icon, className, style }) {
   return (
@@ -91,7 +91,7 @@ export default function HeroSection() {
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
           <a
-            href={`${APP_URL}/signup`}
+            href={`${APP_URL}/onboarding`}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-xl text-lg font-semibold shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-300"
           >
             Start Free

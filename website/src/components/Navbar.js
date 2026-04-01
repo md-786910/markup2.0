@@ -8,7 +8,7 @@ const NAV_LINKS = [
   { label: 'Comparison', href: '#comparison' },
 ];
 
-const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3001';
+const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -68,7 +68,7 @@ export default function Navbar() {
               Log In
             </a>
             <a
-              href={`${APP_URL}/signup`}
+              href={`${APP_URL}/onboarding`}
               className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5 transition-all duration-300"
             >
               Get Started Free
@@ -111,7 +111,7 @@ export default function Navbar() {
                 Log In
               </a>
               <a
-                href={`${APP_URL}/signup`}
+                href={`${APP_URL}/onboarding`}
                 className="block px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl text-center"
               >
                 Get Started Free

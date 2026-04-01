@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRightIcon, CheckIcon, PinIcon, ChatIcon, CodeIcon, StarIcon } from './icons';
 
-const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3001';
+const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 
 export default function CtaSection() {
   return (
@@ -35,7 +35,7 @@ export default function CtaSection() {
         </p>
         <div className="mt-10">
           <a
-            href={`${APP_URL}/signup`}
+            href={`${APP_URL}/onboarding`}
             className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-10 py-4 rounded-xl text-lg font-semibold shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5 transition-all duration-300"
           >
             Get Started Free

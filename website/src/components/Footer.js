@@ -1,7 +1,7 @@
 import React from 'react';
 import { HeartIcon } from './icons';
 
-const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3001';
+const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 
 const FOOTER_LINKS = {
   Product: [
@@ -11,7 +11,7 @@ const FOOTER_LINKS = {
     { label: 'FAQ', href: '#faq' },
   ],
   Resources: [
-    { label: 'Get Started', href: `${APP_URL}/signup` },
+    { label: 'Get Started', href: `${APP_URL}/onboarding` },
     { label: 'Log In', href: `${APP_URL}/login` },
   ],
   Legal: [
