@@ -1,3 +1,4 @@
 cloudflare-relay
 .claude
 node_modules/
+.env
