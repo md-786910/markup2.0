@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getOrganizationDetailApi, lockOrganizationApi, unlockOrganizationApi } from '../services/adminService';
 import DataTable from '../components/common/DataTable';
@@ -17,15 +17,15 @@ export default function OrganizationDetailPage() {
   const [lockReason, setLockReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const res = await getOrganizationDetailApi(id);
       setData(res.data);
     } catch {}
     setLoading(false);
-  };
+  }, [id]);
 
-  useEffect(() => { fetchData(); }, [id]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleLock = async () => {
     setActionLoading(true);
