@@ -36,6 +36,7 @@ app.use(
       process.env.ADMIN_ORIGIN || "http://localhost:3001",
       "https://app.feedbackly.online",
       "https://markupadmin.vercel.app",
+      "https://admin.feedbackly.online",
     ],
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
