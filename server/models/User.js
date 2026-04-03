@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['owner', 'admin', 'member', 'guest'],
+    enum: ['superadmin', 'owner', 'admin', 'member', 'guest'],
     default: 'member',
   },
   organization: {
@@ -40,6 +40,24 @@ const userSchema = new mongoose.Schema({
   lastSeen: {
     type: Date,
     default: null,
+  },
+  lastLoginIp: {
+    type: String,
+    default: null,
+  },
+  lastLoginLocation: {
+    city: { type: String, default: null },
+    region: { type: String, default: null },
+    country: { type: String, default: null },
+  },
+  signupIp: {
+    type: String,
+    default: null,
+  },
+  signupLocation: {
+    city: { type: String, default: null },
+    region: { type: String, default: null },
+    country: { type: String, default: null },
   },
   resetPasswordToken: {
     type: String,

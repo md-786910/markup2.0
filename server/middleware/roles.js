@@ -1,4 +1,4 @@
-const ROLE_HIERARCHY = { owner: 0, admin: 1, member: 2, guest: 3 };
+const ROLE_HIERARCHY = { superadmin: -1, owner: 0, admin: 1, member: 2, guest: 3 };
 
 const authorize = (...allowedRoles) => {
   return (req, res, next) => {

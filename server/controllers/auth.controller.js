@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 
 const jwt = require("jsonwebtoken");
+const geoip = require("geoip-lite");
 const User = require("../models/User");
 const Organization = require("../models/Organization");
 const Project = require("../models/Project");
@@ -12,6 +13,12 @@ const { sendPasswordResetEmail } = require("../utils/mailer");
 const { ROLE_HIERARCHY } = require("../middleware/roles");
 
 const generateSessionToken = () => crypto.randomBytes(32).toString("hex");
+
+const getLocationFromIp = (ip) => {
+  const geo = geoip.lookup(ip);
+  if (!geo) return { city: null, region: null, country: null };
+  return { city: geo.city || null, region: geo.region || null, country: geo.country || null };
+};
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -82,12 +89,19 @@ exports.signup = asyncHandler(async (req, res) => {
     role = "owner";
   }
 
+  const clientIp = req.ip;
+  const location = getLocationFromIp(clientIp);
+
   const user = await User.create({
     name,
     email,
     passwordHash: password,
     role,
     sessionToken,
+    signupIp: clientIp,
+    signupLocation: location,
+    lastLoginIp: clientIp,
+    lastLoginLocation: location,
   });
 
   if (isFirstUser) {
@@ -163,6 +177,9 @@ exports.login = asyncHandler(async (req, res) => {
 
   // Generate new session token (invalidates all other sessions)
   user.sessionToken = generateSessionToken();
+  const clientIp = req.ip;
+  user.lastLoginIp = clientIp;
+  user.lastLoginLocation = getLocationFromIp(clientIp);
   await user.save({ validateBeforeSave: false });
 
   const org = user.organization

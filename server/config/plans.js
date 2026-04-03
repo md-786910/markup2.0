@@ -79,10 +79,70 @@ const PLAN_LIST = Object.values(PLANS).sort((a, b) => a.order - b.order);
 
 const UPGRADEABLE_PLANS = ['starter', 'pro'];
 
+// In-memory cache for plan overrides (5-minute TTL)
+let _overrideCache = null;
+let _overrideCacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000;
+
+async function _getOverrides() {
+  const now = Date.now();
+  if (_overrideCache && now - _overrideCacheTime < CACHE_TTL) {
+    return _overrideCache;
+  }
+  try {
+    const PlanConfig = require('../models/PlanConfig');
+    const configs = await PlanConfig.find();
+    const map = {};
+    for (const c of configs) { map[c.planId] = c; }
+    _overrideCache = map;
+    _overrideCacheTime = now;
+    return map;
+  } catch {
+    return _overrideCache || {};
+  }
+}
+
+function clearPlanCache() {
+  _overrideCache = null;
+  _overrideCacheTime = 0;
+}
+
 function getLimitsForPlan(planId) {
   if (planId === 'trial') return { ...PLANS.free.limits };
   const plan = PLANS[planId];
   return plan ? { ...plan.limits } : { ...PLANS.free.limits };
 }
 
-module.exports = { PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan };
+async function getLimitsForPlanAsync(planId) {
+  const base = getLimitsForPlan(planId);
+  const overrides = await _getOverrides();
+  const effectiveId = planId === 'trial' ? 'free' : planId;
+  const override = overrides[effectiveId];
+  if (override && override.limits) {
+    if (override.limits.maxProjects != null) base.maxProjects = override.limits.maxProjects;
+    if (override.limits.maxMembers != null) base.maxMembers = override.limits.maxMembers;
+    if (override.limits.maxGuests != null) base.maxGuests = override.limits.maxGuests;
+  }
+  return base;
+}
+
+async function getPlansWithOverrides() {
+  const overrides = await _getOverrides();
+  const result = {};
+  for (const [key, plan] of Object.entries(PLANS)) {
+    const merged = { ...plan, limits: { ...plan.limits }, enabled: true };
+    const override = overrides[key];
+    if (override) {
+      if (override.enabled === false) merged.enabled = false;
+      if (override.limits) {
+        if (override.limits.maxProjects != null) merged.limits.maxProjects = override.limits.maxProjects;
+        if (override.limits.maxMembers != null) merged.limits.maxMembers = override.limits.maxMembers;
+        if (override.limits.maxGuests != null) merged.limits.maxGuests = override.limits.maxGuests;
+      }
+    }
+    result[key] = merged;
+  }
+  return result;
+}
+
+module.exports = { PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, clearPlanCache };

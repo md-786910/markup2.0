@@ -15,6 +15,7 @@ const billingRoutes = require("./routes/billing.routes");
 const guestRoutes = require("./routes/guest.routes");
 const versionRoutes = require("./routes/version.routes");
 const integrationRoutes = require("./routes/integration.routes");
+const adminRoutes = require("./routes/admin.routes");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -30,7 +31,10 @@ app.use(
 );
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || "http://localhost:3000",
+    origin: [
+      process.env.CLIENT_ORIGIN || "http://localhost:3000",
+      process.env.ADMIN_ORIGIN || "http://localhost:3001",
+    ],
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -73,6 +77,7 @@ app.use("/api/billing", billingRoutes);
 app.use("/api/guest", guestRoutes);
 app.use("/api/projects", versionRoutes);
 app.use("/api/integrations", integrationRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
