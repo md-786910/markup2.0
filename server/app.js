@@ -34,6 +34,8 @@ app.use(
     origin: [
       process.env.CLIENT_ORIGIN || "http://localhost:3000",
       process.env.ADMIN_ORIGIN || "http://localhost:3001",
+      "https://app.feedbackly.online",
+      "https://markupadmin.vercel.app",
     ],
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
