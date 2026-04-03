@@ -42,7 +42,15 @@
       "Bash(npx --yes canvas)",
       "Bash(node -e \"try { require\\(''''canvas''''\\); console.log\\(''''canvas available''''\\); } catch\\(e\\) { console.log\\(''''canvas not available''''\\); }\")",
       "Bash(node generate-og-image.js)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(ls /home/ashif/markup2.0/website/public/*.png)",
+      "Read(//tmp/**)",
+      "Read(//home/ashif/**)",
+      "Bash(node scripts/generate-icons.js)",
+      "Bash(ls -lh /home/ashif/markup2.0/website/public/*.png /home/ashif/markup2.0/website/public/favicon.svg)"
+    ],
+    "additionalDirectories": [
+      "/home/ashif/Pictures/Screenshots"
     ]
   }
 }

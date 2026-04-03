@@ -257,10 +257,9 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
   if (isGetRequest && contentType.includes("text/html")) {
     try {
       const pageOrigin = new URL(url).origin;
-      res.cookie('__markup_proxy_ctx', JSON.stringify({
-        origin: pageOrigin, projectId,
-        token: req.query.token || '',
-      }), { httpOnly: false, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 });
+      const ctxPayload = { origin: pageOrigin, projectId, token: req.query.token || '' };
+      if (req.query.guest === 'true') ctxPayload.guest = true;
+      res.cookie('__markup_proxy_ctx', JSON.stringify(ctxPayload), { httpOnly: false, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 });
     } catch {}
     const html = response.data.toString("utf-8");
     let rewritten = rewriteHtml(html, url, projectId, serverBase, workerBase);
@@ -384,12 +383,13 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     projectCache.set(projectId, { project, timestamp: Date.now() });
   }
 
-  // const userId = req.user._id.toString();
-  // const isMember = project.members.some((m) => m.toString() === userId);
-  // const isOwner = project.owner.toString() === userId;
-  // if (!isMember && !isOwner) {
-  //   return res.status(403).json({ message: 'Not a member of this project' });
-  // }
+  // Guest proxy requests: verify the project has sharing enabled
+  const isGuestRequest = req.query.guest === 'true';
+  if (isGuestRequest) {
+    if (!project.shareSettings?.enabled) {
+      return res.status(403).json({ message: 'Sharing is not enabled for this project' });
+    }
+  }
 
   // Remove X-Frame-Options set by Helmet so iframe can display proxy content
   res.removeHeader('X-Frame-Options');
