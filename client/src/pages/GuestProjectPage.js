@@ -596,7 +596,7 @@ export default function GuestProjectPage() {
         </div>
 
         {/* ─── Main content area ─── */}
-        <div className="flex-1 relative bg-gray-50">
+        <div className="flex-1 min-w-0 relative bg-gray-50">
           {project.projectType === 'website' && (
             <iframe
               src={`${process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api'}/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}&guest=true`}

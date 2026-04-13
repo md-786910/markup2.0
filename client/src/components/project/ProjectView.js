@@ -904,7 +904,7 @@ export default function ProjectView({
         )}
 
         {/* Content area */}
-        <div className="flex-1 relative">
+        <div className="flex-1 min-w-0 relative">
           {isDocumentProject ? (
             <DocumentViewer
               documents={project.documents}
