@@ -237,7 +237,7 @@ export default function PinListSidebar({
   const isSelected = (pinId) => selectedPinId === pinId;
 
   return (
-    <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden relative">
+    <div className="w-80 shrink-0 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden relative">
       {/* Sidebar tab switcher */}
       {onTabChange && (
         <div className="flex border-b border-gray-200/80 shrink-0">
