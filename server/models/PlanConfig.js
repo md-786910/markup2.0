@@ -15,7 +15,20 @@ const planConfigSchema = new mongoose.Schema({
     maxProjects: { type: Number, default: null },
     maxMembers: { type: Number, default: null },
     maxGuests: { type: Number, default: null },
+    hasIntegrations: { type: Boolean, default: null },
+    hasActivityLogs: { type: Boolean, default: null },
+    hasVersionHistory: { type: Boolean, default: null },
   },
+  name: { type: String, default: null },
+  price: { type: Number, default: null },
+  priceLabel: { type: String, default: null },
+  period: { type: String, default: null },
+  // undefined = use defaults; explicit [] = override to empty list
+  features: { type: [String], default: undefined },
+  popular: { type: Boolean, default: null },
+  badgeColor: { type: String, default: null },
+  order: { type: Number, default: null },
+  razorpayPlanId: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('PlanConfig', planConfigSchema);

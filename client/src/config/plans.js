@@ -5,7 +5,7 @@ export const PLANS = {
     price: 0,
     priceLabel: '$0',
     period: 'forever',
-    limits: { maxProjects: 3, maxMembers: 5, maxGuests: 2 },
+    limits: { maxProjects: 3, maxMembers: 5, maxGuests: 2, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false },
     features: [
       '3 projects',
       '5 team members',
@@ -21,7 +21,7 @@ export const PLANS = {
     price: 12,
     priceLabel: '$12',
     period: '/month',
-    limits: { maxProjects: 15, maxMembers: 25, maxGuests: 10 },
+    limits: { maxProjects: 15, maxMembers: 25, maxGuests: 10, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: false },
     features: [
       '15 projects',
       '25 team members',
@@ -40,7 +40,7 @@ export const PLANS = {
     priceLabel: '$29',
     period: '/month',
     popular: true,
-    limits: { maxProjects: 999, maxMembers: 999, maxGuests: 50 },
+    limits: { maxProjects: 999, maxMembers: 999, maxGuests: 50, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
     features: [
       'Unlimited projects',
       'Unlimited members',
@@ -59,7 +59,7 @@ export const PLANS = {
     price: null,
     priceLabel: 'Custom',
     period: '',
-    limits: { maxProjects: 9999, maxMembers: 9999, maxGuests: 9999 },
+    limits: { maxProjects: 9999, maxMembers: 9999, maxGuests: 9999, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
     features: [
       'Everything in Pro',
       'Dedicated support',

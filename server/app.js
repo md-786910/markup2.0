@@ -34,9 +34,12 @@ app.use(
     origin: [
       process.env.CLIENT_ORIGIN || "http://localhost:3000",
       process.env.ADMIN_ORIGIN || "http://localhost:3001",
+      process.env.WEBSITE_ORIGIN || "http://localhost:3002",
       "https://app.feedbackly.online",
       "https://markupadmin.vercel.app",
       "https://admin.feedbackly.online",
+      "https://feedbackly.online",
+      "https://www.feedbackly.online",
     ],
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -45,12 +48,12 @@ app.use(
 );
 app.use(cookieParser());
 
-// Stripe webhook needs raw body (mounted BEFORE json parser)
-const { handleStripeWebhook } = require("./controllers/stripe.webhook");
+// Razorpay webhook needs raw body (mounted BEFORE json parser)
+const { handleRazorpayWebhook } = require("./controllers/razorpay.webhook");
 app.post(
   "/api/billing/webhook",
   express.raw({ type: "application/json" }),
-  handleStripeWebhook,
+  handleRazorpayWebhook,
 );
 
 // Proxy routes with raw body passthrough (mounted BEFORE json/urlencoded parsers
@@ -85,6 +88,21 @@ app.use("/api/admin", adminRoutes);
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+// Public plans endpoint — source of truth for billing tab + marketing site.
+// No auth: pricing is public.
+app.get("/api/plans", async (req, res) => {
+  try {
+    const { getPlansWithOverrides } = require("./config/plans");
+    const plans = await getPlansWithOverrides();
+    const planList = Object.values(plans).sort(
+      (a, b) => (a.order ?? 0) - (b.order ?? 0),
+    );
+    res.json({ plans, planList });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to load plans" });
+  }
 });
 
 // Catch-all: redirect unmatched requests through proxy when a proxy context cookie exists.

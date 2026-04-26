@@ -88,9 +88,60 @@ const checkProjectLimit = asyncHandler(async (req, res, next) => {
   next();
 });
 
+/**
+ * Block integration creation if plan does not allow it.
+ */
+const checkIntegrationsLimit = asyncHandler(async (req, res, next) => {
+  const org = req.organization;
+  if (!org) return next();
+
+  if (org.limits.hasIntegrations === false) {
+    return res.status(403).json({
+      message: 'Integrations are not available on your current plan. Upgrade your plan to enable integrations.',
+      code: 'FEATURE_NOT_AVAILABLE',
+    });
+  }
+  next();
+});
+
+/**
+ * Block activity log viewing if plan does not allow it.
+ */
+const checkActivityLogsLimit = asyncHandler(async (req, res, next) => {
+  const org = req.organization;
+  if (!org) return next();
+
+  if (org.limits.hasActivityLogs === false) {
+    return res.status(403).json({
+      message: 'Activity logs are not available on your current plan. Upgrade your plan to view activity logs.',
+      code: 'FEATURE_NOT_AVAILABLE',
+    });
+  }
+  next();
+});
+
+/**
+ * Block version history access if plan does not allow it.
+ */
+const checkVersionHistoryLimit = asyncHandler(async (req, res, next) => {
+  const org = req.organization;
+  if (!org) return next();
+
+  if (org.limits.hasVersionHistory === false) {
+    return res.status(403).json({
+      message: 'Version history is not available on your current plan. Upgrade your plan to enable version history.',
+      code: 'FEATURE_NOT_AVAILABLE',
+    });
+  }
+  next();
+});
+
 module.exports = {
   checkOrgNotLocked,
   checkMemberLimit,
   checkGuestLimit,
   checkProjectLimit,
+  checkIntegrationsLimit,
+  checkActivityLogsLimit,
+  checkVersionHistoryLimit,
 };

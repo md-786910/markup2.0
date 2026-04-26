@@ -122,6 +122,7 @@ export default function PinListSidebar({
   onTabChange,
 }) {
   const { user } = useAuth();
+  const limits = user?.orgLimits || {};
   const [readPins, setReadPins] = useState(() => getReadPins(user?.id));
   const [readComments, setReadComments] = useState(() => getReadComments(user?.id));
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -241,7 +242,11 @@ export default function PinListSidebar({
       {/* Sidebar tab switcher */}
       {onTabChange && (
         <div className="flex border-b border-gray-200/80 shrink-0">
-          {['pins', 'activity', 'versions'].map((tab) => (
+          {['pins', 'activity', 'versions'].filter(tab => {
+            if (tab === 'activity' && !limits.hasActivityLogs) return false;
+            if (tab === 'versions' && !limits.hasVersionHistory) return false;
+            return true;
+          }).map((tab) => (
             <button
               key={tab}
               onClick={() => onTabChange(tab)}

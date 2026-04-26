@@ -16,8 +16,8 @@ router.use(auth);
 
 router.post('/:projectId/pins', projectAccess, authorize('owner', 'admin', 'member'), checkOrgNotLocked, upload.single('screenshot'), createPin);
 router.get('/:projectId/pins', projectAccess, getPins);
-router.patch('/:projectId/pins/:pinId', projectAccess, authorize('owner', 'admin', 'member'), updatePin);
-router.patch('/:projectId/pins/:pinId/screenshot', projectAccess, authorize('owner', 'admin', 'member'), upload.single('screenshot'), attachScreenshot);
-router.delete('/:projectId/pins/:pinId', projectAccess, authorize('owner', 'admin', 'member'), deletePin);
+router.patch('/:projectId/pins/:pinId', projectAccess, authorize('owner', 'admin', 'member'), checkOrgNotLocked, updatePin);
+router.patch('/:projectId/pins/:pinId/screenshot', projectAccess, authorize('owner', 'admin', 'member'), checkOrgNotLocked, upload.single('screenshot'), attachScreenshot);
+router.delete('/:projectId/pins/:pinId', projectAccess, authorize('owner', 'admin', 'member'), checkOrgNotLocked, deletePin);
 
 module.exports = router;

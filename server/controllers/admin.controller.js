@@ -290,20 +290,72 @@ exports.getPlans = asyncHandler(async (req, res) => {
 
 exports.updatePlan = asyncHandler(async (req, res) => {
   const { planId } = req.params;
-  const { maxProjects, maxMembers, maxGuests } = req.body;
+  const b = req.body || {};
 
   if (!PLANS[planId]) {
     return res.status(404).json({ message: 'Plan not found' });
   }
 
-  const limits = {};
-  if (maxProjects !== undefined) limits['limits.maxProjects'] = maxProjects;
-  if (maxMembers !== undefined) limits['limits.maxMembers'] = maxMembers;
-  if (maxGuests !== undefined) limits['limits.maxGuests'] = maxGuests;
+  const $set = {};
+
+  const numOrNull = (v) => {
+    if (v === null || v === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const numOrSkip = (v) => {
+    if (v === null || v === '' || v === undefined) return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
+  // Limits
+  if (b.maxProjects !== undefined) {
+    const n = numOrSkip(b.maxProjects);
+    if (n !== undefined) $set['limits.maxProjects'] = n;
+  }
+  if (b.maxMembers !== undefined) {
+    const n = numOrSkip(b.maxMembers);
+    if (n !== undefined) $set['limits.maxMembers'] = n;
+  }
+  if (b.maxGuests !== undefined) {
+    const n = numOrSkip(b.maxGuests);
+    if (n !== undefined) $set['limits.maxGuests'] = n;
+  }
+  if (b.hasIntegrations !== undefined) {
+    $set['limits.hasIntegrations'] = !!b.hasIntegrations;
+  }
+  if (b.hasActivityLogs !== undefined) {
+    $set['limits.hasActivityLogs'] = !!b.hasActivityLogs;
+  }
+  if (b.hasVersionHistory !== undefined) {
+    $set['limits.hasVersionHistory'] = !!b.hasVersionHistory;
+  }
+
+  // Display fields
+  if (b.name !== undefined) $set.name = String(b.name).slice(0, 60);
+  // price: accept null (= "Custom"); otherwise number
+  if (b.price !== undefined) $set.price = numOrNull(b.price);
+  if (b.priceLabel !== undefined) $set.priceLabel = String(b.priceLabel).slice(0, 40);
+  if (b.period !== undefined) $set.period = String(b.period).slice(0, 40);
+  if (b.popular !== undefined) $set.popular = !!b.popular;
+  if (b.badgeColor !== undefined) $set.badgeColor = String(b.badgeColor).slice(0, 20);
+  if (b.order !== undefined) {
+    const n = numOrSkip(b.order);
+    if (n !== undefined) $set.order = n;
+  }
+  if (b.razorpayPlanId !== undefined) {
+    $set.razorpayPlanId = b.razorpayPlanId ? String(b.razorpayPlanId).trim() : null;
+  }
+  if (Array.isArray(b.features)) {
+    $set.features = b.features
+      .map((f) => String(f).slice(0, 200).trim())
+      .filter((f) => f.length > 0);
+  }
 
   await PlanConfig.findOneAndUpdate(
     { planId },
-    { $set: limits },
+    { $set },
     { upsert: true, new: true },
   );
 

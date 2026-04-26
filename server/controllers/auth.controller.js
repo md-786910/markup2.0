@@ -11,6 +11,7 @@ const Invitation = require("../models/Invitation");
 const asyncHandler = require("../utils/asyncHandler");
 const { sendPasswordResetEmail } = require("../utils/mailer");
 const { ROLE_HIERARCHY } = require("../middleware/roles");
+const { getLimitsForPlanAsync } = require("../config/plans");
 
 const generateSessionToken = () => crypto.randomBytes(32).toString("hex");
 
@@ -28,7 +29,7 @@ const generateToken = (user) => {
   );
 };
 
-const userResponse = (user, org) => ({
+const userResponse = (user, org, dynamicLimits) => ({
   id: user._id,
   name: user.name,
   email: user.email,
@@ -40,14 +41,14 @@ const userResponse = (user, org) => ({
   orgName: org ? org.name : null,
   orgTrialEndsAt: org ? org.trialEndsAt : null,
   orgTrialDays: org ? org.trialDays : null,
-  orgLimits: org ? org.limits : null,
+  orgLimits: dynamicLimits || (org ? org.limits : null),
   orgSubscription: org ? org.subscription : null,
 });
 
 // Exported for reuse in billing controller
 exports.userResponse = userResponse;
 
-const setCookieAndRespond = (res, user, org, statusCode = 200, extra = {}) => {
+const setCookieAndRespond = async (res, user, org, statusCode = 200, extra = {}) => {
   const token = generateToken(user);
   res.cookie("markup_token", token, {
     httpOnly: true,
@@ -56,9 +57,15 @@ const setCookieAndRespond = (res, user, org, statusCode = 200, extra = {}) => {
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   });
+  
+  let dynamicLimits = null;
+  if (org) {
+    dynamicLimits = await getLimitsForPlanAsync(org.plan);
+  }
+
   res
     .status(statusCode)
-    .json({ token, user: userResponse(user, org), ...extra });
+    .json({ token, user: userResponse(user, org, dynamicLimits), ...extra });
 };
 
 exports.signup = asyncHandler(async (req, res) => {
@@ -153,7 +160,7 @@ exports.signup = asyncHandler(async (req, res) => {
     }
   }
 
-  setCookieAndRespond(res, user, org, 201, { isNewOrg: isFirstUser });
+  await setCookieAndRespond(res, user, org, 201, { isNewOrg: isFirstUser });
 });
 
 exports.login = asyncHandler(async (req, res) => {
@@ -185,12 +192,16 @@ exports.login = asyncHandler(async (req, res) => {
   const org = user.organization
     ? await Organization.findById(user.organization)
     : null;
-  setCookieAndRespond(res, user, org);
+  await setCookieAndRespond(res, user, org);
 });
 
 exports.getMe = asyncHandler(async (req, res) => {
   const org = req.organization || null;
-  res.json({ user: userResponse(req.user, org) });
+  let dynamicLimits = null;
+  if (org) {
+    dynamicLimits = await getLimitsForPlanAsync(org.plan);
+  }
+  res.json({ user: userResponse(req.user, org, dynamicLimits) });
 });
 
 // Update profile (name, email)

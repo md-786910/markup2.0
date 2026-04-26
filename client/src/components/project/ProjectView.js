@@ -46,7 +46,8 @@ function getAvatarColor(id) {
 
 export default function ProjectView({ project, onProjectUpdate, initialPinId }) {
   const navigate = useNavigate();
-  const { isAdmin, canCreate } = useAuth();
+  const { isAdmin, canCreate, user } = useAuth();
+  const limits = user?.orgLimits || {};
   const [pins, setPins] = useState([]);
   const [allPins, setAllPins] = useState([]);
   const [selectedPin, setSelectedPin] = useState(null);
@@ -633,7 +634,11 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden">
             {/* Tab header */}
             <div className="flex border-b border-gray-200/80 shrink-0">
-              {['pins', 'activity', 'versions'].map((tab) => (
+              {['pins', 'activity', 'versions'].filter(tab => {
+                if (tab === 'activity' && !limits.hasActivityLogs) return false;
+                if (tab === 'versions' && !limits.hasVersionHistory) return false;
+                return true;
+              }).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setSidebarTab(tab)}

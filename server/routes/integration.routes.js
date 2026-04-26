@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { authorize } = require('../middleware/roles');
+const { checkIntegrationsLimit } = require('../middleware/orgLimits');
 const {
   getIntegrations,
   createIntegration,
@@ -11,6 +12,7 @@ const {
 
 router.use(auth);
 router.use(authorize('owner', 'admin'));
+router.use(checkIntegrationsLimit);
 
 router.get('/', getIntegrations);
 router.post('/', createIntegration);

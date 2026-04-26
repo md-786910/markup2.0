@@ -14,7 +14,7 @@ router.use(auth);
 
 router.post('/:pinId/comments', authorize('owner', 'admin', 'member'), checkOrgNotLocked, upload.array('attachments', 5), createComment);
 router.get('/:pinId/comments', getComments);
-router.patch('/:pinId/comments/:commentId', authorize('owner', 'admin', 'member'), updateComment);
-router.delete('/:pinId/comments/:commentId', authorize('owner', 'admin', 'member'), deleteComment);
+router.patch('/:pinId/comments/:commentId', authorize('owner', 'admin', 'member'), checkOrgNotLocked, updateComment);
+router.delete('/:pinId/comments/:commentId', authorize('owner', 'admin', 'member'), checkOrgNotLocked, deleteComment);
 
 module.exports = router;

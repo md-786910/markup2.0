@@ -142,7 +142,12 @@ export default function AppSidebar({ collapsed, onToggle }) {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 space-y-1 overflow-y-auto scrollbar-thin">
-          {navItems.map((item) => {
+          {navItems.filter(item => {
+            if (item.id === 'integrations') {
+              return user?.orgLimits?.hasIntegrations;
+            }
+            return true;
+          }).map((item) => {
             const isActive = activeNavId === item.id;
             return (
               <button

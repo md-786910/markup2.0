@@ -31,6 +31,9 @@ const organizationSchema = new mongoose.Schema({
     maxMembers: { type: Number, default: 10 },
     maxGuests: { type: Number, default: 5 },
     maxProjects: { type: Number, default: 5 },
+    hasIntegrations: { type: Boolean, default: false },
+    hasActivityLogs: { type: Boolean, default: false },
+    hasVersionHistory: { type: Boolean, default: false },
   },
   trialDays: {
     type: Number,
@@ -55,13 +58,14 @@ const organizationSchema = new mongoose.Schema({
   subscription: {
     status: {
       type: String,
-      enum: ['active', 'past_due', 'canceled', 'none'],
+      enum: ['active', 'past_due', 'canceled', 'none', 'halted'],
       default: 'none',
     },
     currentPeriodEnd: { type: Date, default: null },
-    externalId: { type: String, default: null },
-    stripeCustomerId: { type: String, default: null },
-    stripePriceId: { type: String, default: null },
+    externalId: { type: String, default: null }, // Could be razorpaySubscriptionId
+    razorpayCustomerId: { type: String, default: null },
+    razorpayPlanId: { type: String, default: null },
+    razorpaySubscriptionId: { type: String, default: null },
   },
 }, { timestamps: true });
 

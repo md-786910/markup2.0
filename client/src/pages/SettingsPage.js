@@ -3,10 +3,12 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { updateOrganizationApi } from '../services/authService';
 import BillingTab from '../components/settings/BillingTab';
+import InvoicesTab from '../components/settings/InvoicesTab';
 
 const TABS = [
   { id: 'workspace', label: 'Workspace' },
   { id: 'billing', label: 'Billing' },
+  { id: 'invoices', label: 'Invoices' },
 ];
 
 export default function SettingsPage() {
@@ -176,6 +178,9 @@ export default function SettingsPage() {
 
       {/* Billing tab */}
       {activeTab === 'billing' && <BillingTab />}
+
+      {/* Invoices tab */}
+      {activeTab === 'invoices' && <InvoicesTab />}
     </div>
   );
 }

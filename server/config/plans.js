@@ -5,7 +5,7 @@ const PLANS = {
     price: 0,
     priceLabel: '$0',
     period: 'forever',
-    limits: { maxProjects: 3, maxMembers: 5, maxGuests: 2 },
+    limits: { maxProjects: 3, maxMembers: 5, maxGuests: 2, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false },
     features: [
       '3 projects',
       '5 team members',
@@ -21,7 +21,7 @@ const PLANS = {
     price: 12,
     priceLabel: '$12',
     period: '/month',
-    limits: { maxProjects: 15, maxMembers: 25, maxGuests: 10 },
+    limits: { maxProjects: 15, maxMembers: 25, maxGuests: 10, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: false },
     features: [
       '15 projects',
       '25 team members',
@@ -32,7 +32,7 @@ const PLANS = {
     ],
     badgeColor: 'blue',
     order: 1,
-    stripePriceId: process.env.STRIPE_STARTER_PRICE_ID || null,
+    razorpayPlanId: process.env.RAZORPAY_STARTER_PLAN_ID || null,
   },
   pro: {
     id: 'pro',
@@ -41,8 +41,8 @@ const PLANS = {
     priceLabel: '$29',
     period: '/month',
     popular: true,
-    stripePriceId: process.env.STRIPE_PRO_PRICE_ID || null,
-    limits: { maxProjects: 999, maxMembers: 999, maxGuests: 50 },
+    razorpayPlanId: process.env.RAZORPAY_PRO_PLAN_ID || null,
+    limits: { maxProjects: 999, maxMembers: 999, maxGuests: 50, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
     features: [
       'Unlimited projects',
       'Unlimited members',
@@ -61,7 +61,7 @@ const PLANS = {
     price: null,
     priceLabel: 'Custom',
     period: '',
-    limits: { maxProjects: 9999, maxMembers: 9999, maxGuests: 9999 },
+    limits: { maxProjects: 9999, maxMembers: 9999, maxGuests: 9999, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
     features: [
       'Everything in Pro',
       'Dedicated support',
@@ -122,6 +122,9 @@ async function getLimitsForPlanAsync(planId) {
     if (override.limits.maxProjects != null) base.maxProjects = override.limits.maxProjects;
     if (override.limits.maxMembers != null) base.maxMembers = override.limits.maxMembers;
     if (override.limits.maxGuests != null) base.maxGuests = override.limits.maxGuests;
+    if (override.limits.hasIntegrations != null) base.hasIntegrations = override.limits.hasIntegrations;
+    if (override.limits.hasActivityLogs != null) base.hasActivityLogs = override.limits.hasActivityLogs;
+    if (override.limits.hasVersionHistory != null) base.hasVersionHistory = override.limits.hasVersionHistory;
   }
   return base;
 }
@@ -138,7 +141,21 @@ async function getPlansWithOverrides() {
         if (override.limits.maxProjects != null) merged.limits.maxProjects = override.limits.maxProjects;
         if (override.limits.maxMembers != null) merged.limits.maxMembers = override.limits.maxMembers;
         if (override.limits.maxGuests != null) merged.limits.maxGuests = override.limits.maxGuests;
+        if (override.limits.hasIntegrations != null) merged.limits.hasIntegrations = override.limits.hasIntegrations;
+        if (override.limits.hasActivityLogs != null) merged.limits.hasActivityLogs = override.limits.hasActivityLogs;
+        if (override.limits.hasVersionHistory != null) merged.limits.hasVersionHistory = override.limits.hasVersionHistory;
       }
+      if (override.name != null) merged.name = override.name;
+      // price: null means "Custom", so accept null but skip undefined
+      if (override.price !== undefined) merged.price = override.price;
+      if (override.priceLabel != null) merged.priceLabel = override.priceLabel;
+      if (override.period != null) merged.period = override.period;
+      // explicit [] is an intentional override; missing field falls through
+      if (Array.isArray(override.features)) merged.features = override.features;
+      if (override.popular != null) merged.popular = override.popular;
+      if (override.badgeColor != null) merged.badgeColor = override.badgeColor;
+      if (override.order != null) merged.order = override.order;
+      if (override.razorpayPlanId != null) merged.razorpayPlanId = override.razorpayPlanId;
     }
     result[key] = merged;
   }

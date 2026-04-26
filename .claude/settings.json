@@ -47,7 +47,8 @@
       "Read(//tmp/**)",
       "Read(//home/ashif/**)",
       "Bash(node scripts/generate-icons.js)",
-      "Bash(ls -lh /home/ashif/markup2.0/website/public/*.png /home/ashif/markup2.0/website/public/favicon.svg)"
+      "Bash(ls -lh /home/ashif/markup2.0/website/public/*.png /home/ashif/markup2.0/website/public/favicon.svg)",
+      "Bash(node -e \"require\\('./models/PlanConfig'\\); require\\('./config/plans'\\); require\\('./controllers/admin.controller'\\); require\\('./controllers/billing.controller'\\); require\\('./controllers/stripe.webhook'\\); console.log\\('server modules load OK'\\);\")"
     ],
     "additionalDirectories": [
       "/home/ashif/Pictures/Screenshots"
