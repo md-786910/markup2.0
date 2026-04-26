@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import AppSidebar from './AppSidebar';
 import OrgLockedBanner from '../common/OrgLockedBanner';
+import PendingPaymentBanner from '../common/PendingPaymentBanner';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { orgLocked } = useAuth();
+  const { orgLocked, user } = useAuth();
+  const pendingInvoice = user?.orgPendingInvoice;
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -36,8 +38,8 @@ export default function AppLayout() {
           </div>
         </div>
 
-        {/* Org locked banner */}
-        {orgLocked && <OrgLockedBanner />}
+        {/* Locked takes precedence; otherwise show pending-payment notice */}
+        {orgLocked ? <OrgLockedBanner /> : pendingInvoice ? <PendingPaymentBanner /> : null}
 
         {/* Scrollable main content */}
         <main className="flex-1 overflow-y-auto scrollbar-thin">

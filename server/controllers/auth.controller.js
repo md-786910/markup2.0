@@ -8,6 +8,7 @@ const Project = require("../models/Project");
 const Pin = require("../models/Pin");
 const Comment = require("../models/Comment");
 const Invitation = require("../models/Invitation");
+const Invoice = require("../models/Invoice");
 const asyncHandler = require("../utils/asyncHandler");
 const { sendPasswordResetEmail } = require("../utils/mailer");
 const { ROLE_HIERARCHY } = require("../middleware/roles");
@@ -37,16 +38,53 @@ const userResponse = (user, org, dynamicLimits) => ({
   avatar: user.avatar || null,
   organization: user.organization || null,
   orgLocked: org ? org.isLocked : false,
+  orgLockedReason: org ? org.lockedReason : null,
   orgPlan: org ? org.plan : null,
   orgName: org ? org.name : null,
+  orgLogo: org ? org.logo || null : null,
   orgTrialEndsAt: org ? org.trialEndsAt : null,
   orgTrialDays: org ? org.trialDays : null,
   orgLimits: dynamicLimits || (org ? org.limits : null),
   orgSubscription: org ? org.subscription : null,
+  // Attached by callers via attachPendingInvoice(org) before calling userResponse.
+  // null when the org has no pending invoice.
+  orgPendingInvoice: org && org._pendingInvoice ? org._pendingInvoice : null,
 });
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Fetch the most recent pending invoice for the org and attach a minimal
+ * projection to org._pendingInvoice. Safe to call with a null org (no-op).
+ */
+async function attachPendingInvoice(org) {
+  if (!org) return;
+  const inv = await Invoice.findOne({ organization: org._id, status: 'pending' })
+    .sort({ createdAt: -1 })
+    .lean();
+  if (!inv) {
+    org._pendingInvoice = null;
+    return;
+  }
+  const dueAt = inv.dueAt ? new Date(inv.dueAt) : null;
+  const daysUntilDue = dueAt
+    ? Math.ceil((dueAt.getTime() - Date.now()) / DAY_MS)
+    : null;
+  org._pendingInvoice = {
+    _id: inv._id,
+    amount: inv.amount,
+    currency: inv.currency,
+    dueAt: inv.dueAt || null,
+    daysUntilDue,
+    razorpayOrderId: inv.razorpayOrderId || null,
+    razorpayKeyId: process.env.RAZORPAY_KEY_ID || null,
+    plan: inv.plan,
+  };
+}
 
 // Exported for reuse in billing controller
 exports.userResponse = userResponse;
+exports.attachPendingInvoice = attachPendingInvoice;
 
 const setCookieAndRespond = async (res, user, org, statusCode = 200, extra = {}) => {
   const token = generateToken(user);
@@ -61,6 +99,7 @@ const setCookieAndRespond = async (res, user, org, statusCode = 200, extra = {})
   let dynamicLimits = null;
   if (org) {
     dynamicLimits = await getLimitsForPlanAsync(org.plan);
+    await attachPendingInvoice(org);
   }
 
   res
@@ -77,9 +116,29 @@ exports.signup = asyncHandler(async (req, res) => {
       .json({ message: "Name, email, and password are required" });
   }
 
-  const existing = await User.findOne({ email: email.toLowerCase().trim() });
+  const emailNorm = email.toLowerCase().trim();
+
+  const existing = await User.findOne({ email: emailNorm });
   if (existing) {
     return res.status(400).json({ message: "Email already registered" });
+  }
+
+  // Email must have been verified via OTP within the past 10 minutes.
+  // The first-user case bypasses this gate so a fresh deploy isn't bricked
+  // when SMTP isn't configured yet — every subsequent signup must verify.
+  const userCountForGate = await User.countDocuments();
+  if (userCountForGate > 0) {
+    const EmailVerification = require("../models/EmailVerification");
+    const verification = await EmailVerification.findOne({ email: emailNorm });
+    const fresh =
+      verification &&
+      verification.verifiedAt &&
+      Date.now() - verification.verifiedAt.getTime() < EmailVerification.TTL_MS;
+    if (!fresh) {
+      return res
+        .status(400)
+        .json({ message: "Email not verified. Please verify the OTP first." });
+    }
   }
 
   const userCount = await User.countDocuments();
@@ -200,6 +259,7 @@ exports.getMe = asyncHandler(async (req, res) => {
   let dynamicLimits = null;
   if (org) {
     dynamicLimits = await getLimitsForPlanAsync(org.plan);
+    await attachPendingInvoice(org);
   }
   res.json({ user: userResponse(req.user, org, dynamicLimits) });
 });
@@ -464,4 +524,102 @@ exports.validateEmail = asyncHandler(async (req, res) => {
   }
 
   res.json({ valid: true });
+});
+
+// ── Email OTP verification ───────────────────────────────────────
+const EmailVerification = require("../models/EmailVerification");
+const { sendEmailVerificationOtp } = require("../utils/mailer");
+
+const RESEND_COOLDOWN_MS = 30 * 1000;
+const MAX_RESENDS_PER_HOUR = 5;
+const MAX_VERIFY_ATTEMPTS = 5;
+
+exports.sendOtp = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: "Email is required" });
+
+  const emailNorm = email.toLowerCase().trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(emailNorm)) {
+    return res.status(400).json({ message: "Invalid email format" });
+  }
+
+  const existing = await User.findOne({ email: emailNorm });
+  if (existing) {
+    return res.status(400).json({ message: "Email already registered" });
+  }
+
+  const now = Date.now();
+  const record = await EmailVerification.findOne({ email: emailNorm });
+
+  // Throttle resends
+  if (record) {
+    if (record.lastSentAt && now - record.lastSentAt.getTime() < RESEND_COOLDOWN_MS) {
+      const wait = Math.ceil((RESEND_COOLDOWN_MS - (now - record.lastSentAt.getTime())) / 1000);
+      return res.status(429).json({ message: `Please wait ${wait}s before requesting a new code.` });
+    }
+    // Reset hourly counter if its window has lapsed
+    if (record.lastSentAt && now - record.lastSentAt.getTime() > 60 * 60 * 1000) {
+      record.resendCount = 0;
+    }
+    if (record.resendCount >= MAX_RESENDS_PER_HOUR) {
+      return res.status(429).json({ message: "Too many codes requested. Try again in an hour." });
+    }
+  }
+
+  const otp = EmailVerification.makeOtp();
+  const otpHash = EmailVerification.hashOtp(otp);
+  const expiresAt = new Date(now + EmailVerification.TTL_MS);
+
+  await EmailVerification.findOneAndUpdate(
+    { email: emailNorm },
+    {
+      $set: {
+        otpHash,
+        expiresAt,
+        lastSentAt: new Date(now),
+        attempts: 0,
+        verifiedAt: null,
+      },
+      $inc: { resendCount: 1 },
+    },
+    { upsert: true, new: true },
+  );
+
+  try {
+    await sendEmailVerificationOtp(emailNorm, otp);
+  } catch (err) {
+    console.error("[otp] failed to send:", err.message);
+    return res.status(500).json({ message: "Failed to send verification email." });
+  }
+
+  res.json({ sent: true, cooldownSec: RESEND_COOLDOWN_MS / 1000 });
+});
+
+exports.verifyOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) return res.status(400).json({ message: "Email and code are required" });
+
+  const emailNorm = email.toLowerCase().trim();
+  const record = await EmailVerification.findOne({ email: emailNorm });
+  if (!record) {
+    return res.status(400).json({ message: "No verification code found. Please request a new one." });
+  }
+  if (record.expiresAt.getTime() < Date.now()) {
+    return res.status(400).json({ message: "Code expired. Please request a new one." });
+  }
+  if (record.attempts >= MAX_VERIFY_ATTEMPTS) {
+    return res.status(429).json({ message: "Too many attempts. Please request a new code." });
+  }
+
+  const incomingHash = EmailVerification.hashOtp(String(otp).trim());
+  if (incomingHash !== record.otpHash) {
+    record.attempts += 1;
+    await record.save();
+    return res.status(400).json({ message: "Incorrect code." });
+  }
+
+  record.verifiedAt = new Date();
+  await record.save();
+  res.json({ verified: true });
 });

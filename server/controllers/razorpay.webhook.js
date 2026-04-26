@@ -3,6 +3,7 @@ const razorpay = require('../config/razorpay');
 const Organization = require('../models/Organization');
 const Invoice = require('../models/Invoice');
 const { getLimitsForPlanAsync, getPlansWithOverrides } = require('../config/plans');
+const { clearBillingLock } = require('../utils/orgUtils');
 
 const WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET;
 
@@ -53,11 +54,10 @@ async function handleRazorpayWebhook(req, res) {
 
             org.plan = invoice.plan;
             org.limits = await getLimitsForPlanAsync(invoice.plan);
-            org.isLocked = false;
-            org.lockedAt = null;
-            org.lockedReason = null;
+            // Only auto-unlock billing locks; preserve manual admin locks.
+            clearBillingLock(org);
             org.trialEndsAt = null;
-            
+
             if (!org.subscription) org.subscription = {};
             org.subscription.status = 'active';
             org.subscription.currentPeriodEnd = periodEnd;

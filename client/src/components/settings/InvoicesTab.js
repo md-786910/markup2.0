@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getInvoicesApi, verifyPaymentApi } from '../../services/billingService';
+import { getInvoicesApi, verifyPaymentApi, downloadInvoicePdfApi } from '../../services/billingService';
 import { useAuth } from '../../hooks/useAuth';
 
 function loadRazorpayScript() {
@@ -19,6 +19,27 @@ export default function InvoicesTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [payingInvoiceId, setPayingInvoiceId] = useState(null);
+  const [downloadingId, setDownloadingId] = useState(null);
+
+  const handleDownloadPdf = async (invoice) => {
+    setDownloadingId(invoice._id);
+    try {
+      const res = await downloadInvoicePdfApi(invoice._id);
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${invoice._id.slice(-8).toUpperCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to download invoice PDF.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const fetchInvoices = async () => {
     try {
@@ -206,9 +227,23 @@ export default function InvoicesTab() {
                     ) : inv.status === 'pending' ? (
                       <span className="text-[11px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100">Waiting for owner</span>
                     ) : (
-                      <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                         <span className="text-gray-300 italic text-[11px]">Paid Successfully</span>
-                      </div>
+                      <button
+                        onClick={() => handleDownloadPdf(inv)}
+                        disabled={downloadingId === inv._id}
+                        className="inline-flex items-center gap-1.5 text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                      >
+                        {downloadingId === inv._id ? (
+                          <>
+                            <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                            ...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
+                            PDF
+                          </>
+                        )}
+                      </button>
                     )}
                   </td>
                 </tr>

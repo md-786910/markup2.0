@@ -5,7 +5,7 @@ const PLANS = {
     price: 0,
     priceLabel: '$0',
     period: 'forever',
-    limits: { maxProjects: 3, maxMembers: 5, maxGuests: 2, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false },
+    limits: { maxProjects: 2, maxMembers: 5, maxGuests: 2, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false },
     features: [
       '3 projects',
       '5 team members',

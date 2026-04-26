@@ -18,5 +18,8 @@ export const verifyPaymentApi = (data) =>
 export const getInvoicesApi = () =>
   api.get('/billing/invoices');
 
+export const downloadInvoicePdfApi = (id) =>
+  api.get(`/billing/invoices/${id}/pdf`, { responseType: 'blob' });
+
 export const createPortalSessionApi = () =>
   api.post('/billing/portal-session');

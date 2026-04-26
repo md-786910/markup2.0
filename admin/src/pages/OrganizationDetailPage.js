@@ -50,13 +50,81 @@ export default function OrganizationDetailPage() {
   if (loading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
   if (!data) return <p className="text-gray-500 py-10 text-center">Organization not found.</p>;
 
-  const { organization: org, members, projects, pinStats } = data;
+  const { organization: org, members, projects, pinStats, invoices = [] } = data;
+
+  const formatInr = (paise) =>
+    '₹' + ((paise || 0) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const statusColor = (s) => (s === 'paid' ? 'green' : s === 'pending' ? 'amber' : 'red');
+
+  const reminderDots = (r) => {
+    const stages = [
+      ['0', r?.day0Sent],
+      ['4', r?.day4Sent],
+      ['7', r?.day7Sent],
+      ['9', r?.day9Sent],
+    ];
+    return (
+      <span className="inline-flex items-center gap-1 font-mono text-[11px]">
+        {stages.map(([label, on]) => (
+          <span
+            key={label}
+            title={`Day ${label} reminder ${on ? 'sent' : 'not sent'}`}
+            className={`inline-flex items-center justify-center w-4 h-4 rounded-full border ${
+              on ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white border-gray-300 text-gray-400'
+            }`}
+          >
+            {label}
+          </span>
+        ))}
+        {r?.lockSent && (
+          <span title="Org-locked email sent" className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white">L</span>
+        )}
+      </span>
+    );
+  };
+
+  const shortId = (id) => (id ? id.slice(-8) : null);
 
   const memberColumns = [
     { key: 'name', label: 'Name', render: (row) => <span className="font-medium">{row.name}</span> },
     { key: 'email', label: 'Email' },
     { key: 'role', label: 'Role', render: (row) => <Badge label={row.role} color={row.role === 'owner' ? 'purple' : row.role === 'admin' ? 'blue' : 'gray'} /> },
     { key: 'lastSeen', label: 'Last Seen', render: (row) => timeAgo(row.lastSeen) },
+  ];
+
+  const invoiceColumns = [
+    { key: 'createdAt', label: 'Date', render: (row) => formatDate(row.createdAt) },
+    { key: 'plan', label: 'Plan', render: (row) => (
+      <Badge label={PLAN_LABELS[row.plan] || row.plan} color={PLAN_COLORS[row.plan] || 'gray'} />
+    ) },
+    { key: 'period', label: 'Period', render: (row) => {
+      if (row.billingMonth) {
+        return <span className="font-mono text-xs">{row.billingMonth}</span>;
+      }
+      if (row.periodStart && row.periodEnd) {
+        return (
+          <span className="text-xs text-gray-600">
+            {formatDate(row.periodStart)} → {formatDate(row.periodEnd)}
+          </span>
+        );
+      }
+      return <span className="text-gray-400 text-xs">—</span>;
+    } },
+    { key: 'amount', label: 'Amount', render: (row) => (
+      <span className="font-medium">{formatInr(row.amount)}</span>
+    ) },
+    { key: 'status', label: 'Status', render: (row) => (
+      <Badge label={row.status} color={statusColor(row.status)} />
+    ) },
+    { key: 'dueAt', label: 'Due', render: (row) => row.dueAt ? formatDate(row.dueAt) : <span className="text-gray-400 text-xs">—</span> },
+    { key: 'reminders', label: 'Reminders', render: (row) => reminderDots(row.reminders) },
+    { key: 'razorpayOrderId', label: 'Order', render: (row) => row.razorpayOrderId ? (
+      <span className="font-mono text-[11px] text-gray-700" title={row.razorpayOrderId}>{shortId(row.razorpayOrderId)}</span>
+    ) : <span className="text-gray-400 text-xs">—</span> },
+    { key: 'razorpayPaymentId', label: 'Payment', render: (row) => row.razorpayPaymentId ? (
+      <span className="font-mono text-[11px] text-gray-700" title={row.razorpayPaymentId}>{shortId(row.razorpayPaymentId)}</span>
+    ) : <span className="text-gray-400 text-xs">—</span> },
   ];
 
   const projectColumns = [
@@ -141,6 +209,12 @@ export default function OrganizationDetailPage() {
       <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
         <h2 className="text-sm font-semibold text-gray-900 mb-4">Members ({members.length})</h2>
         <DataTable columns={memberColumns} data={members} emptyMessage="No members" />
+      </div>
+
+      {/* Invoices */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+        <h2 className="text-sm font-semibold text-gray-900 mb-4">Invoices ({invoices.length})</h2>
+        <DataTable columns={invoiceColumns} data={invoices} emptyMessage="No invoices" />
       </div>
 
       {/* Projects */}

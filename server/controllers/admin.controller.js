@@ -4,6 +4,7 @@ const Project = require('../models/Project');
 const Pin = require('../models/Pin');
 const Activity = require('../models/Activity');
 const PlanConfig = require('../models/PlanConfig');
+const Invoice = require('../models/Invoice');
 const asyncHandler = require('../utils/asyncHandler');
 const { PLANS, getPlansWithOverrides, clearPlanCache } = require('../config/plans');
 
@@ -138,7 +139,7 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
   const org = await Organization.findById(req.params.id).populate('owner', 'name email');
   if (!org) return res.status(404).json({ message: 'Organization not found' });
 
-  const [members, projects, pinStats] = await Promise.all([
+  const [members, projects, pinStats, invoices] = await Promise.all([
     User.find({ organization: org._id }).select('name email role lastSeen avatar createdAt'),
     Project.find({ organization: org._id }).select('name projectType websiteUrl status projectStatus members createdAt'),
     Pin.aggregate([
@@ -151,6 +152,9 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
         resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
       }},
     ]),
+    // Invoice does not store any Razorpay secrets — safe to return as-is.
+    // Do NOT add credentials to this projection if Invoice schema ever grows.
+    Invoice.find({ organization: org._id }).sort({ createdAt: -1 }).lean(),
   ]);
 
   res.json({
@@ -158,6 +162,7 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
     members,
     projects,
     pinStats: pinStats[0] || { total: 0, resolved: 0 },
+    invoices,
   });
 });
 

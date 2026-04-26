@@ -317,4 +317,144 @@ async function sendDigestEmail(toEmail, projectName, events) {
   });
 }
 
-module.exports = { sendInvitationEmail, sendPinNotificationEmail, sendCommentNotificationEmail, sendMentionNotificationEmail, sendPinStatusEmail, sendDigestEmail, sendPasswordResetEmail };
+// ─────────────────────────────────────────────────────────────────────────────
+// Billing emails (monthly invoicing flow)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function billingShell({ heading, body, ctaLabel, ctaUrl, footer }) {
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
+      <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+      </div>
+      <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <h2 style="margin: 0 0 12px; font-size: 18px; color: #111827;">${heading}</h2>
+        <div style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">${body}</div>
+        <a href="${ctaUrl}"
+           style="display: inline-block; background: #2563eb; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
+          ${ctaLabel}
+        </a>
+        ${footer ? `<p style="color: #9ca3af; font-size: 12px; margin: 24px 0 0; line-height: 1.5;">${footer}</p>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function formatInr(amountInPaise) {
+  const rupees = (amountInPaise || 0) / 100;
+  return '₹' + rupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function sendInvoiceCreatedEmail(toEmail, orgName, planName, amountInPaise, dueAt, payUrl) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const due = new Date(dueAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  const html = billingShell({
+    heading: 'New invoice for ' + orgName,
+    body: `Your monthly invoice for the <strong>${planName}</strong> plan is ready.<br/><br/>
+           Amount: <strong>${formatInr(amountInPaise)}</strong><br/>
+           Due by: <strong>${due}</strong><br/><br/>
+           Pay before the due date to keep your workspace active.`,
+    ctaLabel: 'Pay Invoice',
+    ctaUrl: payUrl,
+    footer: 'You\'re receiving this because your organization is on a paid plan.',
+  });
+  await getTransporter().sendMail({
+    from, to: toEmail,
+    subject: `Invoice ${formatInr(amountInPaise)} due — ${orgName}`,
+    html,
+  });
+}
+
+async function sendPaymentReminderEmail(toEmail, orgName, daysLeft, amountInPaise, payUrl) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const html = billingShell({
+    heading: 'Reminder: invoice due soon',
+    body: `Just a friendly nudge — your invoice for <strong>${orgName}</strong> (<strong>${formatInr(amountInPaise)}</strong>)
+           is unpaid. You have <strong>${daysLeft} day${daysLeft === 1 ? '' : 's'}</strong> left before your workspace is locked.`,
+    ctaLabel: 'Pay Now',
+    ctaUrl: payUrl,
+  });
+  await getTransporter().sendMail({
+    from, to: toEmail,
+    subject: `Reminder — ${formatInr(amountInPaise)} invoice due in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`,
+    html,
+  });
+}
+
+async function sendUrgentPaymentReminderEmail(toEmail, orgName, daysLeft, amountInPaise, payUrl) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const html = billingShell({
+    heading: 'Urgent: pay to avoid lockout',
+    body: `Your invoice for <strong>${orgName}</strong> (<strong>${formatInr(amountInPaise)}</strong>) is still unpaid.<br/><br/>
+           If we don't receive payment within <strong>${daysLeft} day${daysLeft === 1 ? '' : 's'}</strong>,
+           your workspace will be locked and your team will lose access until you pay.`,
+    ctaLabel: 'Pay Now',
+    ctaUrl: payUrl,
+  });
+  await getTransporter().sendMail({
+    from, to: toEmail,
+    subject: `Urgent — workspace will be locked in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`,
+    html,
+  });
+}
+
+async function sendOrgLockedEmail(toEmail, orgName, amountInPaise, payUrl) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const html = billingShell({
+    heading: 'Workspace locked',
+    body: `Your workspace <strong>${orgName}</strong> has been locked because the invoice for <strong>${formatInr(amountInPaise)}</strong> is overdue.<br/><br/>
+           Your team can still log in, but writes are blocked until payment is received. Pay now to restore access — your workspace will unlock immediately.`,
+    ctaLabel: 'Pay Now to Unlock',
+    ctaUrl: payUrl,
+  });
+  await getTransporter().sendMail({
+    from, to: toEmail,
+    subject: `${orgName} is locked — pay to restore access`,
+    html,
+  });
+}
+
+async function sendEmailVerificationOtp(toEmail, otp) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
+      <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 20px;">Feedbackly</h1>
+      </div>
+      <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <h2 style="margin: 0 0 12px; font-size: 18px; color: #111827;">Verify your email</h2>
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
+          Use this code to finish creating your Feedbackly workspace. The code expires in 10 minutes.
+        </p>
+        <div style="background: #f3f4f6; border: 1px dashed #d1d5db; border-radius: 10px; padding: 18px; text-align: center; margin: 0 0 20px;">
+          <span style="font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 28px; font-weight: 700; letter-spacing: 8px; color: #111827;">
+            ${otp}
+          </span>
+        </div>
+        <p style="color: #9ca3af; font-size: 12px; line-height: 1.5; margin: 0;">
+          If you didn't request this code, you can safely ignore this email.
+        </p>
+      </div>
+    </div>
+  `;
+  await getTransporter().sendMail({
+    from, to: toEmail,
+    subject: `${otp} is your Feedbackly verification code`,
+    html,
+  });
+}
+
+module.exports = {
+  sendInvitationEmail,
+  sendPinNotificationEmail,
+  sendCommentNotificationEmail,
+  sendMentionNotificationEmail,
+  sendPinStatusEmail,
+  sendDigestEmail,
+  sendPasswordResetEmail,
+  sendInvoiceCreatedEmail,
+  sendPaymentReminderEmail,
+  sendUrgentPaymentReminderEmail,
+  sendOrgLockedEmail,
+  sendEmailVerificationOtp,
+};

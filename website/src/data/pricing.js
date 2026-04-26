@@ -6,7 +6,7 @@ export const PLANS = [
     priceLabel: '$0',
     period: 'forever',
     features: [
-      '3 projects',
+      '2 projects',
       '5 team members',
       '2 guests',
       'Basic feedback tools',

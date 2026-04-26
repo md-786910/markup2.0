@@ -1,7 +1,26 @@
+const BILLING_LOCK_REASONS = new Set([
+  'Payment overdue',
+  'Trial expired',
+]);
+
+/**
+ * Clear an org lock only if it was set by the billing system (overdue payment or
+ * expired trial). Manual admin locks (any other reason) are preserved so a customer
+ * cannot pay themselves out of an admin lock.
+ */
+function clearBillingLock(org) {
+  if (org.isLocked && BILLING_LOCK_REASONS.has(org.lockedReason)) {
+    org.isLocked = false;
+    org.lockedAt = null;
+    org.lockedReason = null;
+  }
+}
+
 /**
  * Check if an organization's trial has expired and lock it if so.
- * Also checks if a paid subscription has expired (past its currentPeriodEnd).
- * Called from auth middleware on every authenticated request.
+ * Paid plan locking based on overdue invoices is handled by the daily cron
+ * (server/scripts/runBilling.js) — this function does NOT auto-lock paid orgs
+ * based on currentPeriodEnd, to keep "overdue" defined by Invoice.dueAt only.
  * Returns true if the org is locked.
  */
 async function checkTrialExpiry(org) {
@@ -10,7 +29,7 @@ async function checkTrialExpiry(org) {
   // Already locked
   if (org.isLocked) return true;
 
-  // Only auto-lock trial plans that have expired
+  // Auto-lock expired trial plans
   if (org.plan === 'trial' && org.trialEndsAt && org.trialEndsAt < new Date()) {
     org.isLocked = true;
     org.lockedAt = new Date();
@@ -19,19 +38,7 @@ async function checkTrialExpiry(org) {
     return true;
   }
 
-  // Active subscription plans — lock if currentPeriodEnd has passed
-  if (org.plan !== 'trial' && org.subscription && org.subscription.currentPeriodEnd) {
-    if (new Date(org.subscription.currentPeriodEnd).getTime() < Date.now()) {
-      org.isLocked = true;
-      org.lockedAt = new Date();
-      org.lockedReason = 'Payment overdue / Subscription expired';
-      org.subscription.status = 'past_due';
-      await org.save({ validateBeforeSave: false });
-      return true;
-    }
-  }
-
   return false;
 }
 
-module.exports = { checkTrialExpiry };
+module.exports = { checkTrialExpiry, clearBillingLock, BILLING_LOCK_REASONS };

@@ -78,19 +78,28 @@ export default function SettingsPage() {
 
       {/* Tab bar */}
       <div className="border-b border-gray-200 mb-8 flex gap-6">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => handleTabChange(tab.id)}
-            className={`px-1 pb-3 text-sm font-medium transition-colors ${
-              activeTab === tab.id
-                ? 'text-gray-900 border-b-2 border-gray-900'
-                : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {TABS.map((tab) => {
+          const showDot = tab.id === 'invoices' && !!user?.orgPendingInvoice;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`relative px-1 pb-3 text-sm font-medium transition-colors flex items-center gap-2 ${
+                activeTab === tab.id
+                  ? 'text-gray-900 border-b-2 border-gray-900'
+                  : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent'
+              }`}
+            >
+              {tab.label}
+              {showDot && (
+                <span
+                  title="You have an unpaid invoice"
+                  className="w-2 h-2 rounded-full bg-red-500"
+                />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Workspace tab */}
@@ -139,9 +148,9 @@ export default function SettingsPage() {
               </span>
             </label>
             <div className="flex items-center gap-4">
-              {user?.avatar ? (
+              {user?.orgLogo ? (
                 <img
-                  src={`/uploads/${user.avatar}`}
+                  src={`/uploads/${user.orgLogo}`}
                   alt="Workspace icon"
                   className="w-12 h-12 rounded-xl object-cover border border-gray-200"
                 />

@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { updateOrganizationApi, uploadAvatarApi, validateEmailApi } from '../services/authService';
+import { updateOrganizationApi, uploadAvatarApi, validateEmailApi, sendOtpApi, verifyOtpApi } from '../services/authService';
+import { getPublicPlansApi, createCheckoutSessionApi, verifyPaymentApi, upgradePlanApi } from '../services/billingService';
 import AuthLayout from '../components/layout/AuthLayout';
 
 const STEPS = [
@@ -11,32 +12,20 @@ const STEPS = [
   { id: 'payment', label: 'Payment' },
 ];
 
-const PLANS = [
-  {
-    id: 'trial',
-    name: 'Free Trial',
-    price: '$0',
-    period: '30 days',
-    features: ['5 projects', '10 members', '5 guests', 'All core features'],
-    available: true,
-  },
-  {
-    id: 'starter',
-    name: 'Starter',
-    price: '$12',
-    period: '/month',
-    features: ['15 projects', '25 members', '10 guests', 'Priority support'],
-    available: false,
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: '$29',
-    period: '/month',
-    features: ['Unlimited projects', 'Unlimited members', '50 guests', 'Custom branding'],
-    available: false,
-  },
-];
+// Free trial is no longer offered on the Payment step — users must pick a paid plan.
+
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export default function OnboardingPage() {
   const { user, signup, updateUser } = useAuth();
@@ -61,15 +50,67 @@ export default function OnboardingPage() {
   const [avatarPreview, setAvatarPreview] = useState(null);
 
   // Payment
-  const [selectedPlan, setSelectedPlan] = useState('trial');
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [livePlans, setLivePlans] = useState(null); // null = still loading
+
+  // Setting-up state shown after Start is clicked on the Payment step
+  const [phase, setPhase] = useState('idle'); // 'idle' | 'setting-up' | 'retry'
+  const [stages, setStages] = useState({ account: 'pending', workspace: 'pending', avatar: 'pending', checkout: 'pending' });
+  const [retryReason, setRetryReason] = useState('');
 
   // Email validation
   const [emailValidating, setEmailValidating] = useState(false);
   const [emailError, setEmailError] = useState('');
 
+  // Email OTP verification
+  const [otp, setOtp] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
   // General
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Tick down resend cooldown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
+  // Fetch live plans once we approach the Payment step
+  useEffect(() => {
+    if (livePlans !== null) return;
+    if (step < 2) return; // pre-fetch on review step so the user doesn't wait
+    let alive = true;
+    getPublicPlansApi()
+      .then((res) => {
+        if (!alive) return;
+        const list = (res.data?.planList || [])
+          .filter((p) => p.enabled !== false && p.id !== 'enterprise')
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            priceLabel: p.priceLabel,
+            period: p.period,
+            features: p.features || [],
+            popular: !!p.popular,
+          }));
+        setLivePlans(list);
+        // Default-select the popular plan, else the first in order
+        const def = list.find((p) => p.popular) || list[0];
+        if (def) setSelectedPlan((curr) => curr || def.id);
+      })
+      .catch(() => {
+        if (alive) setLivePlans([]);
+      });
+    return () => { alive = false; };
+  }, [step, livePlans]);
 
   // Already authenticated → go to dashboard
   if (user) {
@@ -88,19 +129,64 @@ export default function OnboardingPage() {
     setStep(step + 1);
   };
 
-  const handleAccountNext = async (e) => {
+  const handleAccountNext = (e) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !password || password.length < 6) return;
+    if (!emailVerified) return;
+    if (!name.trim() || !password || password.length < 6) return;
+    setStep(step + 1);
+  };
 
+  const handleSendOtp = async () => {
+    if (!email.trim()) return;
+    // Pre-flight format/registered check, then send
     setEmailValidating(true);
     setEmailError('');
+    setOtpError('');
     try {
       await validateEmailApi(email.trim());
-      setStep(step + 1);
     } catch (err) {
-      setEmailError(err.response?.data?.message || 'Email validation failed');
-    } finally {
+      setEmailError(err.response?.data?.message || 'Invalid email');
       setEmailValidating(false);
+      return;
+    }
+    setEmailValidating(false);
+
+    setOtpSending(true);
+    try {
+      const res = await sendOtpApi(email.trim());
+      setOtpSent(true);
+      setResendCooldown(res.data?.cooldownSec || 30);
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'Failed to send code');
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp.trim()) return;
+    setOtpVerifying(true);
+    setOtpError('');
+    try {
+      await verifyOtpApi(email.trim(), otp.trim());
+      setEmailVerified(true);
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'Incorrect code');
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  // Reset verification state if email is changed after sending/verifying
+  const handleEmailChange = (next) => {
+    setEmail(next);
+    setEmailError('');
+    if (otpSent || emailVerified) {
+      setOtpSent(false);
+      setEmailVerified(false);
+      setOtp('');
+      setOtpError('');
+      setResendCooldown(0);
     }
   };
 
@@ -108,36 +194,160 @@ export default function OnboardingPage() {
     setStep(step + 1);
   };
 
-  // Batch submit — all API calls happen here at the final step
-  const handleFinish = async () => {
-    setLoading(true);
-    setError('');
+  // Run the shared setup steps (signup → org → avatar). Updates the staged
+  // checklist as it progresses. Returns true on success, false on error.
+  const runSetup = async () => {
     try {
-      // 1. Create account
+      setStages((s) => ({ ...s, account: 'active' }));
       await signup(name, email, password);
+      await wait(400); // small minimum so the checklist doesn't pop
+      setStages((s) => ({ ...s, account: 'done', workspace: 'active' }));
 
-      // 2. Update organization name + logo
       const orgForm = new FormData();
       orgForm.append('name', orgName.trim());
       if (logoFile) orgForm.append('logo', logoFile);
       const orgRes = await updateOrganizationApi(orgForm);
       updateUser(orgRes.data.user);
+      await wait(400);
+      setStages((s) => ({
+        ...s,
+        workspace: 'done',
+        avatar: avatarFile ? 'active' : 'skipped',
+      }));
 
-      // 3. Upload avatar if provided
       if (avatarFile) {
         const avatarForm = new FormData();
         avatarForm.append('avatar', avatarFile);
         const avatarRes = await uploadAvatarApi(avatarForm);
         updateUser(avatarRes.data.user);
+        await wait(400);
+        setStages((s) => ({ ...s, avatar: 'done' }));
       }
-
-      navigate('/dashboard');
+      return true;
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to complete setup');
-    } finally {
-      setLoading(false);
+      return false;
     }
   };
+
+  // Open Razorpay for the selected paid plan and resolve on payment verify.
+  const openRazorpay = async () => {
+    setStages((s) => ({ ...s, checkout: 'active' }));
+    const isLoaded = await loadRazorpayScript();
+    if (!isLoaded) {
+      setRetryReason('Failed to load the payment SDK. Check your internet connection.');
+      setPhase('retry');
+      return;
+    }
+
+    let session;
+    try {
+      const res = await createCheckoutSessionApi(selectedPlan);
+      session = res.data;
+    } catch (err) {
+      setRetryReason(err.response?.data?.message || 'Failed to start checkout.');
+      setPhase('retry');
+      return;
+    }
+
+    const rzp = new window.Razorpay({
+      key: session.key_id,
+      amount: session.amount,
+      currency: session.currency,
+      order_id: session.orderId,
+      name: 'Feedbackly',
+      description: `${(livePlans || []).find((p) => p.id === selectedPlan)?.name || ''} subscription`,
+      prefill: { name, email },
+      theme: { color: '#2563eb' },
+      handler: async (response) => {
+        try {
+          const verifyRes = await verifyPaymentApi({
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+          updateUser(verifyRes.data.user);
+          setStages((s) => ({ ...s, checkout: 'done' }));
+          await wait(500);
+          navigate('/dashboard');
+        } catch (err) {
+          setRetryReason(err.response?.data?.message || 'Payment verification failed.');
+          setPhase('retry');
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          setRetryReason('Payment cancelled. Your workspace is ready — you can pay now or any time from Settings → Billing.');
+          setPhase('retry');
+        },
+      },
+    });
+    rzp.on('payment.failed', (resp) => {
+      setRetryReason(resp.error?.description || 'Payment failed. Please try again.');
+      setPhase('retry');
+    });
+    rzp.open();
+  };
+
+  const handleFinish = async () => {
+    if (!selectedPlan) return;
+    setError('');
+    setPhase('setting-up');
+    setStages({ account: 'pending', workspace: 'pending', avatar: 'pending', checkout: 'pending' });
+
+    const ok = await runSetup();
+    if (!ok) {
+      setPhase('idle');
+      return;
+    }
+
+    // Free plan (price 0 or null) skips Razorpay — but we still flip the org
+    // off `trial` and onto the actual `free` plan so the BillingTab reflects it.
+    const planObj = (livePlans || []).find((p) => p.id === selectedPlan);
+    const isFree = planObj && (planObj.price === 0 || planObj.price == null);
+    if (isFree) {
+      try {
+        const res = await upgradePlanApi(selectedPlan);
+        updateUser(res.data.user);
+      } catch (err) {
+        // Non-fatal: the workspace still exists on trial; show the error and
+        // let the user retry from Settings → Billing.
+        setError(err.response?.data?.message || 'Could not activate the free plan.');
+      }
+      await wait(400);
+      navigate('/dashboard');
+      return;
+    }
+
+    await openRazorpay();
+  };
+
+  const handleRetryCheckout = () => {
+    setRetryReason('');
+    setPhase('setting-up');
+    // Setup already done; only run checkout this time.
+    setStages((s) => ({ ...s, account: 'done', workspace: 'done', avatar: avatarFile ? 'done' : 'skipped', checkout: 'pending' }));
+    openRazorpay();
+  };
+
+  const handleSkipToDashboard = () => {
+    navigate('/dashboard');
+  };
+
+  // Setting-up overlay — replaces the form column when payment flow is mid-flight
+  if (phase === 'setting-up' || phase === 'retry') {
+    const selectedPlanObj = (livePlans || []).find((p) => p.id === selectedPlan);
+    const isFreePlan = selectedPlanObj && (selectedPlanObj.price === 0 || selectedPlanObj.price == null);
+    return (
+      <AuthLayout>
+        {phase === 'setting-up' ? (
+          <SettingUpView stages={stages} planName={selectedPlanObj?.name} priceLabel={selectedPlanObj?.priceLabel} period={selectedPlanObj?.period} avatarPlanned={!!avatarFile} paidPlan={!isFreePlan} />
+        ) : (
+          <RetryView reason={retryReason} planName={selectedPlanObj?.name} onRetry={handleRetryCheckout} onSkip={handleSkipToDashboard} />
+        )}
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout>
@@ -230,9 +440,55 @@ export default function OnboardingPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Work Email</label>
-              <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setEmailError(''); }} required
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
-                placeholder="you@company.com" />
+              <div className="flex gap-2">
+                <input type="email" value={email} onChange={(e) => handleEmailChange(e.target.value)} required
+                  disabled={emailVerified}
+                  className={`flex-1 px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow ${emailVerified ? 'bg-gray-50 text-gray-500' : ''}`}
+                  placeholder="you@company.com" />
+                {emailVerified ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-lg">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Verified
+                  </span>
+                ) : (
+                  <button type="button" onClick={handleSendOtp}
+                    disabled={!email.trim() || emailValidating || otpSending || resendCooldown > 0}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0">
+                    {otpSending || emailValidating
+                      ? 'Sending...'
+                      : resendCooldown > 0
+                        ? `Resend ${resendCooldown}s`
+                        : otpSent ? 'Resend' : 'Verify'}
+                  </button>
+                )}
+              </div>
+              {otpSent && !emailVerified && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                  <p className="text-xs text-blue-800 mb-2">
+                    We sent a 6-digit code to <strong>{email}</strong>. It expires in 10 minutes.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={otp}
+                      onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setOtpError(''); }}
+                      placeholder="000000"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono tracking-widest text-center"
+                    />
+                    <button type="button" onClick={handleVerifyOtp}
+                      disabled={otp.length !== 6 || otpVerifying}
+                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-40 transition-colors shrink-0">
+                      {otpVerifying ? 'Verifying...' : 'Confirm'}
+                    </button>
+                  </div>
+                  {otpError && <p className="text-xs text-red-600 mt-2">{otpError}</p>}
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
@@ -269,9 +525,10 @@ export default function OnboardingPage() {
                 className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
                 Back
               </button>
-              <button type="submit" disabled={emailValidating}
+              <button type="submit" disabled={!emailVerified || !name.trim() || password.length < 6}
+                title={!emailVerified ? 'Verify your email to continue' : undefined}
                 className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
-                {emailValidating ? 'Verifying email...' : 'Continue'}
+                Continue
               </button>
             </div>
           </form>
@@ -335,52 +592,67 @@ export default function OnboardingPage() {
         </>
       )}
 
-      {/* ===== STEP 4: PAYMENT (dummy Stripe) ===== */}
+      {/* ===== STEP 4: PAYMENT ===== */}
       {currentStep === 'payment' && (
         <>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose your plan</h2>
-          <p className="text-sm text-gray-500 mb-6">Start with a free trial. Upgrade anytime.</p>
+          <p className="text-sm text-gray-500 mb-6">Pick a plan to activate your workspace.</p>
 
           <div className="space-y-3 mb-8">
-            {PLANS.map((plan) => (
-              <div
-                key={plan.id}
-                onClick={() => plan.available && setSelectedPlan(plan.id)}
-                className={`border rounded-xl p-4 transition-all ${
-                  !plan.available
-                    ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
-                    : selectedPlan === plan.id
-                    ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500 cursor-pointer'
-                    : 'border-gray-200 hover:border-gray-300 cursor-pointer'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-gray-900">{plan.name}</h3>
-                    {!plan.available && (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500">Coming soon</span>
+            {livePlans === null ? (
+              <>
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
+                ))}
+              </>
+            ) : livePlans.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-8 border border-dashed border-gray-200 rounded-xl">
+                No plans are available right now. Please contact support.
+              </p>
+            ) : (
+              livePlans.map((plan) => {
+                const isSelected = selectedPlan === plan.id;
+                return (
+                  <div
+                    key={plan.id}
+                    onClick={() => setSelectedPlan(plan.id)}
+                    className={`relative border rounded-xl p-4 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {plan.popular && (
+                      <span className="absolute -top-2 right-4 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-600 text-white">
+                        Most Popular
+                      </span>
                     )}
-                    {plan.id === 'trial' && selectedPlan === 'trial' && (
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">Selected</span>
-                    )}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-gray-900">{plan.name}</h3>
+                        {isSelected && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">Selected</span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="text-lg font-bold text-gray-900">{plan.priceLabel}</span>
+                        {plan.period && <span className="text-xs text-gray-400 ml-0.5">{plan.period}</span>}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      {plan.features.map((f, i) => (
+                        <span key={i} className="text-xs text-gray-500 flex items-center gap-1">
+                          <svg className="w-3 h-3 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          {f}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-lg font-bold text-gray-900">{plan.price}</span>
-                    <span className="text-xs text-gray-400 ml-0.5">{plan.period}</span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  {plan.features.map((f, i) => (
-                    <span key={i} className="text-xs text-gray-500 flex items-center gap-1">
-                      <svg className="w-3 h-3 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      {f}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
 
           {error && <p className="text-sm text-red-500 mb-4 text-center">{error}</p>}
@@ -390,17 +662,146 @@ export default function OnboardingPage() {
               className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
               Back
             </button>
-            <button onClick={handleFinish} disabled={loading}
+            <button onClick={handleFinish} disabled={loading || livePlans === null || !selectedPlan}
               className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
-              {loading ? 'Setting up your workspace...' : 'Start Free Trial'}
+              {loading
+                ? 'Setting up your workspace...'
+                : (() => {
+                    const p = (livePlans || []).find((x) => x.id === selectedPlan);
+                    const isFree = p && (p.price === 0 || p.price == null);
+                    return isFree ? 'Start with Free' : 'Continue to payment';
+                  })()}
             </button>
           </div>
 
           <p className="text-center mt-4 text-xs text-gray-400">
-            No credit card required. You can upgrade after your trial ends.
+            {(() => {
+              const p = (livePlans || []).find((x) => x.id === selectedPlan);
+              const isFree = p && (p.price === 0 || p.price == null);
+              return isFree
+                ? 'No credit card required. You can upgrade any time from Settings → Billing.'
+                : "You'll be redirected to a secure Razorpay checkout.";
+            })()}
           </p>
         </>
       )}
     </AuthLayout>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Setting-up + Retry views
+// ──────────────────────────────────────────────────────────────────
+
+function StageRow({ status, label, sublabel }) {
+  if (status === 'skipped') return null;
+  return (
+    <div className={`flex items-center gap-4 transition-opacity ${status === 'pending' ? 'opacity-50' : 'opacity-100'}`}>
+      <div className="shrink-0 relative w-8 h-8 flex items-center justify-center">
+        {status === 'done' ? (
+          <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center animate-scale-in">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        ) : status === 'active' ? (
+          <>
+            <div className="absolute inset-0 rounded-full bg-blue-100 animate-ping opacity-60" />
+            <svg className="w-8 h-8 text-blue-600 animate-spin relative" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </>
+        ) : (
+          <div className="w-8 h-8 rounded-full border-2 border-gray-200" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium ${status === 'done' ? 'text-gray-900' : status === 'active' ? 'text-gray-900' : 'text-gray-400'}`}>
+          {label}
+        </p>
+        {sublabel && status === 'active' && (
+          <p className="text-xs text-gray-500 mt-0.5">{sublabel}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SettingUpView({ stages, planName, priceLabel, period, avatarPlanned, paidPlan = true }) {
+  const order = ['account', 'workspace', avatarPlanned ? 'avatar' : null, paidPlan ? 'checkout' : null].filter(Boolean);
+  const doneCount = order.filter((k) => stages[k] === 'done').length;
+  const progress = (doneCount / order.length) * 100;
+
+  const labels = {
+    account: { label: 'Creating your account', sub: 'Securing your credentials' },
+    workspace: { label: 'Setting up your workspace', sub: 'Naming and configuring' },
+    avatar: { label: 'Uploading your avatar', sub: 'Almost there' },
+    checkout: { label: 'Opening secure checkout', sub: 'Razorpay is loading' },
+  };
+
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-8 text-center">
+        <div className="inline-flex w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 items-center justify-center mb-4 animate-pulse">
+          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900">Setting up your workspace</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          {!paidPlan
+            ? 'This will only take a moment.'
+            : planName && priceLabel
+              ? <>You'll be charged <strong>{priceLabel}{period}</strong> for the {planName} plan after checkout.</>
+              : 'This will only take a moment.'}
+        </p>
+      </div>
+
+      <div className="space-y-4 mb-8">
+        <StageRow status={stages.account} label={labels.account.label} sublabel={labels.account.sub} />
+        <StageRow status={stages.workspace} label={labels.workspace.label} sublabel={labels.workspace.sub} />
+        <StageRow status={stages.avatar} label={labels.avatar.label} sublabel={labels.avatar.sub} />
+        {paidPlan && <StageRow status={stages.checkout} label={labels.checkout.label} sublabel={labels.checkout.sub} />}
+      </div>
+
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      <p className="text-center text-xs text-gray-400 mt-6">
+        Don't close this window — your secure checkout will open in a moment.
+      </p>
+    </div>
+  );
+}
+
+function RetryView({ reason, planName, onRetry, onSkip }) {
+  return (
+    <div className="animate-fade-in text-center">
+      <div className="inline-flex w-12 h-12 rounded-2xl bg-amber-100 items-center justify-center mb-4">
+        <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+        </svg>
+      </div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment paused</h2>
+      <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">{reason}</p>
+      <div className="flex gap-3 justify-center">
+        <button onClick={onSkip}
+          className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
+          Skip to dashboard
+        </button>
+        <button onClick={onRetry}
+          className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
+          Try {planName ? `${planName} ` : ''}checkout again
+        </button>
+      </div>
+      <p className="text-xs text-gray-400 mt-4">
+        Your workspace is ready — you can pay any time from Settings → Billing.
+      </p>
+    </div>
   );
 }

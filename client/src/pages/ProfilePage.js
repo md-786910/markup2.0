@@ -23,6 +23,40 @@ function StatusMessage({ error, success }) {
   return null;
 }
 
+function PasswordInput({ value, onChange, placeholder, autoComplete = 'off', className = '' }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={visible ? 'text' : 'password'}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className={`w-full pl-3.5 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow ${className}`}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        tabIndex={-1}
+        aria-label={visible ? 'Hide password' : 'Show password'}
+        className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600"
+      >
+        {visible ? (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.88 9.88" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const { user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
@@ -33,12 +67,6 @@ export default function ProfilePage() {
   const [nameLoading, setNameLoading] = useState(false);
   const [nameError, setNameError] = useState('');
   const [nameSuccess, setNameSuccess] = useState('');
-
-  // Email
-  const [email, setEmail] = useState(user?.email || '');
-  const [emailLoading, setEmailLoading] = useState(false);
-  const [emailError, setEmailError] = useState('');
-  const [emailSuccess, setEmailSuccess] = useState('');
 
   // Password
   const [currentPassword, setCurrentPassword] = useState('');
@@ -69,23 +97,6 @@ export default function ProfilePage() {
       setNameError(err.response?.data?.message || 'Failed to update');
     } finally {
       setNameLoading(false);
-    }
-  };
-
-  const handleEmailUpdate = async () => {
-    if (!email.trim()) return;
-    setEmailLoading(true);
-    setEmailError('');
-    setEmailSuccess('');
-    try {
-      const res = await updateProfileApi({ email: email.trim() });
-      updateUser(res.data.user);
-      setEmailSuccess('Email updated');
-      setTimeout(() => setEmailSuccess(''), 3000);
-    } catch (err) {
-      setEmailError(err.response?.data?.message || 'Failed to update');
-    } finally {
-      setEmailLoading(false);
     }
   };
 
@@ -166,24 +177,16 @@ export default function ProfilePage() {
 
       <div className="border-t border-gray-100" />
 
-      {/* Email */}
+      {/* Email — read-only */}
       <FieldRow label="Email address">
-        <div className="flex gap-3">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); setEmailError(''); setEmailSuccess(''); }}
-            className="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow"
-          />
-          <button
-            onClick={handleEmailUpdate}
-            disabled={emailLoading || email.trim().toLowerCase() === user?.email}
-            className="px-5 py-2.5 text-sm font-medium text-white bg-gray-500 rounded-lg hover:bg-gray-600 disabled:opacity-40 transition-colors shrink-0"
-          >
-            {emailLoading ? 'Saving...' : 'Update'}
-          </button>
-        </div>
-        <StatusMessage error={emailError} success={emailSuccess} />
+        <input
+          type="email"
+          value={user?.email || ''}
+          readOnly
+          disabled
+          className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-500 cursor-not-allowed"
+        />
+        <p className="text-xs text-gray-400 mt-1.5">Email cannot be changed. Contact support if you need to update it.</p>
       </FieldRow>
 
       <div className="border-t border-gray-100" />
@@ -191,12 +194,11 @@ export default function ProfilePage() {
       {/* Password */}
       <FieldRow label="Password">
         <div className="space-y-3">
-          <input
-            type="password"
+          <PasswordInput
             value={currentPassword}
             onChange={(e) => { setCurrentPassword(e.target.value); setPwError(''); setPwSuccess(''); }}
             placeholder="Current Password"
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow"
+            autoComplete="current-password"
           />
           <Link to="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
             Forgot password
@@ -208,13 +210,14 @@ export default function ProfilePage() {
 
       <FieldRow label="New Password">
         <div className="flex gap-3">
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => { setNewPassword(e.target.value); setPwError(''); setPwSuccess(''); }}
-            placeholder="New Password"
-            className="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow"
-          />
+          <div className="flex-1">
+            <PasswordInput
+              value={newPassword}
+              onChange={(e) => { setNewPassword(e.target.value); setPwError(''); setPwSuccess(''); }}
+              placeholder="New Password"
+              autoComplete="new-password"
+            />
+          </div>
           <button
             onClick={handlePasswordChange}
             disabled={pwLoading || !currentPassword || !newPassword}

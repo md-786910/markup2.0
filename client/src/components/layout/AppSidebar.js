@@ -119,9 +119,9 @@ export default function AppSidebar({ collapsed, onToggle }) {
         {/* Workspace selector */}
         <div className="px-4 py-4">
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-800/60 hover:bg-gray-800 transition-colors cursor-default">
-            {user?.avatar ? (
+            {user?.orgLogo ? (
               <img
-                src={`/uploads/${user.avatar}`}
+                src={`/uploads/${user.orgLogo}`}
                 alt=""
                 className="w-8 h-8 rounded-lg object-cover shrink-0"
               />
@@ -149,6 +149,7 @@ export default function AppSidebar({ collapsed, onToggle }) {
             return true;
           }).map((item) => {
             const isActive = activeNavId === item.id;
+            const showBilling = item.id === 'settings' && !!user?.orgPendingInvoice;
             return (
               <button
                 key={item.id}
@@ -163,6 +164,12 @@ export default function AppSidebar({ collapsed, onToggle }) {
               >
                 {item.icon}
                 <span>{item.label}</span>
+                {showBilling && (
+                  <span
+                    title="You have an unpaid invoice"
+                    className="ml-auto w-2 h-2 rounded-full bg-red-500"
+                  />
+                )}
               </button>
             );
           })}

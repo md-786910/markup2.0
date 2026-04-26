@@ -6,6 +6,12 @@ export const loginApi = (email, password) =>
 export const validateEmailApi = (email) =>
   api.post('/auth/validate-email', { email });
 
+export const sendOtpApi = (email) =>
+  api.post('/auth/send-otp', { email });
+
+export const verifyOtpApi = (email, otp) =>
+  api.post('/auth/verify-otp', { email, otp });
+
 export const signupApi = (name, email, password) =>
   api.post('/auth/signup', { name, email, password });
 

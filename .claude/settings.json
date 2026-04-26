@@ -48,7 +48,24 @@
       "Read(//home/ashif/**)",
       "Bash(node scripts/generate-icons.js)",
       "Bash(ls -lh /home/ashif/markup2.0/website/public/*.png /home/ashif/markup2.0/website/public/favicon.svg)",
-      "Bash(node -e \"require\\('./models/PlanConfig'\\); require\\('./config/plans'\\); require\\('./controllers/admin.controller'\\); require\\('./controllers/billing.controller'\\); require\\('./controllers/stripe.webhook'\\); console.log\\('server modules load OK'\\);\")"
+      "Bash(node -e \"require\\('./models/PlanConfig'\\); require\\('./config/plans'\\); require\\('./controllers/admin.controller'\\); require\\('./controllers/billing.controller'\\); require\\('./controllers/stripe.webhook'\\); console.log\\('server modules load OK'\\);\")",
+      "Bash(node --check models/Invoice.js)",
+      "Bash(node --check utils/orgUtils.js)",
+      "Bash(node --check utils/mailer.js)",
+      "Bash(node --check scripts/runBilling.js)",
+      "Bash(node --check controllers/auth.controller.js)",
+      "Bash(node --check /home/ashif/markup2.0/server/controllers/admin.controller.js)",
+      "Bash(node --check controllers/billing.controller.js)",
+      "Bash(node --check routes/billing.routes.js)",
+      "Bash(node --check /home/ashif/markup2.0/server/controllers/auth.controller.js)",
+      "Bash(node --check models/EmailVerification.js)",
+      "Bash(node --check routes/auth.routes.js)",
+      "Bash(npx --no-install -y -p @babel/parser node -e \"require\\('@babel/parser'\\).parse\\(require\\('fs'\\).readFileSync\\('src/pages/OnboardingPage.js','utf8'\\), { sourceType: 'module', plugins: ['jsx'] }\\); console.log\\('OK'\\);\")",
+      "Bash(node -e \"require\\('@babel/parser'\\).parse\\(require\\('fs'\\).readFileSync\\('src/pages/OnboardingPage.js','utf8'\\), { sourceType: 'module', plugins: ['jsx'] }\\); console.log\\('OK'\\);\")",
+      "Bash(node -e ' *)",
+      "Bash(node --check /home/ashif/markup2.0/server/controllers/billing.controller.js)",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\"; cat {}')",
+      "Bash(node -e \"require\\('@babel/parser'\\).parse\\(require\\('fs'\\).readFileSync\\('src/components/common/TrialBadge.js','utf8'\\), { sourceType: 'module', plugins: ['jsx'] }\\); console.log\\('OK'\\);\")"
     ],
     "additionalDirectories": [
       "/home/ashif/Pictures/Screenshots"

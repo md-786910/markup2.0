@@ -7,9 +7,11 @@ export function useTrialStatus() {
   const orgPlan = user?.orgPlan;
   const trialEndsAt = user?.orgTrialEndsAt;
   const trialDays = user?.orgTrialDays || DEFAULT_TRIAL_DAYS;
+  // Only show the trial badge for orgs that are *actually* on the trial plan
+  // AND still inside the trial window. Free / Starter / Pro always skip.
   const isTrial = orgPlan === 'trial';
 
-  if (!isTrial || !trialEndsAt) {
+  if (!isTrial || !trialEndsAt || new Date(trialEndsAt).getTime() <= Date.now()) {
     return {
       daysLeft: 0,
       trialDays,
