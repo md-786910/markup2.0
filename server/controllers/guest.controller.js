@@ -26,12 +26,20 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
     return res.status(410).json({ message: 'This review link has expired.' });
   }
 
-  // Check password
+  // Check password. Distinguish "no password supplied" (first load — show prompt
+  // without an error) from "wrong password" (user submitted a guess — show error).
   if (project.shareSettings.password) {
-    if (!password || password !== project.shareSettings.password) {
+    if (!password) {
       return res.status(401).json({
         message: 'This review requires a password.',
         requiresPassword: true,
+      });
+    }
+    if (password !== project.shareSettings.password) {
+      return res.status(401).json({
+        message: 'Incorrect password. Please try again.',
+        requiresPassword: true,
+        invalidPassword: true,
       });
     }
   }

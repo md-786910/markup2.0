@@ -61,6 +61,7 @@ export default function GuestProjectPage() {
   const [error, setError] = useState('');
   const [requiresPassword, setRequiresPassword] = useState(false);
   const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   // Guest identity. `identityConfirmed` is the *intent* signal — only flips on
   // an explicit Continue click (or when sessionStorage was already populated).
@@ -99,6 +100,11 @@ export default function GuestProjectPage() {
     } catch (err) {
       if (err.response?.data?.requiresPassword) {
         setRequiresPassword(true);
+        if (err.response.data.invalidPassword) {
+          setPasswordError(err.response.data.message || 'Incorrect password. Please try again.');
+        } else {
+          setPasswordError('');
+        }
       } else {
         setError(err.response?.data?.message || 'Failed to load project');
       }
@@ -199,12 +205,27 @@ export default function GuestProjectPage() {
           <input
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (passwordError) setPasswordError('');
+            }}
             placeholder="Enter password"
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none mb-3"
+            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 outline-none mb-3 ${
+              passwordError
+                ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                : 'border-gray-200 focus:ring-blue-500 focus:border-blue-500'
+            }`}
             autoFocus
           />
-          {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
+          {passwordError && (
+            <p className="text-sm text-red-600 mb-3 flex items-center gap-1.5">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              {passwordError}
+            </p>
+          )}
+          {error && !passwordError && <p className="text-sm text-red-500 mb-3">{error}</p>}
           <button
             type="submit"
             className="w-full py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
