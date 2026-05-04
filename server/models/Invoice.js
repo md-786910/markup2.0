@@ -3,11 +3,19 @@ const mongoose = require('mongoose');
 const invoiceSchema = new mongoose.Schema({
   organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true },
   plan: { type: String, required: true },
-  amount: { type: Number, required: true }, // in paise
+  amount: { type: Number, required: true }, // smallest unit (paise for INR, cents for USD)
   currency: { type: String, default: 'INR' },
   status: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
+  provider: {
+    type: String,
+    enum: ['razorpay', 'paypal'],
+    default: 'razorpay',
+    index: true,
+  },
   razorpayOrderId: { type: String },
   razorpayPaymentId: { type: String },
+  paypalOrderId: { type: String, index: true, sparse: true },
+  paypalCaptureId: { type: String },
   periodStart: { type: Date },
   periodEnd: { type: Date },
   // Monthly auto-billing — only set on auto-generated cycle invoices.

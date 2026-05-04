@@ -2,11 +2,16 @@ const User = require('../models/User');
 const Project = require('../models/Project');
 const Invoice = require('../models/Invoice');
 const asyncHandler = require('../utils/asyncHandler');
-const { PLANS, UPGRADEABLE_PLANS, getLimitsForPlanAsync, getPlansWithOverrides } = require('../config/plans');
+const { UPGRADEABLE_PLANS, getLimitsForPlanAsync, getPlansWithOverrides } = require('../config/plans');
 const { userResponse, attachPendingInvoice } = require('./auth.controller');
 const { clearBillingLock } = require('../utils/orgUtils');
-const razorpay = require('../config/razorpay');
-const crypto = require('crypto');
+const {
+  getActiveProvider,
+  getProvider,
+  getProviderStatus,
+} = require('../payments');
+const { settleInvoice } = require('../payments/settleInvoice');
+const { PaymentProviderUnavailableError } = require('../payments/errors');
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 
@@ -30,7 +35,6 @@ exports.getPlan = asyncHandler(async (req, res) => {
   const mergedPlans = await getPlansWithOverrides();
   const planDetails = mergedPlans[planId] || mergedPlans.free;
 
-  // Trial info
   let trial = null;
   if (planId === 'trial' && org.trialEndsAt) {
     const msLeft = new Date(org.trialEndsAt).getTime() - Date.now();
@@ -61,8 +65,34 @@ exports.getPlan = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/billing/config
+ * Returns the active provider id + the public credentials the front end
+ * needs (Razorpay key_id, PayPal client-id) so UpgradeModal can render the
+ * appropriate checkout. If no provider is active, returns activeProvider:null
+ * and the UI shows the standard "facing payment issues" message.
+ */
+exports.getBillingConfig = asyncHandler(async (req, res) => {
+  const status = await getProviderStatus();
+  const activeProvider = status.activeProvider;
+  const payload = { activeProvider };
+  if (activeProvider === 'razorpay') {
+    payload.razorpay = { keyId: process.env.RAZORPAY_KEY_ID || null };
+  }
+  if (activeProvider === 'paypal') {
+    payload.paypal = {
+      clientId: process.env.PAYPAL_CLIENT_ID || null,
+      currency: 'USD',
+      env: (process.env.PAYPAL_ENV || 'sandbox').toLowerCase(),
+    };
+  }
+  res.json(payload);
+});
+
+/**
  * POST /api/billing/checkout-session
- * Creates a Razorpay Order for a 1-month plan upgrade/renewal.
+ * Creates a one-month order via the active payment provider.
+ * Returns 503 with the standard "facing payment issues" message if neither
+ * provider is active.
  */
 exports.createCheckoutSession = asyncHandler(async (req, res) => {
   const org = req.organization;
@@ -81,82 +111,76 @@ exports.createCheckoutSession = asyncHandler(async (req, res) => {
 
   const mergedPlans = await getPlansWithOverrides();
   const planConfig = mergedPlans[plan];
-  
+
   if (!planConfig || planConfig.price == null) {
     return res.status(400).json({ message: 'Price is not configured for this plan. Contact support.' });
   }
 
-  // Prevent renewing a plan that is already active (unless it's within a few days of expiry, but let's just keep it simple)
   if (org.plan === plan && !org.isLocked && org.subscription?.status === 'active') {
     return res.status(400).json({ message: 'You already have this active plan.' });
   }
 
-  // Assuming price is in USD, convert to INR roughly (e.g. 1 USD = 84 INR) for Razorpay India
-  const amountInPaise = Math.round(planConfig.price * 84 * 100);
+  const provider = await getActiveProvider();
+  if (!provider) {
+    const err = new PaymentProviderUnavailableError();
+    return res.status(err.statusCode).json({ message: err.message });
+  }
 
-  // Clean up any existing pending invoices for this organization to avoid clutter
-  await Invoice.deleteMany({
-    organization: org._id,
-    status: 'pending'
+  // Clean up any stale pending invoices for this org before creating a fresh one.
+  await Invoice.deleteMany({ organization: org._id, status: 'pending', billingMonth: null });
+
+  const order = await provider.createOrder({
+    org,
+    plan,
+    planConfig,
+    invoiceMeta: { receipt: `rcpt_${Date.now()}` },
   });
 
-  // Create Razorpay Order
-  const order = await razorpay.orders.create({
-    amount: amountInPaise,
-    currency: 'INR',
-    receipt: `rcpt_${Date.now()}`,
-    notes: {
-      orgId: org._id.toString(),
-      planId: plan,
-    },
-  });
-
-  // Create a pending invoice in our DB
-  const invoice = await Invoice.create({
+  const invoiceDoc = {
     organization: org._id,
-    plan: plan,
-    amount: amountInPaise,
-    currency: 'INR',
+    plan,
+    amount: order.amount,
+    currency: order.currency,
     status: 'pending',
-    razorpayOrderId: order.id,
-  });
+    provider: provider.id,
+  };
+  if (provider.id === 'razorpay') invoiceDoc.razorpayOrderId = order.providerOrderId;
+  if (provider.id === 'paypal') invoiceDoc.paypalOrderId = order.providerOrderId;
 
-  // We return the order_id and razorpay key_id to the client so it can open the Razorpay Checkout
-  res.json({ 
-    orderId: order.id,
+  const invoice = await Invoice.create(invoiceDoc);
+
+  res.json({
+    provider: provider.id,
     invoiceId: invoice._id,
-    amount: amountInPaise,
-    currency: 'INR',
-    key_id: process.env.RAZORPAY_KEY_ID 
+    amount: order.amount,
+    currency: order.currency,
+    ...order.clientPayload,
   });
 });
 
 /**
  * POST /api/billing/verify-payment
- * Verifies Razorpay payment signature and activates the plan for 1 month.
+ * Polymorphic: looks up the invoice by either razorpayOrderId or paypalOrderId
+ * (whichever the body identifies), dispatches to the correct provider's
+ * verifyPayment, then runs the shared settleInvoice helper.
  */
 exports.verifyPayment = asyncHandler(async (req, res) => {
   const org = req.organization;
-  const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;
+  const body = req.body || {};
 
-  if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
-    return res.status(400).json({ message: 'Missing payment verification details.' });
+  let invoice = null;
+  if (body.razorpay_order_id) {
+    invoice = await Invoice.findOne({ razorpayOrderId: body.razorpay_order_id });
+  } else if (body.paypalOrderId) {
+    invoice = await Invoice.findOne({ paypalOrderId: body.paypalOrderId });
+  } else if (body.invoiceId) {
+    invoice = await Invoice.findById(body.invoiceId);
   }
-
-  // Verify Signature
-  const generated_signature = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-    .update(razorpay_order_id + "|" + razorpay_payment_id)
-    .digest('hex');
-
-  if (generated_signature !== razorpay_signature) {
-    return res.status(400).json({ message: 'Payment verification failed: Invalid signature' });
-  }
-
-  // Find the pending invoice
-  const invoice = await Invoice.findOne({ razorpayOrderId: razorpay_order_id });
   if (!invoice) {
     return res.status(404).json({ message: 'Invoice not found for this order.' });
+  }
+  if (!invoice.organization.equals(org._id)) {
+    return res.status(403).json({ message: 'Not your invoice.' });
   }
 
   if (invoice.status === 'paid') {
@@ -164,43 +188,40 @@ exports.verifyPayment = asyncHandler(async (req, res) => {
     return res.json({ message: 'Invoice already paid.', user: userResponse(req.user, org) });
   }
 
-  // Update invoice
-  invoice.status = 'paid';
-  invoice.razorpayPaymentId = razorpay_payment_id;
-  
-  // currentPeriodEnd anchors this org's billing anniversary; the daily cron
-  // (server/scripts/runBilling.js) generates the next invoice when this date arrives.
-  let periodStart = new Date();
-  if (org.subscription && org.subscription.currentPeriodEnd && org.subscription.currentPeriodEnd > new Date() && org.plan === invoice.plan) {
-    periodStart = new Date(org.subscription.currentPeriodEnd);
+  const provider = getProvider(invoice.provider);
+  if (!provider) {
+    return res.status(500).json({ message: `Unknown provider on invoice: ${invoice.provider}` });
   }
-  const periodEnd = new Date(periodStart);
-  periodEnd.setMonth(periodEnd.getMonth() + 1);
 
-  invoice.periodStart = periodStart;
-  invoice.periodEnd = periodEnd;
-  await invoice.save();
+  let verifyResult;
+  try {
+    verifyResult = await provider.verifyPayment({ invoice, body });
+  } catch (err) {
+    return res.status(err.statusCode || 400).json({ message: err.message });
+  }
 
-  // Apply the upgrade to the organization
-  org.plan = invoice.plan;
-  org.limits = await getLimitsForPlanAsync(invoice.plan);
-  // Only auto-unlock if the lock was set by billing (overdue/trial). Manual admin
-  // locks stay in place — customers can't pay themselves out of an admin lock.
-  clearBillingLock(org);
-  org.trialEndsAt = null;
+  if (!verifyResult?.ok) {
+    return res.status(400).json({ message: 'Payment verification failed.' });
+  }
 
-  if (!org.subscription) org.subscription = {};
-  org.subscription.status = 'active';
-  org.subscription.currentPeriodEnd = periodEnd;
+  const settled = await settleInvoice(invoice._id, {
+    providerPaymentId: verifyResult.providerPaymentId,
+    providerCaptureId: verifyResult.providerCaptureId,
+  });
+  if (!settled.ok) {
+    return res.status(500).json({ message: `Failed to settle invoice (${settled.reason}).` });
+  }
 
-  await org.save();
-  await attachPendingInvoice(org);
+  // Reload org so the response reflects the new plan/subscription state.
+  const Organization = require('../models/Organization');
+  const updatedOrg = await Organization.findById(org._id);
+  await attachPendingInvoice(updatedOrg);
 
   res.json({
     message: 'Payment verified and plan activated successfully!',
-    user: userResponse(req.user, org),
-    plan: org.plan,
-    currentPeriodEnd: periodEnd
+    user: userResponse(req.user, updatedOrg),
+    plan: updatedOrg.plan,
+    currentPeriodEnd: settled.periodEnd,
   });
 });
 
@@ -224,12 +245,18 @@ exports.getInvoices = asyncHandler(async (req, res) => {
       { status: 'pending', billingMonth: { $type: 'string' } },
     ],
   }).sort({ createdAt: -1 });
-  res.json({ invoices, key_id: process.env.RAZORPAY_KEY_ID });
+
+  res.json({
+    invoices,
+    key_id: process.env.RAZORPAY_KEY_ID,
+    paypalClientId: process.env.PAYPAL_CLIENT_ID || null,
+  });
 });
 
 /**
  * GET /api/billing/invoices/:id/pdf
  * Streams a PDF receipt for a paid invoice belonging to the requester's org.
+ * Currency-aware: branches between INR (Razorpay) and USD (PayPal) formatting.
  */
 exports.downloadInvoicePdf = asyncHandler(async (req, res) => {
   const org = req.organization;
@@ -262,9 +289,16 @@ exports.downloadInvoicePdf = asyncHandler(async (req, res) => {
   });
   doc.pipe(res);
 
-  const rs = (paise) =>
-    'Rs. ' + ((paise || 0) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+  const isUsd = invoice.currency === 'USD';
+  const fmtMoney = (units) => {
+    const major = (units || 0) / 100;
+    if (isUsd) {
+      return '$' + major.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return 'Rs. ' + major.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  const fmtDate = (d) =>
+    d ? new Date(d).toLocaleDateString(isUsd ? 'en-US' : 'en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 
   // Header
   doc.fontSize(22).fillColor('#2563eb').text('Feedbackly', { continued: false });
@@ -295,23 +329,28 @@ exports.downloadInvoicePdf = asyncHandler(async (req, res) => {
   doc.fontSize(12).fillColor('#111827');
   const planLabel = (invoice.plan || '').charAt(0).toUpperCase() + (invoice.plan || '').slice(1) + ' Plan';
   doc.text(planLabel + '  (1 month)', 50, rowY);
-  doc.text(rs(invoice.amount), 400, rowY, { width: 145, align: 'right' });
+  doc.text(fmtMoney(invoice.amount), 400, rowY, { width: 145, align: 'right' });
 
   // Total
   const totalY = rowY + 30;
   doc.moveTo(50, totalY).lineTo(545, totalY).strokeColor('#e5e7eb').stroke();
   doc.fontSize(11).fillColor('#6b7280').text('Total', 400, totalY + 8, { width: 80, align: 'right' });
-  doc.fontSize(13).fillColor('#111827').text(rs(invoice.amount), 480, totalY + 6, { width: 65, align: 'right' });
+  doc.fontSize(13).fillColor('#111827').text(fmtMoney(invoice.amount), 480, totalY + 6, { width: 65, align: 'right' });
 
   // Status pill
   doc.moveDown(3);
   doc.fontSize(11).fillColor('#059669').text('Status: PAID');
 
-  // Razorpay refs
+  // Provider refs
   doc.moveDown(1);
   doc.fontSize(9).fillColor('#9ca3af');
-  if (invoice.razorpayOrderId) doc.text('Razorpay Order ID: ' + invoice.razorpayOrderId);
-  if (invoice.razorpayPaymentId) doc.text('Razorpay Payment ID: ' + invoice.razorpayPaymentId);
+  if (invoice.provider === 'razorpay') {
+    if (invoice.razorpayOrderId) doc.text('Razorpay Order ID: ' + invoice.razorpayOrderId);
+    if (invoice.razorpayPaymentId) doc.text('Razorpay Payment ID: ' + invoice.razorpayPaymentId);
+  } else if (invoice.provider === 'paypal') {
+    if (invoice.paypalOrderId) doc.text('PayPal Order ID: ' + invoice.paypalOrderId);
+    if (invoice.paypalCaptureId) doc.text('PayPal Capture ID: ' + invoice.paypalCaptureId);
+  }
 
   // Footer
   doc.moveDown(2);
@@ -324,7 +363,7 @@ exports.downloadInvoicePdf = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/billing/portal-session
- * Fallback portal for razorpay doesn't exist as a hosted page by default.
+ * Razorpay/PayPal don't expose a hosted customer portal natively.
  */
 exports.createPortalSession = asyncHandler(async (req, res) => {
   return res.status(400).json({ message: 'Customer portal not supported natively. Please view the Invoices tab.' });
@@ -332,7 +371,8 @@ exports.createPortalSession = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/billing/upgrade
- * Fallback: upgrades without Razorpay (for testing/dev or when Razorpay is not configured).
+ * No-payment upgrade path (free plan or admin-driven). Does not touch any
+ * payment provider — pure plan/limits state mutation.
  */
 exports.upgradePlan = asyncHandler(async (req, res) => {
   const org = req.organization;
@@ -340,14 +380,11 @@ exports.upgradePlan = asyncHandler(async (req, res) => {
     return res.status(500).json({ message: 'Organization context missing' });
   }
 
-  // Only owner can upgrade
   if (req.user.role !== 'owner') {
     return res.status(403).json({ message: 'Only the organization owner can upgrade the plan.' });
   }
 
   const { plan } = req.body;
-  // Free is a valid target alongside the paid UPGRADEABLE_PLANS — it activates
-  // the workspace on the catalog's free tier (no Razorpay, no recurring bill).
   const ALLOWED = [...UPGRADEABLE_PLANS, 'free'];
   if (!plan || !ALLOWED.includes(plan)) {
     return res.status(400).json({ message: `Invalid plan. Choose one of: ${ALLOWED.join(', ')}` });
@@ -355,7 +392,6 @@ exports.upgradePlan = asyncHandler(async (req, res) => {
 
   const mergedPlans = await getPlansWithOverrides();
 
-  // Prevent re-applying the same active plan
   if (org.plan === plan && org.isLocked === false) {
     return res.status(400).json({ message: 'You already have this active plan.' });
   }
@@ -368,7 +404,6 @@ exports.upgradePlan = asyncHandler(async (req, res) => {
   if (!org.subscription) org.subscription = {};
   org.subscription.status = 'active';
   if (plan === 'free') {
-    // Free has no recurring billing — clear the anniversary date so the cron skips this org.
     org.subscription.currentPeriodEnd = null;
   } else {
     const periodEnd = new Date();

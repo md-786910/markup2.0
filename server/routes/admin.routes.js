@@ -25,4 +25,8 @@ router.get('/plans', ctrl.getPlans);
 router.patch('/plans/:planId', ctrl.updatePlan);
 router.patch('/plans/:planId/toggle', ctrl.togglePlan);
 
+// Payment provider settings
+router.get('/payment-settings', ctrl.getPaymentSettings);
+router.patch('/payment-settings', ctrl.updatePaymentSettings);
+
 module.exports = router;

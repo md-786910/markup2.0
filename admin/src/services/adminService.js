@@ -20,3 +20,7 @@ export const getProjectsApi = (params) => api.get('/admin/projects', { params })
 export const getPlansApi = () => api.get('/admin/plans');
 export const updatePlanApi = (planId, data) => api.patch(`/admin/plans/${planId}`, data);
 export const togglePlanApi = (planId) => api.patch(`/admin/plans/${planId}/toggle`);
+
+// Payment provider settings
+export const getPaymentSettingsApi = () => api.get('/admin/payment-settings');
+export const updatePaymentSettingsApi = (data) => api.patch('/admin/payment-settings', data);

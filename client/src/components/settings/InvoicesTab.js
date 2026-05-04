@@ -1,25 +1,115 @@
-import React, { useState, useEffect } from 'react';
-import { getInvoicesApi, verifyPaymentApi, downloadInvoicePdfApi } from '../../services/billingService';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  getInvoicesApi,
+  verifyPaymentApi,
+  downloadInvoicePdfApi,
+} from '../../services/billingService';
 import { useAuth } from '../../hooks/useAuth';
 
-function loadRazorpayScript() {
+function loadScript(src, id) {
   return new Promise((resolve) => {
+    if (id && document.getElementById(id)) return resolve(true);
     const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.src = src;
+    if (id) script.id = id;
     script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
 }
 
+function formatAmount(invoice) {
+  const major = (invoice.amount || 0) / 100;
+  if (invoice.currency === 'USD') {
+    return '$' + major.toLocaleString('en-US', { minimumFractionDigits: 2 });
+  }
+  return '₹' + major.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+}
+
+function PaypalPayInvoiceModal({ invoice, paypalClientId, onClose, onPaid }) {
+  const containerRef = useRef(null);
+  const renderedRef = useRef(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!paypalClientId) {
+      setError('PayPal is not configured.');
+      return;
+    }
+    if (renderedRef.current) return;
+    let cancelled = false;
+    (async () => {
+      const sdkUrl =
+        `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(paypalClientId)}` +
+        `&currency=USD&intent=capture&components=buttons`;
+      const ok = await loadScript(sdkUrl, 'paypal-sdk-script');
+      if (cancelled) return;
+      if (!ok || !window.paypal || !containerRef.current) {
+        setError('Failed to load PayPal SDK.');
+        return;
+      }
+      renderedRef.current = true;
+      try {
+        window.paypal
+          .Buttons({
+            style: { layout: 'vertical', color: 'blue', shape: 'rect' },
+            createOrder: () => invoice.paypalOrderId,
+            onApprove: async (data) => {
+              try {
+                await verifyPaymentApi({ paypalOrderId: data.orderID });
+                onPaid();
+              } catch (err) {
+                setError(err.response?.data?.message || 'Payment verification failed.');
+              }
+            },
+            onError: (err) => setError((err && err.message) || 'PayPal checkout failed.'),
+          })
+          .render(containerRef.current);
+      } catch (err) {
+        setError('Failed to render PayPal Buttons.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [paypalClientId, invoice, onPaid]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
+        <div className="px-6 pt-6 pb-3 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="text-base font-bold text-gray-900">Pay invoice via PayPal</h3>
+          <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="text-sm text-gray-700">
+            Amount: <span className="font-bold text-gray-900">{formatAmount(invoice)}</span>
+          </div>
+          <div ref={containerRef} />
+          {error && (
+            <div className="bg-red-50 text-red-600 border border-red-100 p-3 rounded-xl text-sm">
+              {error}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function InvoicesTab() {
   const { user, isOwner, updateUser } = useAuth();
   const [invoices, setInvoices] = useState([]);
   const [keyId, setKeyId] = useState('');
+  const [paypalClientId, setPaypalClientId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [payingInvoiceId, setPayingInvoiceId] = useState(null);
   const [downloadingId, setDownloadingId] = useState(null);
+  const [paypalInvoice, setPaypalInvoice] = useState(null);
 
   const handleDownloadPdf = async (invoice) => {
     setDownloadingId(invoice._id);
@@ -46,6 +136,7 @@ export default function InvoicesTab() {
       const res = await getInvoicesApi();
       setInvoices(res.data.invoices);
       setKeyId(res.data.key_id);
+      setPaypalClientId(res.data.paypalClientId || null);
     } catch (err) {
       console.error('Failed to load invoices:', err);
       setError('Failed to load invoices.');
@@ -58,11 +149,11 @@ export default function InvoicesTab() {
     fetchInvoices();
   }, []);
 
-  const handlePayNow = async (invoice) => {
+  const handleRazorpayPay = async (invoice) => {
     setPayingInvoiceId(invoice._id);
     setError('');
 
-    const isLoaded = await loadRazorpayScript();
+    const isLoaded = await loadScript('https://checkout.razorpay.com/v1/checkout.js', 'razorpay-checkout-script');
     if (!isLoaded) {
       setError('Failed to load Razorpay SDK. Please check your internet connection.');
       setPayingInvoiceId(null);
@@ -74,63 +165,43 @@ export default function InvoicesTab() {
       amount: invoice.amount,
       currency: invoice.currency,
       order_id: invoice.razorpayOrderId,
-      name: 'Markup MVP',
+      name: 'Feedbackly',
       description: `Payment for ${invoice.plan} plan`,
       handler: async function (response) {
         try {
           const verifyRes = await verifyPaymentApi({
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_order_id: response.razorpay_order_id,
-            razorpay_signature: response.razorpay_signature
+            razorpay_signature: response.razorpay_signature,
           });
           updateUser(verifyRes.data.user);
-          fetchInvoices(); // Refresh the list
+          fetchInvoices();
         } catch (err) {
           setError(err.response?.data?.message || 'Payment verification failed.');
         } finally {
           setPayingInvoiceId(null);
         }
       },
-      prefill: {
-        name: user?.name,
-        email: user?.email,
-      },
-      theme: {
-        color: '#2563eb', // blue-600
-      },
-      config: {
-        display: {
-          blocks: {
-            upi: {
-              name: 'Pay via UPI',
-              instruments: [
-                {
-                  method: 'upi',
-                  flows: ['collect', 'qr', 'intent']
-                }
-              ]
-            }
-          },
-          sequence: ['block.upi'],
-          preferences: {
-            show_default_blocks: true
-          }
-        }
-      },
-      modal: {
-        ondismiss: function() {
-          setPayingInvoiceId(null);
-        }
-      }
+      prefill: { name: user?.name, email: user?.email },
+      theme: { color: '#2563eb' },
+      modal: { ondismiss: () => setPayingInvoiceId(null) },
     };
 
     const rzp = new window.Razorpay(options);
-    rzp.on('payment.failed', function (response) {
+    rzp.on('payment.failed', (response) => {
       setError(response.error.description || 'Payment failed. Please try again.');
       setPayingInvoiceId(null);
     });
-    
     rzp.open();
+  };
+
+  const handlePayNow = (invoice) => {
+    setError('');
+    if (invoice.provider === 'paypal') {
+      setPaypalInvoice(invoice);
+      return;
+    }
+    handleRazorpayPay(invoice);
   };
 
   if (loading) {
@@ -148,10 +219,6 @@ export default function InvoicesTab() {
         <div>
           <h3 className="text-xl font-bold text-gray-900">Billing History</h3>
           <p className="text-sm text-gray-500 mt-1">Manage your invoices and track your payments.</p>
-        </div>
-        <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-          <span className="text-[11px] font-bold text-blue-700 uppercase tracking-tight">INR Payments Enabled</span>
         </div>
       </div>
 
@@ -178,6 +245,7 @@ export default function InvoicesTab() {
                 <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">Billing Date</th>
                 <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">Plan Detail</th>
                 <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">Amount</th>
+                <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">Method</th>
                 <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">Status</th>
                 <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-500 uppercase tracking-widest">Action</th>
               </tr>
@@ -198,7 +266,12 @@ export default function InvoicesTab() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-extrabold text-gray-900">₹{(inv.amount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <span className="text-sm font-extrabold text-gray-900">{formatAmount(inv)}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-xs font-medium text-gray-600 capitalize">
+                      {inv.provider || 'razorpay'}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border ${
@@ -251,6 +324,18 @@ export default function InvoicesTab() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {paypalInvoice && (
+        <PaypalPayInvoiceModal
+          invoice={paypalInvoice}
+          paypalClientId={paypalClientId}
+          onClose={() => setPaypalInvoice(null)}
+          onPaid={() => {
+            setPaypalInvoice(null);
+            fetchInvoices();
+          }}
+        />
       )}
     </div>
   );

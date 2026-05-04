@@ -23,3 +23,6 @@ export const downloadInvoicePdfApi = (id) =>
 
 export const createPortalSessionApi = () =>
   api.post('/billing/portal-session');
+
+export const getBillingConfigApi = () =>
+  api.get('/billing/config');

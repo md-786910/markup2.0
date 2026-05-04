@@ -27,7 +27,7 @@ const Organization = require('../models/Organization');
 const Invoice = require('../models/Invoice');
 const User = require('../models/User');
 const PlanConfig = require('../models/PlanConfig');
-const razorpay = require('../config/razorpay');
+const { getActiveProvider } = require('../payments');
 const { getPlansWithOverrides } = require('../config/plans');
 const {
   sendInvoiceCreatedEmail,
@@ -84,11 +84,19 @@ async function phaseGenerateAnniversary() {
 
   const merged = await getPlansWithOverrides();
 
+  const provider = await getActiveProvider();
+  if (!provider) {
+    console.warn('[billing] no active payment provider — skipping anniversary generation.');
+    return;
+  }
+
   const orgs = await Organization.find({
     plan: { $in: PAID_PLANS },
     'subscription.currentPeriodEnd': { $ne: null, $lte: cutoff },
   });
-  console.log(`[billing] generate-anniversary: ${orgs.length} paid org(s) at/past anniversary`);
+  console.log(
+    `[billing] generate-anniversary: ${orgs.length} paid org(s) at/past anniversary (provider: ${provider.id})`
+  );
 
   for (const org of orgs) {
     // Skip orgs locked for non-billing reasons (admin lock etc.)
@@ -115,35 +123,39 @@ async function phaseGenerateAnniversary() {
       continue;
     }
 
-    // Match the existing one-off checkout pricing math (USD display × 84 INR × 100 paise)
-    const amountInPaise = Math.round(plan.price * 84 * 100);
-
     let order;
     try {
-      order = await razorpay.orders.create({
-        amount: amountInPaise,
-        currency: 'INR',
-        receipt: `auto_${org._id}_${billingMonth}`.slice(0, 40),
-        notes: { orgId: org._id.toString(), planId: org.plan, billingMonth },
+      order = await provider.createOrder({
+        org,
+        plan: org.plan,
+        planConfig: plan,
+        invoiceMeta: {
+          receipt: `auto_${org._id}_${billingMonth}`.slice(0, 40),
+          billingMonth,
+        },
       });
     } catch (err) {
-      console.error(`[billing] razorpay order failed for ${org._id}:`, err.message);
+      console.error(`[billing] ${provider.id} order failed for ${org._id}:`, err.message);
       continue;
     }
 
     const dueAt = new Date(Date.now() + GRACE_DAYS * DAY_MS);
 
-    const invoice = await Invoice.create({
+    const invoiceDoc = {
       organization: org._id,
       plan: org.plan,
-      amount: amountInPaise,
-      currency: 'INR',
+      amount: order.amount,
+      currency: order.currency,
       status: 'pending',
-      razorpayOrderId: order.id,
+      provider: provider.id,
       billingMonth,
       dueAt,
       reminders: { day0Sent: true, day4Sent: false, day7Sent: false, day9Sent: false, lockSent: false },
-    });
+    };
+    if (provider.id === 'razorpay') invoiceDoc.razorpayOrderId = order.providerOrderId;
+    if (provider.id === 'paypal') invoiceDoc.paypalOrderId = order.providerOrderId;
+
+    const invoice = await Invoice.create(invoiceDoc);
 
     // Advance the anniversary by one month so this org isn't re-billed tomorrow.
     // setMonth handles month-overflow correctly (Jan 31 → Feb 28/29).
@@ -160,7 +172,7 @@ async function phaseGenerateAnniversary() {
     const owner = await ownerEmail(org._id);
     if (owner?.email) {
       await safeSend(`invoice-created→${owner.email}`, () =>
-        sendInvoiceCreatedEmail(owner.email, org.name, plan.name, amountInPaise, dueAt, PAY_URL)
+        sendInvoiceCreatedEmail(owner.email, org.name, plan.name, order.amount, dueAt, PAY_URL)
       );
     }
   }

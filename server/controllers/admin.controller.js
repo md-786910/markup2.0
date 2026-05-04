@@ -5,8 +5,14 @@ const Pin = require('../models/Pin');
 const Activity = require('../models/Activity');
 const PlanConfig = require('../models/PlanConfig');
 const Invoice = require('../models/Invoice');
+const PaymentSettings = require('../models/PaymentSettings');
 const asyncHandler = require('../utils/asyncHandler');
 const { PLANS, getPlansWithOverrides, clearPlanCache } = require('../config/plans');
+const {
+  getProvider,
+  getProviderStatus,
+  clearPaymentSettingsCache,
+} = require('../payments');
 
 // ── Dashboard Stats ──────────────────────────────────────────────
 
@@ -392,4 +398,59 @@ exports.togglePlan = asyncHandler(async (req, res) => {
   clearPlanCache();
   const plans = await getPlansWithOverrides();
   res.json({ plans });
+});
+
+// ── Payment Settings ─────────────────────────────────────────────
+
+exports.getPaymentSettings = asyncHandler(async (req, res) => {
+  const status = await getProviderStatus();
+  res.json(status);
+});
+
+exports.updatePaymentSettings = asyncHandler(async (req, res) => {
+  const { activeProvider, providers } = req.body || {};
+
+  const VALID = ['razorpay', 'paypal'];
+  const $set = {};
+
+  if (providers && typeof providers === 'object') {
+    for (const id of VALID) {
+      if (providers[id] && typeof providers[id].enabled === 'boolean') {
+        $set[`providers.${id}.enabled`] = providers[id].enabled;
+      }
+    }
+  }
+
+  if (activeProvider !== undefined) {
+    if (activeProvider !== null && !VALID.includes(activeProvider)) {
+      return res.status(400).json({ message: `Invalid activeProvider. Use null or one of: ${VALID.join(', ')}` });
+    }
+    if (activeProvider !== null) {
+      const enabledNow = $set[`providers.${activeProvider}.enabled`];
+      const provider = getProvider(activeProvider);
+      if (!provider || !provider.isConfigured()) {
+        return res.status(400).json({ message: `${activeProvider} is not configured. Set the required env vars first.` });
+      }
+      if (enabledNow === false) {
+        return res.status(400).json({ message: `Cannot activate ${activeProvider} while it is disabled.` });
+      }
+      if (enabledNow === undefined) {
+        const current = await PaymentSettings.getSingleton();
+        if (!current.providers?.[activeProvider]?.enabled) {
+          return res.status(400).json({ message: `Cannot activate ${activeProvider} while it is disabled.` });
+        }
+      }
+    }
+    $set.activeProvider = activeProvider;
+  }
+
+  await PaymentSettings.findOneAndUpdate(
+    { key: 'default' },
+    { $set },
+    { upsert: true, new: true }
+  );
+
+  clearPaymentSettingsCache();
+  const status = await getProviderStatus();
+  res.json(status);
 });

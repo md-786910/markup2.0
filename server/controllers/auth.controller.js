@@ -92,8 +92,11 @@ async function attachPendingInvoice(org) {
     currency: inv.currency,
     dueAt: inv.dueAt || null,
     daysUntilDue,
+    provider: inv.provider || 'razorpay',
     razorpayOrderId: inv.razorpayOrderId || null,
     razorpayKeyId: process.env.RAZORPAY_KEY_ID || null,
+    paypalOrderId: inv.paypalOrderId || null,
+    paypalClientId: process.env.PAYPAL_CLIENT_ID || null,
     plan: inv.plan,
   };
 }

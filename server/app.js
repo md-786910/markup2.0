@@ -48,8 +48,23 @@ app.use(
 );
 app.use(cookieParser());
 
-// Razorpay webhook needs raw body (mounted BEFORE json parser)
+// Payment webhooks need raw body (mounted BEFORE json parser) so HMAC/signature
+// verification can hash the exact bytes the provider sent.
 const { handleRazorpayWebhook } = require("./controllers/razorpay.webhook");
+const { handlePaypalWebhook } = require("./controllers/paypal.webhook");
+app.post(
+  "/api/billing/webhook/razorpay",
+  express.raw({ type: "application/json" }),
+  handleRazorpayWebhook,
+);
+app.post(
+  "/api/billing/webhook/paypal",
+  express.raw({ type: "application/json" }),
+  handlePaypalWebhook,
+);
+// Backward-compat alias for the URL currently configured in the live Razorpay
+// dashboard. Update the dashboard to /webhook/razorpay and remove this in a
+// follow-up.
 app.post(
   "/api/billing/webhook",
   express.raw({ type: "application/json" }),

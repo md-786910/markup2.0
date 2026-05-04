@@ -63,9 +63,15 @@ const organizationSchema = new mongoose.Schema({
     },
     currentPeriodEnd: { type: Date, default: null },
     externalId: { type: String, default: null }, // Could be razorpaySubscriptionId
+    provider: {
+      type: String,
+      enum: ['razorpay', 'paypal', null],
+      default: null,
+    },
     razorpayCustomerId: { type: String, default: null },
     razorpayPlanId: { type: String, default: null },
     razorpaySubscriptionId: { type: String, default: null },
+    paypalSubscriptionId: { type: String, default: null },
   },
 }, { timestamps: true });
 

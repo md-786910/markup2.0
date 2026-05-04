@@ -13,6 +13,7 @@ const UsersPage = lazy(() => import('./pages/UsersPage'));
 const UserDetailPage = lazy(() => import('./pages/UserDetailPage'));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+const PaymentsPage = lazy(() => import('./pages/PaymentsPage'));
 
 function PageLoader() {
   return (
@@ -38,6 +39,7 @@ function App() {
                 <Route path="/users/:id" element={<UserDetailPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/pricing" element={<PricingPage />} />
+                <Route path="/payments" element={<PaymentsPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" />} />
