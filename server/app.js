@@ -19,13 +19,19 @@ const versionRoutes = require("./routes/version.routes");
 const integrationRoutes = require("./routes/integration.routes");
 const adminRoutes = require("./routes/admin.routes");
 
-const { authLimiter, adminLimiter, globalLimiter } = require("./middleware/rateLimiters");
+const {
+  authLimiter,
+  adminLimiter,
+  globalLimiter,
+} = require("./middleware/rateLimiters");
 const { verifyCsrf } = require("./middleware/csrf");
 
 // Fail fast if JWT_SECRET is missing or weak — refuse to boot rather than
 // silently issue forgeable tokens with a default fallback.
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-  console.error("FATAL: JWT_SECRET is missing or shorter than 32 characters. Refusing to start.");
+  console.error(
+    "FATAL: JWT_SECRET is missing or shorter than 32 characters. Refusing to start.",
+  );
   process.exit(1);
 }
 
@@ -55,7 +61,9 @@ const FALLBACK_ORIGINS = [
   "https://www.feedbackly.online",
 ];
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean)
+  ? process.env.ALLOWED_ORIGINS.split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
   : FALLBACK_ORIGINS;
 const LOCALHOST_RE = /^https?:\/\/localhost(:\d+)?$/;
 
@@ -64,7 +72,8 @@ app.use(
     origin: (origin, cb) => {
       if (!origin) return cb(null, true); // same-origin / curl
       if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-      if (process.env.NODE_ENV !== "production" && LOCALHOST_RE.test(origin)) return cb(null, true);
+      if (process.env.NODE_ENV !== "production" && LOCALHOST_RE.test(origin))
+        return cb(null, true);
       return cb(new Error(`CORS: origin ${origin} not allowed`));
     },
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
@@ -103,8 +112,8 @@ app.use("/api/proxy", express.raw({ type: "*/*", limit: "10mb" }), proxyRoutes);
 
 // Body parsers for all other routes. Cap at 1mb — large payloads should go
 // through dedicated upload endpoints, not generic JSON.
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Strip Mongo operator keys ($ and .) from req.body / req.query / req.params,
 // and collapse duplicate query params. Mounted AFTER body parsers / BEFORE
@@ -178,7 +187,7 @@ app.use((req, res, next) => {
     if (!origin || !projectId) return next();
     const targetUrl = origin + req.originalUrl;
     let redirectUrl = `/api/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${encodeURIComponent(projectId)}&token=${encodeURIComponent(token || "")}`;
-    if (guest === true) redirectUrl += '&guest=true';
+    if (guest === true) redirectUrl += "&guest=true";
     return res.redirect(307, redirectUrl);
   } catch {
     return next();
