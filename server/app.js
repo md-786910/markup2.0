@@ -113,13 +113,12 @@ app.use((req, res, next) => {
   const ctxCookie = req.cookies && req.cookies.__markup_proxy_ctx;
   if (!ctxCookie) return next();
   try {
-    const { origin, projectId, token } = JSON.parse(ctxCookie);
+    const { origin, projectId, token, guest } = JSON.parse(ctxCookie);
     if (!origin || !projectId) return next();
     const targetUrl = origin + req.originalUrl;
-    return res.redirect(
-      307,
-      `/api/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${encodeURIComponent(projectId)}&token=${encodeURIComponent(token || "")}`,
-    );
+    let redirectUrl = `/api/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${encodeURIComponent(projectId)}&token=${encodeURIComponent(token || "")}`;
+    if (guest === true) redirectUrl += '&guest=true';
+    return res.redirect(307, redirectUrl);
   } catch {
     return next();
   }

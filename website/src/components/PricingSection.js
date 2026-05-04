@@ -56,14 +56,14 @@ export default function PricingSection() {
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto mt-16">
+        <div className="flex flex-wrap justify-center gap-6 max-w-6xl mx-auto mt-16">
           {plans.map((plan, i) => (
             <div
               key={plan.id}
-              className={`relative rounded-2xl p-8 transition-all duration-300 hover:shadow-lg ${
+              className={`relative rounded-2xl p-8 transition-all duration-300 w-full sm:w-[calc(50%-0.75rem)] lg:w-[280px] ${
                 plan.popular
-                  ? 'border-2 border-blue-500 bg-gradient-to-b from-blue-50/50 to-white shadow-xl ring-1 ring-blue-500/20 scale-[1.02]'
-                  : 'border border-gray-200 bg-white hover:-translate-y-1'
+                  ? 'border-2 border-blue-500 bg-gradient-to-b from-blue-50/20 to-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-blue-500/10 scale-[1.02]'
+                  : 'border border-gray-100 bg-white hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-gray-200'
               }`}
               data-reveal
               data-delay={String(i + 1)}

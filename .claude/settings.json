@@ -65,7 +65,9 @@
       "Bash(node -e ' *)",
       "Bash(node --check /home/ashif/markup2.0/server/controllers/billing.controller.js)",
       "Bash(xargs -I {} sh -c 'echo \"=== {} ===\"; cat {}')",
-      "Bash(node -e \"require\\('@babel/parser'\\).parse\\(require\\('fs'\\).readFileSync\\('src/components/common/TrialBadge.js','utf8'\\), { sourceType: 'module', plugins: ['jsx'] }\\); console.log\\('OK'\\);\")"
+      "Bash(node -e \"require\\('@babel/parser'\\).parse\\(require\\('fs'\\).readFileSync\\('src/components/common/TrialBadge.js','utf8'\\), { sourceType: 'module', plugins: ['jsx'] }\\); console.log\\('OK'\\);\")",
+      "Bash(node -e \"require\\('@babel/parser'\\).parse\\(require\\('fs'\\).readFileSync\\('src/components/common/PendingPaymentBanner.js','utf8'\\), { sourceType: 'module', plugins: ['jsx'] }\\); console.log\\('OK'\\);\")",
+      "Bash(node -e \"const PDFDocument = require\\('pdfkit'\\); const d = new PDFDocument\\(\\); d.text\\('hello'\\); d.end\\(\\); console.log\\('pdfkit OK'\\);\")"
     ],
     "additionalDirectories": [
       "/home/ashif/Pictures/Screenshots"

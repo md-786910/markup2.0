@@ -12,7 +12,23 @@ const Invoice = require("../models/Invoice");
 const asyncHandler = require("../utils/asyncHandler");
 const { sendPasswordResetEmail } = require("../utils/mailer");
 const { ROLE_HIERARCHY } = require("../middleware/roles");
-const { getLimitsForPlanAsync } = require("../config/plans");
+const { getLimitsForPlanAsync, getNewSignupPlanMode } = require("../config/plans");
+
+// Build the plan-related fields for a freshly-created Organization.
+// When admin has flipped Free as the default for new signups, skip the trial
+// and start the org on Free with an active subscription. Otherwise fall
+// through to schema defaults (plan='trial', trialEndsAt=+30d).
+async function buildSignupPlanFields() {
+  const mode = await getNewSignupPlanMode();
+  if (mode === 'free') {
+    return {
+      plan: 'free',
+      trialEndsAt: null,
+      subscription: { status: 'active', currentPeriodEnd: null },
+    };
+  }
+  return {};
+}
 
 const generateSessionToken = () => crypto.randomBytes(32).toString("hex");
 
@@ -172,9 +188,11 @@ exports.signup = asyncHandler(async (req, res) => {
 
   if (isFirstUser) {
     // Create organization for the first user
+    const planFields = await buildSignupPlanFields();
     org = await Organization.create({
       name: name + "'s Workspace",
       owner: user._id,
+      ...planFields,
     });
     user.organization = org._id;
     await user.save({ validateBeforeSave: false });
@@ -465,9 +483,11 @@ exports.updateOrganization = asyncHandler(async (req, res) => {
   // If no org exists yet (e.g. first-time setup), create one and promote user to owner
   if (!org) {
     const { name } = req.body;
+    const planFields = await buildSignupPlanFields();
     org = await Organization.create({
       name: (name && name.trim()) || req.user.name + "'s Workspace",
       owner: req.user._id,
+      ...planFields,
     });
     req.user.organization = org._id;
     req.user.role = "owner";

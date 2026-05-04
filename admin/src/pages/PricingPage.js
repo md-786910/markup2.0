@@ -52,6 +52,14 @@ export default function PricingPage() {
     } catch {}
   };
 
+  // Free-plan-only: when on, new signups skip the trial and start on Free.
+  const handleAssignToggle = async (next) => {
+    try {
+      const { data } = await updatePlanApi('free', { assignToNewSignups: next });
+      setPlans(data.plans);
+    } catch {}
+  };
+
   const handleEdit = (planId) => {
     const plan = plans[planId];
     setForm({
@@ -180,6 +188,28 @@ export default function PricingPage() {
                   <span className="font-medium text-gray-900">{plan.features?.length || 0}</span>
                 </div>
               </div>
+
+              {key === 'free' && (
+                <div className="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-semibold text-emerald-900">Auto-assign to new signups</p>
+                      <p className="text-[10.5px] text-emerald-700 leading-snug mt-0.5">
+                        On: new orgs start on Free.<br />Off: new orgs get a 30-day trial.
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={!!plan.assignToNewSignups}
+                        onChange={(e) => handleAssignToggle(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                    </label>
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={() => handleEdit(key)}

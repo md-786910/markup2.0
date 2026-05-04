@@ -29,6 +29,8 @@ const planConfigSchema = new mongoose.Schema({
   badgeColor: { type: String, default: null },
   order: { type: Number, default: null },
   razorpayPlanId: { type: String, default: null },
+  // Free plan only: when true, new signups land on this plan instead of trial
+  assignToNewSignups: { type: Boolean, default: false },
 }, { timestamps: true });
 
 module.exports = mongoose.model('PlanConfig', planConfigSchema);

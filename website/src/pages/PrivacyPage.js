@@ -50,7 +50,7 @@ export default function PrivacyPage() {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
             {/* Table of Contents */}
-            <nav className="bg-gray-50 rounded-2xl border border-gray-200 p-6 sm:p-8 mb-12">
+            <nav className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 sm:p-8 mb-12">
               <h2 className="font-display text-lg font-semibold text-gray-900 mb-4">Table of Contents</h2>
               <ol className="list-decimal list-inside space-y-2">
                 {SECTIONS.map((section) => (

@@ -5,7 +5,7 @@ import useScrollReveal from '../hooks/useScrollReveal';
 
 function PinsVisual() {
   return (
-    <div className="relative bg-gray-900 rounded-2xl border border-gray-700/50 overflow-hidden shadow-xl">
+    <div className="relative bg-gray-900 rounded-2xl border border-gray-700/50 overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
       {/* Browser bar */}
       <div className="flex items-center gap-1.5 px-4 py-2.5 bg-gray-800/80 border-b border-gray-700/50">
         <div className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
@@ -54,7 +54,7 @@ function PinsVisual() {
 
 function CommentsVisual() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden">
+    <div className="relative bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       {/* Header */}
       <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
         <span className="text-xs font-semibold text-gray-900">Comments (3)</span>
@@ -103,7 +103,7 @@ function CommentsVisual() {
 
 function SharingVisual() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-xl overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
       {/* Header */}
       <div className="px-5 py-3 border-b border-gray-100">
         <span className="text-xs font-semibold text-gray-900">Share Settings</span>

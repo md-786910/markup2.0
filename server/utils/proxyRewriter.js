@@ -1,14 +1,20 @@
 const cheerio = require('cheerio');
 const { URL } = require('url');
 
+// `&guest=true` query suffix when the original request is a guest, so the proxyAuth
+// middleware permits sub-resource fetches without a JWT. Sub-resources rely on the
+// __markup_proxy_ctx cookie too, but the cookie may not be set yet on the very first
+// CSS/JS fetch; the explicit query flag avoids that race.
+function guestQuery(isGuest) { return isGuest ? '&guest=true' : ''; }
+
 // rewriteUrl: routes through Express (for page navigations that need script injection)
-function rewriteUrl(href, baseUrl, projectId, serverBase) {
+function rewriteUrl(href, baseUrl, projectId, serverBase, isGuest) {
   if (!href || href.startsWith('data:') || href.startsWith('#') || href.startsWith('javascript:')) {
     return href;
   }
   try {
     const absolute = new URL(href, baseUrl).href;
-    return `${serverBase}/api/proxy?url=${encodeURIComponent(absolute)}&projectId=${projectId}`;
+    return `${serverBase}/api/proxy?url=${encodeURIComponent(absolute)}&projectId=${projectId}${guestQuery(isGuest)}`;
   } catch {
     return href;
   }
@@ -16,7 +22,7 @@ function rewriteUrl(href, baseUrl, projectId, serverBase) {
 
 // rewriteAssetUrl: routes through CF Worker (for sub-resources: CSS, JS, images, fonts)
 // Falls back to Express if no workerBase is configured.
-function rewriteAssetUrl(href, baseUrl, projectId, serverBase, workerBase) {
+function rewriteAssetUrl(href, baseUrl, projectId, serverBase, workerBase, isGuest) {
   if (!href || href.startsWith('data:') || href.startsWith('#') || href.startsWith('javascript:')) {
     return href;
   }
@@ -25,29 +31,29 @@ function rewriteAssetUrl(href, baseUrl, projectId, serverBase, workerBase) {
     if (workerBase) {
       return `${workerBase}/?url=${encodeURIComponent(absolute)}`;
     }
-    return `${serverBase}/api/proxy?url=${encodeURIComponent(absolute)}&projectId=${projectId}`;
+    return `${serverBase}/api/proxy?url=${encodeURIComponent(absolute)}&projectId=${projectId}${guestQuery(isGuest)}`;
   } catch {
     return href;
   }
 }
 
-function rewriteCssUrls(css, baseUrl, projectId, serverBase, workerBase) {
+function rewriteCssUrls(css, baseUrl, projectId, serverBase, workerBase, isGuest) {
   return css
     // @import "file.css" (bare string, without url() wrapper)
     .replace(/@import\s+(['"])([^'"]+)\1/g, (match, quote, importUrl) => {
       if (importUrl.startsWith('data:') || importUrl.includes('?url=') || importUrl.includes('/api/proxy?')) return match;
-      const rewritten = rewriteAssetUrl(importUrl.trim(), baseUrl, projectId, serverBase, workerBase);
+      const rewritten = rewriteAssetUrl(importUrl.trim(), baseUrl, projectId, serverBase, workerBase, isGuest);
       return `@import url(${quote}${rewritten}${quote})`;
     })
     // url(...) references
     .replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/g, (match, quote, url) => {
       if (url.startsWith('data:') || url.includes('?url=') || url.includes('/api/proxy?')) return match;
-      const rewritten = rewriteAssetUrl(url.trim(), baseUrl, projectId, serverBase, workerBase);
+      const rewritten = rewriteAssetUrl(url.trim(), baseUrl, projectId, serverBase, workerBase, isGuest);
       return `url(${quote}${rewritten}${quote})`;
     });
 }
 
-function rewriteJsUrls(js, pageUrl, projectId, serverBase, workerBase) {
+function rewriteJsUrls(js, pageUrl, projectId, serverBase, workerBase, isGuest) {
   let pageOrigin;
   try { pageOrigin = new URL(pageUrl).origin; } catch { return js; }
 
@@ -56,7 +62,7 @@ function rewriteJsUrls(js, pageUrl, projectId, serverBase, workerBase) {
     if (workerBase) {
       return `${workerBase}/?url=${encodeURIComponent(abs)}`;
     }
-    return `${serverBase}/api/proxy?url=${encodeURIComponent(abs)}&projectId=${projectId}`;
+    return `${serverBase}/api/proxy?url=${encodeURIComponent(abs)}&projectId=${projectId}${guestQuery(isGuest)}`;
   }
 
   // Resolve relative paths (./file.js, ../dir/file.js) against the JS file's own URL.
@@ -64,7 +70,7 @@ function rewriteJsUrls(js, pageUrl, projectId, serverBase, workerBase) {
   // relative imports rewritten — the worker doesn't handle relative imports.
   function buildRelProxy(relPath) {
     const abs = new URL(relPath, pageUrl).href;
-    return `${serverBase}/api/proxy?url=${encodeURIComponent(abs)}&projectId=${projectId}`;
+    return `${serverBase}/api/proxy?url=${encodeURIComponent(abs)}&projectId=${projectId}${guestQuery(isGuest)}`;
   }
 
   return js
@@ -100,11 +106,11 @@ function rewriteJsUrls(js, pageUrl, projectId, serverBase, workerBase) {
     });
 }
 
-function rewriteHtml(html, pageUrl, projectId, serverBase, workerBase) {
+function rewriteHtml(html, pageUrl, projectId, serverBase, workerBase, isGuest) {
   const $ = cheerio.load(html, { decodeEntities: false });
   // asset() routes sub-resources through CF Worker; nav() routes pages through Express
-  const asset = (href) => rewriteAssetUrl(href, pageUrl, projectId, serverBase, workerBase);
-  const nav = (href) => rewriteUrl(href, pageUrl, projectId, serverBase);
+  const asset = (href) => rewriteAssetUrl(href, pageUrl, projectId, serverBase, workerBase, isGuest);
+  const nav = (href) => rewriteUrl(href, pageUrl, projectId, serverBase, isGuest);
   const rewriteSrcset = (srcset, rewriter) => srcset.split(',').map((entry) => {
     const parts = entry.trim().split(/\s+/);
     parts[0] = rewriter(parts[0]);
@@ -143,12 +149,12 @@ function rewriteHtml(html, pageUrl, projectId, serverBase, workerBase) {
   // Inline CSS url() → CF Worker
   $('style').each((_, el) => {
     const css = $(el).html();
-    if (css) $(el).html(rewriteCssUrls(css, pageUrl, projectId, serverBase, workerBase));
+    if (css) $(el).html(rewriteCssUrls(css, pageUrl, projectId, serverBase, workerBase, isGuest));
   });
   $('[style]').each((_, el) => {
     const style = $(el).attr('style');
     if (style && style.includes('url(')) {
-      $(el).attr('style', rewriteCssUrls(style, pageUrl, projectId, serverBase, workerBase));
+      $(el).attr('style', rewriteCssUrls(style, pageUrl, projectId, serverBase, workerBase, isGuest));
     }
   });
 
@@ -179,7 +185,7 @@ function rewriteHtml(html, pageUrl, projectId, serverBase, workerBase) {
   return $.html();
 }
 
-function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
+function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest) {
   const safePageUrl = pageUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   const safeServerBase = (serverBase || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   const safeWorkerBase = (workerBase || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -196,6 +202,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
   var __markupWorkerBase = '${safeWorkerBase}';
   var __markupProjectId = '${projectId}';
   var __markupPageOrigin = '${safePageOrigin}';
+  var __markupIsGuest = ${isGuest ? 'true' : 'false'};
   var __markupToken = '';
   try {
     __markupToken = new URLSearchParams(window.location.search).get('token') || '';
@@ -217,7 +224,9 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase) {
     if (rawUrl.indexOf('/api/proxy?') !== -1 || rawUrl.indexOf('?url=') !== -1) return rawUrl;
     try {
       var abs = new URL(rawUrl, __markupPageOrigin).href;
-      return __markupServerBase + '/api/proxy?url=' + encodeURIComponent(abs) + '&projectId=' + __markupProjectId + '&token=' + encodeURIComponent(__markupToken);
+      var url = __markupServerBase + '/api/proxy?url=' + encodeURIComponent(abs) + '&projectId=' + __markupProjectId + '&token=' + encodeURIComponent(__markupToken);
+      if (__markupIsGuest) url += '&guest=true';
+      return url;
     } catch(e) { return rawUrl; }
   }
 

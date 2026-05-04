@@ -156,10 +156,22 @@ async function getPlansWithOverrides() {
       if (override.badgeColor != null) merged.badgeColor = override.badgeColor;
       if (override.order != null) merged.order = override.order;
       if (override.razorpayPlanId != null) merged.razorpayPlanId = override.razorpayPlanId;
+      if (override.assignToNewSignups != null) merged.assignToNewSignups = override.assignToNewSignups;
     }
     result[key] = merged;
   }
   return result;
 }
 
-module.exports = { PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, clearPlanCache };
+// Returns 'free' if admin has flagged the free plan as the default for new
+// signups (and free is enabled); otherwise 'trial'. Reuses _getOverrides cache.
+async function getNewSignupPlanMode() {
+  const overrides = await _getOverrides();
+  const freeOverride = overrides.free;
+  if (freeOverride && freeOverride.assignToNewSignups === true && freeOverride.enabled !== false) {
+    return 'free';
+  }
+  return 'trial';
+}
+
+module.exports = { PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache };

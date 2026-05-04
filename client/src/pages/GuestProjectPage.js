@@ -7,6 +7,7 @@ import {
   createGuestPinApi,
   createGuestCommentApi,
 } from '../services/guestService';
+import renderCommentBody from '../utils/renderCommentBody';
 
 const AVATAR_COLORS = [
   { bg: 'bg-blue-100', text: 'text-blue-700' },
@@ -61,9 +62,15 @@ export default function GuestProjectPage() {
   const [requiresPassword, setRequiresPassword] = useState(false);
   const [password, setPassword] = useState('');
 
-  // Guest identity
+  // Guest identity. `identityConfirmed` is the *intent* signal — only flips on
+  // an explicit Continue click (or when sessionStorage was already populated).
+  // Don't drive the inline form swap off live `guestName && guestEmail`, or
+  // the form vanishes mid-typing the moment both fields have any character.
   const [guestName, setGuestName] = useState(() => sessionStorage.getItem('guest_name') || '');
   const [guestEmail, setGuestEmail] = useState(() => sessionStorage.getItem('guest_email') || '');
+  const [identityConfirmed, setIdentityConfirmed] = useState(
+    () => !!(sessionStorage.getItem('guest_name') && sessionStorage.getItem('guest_email')),
+  );
   const [showIdentityForm, setShowIdentityForm] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -131,6 +138,7 @@ export default function GuestProjectPage() {
   const saveGuestIdentity = () => {
     sessionStorage.setItem('guest_name', guestName);
     sessionStorage.setItem('guest_email', guestEmail);
+    setIdentityConfirmed(true);
     setShowIdentityForm(false);
   };
 
@@ -409,7 +417,7 @@ export default function GuestProjectPage() {
                               )}
                               <span className="text-[11px] text-gray-400">{timeAgo(comment.createdAt)}</span>
                             </div>
-                            <p className="text-[13px] text-gray-600 leading-relaxed">{comment.body}</p>
+                            <p className="text-[13px] text-gray-600 leading-relaxed">{renderCommentBody(comment.body)}</p>
                           </div>
                         </div>
                       </div>
@@ -420,7 +428,7 @@ export default function GuestProjectPage() {
                 {/* Comment input */}
                 {project.allowComments && (
                   <div className="px-4 py-3 border-t border-gray-100 shrink-0">
-                    {!hasIdentity ? (
+                    {!identityConfirmed ? (
                       /* Inline identity prompt */
                       <div>
                         <p className="text-[13px] text-gray-500 mb-2.5">Enter your details to leave feedback</p>

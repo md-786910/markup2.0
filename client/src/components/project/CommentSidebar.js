@@ -4,37 +4,7 @@ import { getCommentsApi, createCommentApi, updateCommentApi, deleteCommentApi } 
 import { useAuth } from '../../hooks/useAuth';
 import MentionInput from './MentionInput';
 import { stripHtmlForEdit } from '../../utils/htmlUtils';
-
-function renderCommentBody(body) {
-  if (!body) return null;
-  // If body contains HTML tags, render as rich HTML
-  if (/<[a-z][\s\S]*>/i.test(body)) {
-    // Process @mentions inside HTML
-    const processed = body.replace(
-      /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g,
-      '<span class="text-blue-600 font-medium bg-blue-50 rounded px-0.5">@$1</span>'
-    );
-    return <div className="comment-rich-content" dangerouslySetInnerHTML={{ __html: processed }} />;
-  }
-  // Plain text fallback — handle @mentions
-  const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
-  const parts = [];
-  let lastIndex = 0;
-  let match;
-  while ((match = MENTION_REGEX.exec(body)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(body.slice(lastIndex, match.index));
-    }
-    parts.push(
-      <span key={match.index} className="text-blue-600 font-medium bg-blue-50 rounded px-0.5">
-        @{match[1]}
-      </span>
-    );
-    lastIndex = match.index + match[0].length;
-  }
-  if (lastIndex < body.length) parts.push(body.slice(lastIndex));
-  return parts;
-}
+import renderCommentBody from '../../utils/renderCommentBody';
 
 function formatDateTime(dateStr) {
   const d = new Date(dateStr);

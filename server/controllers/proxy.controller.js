@@ -254,30 +254,40 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
 
   const isGetRequest = req.method === 'GET';
 
+  // Guest mode is sticky: query param on the initial iframe load, then cookie
+  // on every subsequent sub-resource request. Either source flips this on.
+  let isGuest = req.query.guest === 'true';
+  if (!isGuest && req.cookies && req.cookies.__markup_proxy_ctx) {
+    try {
+      const ctx = JSON.parse(req.cookies.__markup_proxy_ctx);
+      if (ctx.guest === true) isGuest = true;
+    } catch {}
+  }
+
   if (isGetRequest && contentType.includes("text/html")) {
     try {
       const pageOrigin = new URL(url).origin;
       const ctxPayload = { origin: pageOrigin, projectId, token: req.query.token || '' };
-      if (req.query.guest === 'true') ctxPayload.guest = true;
+      if (isGuest) ctxPayload.guest = true;
       res.cookie('__markup_proxy_ctx', JSON.stringify(ctxPayload), { httpOnly: false, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 });
     } catch {}
     const html = response.data.toString("utf-8");
-    let rewritten = rewriteHtml(html, url, projectId, serverBase, workerBase);
-    rewritten = injectScript(rewritten, url, projectId, serverBase, workerBase);
+    let rewritten = rewriteHtml(html, url, projectId, serverBase, workerBase, isGuest);
+    rewritten = injectScript(rewritten, url, projectId, serverBase, workerBase, isGuest);
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.send(rewritten);
   }
 
   const isCssUrl = /\.css(\?|$)/i.test(url);
   if (isGetRequest && (contentType.includes("text/css") || (isCssUrl && !contentType.includes("javascript") && !contentType.includes("text/html")))) {
-    const cacheKey = `css:${url}:${projectId}:${serverBase}`;
+    const cacheKey = `css:${url}:${projectId}:${serverBase}:${isGuest ? 'g' : 'u'}`;
     const cached = rewriteCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < REWRITE_CACHE_TTL) {
       res.setHeader("Content-Type", "text/css; charset=utf-8");
       return res.send(cached.value);
     }
     const css = response.data.toString("utf-8");
-    const rewritten = rewriteCssUrls(css, url, projectId, serverBase, workerBase);
+    const rewritten = rewriteCssUrls(css, url, projectId, serverBase, workerBase, isGuest);
     if (rewriteCache.size >= REWRITE_CACHE_MAX) {
       const firstKey = rewriteCache.keys().next().value;
       rewriteCache.delete(firstKey);
@@ -289,14 +299,14 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
 
   if (isGetRequest && (contentType.includes("javascript") || contentType.includes("text/javascript") ||
       contentType.includes("application/x-javascript"))) {
-    const cacheKey = `js:${url}:${projectId}:${serverBase}`;
+    const cacheKey = `js:${url}:${projectId}:${serverBase}:${isGuest ? 'g' : 'u'}`;
     const cached = rewriteCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < REWRITE_CACHE_TTL) {
       res.setHeader("Content-Type", contentType);
       return res.send(cached.value);
     }
     const js = response.data.toString("utf-8");
-    const rewritten = rewriteJsUrls(js, url, projectId, serverBase, workerBase);
+    const rewritten = rewriteJsUrls(js, url, projectId, serverBase, workerBase, isGuest);
     if (rewriteCache.size >= REWRITE_CACHE_MAX) {
       const firstKey = rewriteCache.keys().next().value;
       rewriteCache.delete(firstKey);

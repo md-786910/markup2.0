@@ -352,6 +352,10 @@ exports.updatePlan = asyncHandler(async (req, res) => {
   if (b.razorpayPlanId !== undefined) {
     $set.razorpayPlanId = b.razorpayPlanId ? String(b.razorpayPlanId).trim() : null;
   }
+  // Only the free plan can be marked as the default for new signups; ignore on others.
+  if (b.assignToNewSignups !== undefined && planId === 'free') {
+    $set.assignToNewSignups = !!b.assignToNewSignups;
+  }
   if (Array.isArray(b.features)) {
     $set.features = b.features
       .map((f) => String(f).slice(0, 200).trim())

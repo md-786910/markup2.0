@@ -19,12 +19,12 @@ export default function FeaturesGrid() {
     <section id="features" className="bg-white py-24" ref={ref}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto" data-reveal>
-          <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Features</span>
-          <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mt-3">
+        <div className="text-center max-w-3xl mx-auto" data-reveal>
+          <span className="text-blue-600 font-semibold text-xs uppercase tracking-[0.2em]">Features</span>
+          <h2 className="font-display text-3xl md:text-4xl font-bold text-gray-900 mt-4 leading-[1.15] tracking-tight [text-wrap:balance]">
             Everything Markup.io charges $39/mo for — included free
           </h2>
-          <p className="text-lg text-gray-500 mt-4">
+          <p className="text-base md:text-lg text-gray-500 mt-5 max-w-xl mx-auto leading-relaxed">
             Stop wasting time on scattered feedback. Get everything in one place, right where it matters.
           </p>
         </div>
@@ -36,7 +36,7 @@ export default function FeaturesGrid() {
             return (
               <div
                 key={feature.id}
-                className="group p-8 rounded-2xl bg-gray-50 hover:bg-white border border-transparent hover:border-gray-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+                className="group p-8 rounded-2xl bg-white border border-gray-100 hover:border-blue-500/20 hover:bg-blue-50/10 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-0.5"
                 data-reveal
                 data-delay={String((i % 3) + 1)}
               >
