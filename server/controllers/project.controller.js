@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Pin = require('../models/Pin');
@@ -11,6 +12,26 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendInvitationEmail } = require('../utils/mailer');
 const { canAssignRole } = require('../middleware/roles');
 const { logActivity } = require('../utils/activityLogger');
+
+// Hash a share-link password with bcrypt. 10 rounds (vs 12 for user passwords)
+// because share passwords are typically shorter / lower-stakes and we want
+// cheap verification on every guest review-page load.
+async function hashSharePassword(plaintext) {
+  if (!plaintext) return null;
+  return bcrypt.hash(String(plaintext), 10);
+}
+
+// Strip password / passwordHash before sending shareSettings back to the client.
+// Both fields are scrubbed: clients never need them, and the hash shouldn't
+// leak even though it's bcrypt.
+function sanitizeShareSettings(shareSettings) {
+  if (!shareSettings) return shareSettings;
+  const obj = shareSettings.toObject ? shareSettings.toObject() : { ...shareSettings };
+  delete obj.password;
+  delete obj.passwordHash;
+  obj.hasPassword = !!(shareSettings.passwordHash || shareSettings.password);
+  return obj;
+}
 
 exports.createProject = asyncHandler(async (req, res) => {
   const { name, websiteUrl, projectType = 'website' } = req.body;
@@ -407,13 +428,17 @@ exports.enableShare = asyncHandler(async (req, res) => {
     project.shareSettings = {
       enabled: true,
       token: crypto.randomBytes(16).toString('hex'),
-      password: password || null,
+      password: null,
+      passwordHash: await hashSharePassword(password),
       allowComments,
       expiresAt: expiresAt || null,
     };
   } else {
     project.shareSettings.enabled = true;
-    if (password !== undefined) project.shareSettings.password = password || null;
+    if (password !== undefined) {
+      project.shareSettings.password = null;
+      project.shareSettings.passwordHash = await hashSharePassword(password);
+    }
     if (allowComments !== undefined) project.shareSettings.allowComments = allowComments;
     if (expiresAt !== undefined) project.shareSettings.expiresAt = expiresAt || null;
   }
@@ -425,7 +450,7 @@ exports.enableShare = asyncHandler(async (req, res) => {
 
   const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
   res.json({
-    shareSettings: project.shareSettings,
+    shareSettings: sanitizeShareSettings(project.shareSettings),
     shareUrl: `${clientOrigin}/review/${project.shareSettings.token}`,
   });
 });
@@ -449,7 +474,10 @@ exports.updateShare = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Sharing is not enabled for this project.' });
   }
 
-  if (password !== undefined) project.shareSettings.password = password || null;
+  if (password !== undefined) {
+    project.shareSettings.password = null;
+    project.shareSettings.passwordHash = await hashSharePassword(password);
+  }
   if (allowComments !== undefined) project.shareSettings.allowComments = allowComments;
   if (expiresAt !== undefined) project.shareSettings.expiresAt = expiresAt || null;
 
@@ -457,7 +485,7 @@ exports.updateShare = asyncHandler(async (req, res) => {
 
   const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
   res.json({
-    shareSettings: project.shareSettings,
+    shareSettings: sanitizeShareSettings(project.shareSettings),
     shareUrl: `${clientOrigin}/review/${project.shareSettings.token}`,
   });
 });

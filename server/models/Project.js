@@ -53,11 +53,32 @@ const projectSchema = new Schema({
   shareSettings: {
     enabled: { type: Boolean, default: false },
     token: { type: String, unique: true, sparse: true },
+    // Legacy plaintext field. Kept for one release while existing projects
+    // are migrated to passwordHash via scripts/hashSharePasswords.js.
+    // New writes only set passwordHash; reads prefer passwordHash, fall
+    // back to password. Both fields are scrubbed before returning to clients
+    // (see sanitizeShareSettings in project.controller.js).
     password: { type: String, default: null },
+    passwordHash: { type: String, default: null },
     allowComments: { type: Boolean, default: true },
     expiresAt: { type: Date, default: null },
   },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  toJSON: {
+    transform(_doc, ret) {
+      // Never leak share-link secrets to API consumers. Replace with a
+      // boolean flag the UI can use to render a "password protected" badge.
+      if (ret.shareSettings) {
+        const hasPwd = !!(ret.shareSettings.passwordHash || ret.shareSettings.password);
+        delete ret.shareSettings.password;
+        delete ret.shareSettings.passwordHash;
+        ret.shareSettings.hasPassword = hasPwd;
+      }
+      return ret;
+    },
+  },
+});
 
 // Conditionally require websiteUrl for website projects
 projectSchema.pre('validate', function () {

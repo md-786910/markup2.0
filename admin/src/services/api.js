@@ -7,10 +7,20 @@ const api = axios.create({
   withCredentials: true,
 });
 
+function readCsrfCookie() {
+  if (typeof document === 'undefined') return '';
+  const m = document.cookie.match(/(?:^|;\s*)markup_csrf=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  const csrf = readCsrfCookie();
+  if (csrf) {
+    config.headers['X-CSRF-Token'] = csrf;
   }
   return config;
 });

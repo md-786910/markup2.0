@@ -13,6 +13,8 @@ const asyncHandler = require("../utils/asyncHandler");
 const { sendPasswordResetEmail } = require("../utils/mailer");
 const { ROLE_HIERARCHY } = require("../middleware/roles");
 const { getLimitsForPlanAsync, getNewSignupPlanMode } = require("../config/plans");
+const { generateCsrfToken, CSRF_COOKIE } = require("../middleware/csrf");
+const { validatePassword } = require("../utils/passwordPolicy");
 
 // Build the plan-related fields for a freshly-created Organization.
 // When admin has flipped Free as the default for new signups, skip the trial
@@ -42,7 +44,7 @@ const generateToken = (user) => {
   return jwt.sign(
     { id: user._id, role: user.role, sessionToken: user.sessionToken },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || "7d" },
+    { expiresIn: process.env.JWT_EXPIRES_IN || "7d", algorithm: "HS256" },
   );
 };
 
@@ -122,7 +124,18 @@ const setCookieAndRespond = async (res, user, org, statusCode = 200, extra = {})
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   });
-  
+
+  // CSRF double-submit token: non-httpOnly so the SPA can read it from
+  // document.cookie and echo it back in the X-CSRF-Token header.
+  const csrfToken = generateCsrfToken();
+  res.cookie(CSRF_COOKIE, csrfToken, {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: "/",
+  });
+
   let dynamicLimits = null;
   if (org) {
     dynamicLimits = await getLimitsForPlanAsync(org.plan);
@@ -141,6 +154,11 @@ exports.signup = asyncHandler(async (req, res) => {
     return res
       .status(400)
       .json({ message: "Name, email, and password are required" });
+  }
+
+  const policy = validatePassword(password);
+  if (!policy.ok) {
+    return res.status(400).json({ message: policy.message });
   }
 
   const emailNorm = email.toLowerCase().trim();
@@ -334,10 +352,9 @@ exports.changePassword = asyncHandler(async (req, res) => {
       .json({ message: "Current password and new password are required" });
   }
 
-  if (newPassword.length < 6) {
-    return res
-      .status(400)
-      .json({ message: "New password must be at least 6 characters" });
+  const policy = validatePassword(newPassword);
+  if (!policy.ok) {
+    return res.status(400).json({ message: policy.message });
   }
 
   const user = await User.findById(req.user._id).select("+passwordHash");
@@ -453,14 +470,9 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
 
-  if (!password) {
-    return res.status(400).json({ message: "Password is required" });
-  }
-
-  if (password.length < 6) {
-    return res
-      .status(400)
-      .json({ message: "Password must be at least 6 characters" });
+  const policy = validatePassword(password);
+  if (!policy.ok) {
+    return res.status(400).json({ message: policy.message });
   }
 
   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");

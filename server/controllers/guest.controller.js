@@ -1,8 +1,23 @@
+const bcrypt = require('bcryptjs');
 const Project = require('../models/Project');
 const Pin = require('../models/Pin');
 const Comment = require('../models/Comment');
 const asyncHandler = require('../utils/asyncHandler');
 const { logGuestActivity } = require('../utils/activityLogger');
+
+// Verify a guest-supplied password against either the bcrypt hash (preferred,
+// new projects + migrated ones) or the legacy plaintext field (pre-migration
+// projects). Plaintext path will be removed once all projects are migrated.
+async function verifySharePassword(supplied, shareSettings) {
+  if (!supplied) return false;
+  if (shareSettings.passwordHash) {
+    return bcrypt.compare(String(supplied), shareSettings.passwordHash);
+  }
+  if (shareSettings.password) {
+    return supplied === shareSettings.password;
+  }
+  return false;
+}
 
 /**
  * GET /api/guest/:shareToken
@@ -28,14 +43,16 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
 
   // Check password. Distinguish "no password supplied" (first load — show prompt
   // without an error) from "wrong password" (user submitted a guess — show error).
-  if (project.shareSettings.password) {
+  const hasSharePassword = !!(project.shareSettings.passwordHash || project.shareSettings.password);
+  if (hasSharePassword) {
     if (!password) {
       return res.status(401).json({
         message: 'This review requires a password.',
         requiresPassword: true,
       });
     }
-    if (password !== project.shareSettings.password) {
+    const ok = await verifySharePassword(password, project.shareSettings);
+    if (!ok) {
       return res.status(401).json({
         message: 'Incorrect password. Please try again.',
         requiresPassword: true,

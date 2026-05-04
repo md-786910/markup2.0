@@ -25,7 +25,7 @@ connectDB()
       const token = socket.handshake.auth?.token;
       if (!token) return next(new Error("No token provided"));
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
         const user = await User.findById(decoded.id).select("name email");
         if (!user) return next(new Error("User not found"));
         socket.user = user;
