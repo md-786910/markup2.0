@@ -14,7 +14,7 @@ const integrationSchema = new Schema({
   },
   type: {
     type: String,
-    enum: ['slack', 'jira', 'discord'],
+    enum: ['slack', 'jira', 'discord', 'teams'],
     required: true,
   },
   enabled: {
@@ -26,6 +26,7 @@ const integrationSchema = new Schema({
     default: {},
     // Slack: { webhookUrl, notifyOn: ['pin.created', 'comment.created', 'pin.resolved'] }
     // Discord: { webhookUrl, notifyOn: [...] }
+    // Teams: { webhookUrl, notifyOn: [...] }
     // Jira: { domain, email, apiToken, projectKey, issueType, syncPins: true }
   },
   createdBy: {

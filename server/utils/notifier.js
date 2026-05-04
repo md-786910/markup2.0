@@ -4,6 +4,7 @@ const Integration = require('../models/Integration');
 const { queueNotification } = require('./emailQueue');
 const { sendSlackNotification } = require('./slackNotifier');
 const { sendDiscordNotification } = require('./discordNotifier');
+const { sendTeamsNotification } = require('./teamsNotifier');
 const { createJiraIssue } = require('./jiraSync');
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
@@ -134,6 +135,8 @@ async function notifyIntegrations(projectId, orgId, eventData) {
           await sendSlackNotification(integration.config.webhookUrl, eventData);
         } else if (integration.type === 'discord' && integration.config?.webhookUrl) {
           await sendDiscordNotification(integration.config.webhookUrl, eventData);
+        } else if (integration.type === 'teams' && integration.config?.webhookUrl) {
+          await sendTeamsNotification(integration.config.webhookUrl, eventData);
         } else if (integration.type === 'jira' && integration.config?.syncPins && eventData.action === 'pin.created') {
           await createJiraIssue(integration.config, eventData);
         }

@@ -2,6 +2,7 @@ const Integration = require('../models/Integration');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSlackNotification } = require('../utils/slackNotifier');
 const { sendDiscordNotification } = require('../utils/discordNotifier');
+const { sendTeamsNotification } = require('../utils/teamsNotifier');
 
 /**
  * GET /api/integrations
@@ -33,12 +34,12 @@ exports.createIntegration = asyncHandler(async (req, res) => {
 
   const { type, config, project, enabled } = req.body;
 
-  if (!type || !['slack', 'jira', 'discord'].includes(type)) {
-    return res.status(400).json({ message: 'Invalid integration type. Must be slack, jira, or discord.' });
+  if (!type || !['slack', 'jira', 'discord', 'teams'].includes(type)) {
+    return res.status(400).json({ message: 'Invalid integration type. Must be slack, jira, discord, or teams.' });
   }
 
   // Validate required config fields
-  if (type === 'slack' || type === 'discord') {
+  if (type === 'slack' || type === 'discord' || type === 'teams') {
     if (!config?.webhookUrl) {
       return res.status(400).json({ message: 'Webhook URL is required.' });
     }
@@ -140,6 +141,8 @@ exports.testIntegration = asyncHandler(async (req, res) => {
       await sendSlackNotification(integration.config.webhookUrl, testData);
     } else if (integration.type === 'discord') {
       await sendDiscordNotification(integration.config.webhookUrl, testData);
+    } else if (integration.type === 'teams') {
+      await sendTeamsNotification(integration.config.webhookUrl, testData);
     } else if (integration.type === 'jira') {
       // For Jira, just test the connection by fetching the project
       const axios = require('axios');

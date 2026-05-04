@@ -35,6 +35,16 @@ const INTEGRATION_TYPES = [
     placeholder: "https://discord.com/api/webhooks/...",
   },
   {
+    type: "teams",
+    name: "Microsoft Teams",
+    description:
+      "Post feedback events to a Microsoft Teams channel via Incoming Webhook.",
+    color: "from-[#4B53BC] to-[#6264A7]",
+    fields: "webhook",
+    placeholder:
+      "https://outlook.office.com/webhook/... or Workflows webhook URL",
+  },
+  {
     type: "jira",
     name: "Jira",
     description:
@@ -68,9 +78,18 @@ function JiraIcon() {
   );
 }
 
+function TeamsIcon() {
+  return (
+    <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M20.625 8.127h-5.249a1.378 1.378 0 0 1-1.376-1.376V1.5c0-.829.673-1.5 1.501-1.5h5.124C21.452 0 22.125.673 22.125 1.5v5.249a1.378 1.378 0 0 1-1.5 1.378zM18 9.376c2.07 0 3.75 1.679 3.75 3.749s-1.68 3.75-3.75 3.75-3.75-1.679-3.75-3.75c0-2.07 1.68-3.749 3.75-3.749zm-9.751-.751c-2.485 0-4.499-2.014-4.499-4.5S5.764-.375 8.249-.375s4.5 2.014 4.5 4.5-2.015 4.5-4.5 4.5zm5.625 1.5v9.75c0 1.243-1.007 2.25-2.25 2.25H4.5a2.25 2.25 0 0 1-2.25-2.25v-9.75c0-1.243 1.007-2.25 2.25-2.25h7.124a2.25 2.25 0 0 1 2.25 2.25zM10.5 12.75H6.375v6h-1.5v-6H.75v-1.5h9.75v1.5z" />
+    </svg>
+  );
+}
+
 const ICONS = {
   slack: <SlackIcon />,
   discord: <DiscordIcon />,
+  teams: <TeamsIcon />,
   jira: <JiraIcon />,
 };
 
