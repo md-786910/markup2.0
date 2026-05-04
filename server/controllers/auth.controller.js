@@ -75,7 +75,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 async function attachPendingInvoice(org) {
   if (!org) return;
-  const inv = await Invoice.findOne({ organization: org._id, status: 'pending' })
+  // Only auto-billing cycle invoices (billingMonth set) drive the banner.
+  // Pending one-off checkout sessions the user abandoned are NOT real unpaid
+  // bills — they're stale orders and should be ignored here. Same filter as
+  // getInvoices so the banner and the invoices tab stay consistent.
+  const inv = await Invoice.findOne({
+    organization: org._id,
+    status: 'pending',
+    billingMonth: { $type: 'string' },
+  })
     .sort({ createdAt: -1 })
     .lean();
   if (!inv) {
