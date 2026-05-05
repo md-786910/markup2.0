@@ -59,6 +59,7 @@ const FALLBACK_ORIGINS = [
   "https://admin.feedbackly.online",
   "https://feedbackly.online",
   "https://www.feedbackly.online",
+  "https://markupadmin1.vercel.app",
 ];
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
