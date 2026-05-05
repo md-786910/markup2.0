@@ -61,11 +61,12 @@ const FALLBACK_ORIGINS = [
   "https://www.feedbackly.online",
   "https://markupadmin1.vercel.app",
 ];
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+const ENV_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",")
       .map((s) => s.trim())
       .filter(Boolean)
-  : FALLBACK_ORIGINS;
+  : [];
+const ALLOWED_ORIGINS = Array.from(new Set([...FALLBACK_ORIGINS, ...ENV_ORIGINS]));
 const LOCALHOST_RE = /^https?:\/\/localhost(:\d+)?$/;
 
 app.use(
