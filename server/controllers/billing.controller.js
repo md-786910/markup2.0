@@ -12,6 +12,7 @@ const {
 } = require('../payments');
 const { settleInvoice } = require('../payments/settleInvoice');
 const { PaymentProviderUnavailableError } = require('../payments/errors');
+const { logOrgActivity } = require('../utils/activityLogger');
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 
@@ -204,6 +205,7 @@ exports.verifyPayment = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Payment verification failed.' });
   }
 
+  const previousPlan = org.plan;
   const settled = await settleInvoice(invoice._id, {
     providerPaymentId: verifyResult.providerPaymentId,
     providerCaptureId: verifyResult.providerCaptureId,
@@ -216,6 +218,24 @@ exports.verifyPayment = asyncHandler(async (req, res) => {
   const Organization = require('../models/Organization');
   const updatedOrg = await Organization.findById(org._id);
   await attachPendingInvoice(updatedOrg);
+
+  // Emit org-activity for the payment + the implicit plan upgrade.
+  const mergedPlans = await getPlansWithOverrides();
+  logOrgActivity(updatedOrg._id, req.user._id, 'billing.payment_succeeded', {
+    amount: invoice.amount,
+    currency: invoice.currency,
+    plan: updatedOrg.plan,
+    planName: mergedPlans[updatedOrg.plan]?.name || updatedOrg.plan,
+    provider: invoice.provider,
+  });
+  if (previousPlan !== updatedOrg.plan) {
+    logOrgActivity(updatedOrg._id, req.user._id, 'org.plan_upgraded', {
+      from: previousPlan,
+      to: updatedOrg.plan,
+      fromName: mergedPlans[previousPlan]?.name || previousPlan,
+      toName: mergedPlans[updatedOrg.plan]?.name || updatedOrg.plan,
+    });
+  }
 
   res.json({
     message: 'Payment verified and plan activated successfully!',
@@ -396,6 +416,17 @@ exports.upgradePlan = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'You already have this active plan.' });
   }
 
+  // Block downgrades unless the admin has explicitly allowed them.
+  const targetOrder = mergedPlans[plan]?.order ?? 0;
+  const currentOrder = org.plan === 'trial' ? -1 : (mergedPlans[org.plan]?.order ?? -1);
+  if (targetOrder < currentOrder) {
+    const status = await getProviderStatus();
+    if (!status.allowDowngrades) {
+      return res.status(400).json({ message: 'Plan downgrades are currently disabled.' });
+    }
+  }
+
+  const previousPlan = org.plan;
   org.plan = plan;
   org.limits = await getLimitsForPlanAsync(plan);
   clearBillingLock(org);
@@ -413,6 +444,19 @@ exports.upgradePlan = asyncHandler(async (req, res) => {
 
   await org.save();
   await attachPendingInvoice(org);
+
+  // Emit org-activity. Only meaningful when this is a tier change (skip the
+  // trial→free no-op and re-activations of the same plan, both already
+  // filtered earlier).
+  if (previousPlan !== plan) {
+    const action = targetOrder < currentOrder ? 'org.plan_downgraded' : 'org.plan_upgraded';
+    logOrgActivity(org._id, req.user._id, action, {
+      from: previousPlan,
+      to: plan,
+      fromName: mergedPlans[previousPlan]?.name || previousPlan,
+      toName: mergedPlans[plan]?.name || plan,
+    });
+  }
 
   res.json({
     message: `Successfully activated ${mergedPlans[plan]?.name || plan}`,

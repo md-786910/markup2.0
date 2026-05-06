@@ -8,6 +8,7 @@ import {
   PLAN_LIST as STATIC_PLAN_LIST,
 } from "../../config/plans";
 import UpgradeModal from "./UpgradeModal";
+import DowngradeModal from "./DowngradeModal";
 
 const badgeColors = {
   gray: "bg-gray-100 text-gray-600 border border-gray-200",
@@ -62,9 +63,11 @@ export default function BillingTab() {
   const [planData, setPlanData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [upgradeTarget, setUpgradeTarget] = useState(null);
+  const [downgradeTarget, setDowngradeTarget] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [livePlans, setLivePlans] = useState(STATIC_PLANS);
   const [livePlanList, setLivePlanList] = useState(STATIC_PLAN_LIST);
+  const [allowDowngrades, setAllowDowngrades] = useState(false);
 
   useEffect(() => {
     const status = searchParams.get("status");
@@ -91,6 +94,7 @@ export default function BillingTab() {
       .then((res) => {
         if (res.data?.plans) setLivePlans(res.data.plans);
         if (res.data?.planList) setLivePlanList(res.data.planList);
+        setAllowDowngrades(!!res.data?.allowDowngrades);
       })
       .catch(() => {});
   }, []);
@@ -467,10 +471,28 @@ export default function BillingTab() {
                         Ask owner to upgrade
                       </button>
                     )}
-                    {isDowngrade && (
+                    {isDowngrade && allowDowngrades && isOwner && (
+                      <button
+                        onClick={() => setDowngradeTarget(plan)}
+                        className="w-full py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-colors flex justify-center items-center gap-2"
+                      >
+                        Downgrade to {plan.name}
+                      </button>
+                    )}
+                    {isDowngrade && allowDowngrades && !isOwner && (
+                      <button
+                        disabled
+                        className="w-full py-2.5 text-sm font-bold text-gray-500 bg-gray-100 rounded-xl cursor-not-allowed border border-gray-200"
+                        title="Only the workspace owner can change the plan"
+                      >
+                        Ask owner to downgrade
+                      </button>
+                    )}
+                    {isDowngrade && !allowDowngrades && (
                       <button
                         disabled
                         className="w-full py-2.5 text-sm font-bold text-gray-400 bg-gray-50 rounded-xl cursor-not-allowed border border-gray-200"
+                        title="Downgrades are disabled by your admin"
                       >
                         Downgrade
                       </button>
@@ -511,6 +533,19 @@ export default function BillingTab() {
           currentPlanName={livePlans[currentPlanId]?.name}
           onClose={() => setUpgradeTarget(null)}
           onUpgradeComplete={handleUpgradeComplete}
+        />
+      )}
+
+      {/* Downgrade Modal */}
+      {downgradeTarget && (
+        <DowngradeModal
+          targetPlan={downgradeTarget}
+          currentPlan={livePlans[currentPlanId] || null}
+          onClose={() => setDowngradeTarget(null)}
+          onDowngradeComplete={(userData) => {
+            handleUpgradeComplete(userData);
+            setDowngradeTarget(null);
+          }}
         />
       )}
     </div>

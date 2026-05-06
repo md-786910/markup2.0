@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { signup, login, getMe, forgotPassword, resetPassword, updateProfile, changePassword, uploadAvatar, deleteAccount, updateOrganization, validateEmail, sendOtp, verifyOtp } = require('../controllers/auth.controller');
+const { signup, login, getMe, forgotPassword, resetPassword, updateProfile, changePassword, uploadAvatar, deleteAccount, updateOrganization, validateEmail, sendOtp, verifyOtp, getOrgActivity } = require('../controllers/auth.controller');
 const auth = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
@@ -14,6 +14,7 @@ router.patch('/change-password', auth, changePassword);
 router.post('/avatar', auth, upload.single('avatar'), uploadAvatar);
 router.delete('/account', auth, deleteAccount);
 router.patch('/organization', auth, upload.single('logo'), updateOrganization);
+router.get('/organization/activity', auth, getOrgActivity);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 

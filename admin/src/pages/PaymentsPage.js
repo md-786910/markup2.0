@@ -31,6 +31,7 @@ export default function PaymentsPage() {
 
   const [draftActive, setDraftActive] = useState(null);
   const [draftEnabled, setDraftEnabled] = useState({ razorpay: true, paypal: false });
+  const [draftAllowDowngrades, setDraftAllowDowngrades] = useState(false);
 
   const fetchSettings = async () => {
     try {
@@ -41,6 +42,7 @@ export default function PaymentsPage() {
         razorpay: !!data.providers?.razorpay?.enabled,
         paypal: !!data.providers?.paypal?.enabled,
       });
+      setDraftAllowDowngrades(!!data.allowDowngrades);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load payment settings.');
     } finally {
@@ -61,6 +63,7 @@ export default function PaymentsPage() {
           razorpay: { enabled: draftEnabled.razorpay },
           paypal: { enabled: draftEnabled.paypal },
         },
+        allowDowngrades: draftAllowDowngrades,
       });
       setSettings(data);
       setSuccess('Payment settings saved.');
@@ -82,7 +85,8 @@ export default function PaymentsPage() {
   const dirty =
     settings?.activeProvider !== draftActive ||
     !!settings?.providers?.razorpay?.enabled !== draftEnabled.razorpay ||
-    !!settings?.providers?.paypal?.enabled !== draftEnabled.paypal;
+    !!settings?.providers?.paypal?.enabled !== draftEnabled.paypal ||
+    !!settings?.allowDowngrades !== draftAllowDowngrades;
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -196,6 +200,33 @@ export default function PaymentsPage() {
             Customers see "We're facing payment issues."
           </span>
         </label>
+      </div>
+
+      <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-5">
+        <h2 className="text-base font-bold text-gray-900 mb-1">Billing policy</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Global rules that apply to every workspace's billing tab.
+        </p>
+
+        <div className="flex items-start justify-between gap-4 p-4 bg-gray-50 border border-gray-100 rounded-xl">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Allow plan downgrades</p>
+            <p className="text-xs text-gray-500 leading-snug mt-0.5">
+              When enabled, workspace owners can move to a lower-tier plan from
+              Settings → Billing. When disabled, the Downgrade button is grayed
+              out and the API rejects downgrade requests.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
+            <input
+              type="checkbox"
+              checked={draftAllowDowngrades}
+              onChange={(e) => setDraftAllowDowngrades(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+          </label>
+        </div>
       </div>
 
       <div className="mt-6 flex justify-end">

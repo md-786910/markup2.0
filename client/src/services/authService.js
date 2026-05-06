@@ -42,3 +42,6 @@ export const updateOrganizationApi = (formData) =>
   api.patch('/auth/organization', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+
+export const getOrgActivityApi = (page = 1, limit = 30) =>
+  api.get('/auth/organization/activity', { params: { page, limit } });

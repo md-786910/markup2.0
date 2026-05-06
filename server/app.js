@@ -169,11 +169,15 @@ app.get("/api/health", (req, res) => {
 app.get("/api/plans", async (req, res) => {
   try {
     const { getPlansWithOverrides } = require("./config/plans");
-    const plans = await getPlansWithOverrides();
+    const { getProviderStatus } = require("./payments");
+    const [plans, status] = await Promise.all([
+      getPlansWithOverrides(),
+      getProviderStatus(),
+    ]);
     const planList = Object.values(plans).sort(
       (a, b) => (a.order ?? 0) - (b.order ?? 0),
     );
-    res.json({ plans, planList });
+    res.json({ plans, planList, allowDowngrades: !!status.allowDowngrades });
   } catch (err) {
     res.status(500).json({ message: "Failed to load plans" });
   }

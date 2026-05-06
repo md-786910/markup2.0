@@ -13,6 +13,7 @@ const {
   getProviderStatus,
   clearPaymentSettingsCache,
 } = require('../payments');
+const { logOrgActivity } = require('../utils/activityLogger');
 
 // ── Dashboard Stats ──────────────────────────────────────────────
 
@@ -180,6 +181,10 @@ exports.lockOrganization = asyncHandler(async (req, res) => {
     { new: true },
   );
   if (!org) return res.status(404).json({ message: 'Organization not found' });
+  logOrgActivity(org._id, req.user._id, 'org.locked', {
+    reason: org.lockedReason,
+    actorRole: 'superadmin',
+  });
   res.json({ organization: org });
 });
 
@@ -190,6 +195,9 @@ exports.unlockOrganization = asyncHandler(async (req, res) => {
     { new: true },
   );
   if (!org) return res.status(404).json({ message: 'Organization not found' });
+  logOrgActivity(org._id, req.user._id, 'org.unlocked', {
+    actorRole: 'superadmin',
+  });
   res.json({ organization: org });
 });
 
@@ -408,7 +416,7 @@ exports.getPaymentSettings = asyncHandler(async (req, res) => {
 });
 
 exports.updatePaymentSettings = asyncHandler(async (req, res) => {
-  const { activeProvider, providers } = req.body || {};
+  const { activeProvider, providers, allowDowngrades } = req.body || {};
 
   const VALID = ['razorpay', 'paypal'];
   const $set = {};
@@ -419,6 +427,10 @@ exports.updatePaymentSettings = asyncHandler(async (req, res) => {
         $set[`providers.${id}.enabled`] = providers[id].enabled;
       }
     }
+  }
+
+  if (typeof allowDowngrades === 'boolean') {
+    $set.allowDowngrades = allowDowngrades;
   }
 
   if (activeProvider !== undefined) {

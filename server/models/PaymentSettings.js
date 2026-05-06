@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
 
 // Singleton document — one row keyed by `key: 'default'` controls the active
-// payment provider for the whole platform. Admins toggle this from the admin
-// panel. Credentials remain in env vars; only enable/active state lives here.
+// payment provider + global billing policy for the whole platform. Admins
+// toggle these from the admin panel. Credentials remain in env vars; only
+// enable/active state lives here.
 const paymentSettingsSchema = new mongoose.Schema({
   key: { type: String, default: 'default', unique: true },
   activeProvider: {
@@ -18,6 +19,8 @@ const paymentSettingsSchema = new mongoose.Schema({
       enabled: { type: Boolean, default: false },
     },
   },
+  // When false, workspace owners cannot move to a lower-tier plan.
+  allowDowngrades: { type: Boolean, default: false },
 }, { timestamps: true });
 
 paymentSettingsSchema.statics.getSingleton = async function () {

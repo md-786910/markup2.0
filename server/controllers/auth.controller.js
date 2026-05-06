@@ -15,6 +15,7 @@ const { ROLE_HIERARCHY } = require("../middleware/roles");
 const { getLimitsForPlanAsync, getNewSignupPlanMode } = require("../config/plans");
 const { generateCsrfToken, CSRF_COOKIE } = require("../middleware/csrf");
 const { validatePassword } = require("../utils/passwordPolicy");
+const { logOrgActivity } = require("../utils/activityLogger");
 
 // Build the plan-related fields for a freshly-created Organization.
 // When admin has flipped Free as the default for new signups, skip the trial
@@ -525,20 +526,42 @@ exports.updateOrganization = asyncHandler(async (req, res) => {
   }
 
   const { name } = req.body;
+  const previousName = org.name;
+  let nameChanged = false;
   if (name !== undefined) {
     if (!name.trim()) {
       return res
         .status(400)
         .json({ message: "Organization name cannot be empty" });
     }
-    org.name = name.trim();
+    const trimmed = name.trim();
+    if (trimmed !== org.name) {
+      org.name = trimmed;
+      nameChanged = true;
+    }
   }
 
+  let logoChanged = false;
   if (req.file) {
     org.logo = req.file.filename;
+    logoChanged = true;
   }
 
   await org.save();
+
+  // Only emit activity when something actually changed AND this isn't the
+  // first-time onboarding create flow (previousName would be undefined there).
+  if (nameChanged && previousName) {
+    logOrgActivity(org._id, req.user._id, 'org.name_updated', {
+      name: org.name,
+      previousName,
+    });
+  }
+  if (logoChanged && previousName) {
+    logOrgActivity(org._id, req.user._id, 'org.logo_updated', {
+      logo: org.logo,
+    });
+  }
 
   res.json({ user: userResponse(req.user, org) });
 });
@@ -665,4 +688,56 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
   record.verifiedAt = new Date();
   await record.save();
   res.json({ verified: true });
+});
+
+// ── Org-wide activity feed ────────────────────────────────────────
+const Activity = require('../models/Activity');
+
+// Excluded from the org feed: pin/comment/mention/guest noise.
+const EXCLUDED_ORG_ACTIONS = [
+  'pin.created', 'pin.resolved', 'pin.reopened', 'pin.deleted',
+  'comment.created', 'comment.deleted',
+  'guest.commented', 'guest.pin_created',
+];
+
+exports.getOrgActivity = asyncHandler(async (req, res) => {
+  const org = req.organization;
+  if (!org) {
+    return res.status(500).json({ message: 'Organization context missing' });
+  }
+
+  // Activity feed is owner/admin only — members and guests can't see it.
+  if (req.user.role !== 'owner' && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Only owners and admins can view workspace activity.' });
+  }
+
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 30));
+  const skip = (page - 1) * limit;
+
+  const filter = {
+    organization: org._id,
+    action: { $nin: EXCLUDED_ORG_ACTIONS },
+  };
+
+  const [activities, total] = await Promise.all([
+    Activity.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('actor', 'name email avatar')
+      .populate('project', 'name')
+      .lean(),
+    Activity.countDocuments(filter),
+  ]);
+
+  res.json({
+    activities,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.max(1, Math.ceil(total / limit)),
+    },
+  });
 });

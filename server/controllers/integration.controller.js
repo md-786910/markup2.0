@@ -3,6 +3,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendSlackNotification } = require('../utils/slackNotifier');
 const { sendDiscordNotification } = require('../utils/discordNotifier');
 const { sendTeamsNotification } = require('../utils/teamsNotifier');
+const { logOrgActivity } = require('../utils/activityLogger');
 
 /**
  * GET /api/integrations
@@ -63,6 +64,12 @@ exports.createIntegration = asyncHandler(async (req, res) => {
     .populate('project', 'name')
     .populate('createdBy', 'name email');
 
+  logOrgActivity(orgId, req.user._id, 'integration.connected', {
+    type: integration.type,
+    integrationId: String(integration._id),
+    projectName: populated.project?.name || null,
+  });
+
   res.status(201).json({ integration: populated });
 });
 
@@ -109,6 +116,11 @@ exports.deleteIntegration = asyncHandler(async (req, res) => {
   }
 
   await Integration.findByIdAndDelete(req.params.id);
+
+  logOrgActivity(integration.organization, req.user._id, 'integration.disconnected', {
+    type: integration.type,
+    integrationId: String(integration._id),
+  });
 
   res.json({ message: 'Integration deleted' });
 });

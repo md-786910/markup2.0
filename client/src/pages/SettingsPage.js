@@ -4,17 +4,23 @@ import { useAuth } from '../hooks/useAuth';
 import { updateOrganizationApi } from '../services/authService';
 import BillingTab from '../components/settings/BillingTab';
 import InvoicesTab from '../components/settings/InvoicesTab';
+import ActivityTab from '../components/settings/ActivityTab';
 
-const TABS = [
+const ALL_TABS = [
   { id: 'workspace', label: 'Workspace' },
   { id: 'billing', label: 'Billing' },
   { id: 'invoices', label: 'Invoices' },
+  { id: 'activity', label: 'Activity', adminOnly: true },
 ];
 
 export default function SettingsPage() {
-  const { user, isOwner, updateUser } = useAuth();
+  const { user, isOwner, isAdmin, updateUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'workspace';
+  const requestedTab = searchParams.get('tab') || 'workspace';
+
+  // Hide admin-only tabs for non-admins; redirect away if they hit one directly.
+  const TABS = ALL_TABS.filter((t) => !t.adminOnly || isAdmin);
+  const activeTab = TABS.some((t) => t.id === requestedTab) ? requestedTab : 'workspace';
 
   const [workspaceName, setWorkspaceName] = useState(user?.orgName || '');
   const [nameLoading, setNameLoading] = useState(false);
@@ -190,6 +196,9 @@ export default function SettingsPage() {
 
       {/* Invoices tab */}
       {activeTab === 'invoices' && <InvoicesTab />}
+
+      {/* Activity tab — owner/admin only */}
+      {activeTab === 'activity' && isAdmin && <ActivityTab />}
     </div>
   );
 }

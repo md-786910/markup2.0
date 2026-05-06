@@ -141,6 +141,7 @@ exports.updateProject = asyncHandler(async (req, res) => {
   }
 
   const oldProjectStatus = project.projectStatus;
+  const oldStatus = project.status;
 
   if (name) project.name = name;
   if (websiteUrl) project.websiteUrl = websiteUrl;
@@ -154,6 +155,10 @@ exports.updateProject = asyncHandler(async (req, res) => {
       oldStatus: oldProjectStatus,
       newStatus: projectStatus,
     });
+  }
+  if (status && status !== oldStatus) {
+    const action = status === 'archived' ? 'project.archived' : 'project.unarchived';
+    logActivity(project._id, req.user._id, action, { projectName: project.name });
   }
   if (name || websiteUrl) {
     logActivity(project._id, req.user._id, 'project.updated', { name, websiteUrl });

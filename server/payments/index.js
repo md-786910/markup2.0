@@ -62,7 +62,11 @@ async function getProviderStatus() {
       active: settings.activeProvider === id,
     };
   }
-  return { activeProvider: settings.activeProvider, providers: out };
+  return {
+    activeProvider: settings.activeProvider,
+    providers: out,
+    allowDowngrades: !!settings.allowDowngrades,
+  };
 }
 
 module.exports = {
