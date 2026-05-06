@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { updateOrganizationApi, uploadAvatarApi, validateEmailApi, sendOtpApi, verifyOtpApi } from '../services/authService';
-import { getPublicPlansApi, createCheckoutSessionApi, verifyPaymentApi, upgradePlanApi } from '../services/billingService';
+import { getPublicPlansApi, createCheckoutSessionApi, verifyPaymentApi, upgradePlanApi, getBillingConfigApi } from '../services/billingService';
 import AuthLayout from '../components/layout/AuthLayout';
 
 const STEPS = [
@@ -19,6 +19,18 @@ function loadRazorpayScript() {
     if (window.Razorpay) return resolve(true);
     const script = document.createElement('script');
     script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
+function loadScript(src, id) {
+  return new Promise((resolve) => {
+    if (id && document.getElementById(id)) return resolve(true);
+    const script = document.createElement('script');
+    script.src = src;
+    if (id) script.id = id;
     script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
@@ -45,6 +57,9 @@ export default function OnboardingPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
 
   // Profile fields
   const [avatarFile, setAvatarFile] = useState(null);
@@ -55,9 +70,11 @@ export default function OnboardingPage() {
   const [livePlans, setLivePlans] = useState(null); // null = still loading
 
   // Setting-up state shown after Start is clicked on the Payment step
-  const [phase, setPhase] = useState('idle'); // 'idle' | 'setting-up' | 'retry'
+  const [phase, setPhase] = useState('idle'); // 'idle' | 'setting-up' | 'paypal-checkout' | 'retry'
   const [stages, setStages] = useState({ account: 'pending', workspace: 'pending', avatar: 'pending', checkout: 'pending' });
   const [retryReason, setRetryReason] = useState('');
+  const [billingConfig, setBillingConfig] = useState(null); // { activeProvider, razorpay?, paypal? }
+  const [paypalError, setPaypalError] = useState('');
 
   // Email validation
   const [emailValidating, setEmailValidating] = useState(false);
@@ -113,8 +130,11 @@ export default function OnboardingPage() {
     return () => { alive = false; };
   }, [step, livePlans]);
 
-  // Already authenticated → go to dashboard
-  if (user) {
+  // Already authenticated AND not mid-onboarding → go to dashboard.
+  // During the setup/checkout/retry phases the user becomes authenticated by
+  // signup() inside runSetup(); we must NOT redirect or the payment gateway
+  // would open on top of the dashboard.
+  if (user && phase === 'idle') {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -134,6 +154,10 @@ export default function OnboardingPage() {
     e.preventDefault();
     if (!emailVerified) return;
     if (!name.trim() || !password || password.length < 6) return;
+    if (password !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
     setStep(step + 1);
   };
 
@@ -188,6 +212,9 @@ export default function OnboardingPage() {
       setOtp('');
       setOtpError('');
       setResendCooldown(0);
+      setPassword('');
+      setConfirmPassword('');
+      setPasswordError('');
     }
   };
 
@@ -231,13 +258,29 @@ export default function OnboardingPage() {
     }
   };
 
-  // Open Razorpay for the selected paid plan and resolve on payment verify.
-  const openRazorpay = async () => {
+  // If the admin enabled a free plan, demote to it on payment cancel/fail so
+  // the user lands on dashboard with usable access. Otherwise the org stays on
+  // its trial (set during signup) and we still navigate to dashboard.
+  const fallbackToFreeOrTrial = async () => {
+    const free = (livePlans || []).find((p) => p.price === 0 || p.price == null);
+    if (free) {
+      try {
+        const res = await upgradePlanApi(free.id);
+        updateUser(res.data.user);
+      } catch (_) {
+        // Leave the workspace on trial; user can still proceed.
+      }
+    }
+    setStages((s) => ({ ...s, checkout: 'done' }));
+    await wait(400);
+    navigate('/dashboard');
+  };
+
+  const openRazorpayCheckout = async () => {
     setStages((s) => ({ ...s, checkout: 'active' }));
     const isLoaded = await loadRazorpayScript();
     if (!isLoaded) {
-      setRetryReason('Failed to load the payment SDK. Check your internet connection.');
-      setPhase('retry');
+      await fallbackToFreeOrTrial();
       return;
     }
 
@@ -246,8 +289,7 @@ export default function OnboardingPage() {
       const res = await createCheckoutSessionApi(selectedPlan);
       session = res.data;
     } catch (err) {
-      setRetryReason(err.response?.data?.message || 'Failed to start checkout.');
-      setPhase('retry');
+      await fallbackToFreeOrTrial();
       return;
     }
 
@@ -272,22 +314,30 @@ export default function OnboardingPage() {
           await wait(500);
           navigate('/dashboard');
         } catch (err) {
+          // Verification failures need admin attention — keep the retry view.
           setRetryReason(err.response?.data?.message || 'Payment verification failed.');
           setPhase('retry');
         }
       },
       modal: {
-        ondismiss: () => {
-          setRetryReason('Payment cancelled. Your workspace is ready — you can pay now or any time from Settings → Billing.');
-          setPhase('retry');
-        },
+        ondismiss: () => { fallbackToFreeOrTrial(); },
       },
     });
-    rzp.on('payment.failed', (resp) => {
-      setRetryReason(resp.error?.description || 'Payment failed. Please try again.');
-      setPhase('retry');
-    });
+    rzp.on('payment.failed', () => { fallbackToFreeOrTrial(); });
     rzp.open();
+  };
+
+  const openCheckout = async (cfg) => {
+    const provider = cfg?.activeProvider;
+    if (provider === 'razorpay') return openRazorpayCheckout();
+    if (provider === 'paypal') {
+      setPaypalError('');
+      setStages((s) => ({ ...s, checkout: 'active' }));
+      setPhase('paypal-checkout');
+      return;
+    }
+    // No provider configured — fall back so the user isn't stuck.
+    await fallbackToFreeOrTrial();
   };
 
   const handleFinish = async () => {
@@ -302,8 +352,8 @@ export default function OnboardingPage() {
       return;
     }
 
-    // Free plan (price 0 or null) skips Razorpay — but we still flip the org
-    // off `trial` and onto the actual `free` plan so the BillingTab reflects it.
+    // Free plan (price 0 or null) skips checkout — flip the org off `trial` and
+    // onto the actual `free` plan so the BillingTab reflects it.
     const planObj = (livePlans || []).find((p) => p.id === selectedPlan);
     const isFree = planObj && (planObj.price === 0 || planObj.price == null);
     if (isFree) {
@@ -311,8 +361,6 @@ export default function OnboardingPage() {
         const res = await upgradePlanApi(selectedPlan);
         updateUser(res.data.user);
       } catch (err) {
-        // Non-fatal: the workspace still exists on trial; show the error and
-        // let the user retry from Settings → Billing.
         setError(err.response?.data?.message || 'Could not activate the free plan.');
       }
       await wait(400);
@@ -320,15 +368,26 @@ export default function OnboardingPage() {
       return;
     }
 
-    await openRazorpay();
+    // Paid plan — fetch billing config (we're authenticated now post-signup)
+    // and dispatch to the active provider's checkout.
+    let cfg = billingConfig;
+    if (!cfg) {
+      try {
+        const res = await getBillingConfigApi();
+        cfg = res.data;
+        setBillingConfig(cfg);
+      } catch (_) {
+        cfg = { activeProvider: null };
+      }
+    }
+    await openCheckout(cfg);
   };
 
-  const handleRetryCheckout = () => {
+  const handleRetryCheckout = async () => {
     setRetryReason('');
     setPhase('setting-up');
-    // Setup already done; only run checkout this time.
     setStages((s) => ({ ...s, account: 'done', workspace: 'done', avatar: avatarFile ? 'done' : 'skipped', checkout: 'pending' }));
-    openRazorpay();
+    await openCheckout(billingConfig);
   };
 
   const handleSkipToDashboard = () => {
@@ -336,14 +395,43 @@ export default function OnboardingPage() {
   };
 
   // Setting-up overlay — replaces the form column when payment flow is mid-flight
-  if (phase === 'setting-up' || phase === 'retry') {
+  if (phase === 'setting-up' || phase === 'retry' || phase === 'paypal-checkout') {
     const selectedPlanObj = (livePlans || []).find((p) => p.id === selectedPlan);
     const isFreePlan = selectedPlanObj && (selectedPlanObj.price === 0 || selectedPlanObj.price == null);
     return (
       <AuthLayout>
-        {phase === 'setting-up' ? (
+        {phase === 'setting-up' && (
           <SettingUpView stages={stages} planName={selectedPlanObj?.name} priceLabel={selectedPlanObj?.priceLabel} period={selectedPlanObj?.period} avatarPlanned={!!avatarFile} paidPlan={!isFreePlan} />
-        ) : (
+        )}
+        {phase === 'paypal-checkout' && (
+          <PaypalCheckoutView
+            plan={selectedPlanObj}
+            clientId={billingConfig?.paypal?.clientId}
+            currency={billingConfig?.paypal?.currency || 'USD'}
+            error={paypalError}
+            setError={setPaypalError}
+            onApproved={async (orderID) => {
+              try {
+                const verifyRes = await verifyPaymentApi({ paypalOrderId: orderID });
+                updateUser(verifyRes.data.user);
+                setStages((s) => ({ ...s, checkout: 'done' }));
+                await wait(500);
+                navigate('/dashboard');
+              } catch (err) {
+                setRetryReason(err.response?.data?.message || 'Payment verification failed.');
+                setPhase('retry');
+              }
+            }}
+            onCancel={fallbackToFreeOrTrial}
+            onSdkFailure={fallbackToFreeOrTrial}
+            createOrder={async () => {
+              const res = await createCheckoutSessionApi(selectedPlan);
+              if (!res.data?.paypalOrderId) throw new Error('No PayPal order id from server.');
+              return res.data.paypalOrderId;
+            }}
+          />
+        )}
+        {phase === 'retry' && (
           <RetryView reason={retryReason} planName={selectedPlanObj?.name} onRetry={handleRetryCheckout} onSkip={handleSkipToDashboard} />
         )}
       </AuthLayout>
@@ -378,7 +466,7 @@ export default function OnboardingPage() {
           <p className="text-sm text-gray-500 mb-8">This is your team's shared space for all projects.</p>
 
           <div className="mb-5">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace Name <span className="text-red-500">*</span></label>
             <input type="text" value={orgName} onChange={(e) => setOrgName(e.target.value)}
               placeholder="Acme Inc." autoFocus
               className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow" />
@@ -434,13 +522,13 @@ export default function OnboardingPage() {
 
           <form onSubmit={handleAccountNext} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} required autoFocus
                 className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
                 placeholder="John Doe" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Work Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Work Email <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
                 <input type="email" value={email} onChange={(e) => handleEmailChange(e.target.value)} required
                   disabled={emailVerified}
@@ -465,6 +553,9 @@ export default function OnboardingPage() {
                   </button>
                 )}
               </div>
+              {emailError && !emailVerified && (
+                <p className="text-xs text-red-600 mt-2">{emailError}</p>
+              )}
               {otpSent && !emailVerified && (
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
                   <p className="text-xs text-blue-800 mb-2">
@@ -491,30 +582,65 @@ export default function OnboardingPage() {
                 </div>
               )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-              <div className="relative">
-                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
-                  className="w-full px-3.5 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
-                  placeholder="Min 6 characters" />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
+            {emailVerified && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showPassword ? 'text' : 'password'} value={password}
+                      onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
+                      required minLength={6}
+                      className="w-full px-3.5 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+                      placeholder="Min 6 characters" />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword}
+                      onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); }}
+                      required minLength={6}
+                      className="w-full px-3.5 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+                      placeholder="Re-enter password" />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                    >
+                      {showConfirmPassword ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18" />
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                {passwordError && (
+                  <p className="sm:col-span-2 text-xs text-red-600 -mt-1">{passwordError}</p>
+                )}
               </div>
-            </div>
+            )}
 
             {/* Avatar upload */}
             <div>
@@ -544,7 +670,8 @@ export default function OnboardingPage() {
                 className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
                 Back
               </button>
-              <button type="submit" disabled={!emailVerified || !name.trim() || password.length < 6}
+              <button type="submit"
+                disabled={!emailVerified || !name.trim() || password.length < 6 || password !== confirmPassword}
                 title={!emailVerified ? 'Verify your email to continue' : undefined}
                 className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
                 Continue
@@ -699,7 +826,7 @@ export default function OnboardingPage() {
               const isFree = p && (p.price === 0 || p.price == null);
               return isFree
                 ? 'No credit card required. You can upgrade any time from Settings → Billing.'
-                : "You'll be redirected to a secure Razorpay checkout.";
+                : "You'll be redirected to a secure payment gateway after we set up your workspace.";
             })()}
           </p>
         </>
@@ -756,7 +883,7 @@ function SettingUpView({ stages, planName, priceLabel, period, avatarPlanned, pa
     account: { label: 'Creating your account', sub: 'Securing your credentials' },
     workspace: { label: 'Setting up your workspace', sub: 'Naming and configuring' },
     avatar: { label: 'Uploading your avatar', sub: 'Almost there' },
-    checkout: { label: 'Opening secure checkout', sub: 'Razorpay is loading' },
+    checkout: { label: 'Opening secure checkout', sub: 'Loading payment gateway' },
   };
 
   return (
@@ -820,6 +947,105 @@ function RetryView({ reason, planName, onRetry, onSkip }) {
       </div>
       <p className="text-xs text-gray-400 mt-4">
         Your workspace is ready — you can pay any time from Settings → Billing.
+      </p>
+    </div>
+  );
+}
+
+function PaypalCheckoutView({ plan, clientId, currency, error, setError, createOrder, onApproved, onCancel, onSdkFailure }) {
+  const containerRef = useRef(null);
+  const renderedRef = useRef(false);
+
+  useEffect(() => {
+    if (!clientId) {
+      setError('PayPal is not configured.');
+      return undefined;
+    }
+    if (renderedRef.current) return undefined;
+
+    let cancelled = false;
+    (async () => {
+      const sdkUrl =
+        `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}` +
+        `&currency=${encodeURIComponent(currency || 'USD')}&intent=capture&components=buttons`;
+      const ok = await loadScript(sdkUrl, 'paypal-sdk-script');
+      if (cancelled) return;
+      if (!ok || !window.paypal || !containerRef.current) {
+        setError('Failed to load PayPal SDK.');
+        if (typeof onSdkFailure === 'function') onSdkFailure();
+        return;
+      }
+      renderedRef.current = true;
+      try {
+        window.paypal
+          .Buttons({
+            style: { layout: 'vertical', color: 'blue', shape: 'rect', label: 'paypal' },
+            createOrder: async () => {
+              setError('');
+              try {
+                return await createOrder();
+              } catch (err) {
+                setError(err.response?.data?.message || err.message || 'Failed to start checkout.');
+                throw err;
+              }
+            },
+            onApprove: async (data) => {
+              try {
+                await onApproved(data.orderID);
+              } catch (err) {
+                setError(err.response?.data?.message || 'Payment verification failed.');
+              }
+            },
+            onCancel: () => { if (typeof onCancel === 'function') onCancel(); },
+            onError: (err) => {
+              setError((err && err.message) || 'PayPal checkout failed.');
+              if (typeof onCancel === 'function') onCancel();
+            },
+          })
+          .render(containerRef.current);
+      } catch (_) {
+        setError('Failed to render PayPal Buttons.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [clientId, currency, createOrder, onApproved, onCancel, onSdkFailure, setError]);
+
+  return (
+    <div className="animate-fade-in">
+      <div className="mb-6 text-center">
+        <div className="inline-flex w-12 h-12 rounded-2xl bg-blue-50 items-center justify-center mb-4 border border-blue-100">
+          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h2m4 0h2m-9 4h10a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900">Complete your payment</h2>
+        {plan && (
+          <p className="text-sm text-gray-500 mt-1">
+            {plan.priceLabel}{plan.period} for the {plan.name} plan
+          </p>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+        <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3 text-center">Pay with PayPal</p>
+        <div ref={containerRef} />
+      </div>
+
+      {error && (
+        <div className="bg-red-50 text-red-600 border border-red-100 p-3 rounded-xl text-sm text-center mb-4">
+          {error}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={onCancel}
+        className="w-full py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm"
+      >
+        Skip payment for now
+      </button>
+      <p className="text-center text-xs text-gray-400 mt-3">
+        You can pay any time from Settings → Billing.
       </p>
     </div>
   );

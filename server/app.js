@@ -66,7 +66,9 @@ const ENV_ORIGINS = process.env.ALLOWED_ORIGINS
       .map((s) => s.trim())
       .filter(Boolean)
   : [];
-const ALLOWED_ORIGINS = Array.from(new Set([...FALLBACK_ORIGINS, ...ENV_ORIGINS]));
+const ALLOWED_ORIGINS = Array.from(
+  new Set([...FALLBACK_ORIGINS, ...ENV_ORIGINS]),
+);
 const LOCALHOST_RE = /^https?:\/\/localhost(:\d+)?$/;
 
 app.use(
