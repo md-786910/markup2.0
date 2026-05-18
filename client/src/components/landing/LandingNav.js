@@ -2,124 +2,68 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 export default function LandingNav() {
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const links = [
-    { label: 'Features', href: '#features' },
-    { label: 'How it works', href: '#how-it-works' },
-    { label: 'Pricing', href: '#pricing' },
-  ];
-
-  const scrollTo = (href) => {
-    setMobileOpen(false);
-    document.querySelector(href)?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
-    <header
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'bg-white/90 backdrop-blur-md shadow-sm border-b border-gray-100'
-          : 'bg-transparent'
+    <header 
+      className={`fixed top-0 z-50 w-full transition-all duration-300 ${
+        isScrolled ? 'py-4' : 'py-6'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-
+      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <nav 
+          className={`flex items-center justify-between px-6 py-3 transition-all duration-300 rounded-[24px] ${
+            isScrolled 
+              ? 'glass-white shadow-[0_8px_32px_rgba(0,0,0,0.05)] border-white/50' 
+              : 'bg-transparent border-transparent'
+          } border`}
+        >
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center shadow-lg shadow-brand-500/30">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-              </svg>
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="w-9 h-9 bg-gray-900 rounded-xl flex items-center justify-center transition-transform group-hover:rotate-6 shadow-lg shadow-gray-900/10">
+              <span className="text-white font-black text-lg">M</span>
             </div>
-            <span className={`text-lg font-bold tracking-tight transition-colors ${scrolled ? 'text-gray-900' : 'text-white'}`}>
-              Feedbackly
-            </span>
+            <span className="text-xl font-black text-gray-900 tracking-tight">Markup</span>
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {links.map(l => (
-              <button
-                key={l.href}
-                onClick={() => scrollTo(l.href)}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  scrolled
-                    ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    : 'text-white/80 hover:text-white hover:bg-white/10'
-                }`}
+          {/* Navigation */}
+          <div className="hidden items-center gap-10 lg:flex">
+            {['Product', 'Pricing', 'Showcase', 'About'].map((item) => (
+              <a
+                key={item}
+                href={`#${item.toLowerCase()}`}
+                className="text-[15px] font-bold text-gray-500 transition-colors hover:text-gray-900 relative group"
               >
-                {l.label}
-              </button>
+                {item}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-brand-500 transition-all group-hover:w-full" />
+              </a>
             ))}
-          </nav>
+          </div>
 
-          {/* CTA buttons */}
-          <div className="hidden md:flex items-center gap-3">
-            <Link
+          {/* Buttons */}
+          <div className="flex items-center gap-3">
+            <Link 
               to="/login"
-              className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
-                scrolled ? 'text-gray-700 hover:text-gray-900' : 'text-white/90 hover:text-white'
-              }`}
+              className="px-6 py-2.5 text-[15px] font-bold text-gray-600 transition-colors hover:text-gray-900"
             >
-              Sign in
+              Log in
             </Link>
-            <Link
-              to="/onboarding"
-              className="text-sm font-semibold px-4 py-2 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors shadow-md shadow-brand-600/30"
+            <Link 
+              to="/signup"
+              className="rounded-2xl bg-gray-900 px-7 py-2.5 text-[15px] font-bold text-white transition-all hover:bg-brand-600 hover:-translate-y-0.5 shadow-lg shadow-gray-950/10 active:scale-95"
             >
-              Get started free
+              Sign up
             </Link>
           </div>
-
-          {/* Mobile hamburger */}
-          <button
-            className={`md:hidden p-2 rounded-lg transition-colors ${scrolled ? 'text-gray-700 hover:bg-gray-100' : 'text-white hover:bg-white/10'}`}
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
-          </button>
-        </div>
-
-        {/* Mobile drawer */}
-        {mobileOpen && (
-          <div className="md:hidden bg-white border-t border-gray-100 py-3 px-2 space-y-1 animate-scale-in">
-            {links.map(l => (
-              <button
-                key={l.href}
-                onClick={() => scrollTo(l.href)}
-                className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
-              >
-                {l.label}
-              </button>
-            ))}
-            <div className="pt-2 pb-1 border-t border-gray-100 flex flex-col gap-2">
-              <Link to="/login" className="text-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
-                Sign in
-              </Link>
-              <Link to="/onboarding" className="text-center px-4 py-2.5 text-sm font-semibold bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors">
-                Get started free
-              </Link>
-            </div>
-          </div>
-        )}
+        </nav>
       </div>
     </header>
   );
