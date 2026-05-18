@@ -6,24 +6,24 @@ import { ArrowRight, Sparkles, Star } from 'lucide-react';
 export default function CTASection() {
   return (
     <section className="py-24 lg:py-32 px-6 lg:px-8 bg-white relative overflow-hidden noise">
-      
+
       {/* Decorative Background */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none -z-0">
         <div className="absolute top-[20%] left-[10%] w-[40%] h-[40%] bg-brand-50/50 rounded-full blur-[120px]" />
         <div className="absolute bottom-[20%] right-[10%] w-[40%] h-[40%] bg-indigo-50/50 rounded-full blur-[120px]" />
       </div>
 
-      <motion.div 
+      <motion.div
         className="max-w-7xl mx-auto rounded-[48px] bg-gray-900 px-8 py-20 lg:py-28 lg:px-16 text-center relative overflow-hidden shadow-[0_64px_128px_-32px_rgba(0,0,0,0.4)]"
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
       >
-        
+
         {/* Immersive Animated Background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <motion.div 
+          <motion.div
             animate={{
               scale: [1, 1.2, 1],
               rotate: [0, 90, 0],
@@ -32,7 +32,7 @@ export default function CTASection() {
             transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
             className="absolute -top-1/2 -left-1/4 w-full h-full bg-brand-600/20 rounded-full blur-[120px]"
           />
-          <motion.div 
+          <motion.div
             animate={{
               scale: [1.2, 1, 1.2],
               rotate: [0, -90, 0],
@@ -54,7 +54,7 @@ export default function CTASection() {
             <Sparkles className="w-3.5 h-3.5" /> Stop the chaos today
           </motion.div>
 
-          <motion.h2 
+          <motion.h2
             className="text-4xl lg:text-6xl font-black text-white leading-tight tracking-tight mb-10"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -64,7 +64,7 @@ export default function CTASection() {
             Ready to <span className="text-brand-500">supercharge</span> your<br className="hidden lg:block" /> feedback workflow?
           </motion.h2>
 
-          <motion.p 
+          <motion.p
             className="text-lg lg:text-xl text-white/50 mb-12 max-w-2xl mx-auto leading-relaxed font-medium"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -73,8 +73,8 @@ export default function CTASection() {
           >
             Join 2,000+ high-performance teams shipping pixel-perfect sites with Markup. Start your free trial today.
           </motion.p>
-          
-          <motion.div 
+
+          <motion.div
             className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -95,9 +95,9 @@ export default function CTASection() {
               Book Demo
             </Link>
           </motion.div>
-          
+
           {/* Trust Row */}
-          <motion.div 
+          <motion.div
             className="flex flex-col sm:flex-row items-center justify-center gap-8"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}

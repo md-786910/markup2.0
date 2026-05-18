@@ -5,7 +5,7 @@ import { ArrowRight, Star, MousePointer2, CheckCircle2 } from 'lucide-react';
 
 export default function HeroSection() {
   const containerRef = useRef(null);
-  
+
   // Mouse parallax setup
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -39,7 +39,7 @@ export default function HeroSection() {
   };
 
   return (
-    <section 
+    <section
       ref={containerRef}
       onMouseMove={handleMouseMove}
       className="relative min-h-screen flex items-center pt-24 pb-20 overflow-hidden bg-[#fafafa] noise"
@@ -59,16 +59,16 @@ export default function HeroSection() {
           style={{ x: useTransform(dx, (v) => v * 1), y: useTransform(dy, (v) => v * 1) }}
           className="absolute -bottom-[10%] left-[20%] w-[40%] h-[40%] bg-gradient-to-tr from-purple-100/20 to-transparent rounded-full blur-[100px]"
         />
-        
+
         {/* Grid Pattern */}
-        <div className="absolute inset-0 opacity-[0.03] [mask-image:radial-gradient(ellipse_at_center,white,transparent)]" 
-             style={{ backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)', backgroundSize: '40px 40px' }} 
+        <div className="absolute inset-0 opacity-[0.03] [mask-image:radial-gradient(ellipse_at_center,white,transparent)]"
+          style={{ backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)', backgroundSize: '40px 40px' }}
         />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 w-full">
         <div className="grid lg:grid-cols-[1.1fr,0.9fr] gap-12 lg:gap-20 items-center">
-          
+
           {/* Left Column: Content */}
           <motion.div
             variants={containerVariants}
@@ -86,15 +86,15 @@ export default function HeroSection() {
               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Joined by 12,000+ designers</span>
             </motion.div>
 
-            <motion.h1 
+            <motion.h1
               variants={itemVariants}
               className="text-4xl sm:text-5xl lg:text-7xl font-black text-gray-900 leading-[1.1] tracking-tight mb-8"
             >
               Visual feedback <br />
               <span className="relative">
-                without the 
+                without the
                 <span className="text-brand-600"> chaos.</span>
-                <motion.svg 
+                <motion.svg
                   initial={{ pathLength: 0, opacity: 0 }}
                   animate={{ pathLength: 1, opacity: 1 }}
                   transition={{ delay: 1.2, duration: 0.8 }}
@@ -105,7 +105,7 @@ export default function HeroSection() {
               </span>
             </motion.h1>
 
-            <motion.p 
+            <motion.p
               variants={itemVariants}
               className="text-lg text-gray-500 leading-relaxed max-w-xl mx-auto lg:mx-0 mb-10"
             >
@@ -128,15 +128,6 @@ export default function HeroSection() {
                 </div>
                 <span className="text-sm text-gray-400 font-medium">No credit card required</span>
               </div>
-            </motion.div>
-
-            {/* Social Proof Mini */}
-            <motion.div variants={itemVariants} className="flex flex-wrap justify-center lg:justify-start gap-x-8 gap-y-4 pt-4 border-t border-gray-100">
-              {['Stripe', 'Airbnb', 'HubSpot', 'Shopify'].map((name) => (
-                <span key={name} className="text-gray-300 font-black text-xl tracking-tighter hover:text-gray-400 transition-colors cursor-default">
-                  {name}
-                </span>
-              ))}
             </motion.div>
           </motion.div>
 
@@ -194,19 +185,19 @@ export default function HeroSection() {
                   </motion.div>
 
                   {/* Interactive Pins */}
-                  <Pin 
-                    number="1" 
-                    top="15%" 
-                    left="65%" 
+                  <Pin
+                    number="1"
+                    top="15%"
+                    left="65%"
                     delay={1.5}
                     author="Alex R."
                     comment="Can we try a softer shadow here? 🎨"
                     color="brand"
                   />
-                  <Pin 
-                    number="2" 
-                    top="65%" 
-                    left="25%" 
+                  <Pin
+                    number="2"
+                    top="65%"
+                    left="25%"
                     delay={2.5}
                     author="Sarah M."
                     comment="This button interaction feels so smooth! ✨"
@@ -218,15 +209,15 @@ export default function HeroSection() {
             </div>
 
             {/* Decorative Background Accents */}
-            <motion.div 
+            <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              className="absolute -top-20 -right-20 w-64 h-64 bg-brand-50/50 rounded-full blur-[80px] -z-10" 
+              className="absolute -top-20 -right-20 w-64 h-64 bg-brand-50/50 rounded-full blur-[80px] -z-10"
             />
-            <motion.div 
+            <motion.div
               animate={{ rotate: -360 }}
               transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-              className="absolute -bottom-20 -left-20 w-80 h-80 bg-indigo-50/50 rounded-full blur-[80px] -z-10" 
+              className="absolute -bottom-20 -left-20 w-80 h-80 bg-indigo-50/50 rounded-full blur-[80px] -z-10"
             />
           </motion.div>
 
