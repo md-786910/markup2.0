@@ -5,6 +5,7 @@ import PrivateRoute from './components/common/PrivateRoute';
 import AppLayout from './components/layout/AppLayout';
 import './index.css';
 
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const SignupPage = lazy(() => import('./pages/SignupPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
@@ -33,6 +34,7 @@ function App() {
       <AuthProvider>
         <Suspense fallback={<PageLoader />}>
           <Routes>
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
@@ -49,7 +51,7 @@ function App() {
               {/* Routes WITHOUT sidebar */}
               <Route path="/project/:projectId" element={<ProjectPage />} />
             </Route>
-            <Route path="*" element={<Navigate to="/dashboard" />} />
+            <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Suspense>
       </AuthProvider>
