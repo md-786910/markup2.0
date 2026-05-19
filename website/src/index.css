@@ -63,10 +63,24 @@
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: #d1d5db;
-    border-radius: 3px;
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 3px;
+}
+
+.logo-marquee-track {
+  animation: logo-marquee 38s linear infinite;
+  will-change: transform;
+}
+
+@keyframes logo-marquee {
+  from {
+    transform: translateX(0);
   }
+  to {
+    transform: translateX(-50%);
+  }
+}
 }
 
 /* Scroll reveal system */

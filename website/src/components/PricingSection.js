@@ -37,18 +37,22 @@ export default function PricingSection() {
           }));
         if (live.length) setPlans(live);
       })
-      .catch(() => {/* keep static fallback */});
+      .catch(() => {/* keep static fallback */ });
     return () => { alive = false; };
   }, []);
 
   return (
-    <section id="pricing" className="bg-white py-24" ref={ref}>
+    <section id="pricing" className="bg-white py-10" ref={ref}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto" data-reveal>
           <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Pricing</span>
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mt-3">
-            Pricing that doesn't punish growth
+            Pricing that doesn't punish
+            <span className="relative inline-block text-[#3f4cf6]">
+              growth
+              <span className="absolute bottom-1 left-0 right-0 -z-10 h-4 rounded-md bg-[#d7ff7d] sm:h-5" />
+            </span>
           </h2>
           <p className="text-lg text-gray-500 mt-4">
             Start free, scale as you grow. No hidden fees, no surprises.
@@ -60,11 +64,10 @@ export default function PricingSection() {
           {plans.map((plan, i) => (
             <div
               key={plan.id}
-              className={`relative rounded-2xl p-8 transition-all duration-300 w-full sm:w-[calc(50%-0.75rem)] lg:w-[280px] ${
-                plan.popular
-                  ? 'border-2 border-blue-500 bg-gradient-to-b from-blue-50/20 to-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-blue-500/10 scale-[1.02]'
-                  : 'border border-gray-100 bg-white hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-gray-200'
-              }`}
+              className={`relative rounded-2xl p-8 transition-all duration-300 w-full sm:w-[calc(50%-0.75rem)] lg:w-[280px] ${plan.popular
+                ? 'border-2 border-blue-500 bg-gradient-to-b from-blue-50/20 to-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-blue-500/10 scale-[1.02]'
+                : 'border border-gray-100 bg-white hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-gray-200'
+                }`}
               data-reveal
               data-delay={String(i + 1)}
             >
@@ -105,11 +108,10 @@ export default function PricingSection() {
               <div className="mt-8">
                 <a
                   href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/onboarding`}
-                  className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${
-                    plan.popular
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5'
-                      : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 hover:border-gray-300'
-                  }`}
+                  className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${plan.popular
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5'
+                    : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                    }`}
                 >
                   {plan.cta}
                   {plan.popular && <ArrowRightIcon className="w-4 h-4" />}

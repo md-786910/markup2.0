@@ -91,13 +91,17 @@ export default function ComparisonTable() {
   const ref = useScrollReveal();
 
   return (
-    <section id="comparison" className="bg-gray-50 py-24" ref={ref}>
+    <section id="comparison" className="bg-gray-50 py-10" ref={ref}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto" data-reveal>
-          <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Comparison</span>
+          <span className="text-blue-600 font-bold text-sm uppercase tracking-wider">—— Comparison</span>
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mt-3">
-            Why teams switch from Markup.io
+            Why teams switch from
+            <span className="relative inline-block text-[#3f4cf6]">
+              Markup.io
+              <span className="absolute bottom-1 left-0 right-0 -z-10 h-4 rounded-md bg-[#d7ff7d] sm:h-5" />
+            </span>
           </h2>
           <p className="text-lg text-gray-500 mt-4">
             Same workflow you already know. 70% less on your bill. Zero migration headache.
@@ -105,7 +109,7 @@ export default function ComparisonTable() {
         </div>
 
         {/* Table */}
-        <div className="max-w-4xl mx-auto mt-16" data-reveal data-delay="1">
+        <div className="max-w-7xl mx-auto mt-10" data-reveal data-delay="1">
           <div className="rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm">
             {/* Table header */}
             <div className="grid grid-cols-3 bg-gray-50 border-b border-gray-200">
@@ -120,9 +124,8 @@ export default function ComparisonTable() {
             {COMPARISONS.map((row, i) => (
               <div
                 key={row.feature}
-                className={`grid grid-cols-3 border-b border-gray-100 last:border-0 hover:bg-blue-50/30 transition-colors ${
-                  i % 2 === 0 ? '' : 'bg-gray-50/30'
-                }`}
+                className={`grid grid-cols-3 border-b border-gray-100 last:border-0 hover:bg-blue-50/30 transition-colors ${i % 2 === 0 ? '' : 'bg-gray-50/30'
+                  }`}
               >
                 <div className="px-6 py-4 text-sm font-medium text-gray-700">{row.feature}</div>
                 <div className="px-6 py-4 text-center bg-blue-50/30">

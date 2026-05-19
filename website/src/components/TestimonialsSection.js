@@ -6,13 +6,16 @@ export default function TestimonialsSection() {
   const ref = useScrollReveal();
 
   return (
-    <section className="bg-gray-50 py-24" ref={ref}>
+    <section id="testimonials" className="bg-gray-50 py-24" ref={ref}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto" data-reveal>
-          <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Who It's For</span>
+          <span className="text-blue-600 font-bold text-sm uppercase tracking-wider">—— Who It's For</span>
           <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mt-3">
-            Built for teams that ship
+            Built for&nbsp;
+            <span className="relative inline-block text-[#3f4cf6]">
+              teams that ship
+            </span>
           </h2>
           <p className="text-lg text-gray-500 mt-4">
             Whether you're a solo freelancer or a 50-person agency, Feedbackly fits your workflow.

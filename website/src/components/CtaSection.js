@@ -5,7 +5,7 @@ const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 
 export default function CtaSection() {
   return (
-    <section className="relative bg-gray-950 py-24 overflow-hidden">
+    <section className="relative bg-gray-950 py-10 overflow-hidden">
       {/* Gradient blobs */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/8 rounded-full blur-[120px] animate-pulse-glow" />
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-500/8 rounded-full blur-[100px] animate-pulse-glow" style={{ animationDelay: '1.5s' }} />
@@ -28,7 +28,9 @@ export default function CtaSection() {
       <div className="relative z-10 max-w-3xl mx-auto text-center px-4 sm:px-6">
         <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white leading-tight">
           Your team is already wasting hours on feedback.{' '}
-          <span className="text-gradient">Fix it in 30 seconds.</span>
+          <span className="relative inline-block text-[#3f4cf6]">
+            Fix it in 30 seconds.
+          </span>
         </h2>
         <p className="text-lg text-gray-400 mt-4 max-w-xl mx-auto">
           Stop losing time to scattered feedback. Start pinning, collaborating, and shipping — for free.

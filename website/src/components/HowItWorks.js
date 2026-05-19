@@ -27,7 +27,7 @@ export default function HowItWorks() {
   const ref = useScrollReveal();
 
   return (
-    <section id="how-it-works" className="bg-white py-24" ref={ref}>
+    <section id="how-it-works" className="bg-white py-10" ref={ref}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto" data-reveal>

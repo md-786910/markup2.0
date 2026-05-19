@@ -16,13 +16,17 @@ export default function FeaturesGrid() {
   const ref = useScrollReveal();
 
   return (
-    <section id="features" className="bg-white py-24" ref={ref}>
+    <section id="features" className="bg-white py-10" ref={ref}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto" data-reveal>
-          <span className="text-blue-600 font-semibold text-xs uppercase tracking-[0.2em]">Features</span>
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-gray-900 mt-4 leading-[1.15] tracking-tight [text-wrap:balance]">
-            Everything Markup.io charges $39/mo for — included free
+          <span className="text-blue-600 font-bold text-xs uppercase tracking-[0.2em]">—— Features</span>
+          <h2 className="font-display text-3xl md:text-4xl font-bold text-gray-900 mt-4 leading-[1.9] tracking-tight [text-wrap:balance]">
+            Everything Markup.io
+            <span className="relative inline-block text-[#3f4cf6]">
+              charges $39/mo for — included free
+              <span className="absolute bottom-1 left-0 right-0 -z-10 h-4 rounded-md bg-[#d7ff7d] sm:h-5" />
+            </span>
           </h2>
           <p className="text-base md:text-lg text-gray-500 mt-5 max-w-xl mx-auto leading-relaxed">
             Stop wasting time on scattered feedback. Get everything in one place, right where it matters.

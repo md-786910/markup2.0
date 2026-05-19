@@ -12,6 +12,7 @@ import TestimonialsSection from '../components/TestimonialsSection';
 import FaqSection from '../components/FaqSection';
 import CtaSection from '../components/CtaSection';
 import Footer from '../components/Footer';
+import { Testimonial } from '../components/Testimonials';
 
 export default function LandingPage() {
   return (
@@ -26,9 +27,10 @@ export default function LandingPage() {
         <StatsSection />
         <ComparisonTable />
         <PricingSection />
+        <Testimonial />
         <TestimonialsSection />
-        <FaqSection />
         <CtaSection />
+        <FaqSection />
       </main>
       <Footer />
     </div>
