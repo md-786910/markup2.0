@@ -6,6 +6,15 @@ export default function useScrollReveal(options = {}) {
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const targets = node.querySelectorAll('[data-reveal]');
+      if (targets.length > 0) {
+        targets.forEach((el) => el.setAttribute('data-revealed', 'true'));
+      } else if (node.hasAttribute('data-reveal')) {
+        node.setAttribute('data-revealed', 'true');
+      }
+      return undefined;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {

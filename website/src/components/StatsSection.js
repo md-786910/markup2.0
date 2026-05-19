@@ -2,6 +2,7 @@ import React from 'react';
 import { PinIcon, UsersIcon, ShieldIcon, ClockIcon, CodeIcon, ChatIcon, ZapIcon } from './icons';
 import { STATS } from '../data/stats';
 import useCountUp from '../hooks/useCountUp';
+import useScrollReveal from '../hooks/useScrollReveal';
 
 const ICON_MAP = {
   pin: PinIcon,
@@ -10,47 +11,68 @@ const ICON_MAP = {
   clock: ClockIcon,
 };
 
-function StatItem({ stat }) {
+function StatItem({ stat, index }) {
   const { ref, value } = useCountUp({
     end: stat.end,
-    duration: 2000,
+    duration: 2200,
     suffix: stat.suffix,
+    decimals: stat.isDecimal ? 1 : 0,
   });
   const Icon = ICON_MAP[stat.icon];
 
   return (
-    <div ref={ref} className="text-center group">
-      <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/5 border border-white/10 mb-4 group-hover:scale-110 transition-transform duration-300">
-        <Icon className="w-6 h-6 text-blue-400" />
+    <div
+      ref={ref}
+      className="premium-card hover-lift rounded-[26px] p-6 text-left"
+      data-reveal="scale"
+      data-delay={String(index + 1)}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef2ff] text-[#3f4cf6]">
+          <Icon className="h-5 w-5" />
+        </div>
+        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          Live
+        </span>
       </div>
-      <div className="text-3xl sm:text-4xl font-display font-bold text-white">{value}</div>
-      <p className="text-sm text-gray-400 mt-1">{stat.label}</p>
+      <div className="mt-7 font-display text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">{value}</div>
+      <p className="mt-2 max-w-[14rem] text-sm leading-6 text-slate-500">{stat.label}</p>
     </div>
   );
 }
 
 export default function StatsSection() {
+  const ref = useScrollReveal();
+
   return (
-    <section className="relative bg-gray-950 py-20 overflow-hidden">
-      {/* Gradient accents */}
-      <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/5 rounded-full blur-[80px]" />
-      <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px]" />
-
-      {/* Floating decorative icons */}
-      <div className="absolute top-8 left-[8%] hidden lg:block animate-float" style={{ animationDelay: '0.5s' }}>
-        <CodeIcon className="w-4 h-4 text-gray-700/30" />
+    <section className="section-shell py-20 sm:py-24" ref={ref}>
+      <div className="absolute left-[8%] top-16 hidden lg:block animate-float">
+        <CodeIcon className="h-4 w-4 text-slate-300" />
       </div>
-      <div className="absolute bottom-8 right-[10%] hidden lg:block animate-float-slow">
-        <ChatIcon className="w-4 h-4 text-gray-700/30" />
+      <div className="absolute right-[12%] top-20 hidden lg:block animate-float-slow">
+        <ZapIcon className="h-4 w-4 text-slate-300" />
       </div>
-      <div className="absolute top-12 right-[20%] hidden lg:block animate-float" style={{ animationDelay: '1s' }}>
-        <ZapIcon className="w-4 h-4 text-gray-700/30" />
+      <div className="absolute bottom-10 right-[18%] hidden lg:block animate-float">
+        <ChatIcon className="h-4 w-4 text-slate-300" />
       </div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
-          {STATS.map((stat) => (
-            <StatItem key={stat.icon} stat={stat} />
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl text-center" data-reveal>
+          <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
+            Performance
+          </span>
+          <h2 className="mt-5 font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl lg:text-5xl">
+            Built for faster reviews,
+            <span className="block text-[#3f4cf6]">cleaner approvals, and less drift</span>
+          </h2>
+          <p className="mt-5 text-lg leading-8 text-slate-500">
+            Teams adopt Markly quickly because the workflow is obvious, feedback stays anchored, and every review moves with less friction.
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {STATS.map((stat, index) => (
+            <StatItem key={stat.label} stat={stat} index={index} />
           ))}
         </div>
       </div>

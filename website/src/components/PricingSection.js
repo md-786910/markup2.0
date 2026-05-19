@@ -20,104 +20,112 @@ export default function PricingSection() {
   useEffect(() => {
     let alive = true;
     fetch(`${API_URL}/api/plans`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (!alive || !data?.planList) return;
-        const live = data.planList
-          .filter((p) => p.enabled !== false)
-          .map((p) => ({
-            id: p.id,
-            name: p.name,
-            price: p.price,
-            priceLabel: p.priceLabel,
-            period: p.period,
-            features: p.features || [],
-            popular: !!p.popular,
-            cta: CTA_BY_ID[p.id] || 'Get Started',
+        const livePlans = data.planList
+          .filter((plan) => plan.enabled !== false)
+          .map((plan) => ({
+            id: plan.id,
+            name: plan.name,
+            price: plan.price,
+            priceLabel: plan.priceLabel,
+            period: plan.period,
+            features: plan.features || [],
+            popular: !!plan.popular,
+            cta: CTA_BY_ID[plan.id] || 'Get Started',
           }));
-        if (live.length) setPlans(live);
+        if (livePlans.length) setPlans(livePlans);
       })
-      .catch(() => {/* keep static fallback */ });
-    return () => { alive = false; };
+      .catch(() => {});
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   return (
-    <section id="pricing" className="bg-white py-10" ref={ref}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center max-w-2xl mx-auto" data-reveal>
-          <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Pricing</span>
-          <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mt-3">
-            Pricing that doesn't punish
-            <span className="relative inline-block text-[#3f4cf6]">
-              growth
-              <span className="absolute bottom-1 left-0 right-0 -z-10 h-4 rounded-md bg-[#d7ff7d] sm:h-5" />
-            </span>
+    <section id="pricing" className="section-shell py-20 sm:py-24" ref={ref}>
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl text-center" data-reveal>
+          <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
+            Pricing
+          </span>
+          <h2 className="mt-5 font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl lg:text-5xl">
+            Pricing built for review velocity,
+            <span className="block text-[#3f4cf6]">not procurement theater</span>
           </h2>
-          <p className="text-lg text-gray-500 mt-4">
-            Start free, scale as you grow. No hidden fees, no surprises.
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-500">
+            Clear tiers, fast onboarding, and collaboration features that scale from one stakeholder to a full delivery team.
           </p>
         </div>
 
-        {/* Grid */}
-        <div className="flex flex-wrap justify-center gap-6 max-w-6xl mx-auto mt-16">
-          {plans.map((plan, i) => (
-            <div
+        <div className="mt-16 grid gap-5 lg:grid-cols-3">
+          {plans.map((plan, index) => (
+            <article
               key={plan.id}
-              className={`relative rounded-2xl p-8 transition-all duration-300 w-full sm:w-[calc(50%-0.75rem)] lg:w-[280px] ${plan.popular
-                ? 'border-2 border-blue-500 bg-gradient-to-b from-blue-50/20 to-white shadow-[0_8px_30px_rgb(0,0,0,0.08)] ring-1 ring-blue-500/10 scale-[1.02]'
-                : 'border border-gray-100 bg-white hover:-translate-y-0.5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-gray-200'
-                }`}
-              data-reveal
-              data-delay={String(i + 1)}
+              className={`hover-lift relative rounded-[30px] p-8 ${
+                plan.popular
+                  ? 'bg-[#111827] text-white shadow-[0_28px_80px_rgba(17,24,39,0.24)]'
+                  : 'premium-card text-slate-950'
+              }`}
+              data-reveal="scale"
+              data-delay={String(index + 1)}
             >
-              {/* Popular badge */}
               {plan.popular && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                  <span className="px-4 py-1 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-semibold shadow-lg shadow-blue-500/25">
-                    Most Popular
-                  </span>
+                <div className="absolute -top-3 left-8 rounded-full bg-[#3f4cf6] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-[0_16px_36px_rgba(63,76,246,0.3)]">
+                  Most popular
                 </div>
               )}
 
-              {/* Plan name */}
-              <h3 className="font-display font-semibold text-lg text-gray-900">{plan.name}</h3>
-
-              {/* Price */}
-              <div className="mt-4 flex items-baseline gap-1">
-                <span className="font-display text-4xl font-bold text-gray-900">{plan.priceLabel}</span>
-                {plan.period && <span className="text-gray-400 text-base">{plan.period}</span>}
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="font-display text-2xl font-semibold">{plan.name}</h3>
+                  <p className={`mt-2 text-sm ${plan.popular ? 'text-white/65' : 'text-slate-500'}`}>
+                    {plan.id === 'enterprise' ? 'Custom onboarding and security controls.' : 'Fast setup for collaborative review teams.'}
+                  </p>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
+                  plan.popular ? 'bg-white/10 text-white/80' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {plan.id === 'enterprise' ? 'Scale' : 'Monthly'}
+                </span>
               </div>
 
-              {/* Divider */}
-              <div className="h-px bg-gray-100 my-6" />
+              <div className="mt-8 flex items-end gap-2">
+                <span className="font-display text-5xl font-bold tracking-tight">{plan.priceLabel}</span>
+                {plan.period ? (
+                  <span className={`pb-1 text-sm ${plan.popular ? 'text-white/60' : 'text-slate-400'}`}>{plan.period}</span>
+                ) : null}
+              </div>
 
-              {/* Features */}
-              <ul className="space-y-3">
+              <div className={`mt-8 h-px ${plan.popular ? 'bg-white/12' : 'bg-slate-200'}`} />
+
+              <ul className="mt-8 space-y-3">
                 {(plan.features || []).map((feature) => (
-                  <li key={feature} className="flex items-start gap-2.5">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <CheckIcon className="w-3 h-3 text-emerald-600" />
+                  <li key={feature} className="flex items-start gap-3">
+                    <div className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${
+                      plan.popular ? 'bg-white/12' : 'bg-emerald-100'
+                    }`}>
+                      <CheckIcon className={`h-3 w-3 ${plan.popular ? 'text-white' : 'text-emerald-600'}`} />
                     </div>
-                    <span className="text-sm text-gray-600">{feature}</span>
+                    <span className={`text-sm leading-6 ${plan.popular ? 'text-white/75' : 'text-slate-600'}`}>{feature}</span>
                   </li>
                 ))}
               </ul>
 
-              {/* CTA */}
-              <div className="mt-8">
-                <a
-                  href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/onboarding`}
-                  className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${plan.popular
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5'
-                    : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 hover:border-gray-300'
-                    }`}
-                >
-                  {plan.cta}
-                  {plan.popular && <ArrowRightIcon className="w-4 h-4" />}
-                </a>
-              </div>
-            </div>
+              <a
+                href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/onboarding`}
+                className={`mt-10 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-all duration-300 ${
+                  plan.popular
+                    ? 'bg-[#3f4cf6] text-white shadow-[0_16px_36px_rgba(63,76,246,0.28)] hover:-translate-y-px'
+                    : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                {plan.cta}
+                <ArrowRightIcon className="h-4 w-4" />
+              </a>
+            </article>
           ))}
         </div>
       </div>
