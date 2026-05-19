@@ -48,12 +48,10 @@ export default function PricingSection() {
     <section id="pricing" className="section-shell py-20 sm:py-24" ref={ref}>
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center" data-reveal>
-          <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
-            Pricing
-          </span>
+          <span className="eyebrow">Pricing</span>
           <h2 className="mt-5 font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl lg:text-5xl">
             Pricing built for review velocity,
-            <span className="block text-[#3f4cf6]">not procurement theater</span>
+            <span className="block text-gradient">not procurement theater</span>
           </h2>
           <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-500">
             Clear tiers, fast onboarding, and collaboration features that scale from one stakeholder to a full delivery team.
@@ -64,16 +62,16 @@ export default function PricingSection() {
           {plans.map((plan, index) => (
             <article
               key={plan.id}
-              className={`hover-lift relative rounded-[30px] p-8 ${
+              className={`hover-lift relative rounded-[24px] p-8 ${
                 plan.popular
-                  ? 'bg-[#111827] text-white shadow-[0_28px_80px_rgba(17,24,39,0.24)]'
+                  ? 'bg-[#111827] text-white shadow-[0_28px_80px_rgba(17,24,39,0.24)] ring-1 ring-white/10'
                   : 'premium-card text-slate-950'
               }`}
               data-reveal="scale"
               data-delay={String(index + 1)}
             >
               {plan.popular && (
-                <div className="absolute -top-3 left-8 rounded-full bg-[#3f4cf6] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-[0_16px_36px_rgba(63,76,246,0.3)]">
+                <div className="absolute -top-3 left-8 rounded-full bg-[#8fd14f] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#111827] shadow-[0_16px_36px_rgba(143,209,79,0.28)]">
                   Most popular
                 </div>
               )}
@@ -118,7 +116,7 @@ export default function PricingSection() {
                 href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/onboarding`}
                 className={`mt-10 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-all duration-300 ${
                   plan.popular
-                    ? 'bg-[#3f4cf6] text-white shadow-[0_16px_36px_rgba(63,76,246,0.28)] hover:-translate-y-px'
+                    ? 'bg-[#2854ff] text-white shadow-[0_16px_36px_rgba(40,84,255,0.28)] hover:-translate-y-px'
                     : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >

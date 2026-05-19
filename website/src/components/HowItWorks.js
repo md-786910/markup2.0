@@ -33,12 +33,10 @@ export default function HowItWorks() {
     <section id="how-it-works" className="section-shell py-20 sm:py-24" ref={ref}>
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center" data-reveal>
-          <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
-            Workflow
-          </span>
+          <span className="eyebrow">Workflow</span>
           <h2 className="mt-5 font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl lg:text-5xl">
             Review flows that feel
-            <span className="block text-[#3f4cf6]">obvious from the first click</span>
+            <span className="block text-gradient">obvious from the first click</span>
           </h2>
           <p className="mt-5 text-lg leading-8 text-slate-500">
             The product should make review faster for everyone involved, not add another layer of tooling overhead.
@@ -52,11 +50,11 @@ export default function HowItWorks() {
             return (
               <article
                 key={step.number}
-                className="premium-card hover-lift relative rounded-[28px] p-7"
+                className="premium-card hover-lift relative rounded-[24px] p-7"
                 data-reveal="scale"
                 data-delay={String(index + 1)}
               >
-                <div className="relative z-10 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3f4cf6] to-[#6673ff] text-white shadow-[0_16px_34px_rgba(63,76,246,0.22)]">
+                <div className="relative z-10 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2854ff] to-[#0f766e] text-white shadow-[0_16px_34px_rgba(40,84,255,0.22)]">
                   <Icon className="h-6 w-6" />
                 </div>
 

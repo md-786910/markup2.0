@@ -23,12 +23,12 @@ function StatItem({ stat, index }) {
   return (
     <div
       ref={ref}
-      className="premium-card hover-lift rounded-[26px] p-6 text-left"
+    className="premium-card hover-lift rounded-[24px] p-6 text-left"
       data-reveal="scale"
       data-delay={String(index + 1)}
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef2ff] text-[#3f4cf6]">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef2ff] text-[#2854ff]">
           <Icon className="h-5 w-5" />
         </div>
         <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -58,12 +58,10 @@ export default function StatsSection() {
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center" data-reveal>
-          <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
-            Performance
-          </span>
+          <span className="eyebrow">Performance</span>
           <h2 className="mt-5 font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl lg:text-5xl">
             Built for faster reviews,
-            <span className="block text-[#3f4cf6]">cleaner approvals, and less drift</span>
+            <span className="block text-gradient">cleaner approvals, and less drift</span>
           </h2>
           <p className="mt-5 text-lg leading-8 text-slate-500">
             Teams adopt Markly quickly because the workflow is obvious, feedback stays anchored, and every review moves with less friction.

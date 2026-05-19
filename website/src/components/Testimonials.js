@@ -39,7 +39,7 @@ export function Testimonial() {
       <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] [background-size:60px_60px]" />
 
       <div className="relative mx-auto max-w-5xl px-4 text-center sm:px-6">
-        <Quote className="mx-auto mb-10 h-11 w-11 text-[#3f4cf6]" strokeWidth={1.9} />
+        <Quote className="mx-auto mb-10 h-11 w-11 text-[#8fd14f]" strokeWidth={1.9} />
 
         <div className="relative min-h-[250px] sm:min-h-[210px]">
           <AnimatePresence mode="wait">
@@ -55,7 +55,7 @@ export function Testimonial() {
               </p>
 
               <div className="mt-8 flex items-center justify-center gap-4">
-                <div className="grid h-12 w-12 place-items-center rounded-full bg-[#3f4cf6] text-base font-bold text-white">
+                <div className="grid h-12 w-12 place-items-center rounded-full bg-[#2854ff] text-base font-bold text-white">
                   {item.initials}
                 </div>
                 <div className="text-left">

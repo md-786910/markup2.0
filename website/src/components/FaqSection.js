@@ -111,9 +111,7 @@ export default function FaqSection() {
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center" data-reveal>
-          <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
-            FAQ
-          </span>
+          <span className="eyebrow">FAQ</span>
           <h2 className="mt-5 font-display text-3xl font-bold tracking-tight text-gray-900 md:text-4xl lg:text-5xl">
             Frequently asked questions
           </h2>
@@ -162,7 +160,7 @@ export default function FaqSection() {
 
               <a
                 href="#pricing"
-                className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-[#3f4cf6] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(63,76,246,0.24)] transition-transform hover:-translate-y-px"
+                className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-[#2854ff] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(40,84,255,0.24)] transition-transform hover:-translate-y-px"
               >
                 View pricing
               </a>
