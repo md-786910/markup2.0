@@ -33,29 +33,26 @@ export default function TermsPage() {
 
       <main>
         {/* Hero Banner */}
-        <section className="relative bg-gray-950 overflow-hidden pt-32 pb-16">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/[0.08] rounded-full blur-[120px]" />
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-500/[0.08] rounded-full blur-[100px]" />
-
+        <section className="page-hero">
           <div className="relative z-10 max-w-4xl mx-auto text-center px-4 sm:px-6">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 mb-6 shadow-lg shadow-blue-500/25">
-              <FileTextIcon className="w-8 h-8 text-white" />
+            <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#2854ff] text-white shadow-[0_16px_34px_rgba(40,84,255,0.24)]">
+              <FileTextIcon className="h-7 w-7" />
             </div>
-            <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-white">
+            <h1 className="section-heading">
               Terms of Service
             </h1>
-            <p className="text-gray-400 mt-4 text-lg">
+            <p className="body-large mt-4">
               Last updated: April 1, 2026
             </p>
           </div>
         </section>
 
         {/* Content */}
-        <section className="py-16 sm:py-20">
+        <section className="section-pad-tight">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
             {/* Table of Contents */}
-            <nav className="bg-white rounded-2xl border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 sm:p-8 mb-12">
+            <nav className="premium-card mb-12 p-6 sm:p-8">
               <h2 className="font-display text-lg font-semibold text-gray-900 mb-4">Table of Contents</h2>
               <ol className="list-decimal list-inside space-y-2">
                 {SECTIONS.map((section) => (
@@ -77,9 +74,9 @@ export default function TermsPage() {
             </h2>
             <p className="text-gray-600 leading-relaxed mb-4">
               By accessing or using Feedbackly ("the Service"), operated by Feedbackly ("we," "us," or "our") at{' '}
-              <a href="https://feedbackly.online" className="text-blue-600 hover:text-blue-700 underline">feedbackly.online</a>{' '}
+              <a href="#" className="text-blue-600 hover:text-blue-700 underline">markly.online</a>{' '}
               and{' '}
-              <a href="https://app.feedbackly.online" className="text-blue-600 hover:text-blue-700 underline">app.feedbackly.online</a>,
+              <a href="#" className="text-blue-600 hover:text-blue-700 underline">exapmple.markly.online</a>,
               you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you may not access or use the Service.
             </p>
             <p className="text-gray-600 leading-relaxed mb-4">
@@ -228,7 +225,7 @@ export default function TermsPage() {
             </h3>
             <p className="text-gray-600 leading-relaxed mb-4">
               Subscription fees are non-refundable except where required by applicable law. No refunds or credits will be issued for partial months of service. If you believe you have been charged in error, please contact us at{' '}
-              <a href="mailto:hello@feedbackly.online" className="text-blue-600 hover:text-blue-700 underline">hello@feedbackly.online</a>{' '}
+              <a href="#" className="text-blue-600 hover:text-blue-700 underline">hello@markly.online</a>{' '}
               within 14 days of the charge.
             </p>
 
@@ -271,7 +268,7 @@ export default function TermsPage() {
             </ul>
             <p className="text-gray-600 leading-relaxed mb-4">
               You may delete your account at any time through your account settings or by contacting us at{' '}
-              <a href="mailto:hello@feedbackly.online" className="text-blue-600 hover:text-blue-700 underline">hello@feedbackly.online</a>.
+              <a href="#" className="text-blue-600 hover:text-blue-700 underline">hello@markly.online</a>.
               Upon termination, your data will be deleted within 30 days, except where retention is required by law or for legitimate business purposes.
             </p>
             <p className="text-gray-600 leading-relaxed mb-4">
@@ -338,7 +335,7 @@ export default function TermsPage() {
             </p>
             <ul className="list-disc list-inside text-gray-600 space-y-2 mb-4 ml-4">
               <li><strong>Informal resolution:</strong> The parties shall first attempt to resolve any dispute through good-faith negotiation. You agree to contact us at{' '}
-                <a href="mailto:hello@feedbackly.online" className="text-blue-600 hover:text-blue-700 underline">hello@feedbackly.online</a>{' '}
+                <a href="#" className="text-blue-600 hover:text-blue-700 underline">hello@markly.online</a>{' '}
                 before initiating any formal proceedings.
               </li>
               <li><strong>Formal resolution:</strong> If the dispute cannot be resolved informally within 30 days, either party may pursue resolution through binding arbitration or the courts of competent jurisdiction.</li>
@@ -373,10 +370,10 @@ export default function TermsPage() {
             </p>
             <ul className="list-disc list-inside text-gray-600 space-y-2 mb-4 ml-4">
               <li><strong>Email:</strong>{' '}
-                <a href="mailto:hello@feedbackly.online" className="text-blue-600 hover:text-blue-700 underline">hello@feedbackly.online</a>
+                <a href="#" className="text-blue-600 hover:text-blue-700 underline">hello@markly.online</a>
               </li>
               <li><strong>Website:</strong>{' '}
-                <a href="https://feedbackly.online" className="text-blue-600 hover:text-blue-700 underline">feedbackly.online</a>
+                <a href="#" className="text-blue-600 hover:text-blue-700 underline">markly.online</a>
               </li>
             </ul>
             <p className="text-gray-600 leading-relaxed mb-4">

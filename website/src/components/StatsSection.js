@@ -23,20 +23,20 @@ function StatItem({ stat, index }) {
   return (
     <div
       ref={ref}
-    className="premium-card hover-lift rounded-[24px] p-6 text-left"
+      className="premium-card hover-lift rounded-[24px] p-6 text-left"
       data-reveal="scale"
       data-delay={String(index + 1)}
     >
       <div className="flex items-start justify-between gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eef2ff] text-[#2854ff]">
-          <Icon className="h-5 w-5" />
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#eef2ff] text-[#2854ff]" style={{ color: stat.color }}>
+          <Icon className="h-4 w-4" />
         </div>
-        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: stat.color }}>
           Live
         </span>
       </div>
-      <div className="mt-7 font-display text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">{value}</div>
-      <p className="mt-2 max-w-[14rem] text-sm leading-6 text-slate-500">{stat.label}</p>
+      <div className="mt-4 text-4xl font-bold sm:text-5xl leading-[1.3] tracking-[-0.02em] text-[#0B1D3A] font-sans">{value}</div>
+      <p className="mt-2 text-[10px] sm:text-[11px] lg:text-[12px] xl:text-[13px] leading-[1.7] text-[#475569] font-sans">{stat.label}</p>
     </div>
   );
 }
@@ -45,7 +45,7 @@ export default function StatsSection() {
   const ref = useScrollReveal();
 
   return (
-    <section className="section-shell py-20 sm:py-24" ref={ref}>
+    <section className="section-shell py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
       <div className="absolute left-[8%] top-16 hidden lg:block animate-float">
         <CodeIcon className="h-4 w-4 text-slate-300" />
       </div>
@@ -58,17 +58,17 @@ export default function StatsSection() {
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center" data-reveal>
-          <span className="eyebrow">Performance</span>
-          <h2 className="mt-5 font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl lg:text-5xl">
+          <h4 className="text-[12px] mb-3 text-[#38BDF8] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Performance</h4>
+          <h2 className="text-[24px] sm:text-[30px] md:text-[36px] lg:text-[44px] xl:text-[48px] 2xl:text-[52px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
             Built for faster reviews,
-            <span className="block text-gradient">cleaner approvals, and less drift</span>
+            <span className="block text-gradient font-sans">cleaner approvals, and less drift</span>
           </h2>
-          <p className="mt-5 text-lg leading-8 text-slate-500">
+          <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#475569] font-sans">
             Teams adopt Markly quickly because the workflow is obvious, feedback stays anchored, and every review moves with less friction.
           </p>
         </div>
 
-        <div className="mt-14 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {STATS.map((stat, index) => (
             <StatItem key={stat.label} stat={stat} index={index} />
           ))}

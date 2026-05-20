@@ -1,16 +1,42 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useRef } from 'react';
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { ArrowRightIcon, CheckIcon, PlayIcon, ShareIcon, MonitorIcon } from './icons';
 
 const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 
-const METRICS = [
-  { value: '42%', label: 'faster review cycles' },
-  { value: '8.4k', label: 'pins resolved weekly' },
-  { value: '99.9%', label: 'review uptime' },
-];
-// TODO
 function ProductMockup() {
+  const wrapRef = useRef(null);
+  const rotateX = useMotionValue(0);
+  const rotateY = useMotionValue(0);
+  const glowX = useMotionValue(50);
+  const glowY = useMotionValue(50);
+
+  const smoothRotateX = useSpring(rotateX, { stiffness: 140, damping: 18, mass: 0.5 });
+  const smoothRotateY = useSpring(rotateY, { stiffness: 140, damping: 18, mass: 0.5 });
+  const mouseGlowX = useTransform(glowX, (value) => `${value}%`);
+  const mouseGlowY = useTransform(glowY, (value) => `${value}%`);
+
+  const handlePointerMove = (event) => {
+    const node = wrapRef.current;
+    if (!node) return;
+
+    const rect = node.getBoundingClientRect();
+    const px = (event.clientX - rect.left) / rect.width;
+    const py = (event.clientY - rect.top) / rect.height;
+
+    rotateY.set((px - 0.5) * 8);
+    rotateX.set((0.5 - py) * 8);
+    glowX.set(px * 100);
+    glowY.set(py * 100);
+  };
+
+  const resetPointer = () => {
+    rotateX.set(0);
+    rotateY.set(0);
+    glowX.set(50);
+    glowY.set(50);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 32 }}
@@ -20,7 +46,21 @@ function ProductMockup() {
     >
       <div className="absolute inset-x-8 bottom-0 h-40 rounded-full bg-[#2854ff]/10 blur-3xl" />
 
-      <div className="relative overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_40px_110px_rgba(50,65,120,0.16)] sm:rounded-[32px]">
+      <motion.div
+        ref={wrapRef}
+        onMouseMove={handlePointerMove}
+        onMouseLeave={resetPointer}
+        style={{ rotateX: smoothRotateX, rotateY: smoothRotateY, transformPerspective: 1800 }}
+        className="relative overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_40px_110px_rgba(50,65,120,0.16)] transition-shadow duration-300 hover:shadow-[0_52px_140px_rgba(50,65,120,0.22)] sm:rounded-[32px]"
+      >
+        <motion.div
+          aria-hidden
+          style={{
+            background: `radial-gradient(circle at ${mouseGlowX} ${mouseGlowY}, rgba(40,84,255,0.14), transparent 22%)`,
+          }}
+          className="pointer-events-none absolute inset-0 z-10"
+        />
+
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-[#fbfbfd] px-3 py-3 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex shrink-0 items-center gap-1.5">
@@ -77,8 +117,13 @@ function ProductMockup() {
                 { number: 4, name: 'Md Ashif', text: 'tree', time: '3/27/2026' },
                 { number: 3, name: 'Najme Shaquib', text: 'work', time: '3/27/2026', badge: 'New' },
                 { number: 2, name: 'Najme Shaquib', text: '@Md Ashif check this', time: '3/27/2026' },
-              ].map((item) => (
-                <div key={item.number} className="px-4 py-4">
+              ].map((item, index) => (
+                <motion.div
+                  key={item.number}
+                  animate={{ x: [0, index === 0 ? 2 : 0, 0] }}
+                  transition={{ duration: 6 + index, repeat: Infinity, ease: 'easeInOut' }}
+                  className="px-4 py-4"
+                >
                   <div className="flex items-start gap-3">
                     <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#2854ff] text-sm font-semibold text-white">
                       {item.number}
@@ -94,7 +139,7 @@ function ProductMockup() {
                       <p className="mt-2 text-sm text-slate-600">{item.text}</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </aside>
@@ -120,13 +165,20 @@ function ProductMockup() {
                     <span>Contact Us</span>
                   </div>
                 </div>
-                <button type="button" className="rounded-full bg-[#74b62a] px-6 py-3 text-base font-semibold text-white shadow-[0_12px_26px_rgba(116,182,42,0.22)]">
+                <motion.button
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button"
+                  className="rounded-full bg-[#74b62a] px-6 py-3 text-base font-semibold text-white shadow-[0_12px_26px_rgba(116,182,42,0.22)]"
+                >
                   Get Help
-                </button>
+                </motion.button>
               </div>
             </div>
 
             <div className="relative min-h-[520px] bg-[linear-gradient(180deg,#f6f2f1_0%,#efefef_100%)] p-5 sm:p-8">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.8),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(117,183,43,0.08),transparent_26%)]" />
+
               <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
                 <div className="pt-2">
                   <h3 className="font-display text-5xl font-extrabold leading-none tracking-tight text-[#2d3551] sm:text-6xl">
@@ -136,16 +188,29 @@ function ProductMockup() {
                     Transform your brand value and reputation with the magic of content marketing strategy. LeanPort is a trusted name to create powerful and efficient content marketing strategies.
                   </p>
                   <div className="mt-10 inline-flex items-center gap-4">
-                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-slate-500 text-slate-500">
+                    <motion.span
+                      animate={{ x: [0, 4, 0], rotate: [-10, 0, -10] }}
+                      transition={{ duration: 4.8, repeat: Infinity, ease: 'easeInOut' }}
+                      className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-slate-500 text-slate-500"
+                    >
                       <PlayIcon className="h-5 w-5" />
-                    </span>
-                    <button type="button" className="rounded-full bg-[#75b72b] px-10 py-4 text-xl font-semibold text-white shadow-[0_14px_28px_rgba(117,183,43,0.22)]">
+                    </motion.span>
+                    <motion.button
+                      whileHover={{ y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="button"
+                      className="rounded-full bg-[#75b72b] px-10 py-4 text-xl font-semibold text-white shadow-[0_14px_28px_rgba(117,183,43,0.22)]"
+                    >
                       Let&apos;s Start
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
 
-                <div className="relative overflow-hidden rounded-[6px] bg-white shadow-[0_24px_70px_rgba(47,63,91,0.14)]">
+                <motion.div
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+                  className="relative overflow-hidden rounded-[6px] bg-white shadow-[0_24px_70px_rgba(47,63,91,0.14)]"
+                >
                   <div className="aspect-[1.28/1] bg-[linear-gradient(135deg,#eef2f7_0%,#ffffff_36%,#e6edf6_100%)] p-6">
                     <div className="absolute right-10 top-10 h-16 w-16 rounded-full border-[6px] border-[#0990d0]" />
                     <div className="absolute left-8 top-10 h-20 w-20 rotate-6 rounded bg-[linear-gradient(180deg,#ffffff_0%,#f4f6fa_100%)] shadow-md" />
@@ -158,13 +223,29 @@ function ProductMockup() {
                       </p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               </div>
 
-              <div className="absolute left-[19%] top-[16%] grid h-9 w-9 place-items-center rounded-full bg-[#d63d3a] text-sm font-bold text-white shadow-[0_12px_26px_rgba(214,61,58,0.28)]">5</div>
-              <div className="absolute bottom-[11%] left-[64%] grid h-9 w-9 place-items-center rounded-full bg-[#d63d3a] text-sm font-bold text-white shadow-[0_12px_26px_rgba(214,61,58,0.28)]">4</div>
+              <motion.div
+                animate={{ y: [0, -5, 0] }}
+                transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute left-[19%] top-[16%] grid h-9 w-9 place-items-center rounded-full bg-[#d63d3a] text-sm font-bold text-white shadow-[0_12px_26px_rgba(214,61,58,0.28)]"
+              >
+                5
+              </motion.div>
+              <motion.div
+                animate={{ y: [0, 5, 0] }}
+                transition={{ duration: 4.4, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute bottom-[11%] left-[64%] grid h-9 w-9 place-items-center rounded-full bg-[#d63d3a] text-sm font-bold text-white shadow-[0_12px_26px_rgba(214,61,58,0.28)]"
+              >
+                4
+              </motion.div>
 
-              <div className="absolute left-1/2 top-[37%] z-20 w-[min(460px,calc(100%-40px))] -translate-x-1/2 rounded-[26px] border border-white/80 bg-white/96 shadow-[0_30px_90px_rgba(47,63,91,0.18)] backdrop-blur">
+              <motion.div
+                animate={{ y: [0, -8, 0], scale: [1, 1.004, 1] }}
+                transition={{ duration: 6.5, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute left-1/2 top-[37%] z-20 w-[min(460px,calc(100%-40px))] -translate-x-1/2 rounded-[26px] border border-white/80 bg-white/96 shadow-[0_30px_90px_rgba(47,63,91,0.18)] backdrop-blur"
+              >
                 <div className="border-b border-slate-200 px-4 py-3">
                   <div className="flex items-center justify-between text-slate-400">
                     <div className="flex items-center gap-2">
@@ -187,22 +268,27 @@ function ProductMockup() {
                 </div>
                 <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
                   <span className="text-xl text-slate-400">⌁</span>
-                  <button type="button" className="rounded-full bg-[#9bb5f8] px-6 py-2 text-base font-semibold text-white">
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="button"
+                    className="rounded-full bg-[#9bb5f8] px-6 py-2 text-base font-semibold text-white"
+                  >
                     Post
-                  </button>
+                  </motion.button>
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
 
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden pb-12 pt-12 sm:pb-18 sm:pt-10">
+    <section className="relative overflow-hidden pb-12 pt-12 sm:pb-16 sm:pt-10 lg:pb-20">
       <div className="pointer-events-none absolute inset-0 dot-pattern opacity-35" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(circle_at_50%_0%,rgba(40,84,255,0.12),transparent_52%)]" />
 
@@ -218,7 +304,7 @@ export default function HeroSection() {
             Realtime visual review for product teams
           </div>
 
-          <h1 className="mt-6 font-display text-4xl font-extrabold leading-[0.98] tracking-tight text-slate-950 sm:text-5xl md:text-6xl lg:text-[4.8rem]">
+          <h1 className="mt-6 font-display text-4xl font-extrabold leading-[0.98] tracking-tight text-slate-950 sm:text-5xl md:text-6xl lg:text-[4.65rem]">
             Visual feedback that
             <span className="block text-gradient">turns reviews into releases.</span>
           </h1>
@@ -228,14 +314,14 @@ export default function HeroSection() {
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a href={`${APP_URL}/onboarding`} className="button-primary px-8 py-4">
+            <motion.a whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} href={`${APP_URL}/onboarding`} className="button-primary px-8 py-4">
               Start free
               <ArrowRightIcon className="h-5 w-5" />
-            </a>
-            <a href="#how-it-works" className="button-secondary px-8 py-4">
+            </motion.a>
+            <motion.a whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} href="#how-it-works" className="button-secondary px-8 py-4">
               <PlayIcon className="h-5 w-5 text-[#2854ff]" />
               Watch workflow
-            </a>
+            </motion.a>
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-slate-500">

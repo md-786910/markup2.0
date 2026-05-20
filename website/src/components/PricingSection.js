@@ -37,7 +37,7 @@ export default function PricingSection() {
           }));
         if (livePlans.length) setPlans(livePlans);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       alive = false;
@@ -45,15 +45,15 @@ export default function PricingSection() {
   }, []);
 
   return (
-    <section id="pricing" className="section-shell py-20 sm:py-24" ref={ref}>
+    <section id="pricing" className="section-shell py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center" data-reveal>
-          <span className="eyebrow">Pricing</span>
-          <h2 className="mt-5 font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl lg:text-5xl">
+          <h4 className="text-[12px] mb-3 text-[#38BDF8] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Pricing</h4>
+          <h2 className="text-[24px] sm:text-[30px] md:text-[36px] lg:text-[44px] xl:text-[48px] 2xl:text-[52px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
             Pricing built for review velocity,
-            <span className="block text-gradient">not procurement theater</span>
+            <span className="block text-gradient font-sans">not procurement theater</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-500">
+          <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#475569] font-sans">
             Clear tiers, fast onboarding, and collaboration features that scale from one stakeholder to a full delivery team.
           </p>
         </div>
@@ -62,11 +62,10 @@ export default function PricingSection() {
           {plans.map((plan, index) => (
             <article
               key={plan.id}
-              className={`hover-lift relative rounded-[24px] p-8 ${
-                plan.popular
-                  ? 'bg-[#111827] text-white shadow-[0_28px_80px_rgba(17,24,39,0.24)] ring-1 ring-white/10'
-                  : 'premium-card text-slate-950'
-              }`}
+              className={`hover-lift relative rounded-[24px] p-8 ${plan.popular
+                ? 'bg-[#111827] text-white shadow-[0_28px_80px_rgba(17,24,39,0.24)] ring-1 ring-white/10'
+                : 'premium-card text-slate-950'
+                }`}
               data-reveal="scale"
               data-delay={String(index + 1)}
             >
@@ -83,9 +82,8 @@ export default function PricingSection() {
                     {plan.id === 'enterprise' ? 'Custom onboarding and security controls.' : 'Fast setup for collaborative review teams.'}
                   </p>
                 </div>
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${
-                  plan.popular ? 'bg-white/10 text-white/80' : 'bg-slate-100 text-slate-500'
-                }`}>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${plan.popular ? 'bg-white/10 text-white/80' : 'bg-slate-100 text-slate-500'
+                  }`}>
                   {plan.id === 'enterprise' ? 'Scale' : 'Monthly'}
                 </span>
               </div>
@@ -102,9 +100,8 @@ export default function PricingSection() {
               <ul className="mt-8 space-y-3">
                 {(plan.features || []).map((feature) => (
                   <li key={feature} className="flex items-start gap-3">
-                    <div className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${
-                      plan.popular ? 'bg-white/12' : 'bg-emerald-100'
-                    }`}>
+                    <div className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${plan.popular ? 'bg-white/12' : 'bg-emerald-100'
+                      }`}>
                       <CheckIcon className={`h-3 w-3 ${plan.popular ? 'text-white' : 'text-emerald-600'}`} />
                     </div>
                     <span className={`text-sm leading-6 ${plan.popular ? 'text-white/75' : 'text-slate-600'}`}>{feature}</span>
@@ -114,11 +111,10 @@ export default function PricingSection() {
 
               <a
                 href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/onboarding`}
-                className={`mt-10 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-all duration-300 ${
-                  plan.popular
-                    ? 'bg-[#2854ff] text-white shadow-[0_16px_36px_rgba(40,84,255,0.28)] hover:-translate-y-px'
-                    : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                }`}
+                className={`mt-10 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-all duration-300 ${plan.popular
+                  ? 'bg-[#2854ff] text-white shadow-[0_16px_36px_rgba(40,84,255,0.28)] hover:-translate-y-px'
+                  : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
               >
                 {plan.cta}
                 <ArrowRightIcon className="h-4 w-4" />

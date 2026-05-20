@@ -16,20 +16,20 @@ export default function FeaturesGrid() {
   const ref = useScrollReveal();
 
   return (
-    <section id="features" className="section-shell py-20 sm:py-24" ref={ref}>
+    <section id="features" className="section-shell py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center" data-reveal>
-          <span className="eyebrow">Core features</span>
-          <h2 className="mt-5 font-display text-3xl font-bold leading-tight tracking-tight text-slate-950 md:text-4xl lg:text-5xl">
+        <div className="text-start" data-reveal>
+          <h4 className="text-[12px] mb-3 text-[#38BDF8] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Core features</h4>
+          <h2 className="text-[24px] sm:text-[30px] md:text-[36px] lg:text-[44px] xl:text-[48px] 2xl:text-[52px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
             Everything teams need to turn
-            <span className="block text-gradient">feedback into shipped work</span>
+            <span className="block text-gradient font-sans">feedback into shipped work</span>
           </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-500">
+          <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#475569] font-sans">
             Markly combines visual review, collaboration, guest sharing, and delivery handoff in one clear workflow.
           </p>
         </div>
 
-        <div className="mt-16 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {FEATURES.map((feature, index) => {
             const Icon = ICON_MAP[feature.icon];
             return (
@@ -40,16 +40,18 @@ export default function FeaturesGrid() {
                 data-delay={String((index % 3) + 1)}
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${feature.gradient} text-white shadow-lg shadow-slate-200`}>
-                    <Icon className="h-6 w-6" />
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-md text-white`} style={{ background: feature.gradient }}>
+                    <Icon className="h-4 w-4" />
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: feature.color }}>
                     Included
                   </span>
                 </div>
-                <h3 className="mt-6 text-xl font-semibold text-slate-950">{feature.title}</h3>
-                <p className="mt-3 text-[15px] leading-7 text-slate-500">{feature.description}</p>
-                <div className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[#2854ff] opacity-80 transition group-hover:translate-x-1 group-hover:opacity-100">
+                <h3 className="my-3 text-[16px] sm:text-[18px] lg:text-[20px] xl:text-[22px] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0B1D3A] font-sans">{feature.title}</h3>
+                <p className="text-[10px] sm:text-[11px] lg:text-[12px] xl:text-[13px] leading-[1.7] text-[#475569] font-sans">
+                  {feature.description}
+                </p>
+                <div className="mt-3 inline-flex items-center gap-2 text-[12px] cursor-pointer font-medium opacity-80 transition group-hover:translate-x-1 group-hover:opacity-100" style={{ color: feature.color }}>
                   Explore workflow
                   <ArrowRightIcon className="h-4 w-4" />
                 </div>

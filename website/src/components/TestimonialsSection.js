@@ -6,20 +6,20 @@ export default function TestimonialsSection() {
   const ref = useScrollReveal();
 
   return (
-    <section id="testimonials" className="bg-slate-50 py-20 sm:py-24" ref={ref}>
+    <section id="testimonials" className="section-shell py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center" data-reveal>
-          <span className="eyebrow">Use cases</span>
-          <h2 className="mt-5 font-display text-3xl font-bold tracking-tight text-gray-900 md:text-4xl lg:text-5xl">
+          <h4 className="text-[12px] mb-3 text-[#38BDF8] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Use cases</h4>
+          <h2 className="text-[24px] sm:text-[30px] md:text-[36px] lg:text-[44px] xl:text-[48px] 2xl:text-[52px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
             Built for teams that need
-            <span className="block text-gradient">feedback to become action</span>
+            <span className="block text-gradient font-sans">feedback to become action</span>
           </h2>
-          <p className="mt-5 text-lg leading-8 text-gray-500">
+          <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#475569] font-sans">
             From client approvals to developer handoff, Markly keeps review work visible and specific.
           </p>
         </div>
 
-        <div className="mx-auto mt-14 grid max-w-6xl grid-cols-1 gap-5 md:grid-cols-3">
+        <div className="mx-auto mt-10 grid max-w-6xl grid-cols-1 gap-5 md:grid-cols-3">
           {TESTIMONIALS.map((testimonial, i) => (
             <article
               key={testimonial.name}
