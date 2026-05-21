@@ -32,14 +32,14 @@ export default function TestimonialsSection() {
                   <span className="text-sm font-semibold text-white">{testimonial.initials}</span>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">{testimonial.name}</p>
+                  <p className="text-sm font-semibold text-[#10231f]">{testimonial.name}</p>
                   <p className="text-sm font-medium text-[#176b57]">{testimonial.role}</p>
                 </div>
               </div>
 
-              <div className="my-5 h-px bg-gray-100" />
+              <div className="my-5 h-px bg-emerald-100" />
 
-              <p className="text-[15px] leading-7 text-gray-600">
+              <p className="text-[15px] leading-7 text-[#53645f]">
                 {testimonial.quote}
               </p>
             </article>
@@ -49,3 +49,4 @@ export default function TestimonialsSection() {
     </section>
   );
 }
+

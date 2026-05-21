@@ -41,7 +41,7 @@ function AutoVisualSlider({ slides, interval = 3200, renderSlide, heightClassNam
         {slides.map((slide, index) => (
           <span
             key={slide.id}
-            className={`h-1.5 rounded-full transition-all duration-500 ${index === activeIndex ? 'w-7 bg-blue-500' : 'w-1.5 bg-white/60'}`}
+            className={`h-1.5 rounded-full transition-all duration-500 ${index === activeIndex ? 'w-7 bg-[#176b57]' : 'w-1.5 bg-white/60'}`}
           />
         ))}
       </div>
@@ -58,7 +58,7 @@ const PINS_SLIDES = [
     titleWidth: 'w-2/3',
     lines: ['w-full', 'w-5/6', 'w-3/4'],
     pins: [
-      { id: 1, label: '1', tone: 'bg-blue-500 shadow-blue-500/30', position: 'top-12 right-12' },
+      { id: 1, label: '1', tone: 'bg-[#176b57] shadow-emerald-700/30', position: 'top-12 right-12' },
       { id: 2, label: '2', tone: 'bg-purple-500 shadow-purple-500/30', position: 'top-28 left-16' },
       { id: 3, label: '3', tone: 'bg-emerald-500 shadow-emerald-500/30', position: 'bottom-12 right-20' },
     ],
@@ -105,7 +105,7 @@ function PinsVisual() {
         <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/70" />
         <div className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
         <div className="mx-3 flex-1">
-          <div className="mx-auto max-w-[200px] rounded bg-gray-700/50 px-3 py-1 text-center text-[10px] text-gray-500">client-website.com</div>
+          <div className="mx-auto max-w-[200px] rounded bg-gray-700/50 px-3 py-1 text-center text-[10px] text-[#53645f]">client-website.com</div>
         </div>
       </div>
 
@@ -118,12 +118,12 @@ function PinsVisual() {
           <div className="relative h-full p-6">
             <div className={`mb-4 flex items-center justify-between transition-all duration-700 ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`}>
               <div>
-                <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500">Pinned on</p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-[#53645f]">Pinned on</p>
                 <p className="mt-1 text-xs font-medium text-gray-200">{slide.page}</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-300">{slide.status}</span>
-                <span className="rounded-full border border-gray-600 px-2 py-0.5 text-[10px] text-gray-400">{slide.priority}</span>
+                <span className="rounded-full border border-emerald-500/30 bg-[#176b57]/10 px-2 py-0.5 text-[10px] font-medium text-emerald-200">{slide.status}</span>
+                <span className="rounded-full border border-gray-600 px-2 py-0.5 text-[10px] text-[#8a9b94]">{slide.priority}</span>
               </div>
             </div>
             <div className={`${slide.titleWidth} mb-3 h-4 rounded bg-gray-700/40 transition-all duration-700 ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`} />
@@ -131,7 +131,7 @@ function PinsVisual() {
             <div className={`mt-2 h-2.5 rounded bg-gray-700/25 transition-all duration-700 ${slide.lines[1]} ${isActive ? 'translate-y-0 opacity-100 delay-100' : 'translate-y-2 opacity-0'}`} />
             <div className={`mt-2 h-2.5 rounded bg-gray-700/25 transition-all duration-700 ${slide.lines[2]} ${isActive ? 'translate-y-0 opacity-100 delay-150' : 'translate-y-2 opacity-0'}`} />
             <div className="mt-6 flex gap-2">
-              <div className="h-8 w-20 rounded-md bg-blue-600/30" />
+              <div className="h-8 w-20 rounded-md bg-emerald-600/30" />
               <div className="h-8 w-20 rounded-md bg-gray-700/30" />
             </div>
 
@@ -148,10 +148,10 @@ function PinsVisual() {
             ))}
 
             <div
-              className={`absolute ${slide.tooltip.position} w-44 rounded-lg border border-gray-100 bg-white p-2.5 shadow-xl transition-all duration-700 ${isActive ? 'translate-y-0 opacity-100 delay-150' : 'translate-y-2 opacity-0'}`}
+              className={`absolute ${slide.tooltip.position} w-44 rounded-lg border border-emerald-100 bg-white p-2.5 shadow-xl transition-all duration-700 ${isActive ? 'translate-y-0 opacity-100 delay-150' : 'translate-y-2 opacity-0'}`}
             >
-              <p className="text-[10px] font-medium text-gray-900">{slide.tooltip.title}</p>
-              <p className="mt-0.5 text-[9px] text-gray-400">{slide.tooltip.body}</p>
+              <p className="text-[10px] font-medium text-[#10231f]">{slide.tooltip.title}</p>
+              <p className="mt-0.5 text-[9px] text-[#8a9b94]">{slide.tooltip.body}</p>
             </div>
 
             <div className={`absolute ${slide.cursor} transition-all duration-700 ${isActive ? 'opacity-100' : 'opacity-0'}`}>
@@ -208,12 +208,12 @@ const COMMENT_SLIDES = [
 
 function CommentsVisual() {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
-        <span className="text-xs font-semibold text-gray-900">Comments (3)</span>
+    <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+      <div className="flex items-center justify-between border-b border-emerald-100 px-5 py-3">
+        <span className="text-xs font-semibold text-[#10231f]">Comments (3)</span>
         <div className="flex items-center gap-1">
           <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
-          <span className="text-[10px] text-gray-400">Live thread</span>
+          <span className="text-[10px] text-[#8a9b94]">Live thread</span>
         </div>
       </div>
 
@@ -226,10 +226,10 @@ function CommentsVisual() {
           <div className="h-full p-4">
             <div className={`mb-3 flex items-center justify-between transition-all duration-700 ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`}>
               <div>
-                <p className="text-[10px] uppercase tracking-[0.18em] text-gray-400">Thread</p>
-                <p className="mt-1 text-xs font-semibold text-gray-900">{slide.channel}</p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-[#8a9b94]">Thread</p>
+                <p className="mt-1 text-xs font-semibold text-[#10231f]">{slide.channel}</p>
               </div>
-              <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-medium text-gray-500">{slide.meta}</span>
+              <span className="rounded-full bg-[#eaf6ef] px-2 py-1 text-[10px] font-medium text-[#53645f]">{slide.meta}</span>
             </div>
             <div className="space-y-4">
               {slide.comments.map((comment, index) => (
@@ -243,10 +243,10 @@ function CommentsVisual() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-gray-900">{comment.name}</span>
-                      <span className="text-[10px] text-gray-400">{comment.time}</span>
+                      <span className="text-xs font-medium text-[#10231f]">{comment.name}</span>
+                      <span className="text-[10px] text-[#8a9b94]">{comment.time}</span>
                     </div>
-                    <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{comment.text}</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-[#53645f]">{comment.text}</p>
                   </div>
                 </div>
               ))}
@@ -258,16 +258,16 @@ function CommentsVisual() {
                 <div className="h-1.5 w-1.5 rounded-full bg-gray-300 animate-pulse" style={{ animationDelay: '0.2s' }} />
                 <div className="h-1.5 w-1.5 rounded-full bg-gray-300 animate-pulse" style={{ animationDelay: '0.4s' }} />
               </div>
-              <span className="text-[10px] text-gray-400">{slide.typing}</span>
+              <span className="text-[10px] text-[#8a9b94]">{slide.typing}</span>
             </div>
 
             <div className="absolute right-4 top-3 flex items-center gap-1">
               <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
-              <span className="text-[10px] text-gray-400">{slide.online}</span>
+              <span className="text-[10px] text-[#8a9b94]">{slide.online}</span>
             </div>
 
             <div className={`absolute -right-2 -top-2 hidden lg:block transition-all duration-700 ${isActive ? 'opacity-100' : 'opacity-0'}`}>
-              <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">{slide.mention}</span>
+              <span className="rounded-full border border-emerald-100 bg-[#eaf6ef] px-2 py-0.5 text-[10px] font-medium text-[#176b57]">{slide.mention}</span>
             </div>
           </div>
         )}
@@ -314,9 +314,9 @@ const SHARING_SLIDES = [
 
 function SharingVisual() {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-      <div className="border-b border-gray-100 px-5 py-3">
-        <span className="text-xs font-semibold text-gray-900">Share Settings</span>
+    <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+      <div className="border-b border-emerald-100 px-5 py-3">
+        <span className="text-xs font-semibold text-[#10231f]">Share Settings</span>
       </div>
 
       <AutoVisualSlider
@@ -328,45 +328,45 @@ function SharingVisual() {
           <div className="relative h-full p-5">
             <div className="space-y-4">
               <div className={`grid grid-cols-2 gap-2 transition-all duration-700 ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`}>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-wider text-gray-400">Access</p>
-                  <p className="mt-1 text-xs font-medium text-gray-700">{slide.access}</p>
+                <div className="rounded-lg border border-emerald-100 bg-[#f4faf4] px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wider text-[#8a9b94]">Access</p>
+                  <p className="mt-1 text-xs font-medium text-[#365047]">{slide.access}</p>
                 </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-wider text-gray-400">Expiry</p>
-                  <p className="mt-1 text-xs font-medium text-gray-700">{slide.expiry}</p>
+                <div className="rounded-lg border border-emerald-100 bg-[#f4faf4] px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wider text-[#8a9b94]">Expiry</p>
+                  <p className="mt-1 text-xs font-medium text-[#365047]">{slide.expiry}</p>
                 </div>
               </div>
 
               <div className={`flex items-center justify-between transition-all duration-700 ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`}>
-                <span className="text-xs font-medium text-gray-700">Enable sharing</span>
-                <div className={`relative h-5 w-9 rounded-full transition-colors duration-500 ${slide.toggleOn ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                <span className="text-xs font-medium text-[#365047]">Enable sharing</span>
+                <div className={`relative h-5 w-9 rounded-full transition-colors duration-500 ${slide.toggleOn ? 'bg-[#176b57]' : 'bg-gray-300'}`}>
                   <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-500 ${slide.toggleOn ? 'right-0.5' : 'left-0.5'}`} />
                 </div>
               </div>
 
               <div className={`transition-all duration-700 ${isActive ? 'translate-y-0 opacity-100 delay-75' : 'translate-y-2 opacity-0'}`}>
-                <label className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Password Protection</label>
-                <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                  <LockIcon className="h-3.5 w-3.5 text-gray-400" />
-                  <span className="text-xs text-gray-500">{slide.password}</span>
+                <label className="text-[10px] font-medium uppercase tracking-wider text-[#53645f]">Password Protection</label>
+                <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-emerald-100 bg-[#f4faf4] px-3 py-2">
+                  <LockIcon className="h-3.5 w-3.5 text-[#8a9b94]" />
+                  <span className="text-xs text-[#53645f]">{slide.password}</span>
                 </div>
               </div>
 
               <div className={`transition-all duration-700 ${isActive ? 'translate-y-0 opacity-100 delay-100' : 'translate-y-2 opacity-0'}`}>
-                <label className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Share Link</label>
+                <label className="text-[10px] font-medium uppercase tracking-wider text-[#53645f]">Share Link</label>
                 <div className="mt-1.5 flex items-center gap-2">
-                  <div className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                    <span className="block truncate text-[10px] text-gray-500">{slide.link}</span>
+                  <div className="flex-1 rounded-lg border border-emerald-100 bg-[#f4faf4] px-3 py-2">
+                    <span className="block truncate text-[10px] text-[#53645f]">{slide.link}</span>
                   </div>
-                  <button className="flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-2 text-[10px] font-medium text-blue-600 transition-colors hover:bg-blue-100">
+                  <button className="flex items-center gap-1 rounded-lg bg-[#eaf6ef] px-3 py-2 text-[10px] font-medium text-[#176b57] transition-colors hover:bg-[#d9f0df]">
                     <ClipboardIcon className="h-3 w-3" />
                     {slide.copyLabel}
                   </button>
                 </div>
               </div>
 
-              <div className={`flex items-center gap-2 border-t border-gray-100 pt-2 transition-all duration-700 ${isActive ? 'translate-y-0 opacity-100 delay-150' : 'translate-y-2 opacity-0'}`}>
+              <div className={`flex items-center gap-2 border-t border-emerald-100 pt-2 transition-all duration-700 ${isActive ? 'translate-y-0 opacity-100 delay-150' : 'translate-y-2 opacity-0'}`}>
                 <div className="flex -space-x-1.5">
                   {slide.viewers.map((viewer, index) => {
                     const gradients = ['from-blue-400 to-blue-600', 'from-purple-400 to-purple-600', 'from-green-400 to-green-600'];
@@ -377,7 +377,7 @@ function SharingVisual() {
                     );
                   })}
                 </div>
-                <span className="text-[10px] text-gray-400">{slide.note}</span>
+                <span className="text-[10px] text-[#8a9b94]">{slide.note}</span>
               </div>
             </div>
 
@@ -403,7 +403,7 @@ function ShowcaseRow({ feature, index }) {
   const ref = useScrollReveal();
   const Visual = VISUAL_MAP[feature.visual];
   const reversed = index % 2 === 1;
-  const bg = index % 2 === 0 ? 'bg-gray-50' : 'bg-white';
+  const bg = index % 2 === 0 ? 'bg-[#f4f9f4]' : 'bg-white';
 
   return (
     <section className={`${bg} py-10 lg:py-10`} ref={ref}>
@@ -412,14 +412,14 @@ function ShowcaseRow({ feature, index }) {
           <h2 className="text-[14px] sm:text-[20px] md:text-[26px] lg:text-[34px] xl:text-[38px] 2xl:text-[42px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
             {feature.title}
           </h2>
-          <p className="mt-4 leading-relaxed text-gray-500">{feature.description}</p>
+          <p className="mt-4 leading-relaxed text-[#53645f]">{feature.description}</p>
           <ul className="mt-6 space-y-3">
             {feature.bullets.map((bullet) => (
               <li key={bullet} className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100">
                   <CheckIcon className="h-3 w-3 text-emerald-600" />
                 </div>
-                <span className="text-[15px] text-gray-600">{bullet}</span>
+                <span className="text-[15px] text-[#53645f]">{bullet}</span>
               </li>
             ))}
           </ul>
@@ -441,3 +441,5 @@ export default function FeatureShowcase() {
     </div>
   );
 }
+
+

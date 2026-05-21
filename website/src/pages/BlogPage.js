@@ -100,15 +100,15 @@ export default function BlogPage() {
                 <div className="icon-tile h-12 w-12">
                   <FeaturedIcon className="h-5 w-5" />
                 </div>
-                <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-[#2854ff]">Featured</p>
-                <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-slate-950">{featuredPost.title}</h2>
+                <p className="mt-6 text-xs font-semibold uppercase tracking-[0.16em] text-[#176b57]">Featured</p>
+                <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-[#10231f]">{featuredPost.title}</h2>
                 <p className="body-copy mt-4">{featuredPost.excerpt}</p>
-                <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-slate-500">
+                <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-[#53645f]">
                   <span>{featuredPost.date}</span>
-                  <span className="h-1 w-1 rounded-full bg-slate-300" />
+                  <span className="h-1 w-1 rounded-full bg-emerald-200" />
                   <span>{featuredPost.readTime}</span>
                 </div>
-                <a href="#articles" className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[#2854ff]">
+                <a href="#articles" className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[#176b57]">
                   Browse articles
                   <ArrowRightIcon className="h-4 w-4" />
                 </a>
@@ -132,8 +132,8 @@ export default function BlogPage() {
                     onClick={() => setActiveCategory(category)}
                     className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                       activeCategory === category
-                        ? 'bg-[#2854ff] text-white shadow-[0_12px_28px_rgba(40,84,255,0.2)]'
-                        : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                        ? 'bg-[#176b57] text-white shadow-[0_12px_28px_rgba(23,107,87,0.2)]'
+                        : 'border border-emerald-100 bg-white text-[#53645f] hover:border-emerald-200'
                     }`}
                   >
                     {category}
@@ -151,13 +151,13 @@ export default function BlogPage() {
                       <div className="icon-tile">
                         <Icon className="h-5 w-5" />
                       </div>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">{post.category}</span>
+                      <span className="rounded-full bg-[#eaf6ef] px-3 py-1 text-xs font-semibold text-[#53645f]">{post.category}</span>
                     </div>
-                    <h3 className="mt-6 font-display text-xl font-semibold leading-tight text-slate-950">{post.title}</h3>
+                    <h3 className="mt-6 font-display text-xl font-semibold leading-tight text-[#10231f]">{post.title}</h3>
                     <p className="body-copy mt-3">{post.excerpt}</p>
                     <div className="mt-6 flex items-center justify-between text-sm">
-                      <span className="text-slate-400">{post.date}</span>
-                      <span className="font-medium text-slate-600">{post.readTime}</span>
+                      <span className="text-[#8a9b94]">{post.date}</span>
+                      <span className="font-medium text-[#53645f]">{post.readTime}</span>
                     </div>
                   </article>
                 );
@@ -169,7 +169,7 @@ export default function BlogPage() {
         <section className="section-pad">
           <div className="site-container grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div>
-              <ZapIcon className="h-7 w-7 text-[#2854ff]" />
+              <ZapIcon className="h-7 w-7 text-[#176b57]" />
               <h2 className="section-heading mt-5 lg:text-4xl">Get practical review playbooks in your inbox.</h2>
               <p className="body-copy mt-4">
                 Monthly notes on making feedback clearer, approvals faster, and stakeholder reviews easier to manage.
@@ -184,9 +184,9 @@ export default function BlogPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@company.com"
-                className="h-12 w-full rounded-full border border-slate-200 px-5 text-sm outline-none transition focus:border-[#2854ff]"
+                className="h-12 w-full rounded-full border border-emerald-100 px-5 text-sm outline-none transition focus:border-[#176b57]"
               />
-              <button type="submit" className="mt-3 h-12 w-full rounded-full bg-[#2854ff] px-6 text-sm font-semibold text-white transition hover:bg-[#1f45dd] sm:mt-0 sm:w-auto">
+              <button type="submit" className="mt-3 h-12 w-full rounded-full bg-[#176b57] px-6 text-sm font-semibold text-white transition hover:bg-[#0f5f4c] sm:mt-0 sm:w-auto">
                 Subscribe
               </button>
               {subscribed ? <p className="mt-3 text-sm font-medium text-emerald-600 sm:absolute sm:mt-16">You are on the list.</p> : null}
@@ -199,3 +199,5 @@ export default function BlogPage() {
     </div>
   );
 }
+
+

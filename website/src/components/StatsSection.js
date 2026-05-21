@@ -31,7 +31,7 @@ function StatItem({ stat, index }) {
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#eaf6ef]" style={{ color: stat.color }}>
           <Icon className="h-4 w-4" />
         </div>
-        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: stat.color }}>
+        <span className="rounded-full bg-[#eaf6ef] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: stat.color }}>
           Live
         </span>
       </div>
@@ -47,13 +47,13 @@ export default function StatsSection() {
   return (
     <section className="section-shell py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
       <div className="absolute left-[8%] top-16 hidden lg:block animate-float">
-        <CodeIcon className="h-4 w-4 text-slate-300" />
+        <CodeIcon className="h-4 w-4 text-emerald-200" />
       </div>
       <div className="absolute right-[12%] top-20 hidden lg:block animate-float-slow">
-        <ZapIcon className="h-4 w-4 text-slate-300" />
+        <ZapIcon className="h-4 w-4 text-emerald-200" />
       </div>
       <div className="absolute bottom-10 right-[18%] hidden lg:block animate-float">
-        <ChatIcon className="h-4 w-4 text-slate-300" />
+        <ChatIcon className="h-4 w-4 text-emerald-200" />
       </div>
 
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -77,3 +77,4 @@ export default function StatsSection() {
     </section>
   );
 }
+

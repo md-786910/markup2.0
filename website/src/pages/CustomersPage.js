@@ -70,25 +70,25 @@ export default function CustomersPage() {
             </div>
 
             <div className="premium-card p-4 sm:p-5">
-              <div className="rounded-[20px] bg-white p-5 text-slate-950">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="rounded-[20px] bg-[#fffffb] p-5 text-[#10231f]">
+                <div className="flex items-center justify-between border-b border-emerald-100 pb-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Review health</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8a9b94]">Review health</p>
                     <h2 className="mt-1 font-display text-xl font-semibold">Campaign launch</h2>
                   </div>
                   <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">On track</span>
                 </div>
                 {[
-                  ['Homepage QA', '12 resolved', 'bg-blue-50 text-blue-700'],
+                  ['Homepage QA', '12 resolved', 'bg-[#eaf6ef] text-[#0f5f4c]'],
                   ['Client copy pass', '4 open', 'bg-amber-50 text-amber-700'],
                   ['Mobile polish', 'Ready', 'bg-emerald-50 text-emerald-700'],
                 ].map(([label, value, tone]) => (
-                  <div key={label} className="mt-4 flex items-center justify-between rounded-2xl border border-slate-100 p-4">
+                  <div key={label} className="mt-4 flex items-center justify-between rounded-2xl border border-emerald-100 p-4">
                     <div className="flex items-center gap-3">
                       <span className="icon-tile h-10 w-10">
                         <CheckIcon className="h-4 w-4" />
                       </span>
-                      <span className="font-medium text-slate-800">{label}</span>
+                      <span className="font-medium text-[#365047]">{label}</span>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${tone}`}>{value}</span>
                   </div>
@@ -110,11 +110,11 @@ export default function CustomersPage() {
                   <div className="icon-tile h-12 w-12">
                     <UsersIcon className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-6 font-display text-2xl font-semibold text-slate-950">{segment.title}</h3>
+                  <h3 className="mt-6 font-display text-2xl font-semibold text-[#10231f]">{segment.title}</h3>
                   <p className="body-copy mt-3">{segment.description}</p>
                   <ul className="mt-6 space-y-3">
                     {segment.metrics.map((metric) => (
-                      <li key={metric} className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                      <li key={metric} className="flex items-center gap-3 text-sm font-medium text-[#365047]">
                         <CheckIcon className="h-4 w-4 text-emerald-600" />
                         {metric}
                       </li>
@@ -131,9 +131,9 @@ export default function CustomersPage() {
             <div className="grid gap-6 lg:grid-cols-2">
               {STORIES.map((story) => (
                 <article key={story.company} className="premium-card p-7 sm:p-8">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#2854ff]">{story.type}</p>
-                  <h3 className="mt-4 font-display text-3xl font-semibold tracking-tight text-slate-950">{story.company}</h3>
-                  <p className="mt-2 text-lg font-semibold text-slate-700">{story.result}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#176b57]">{story.type}</p>
+                  <h3 className="mt-4 font-display text-3xl font-semibold tracking-tight text-[#10231f]">{story.company}</h3>
+                  <p className="mt-2 text-lg font-semibold text-[#365047]">{story.result}</p>
                   <p className="body-copy mt-6">"{story.quote}"</p>
                 </article>
               ))}
@@ -145,10 +145,10 @@ export default function CustomersPage() {
                 [CodeIcon, '3x', 'faster issue triage'],
                 [ShieldIcon, '99.9%', 'uptime target'],
               ].map(([Icon, value, label]) => (
-                <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <Icon className="h-5 w-5 text-[#2854ff]" />
-                  <div className="mt-4 font-display text-3xl font-bold text-slate-950">{value}</div>
-                  <p className="mt-1 text-sm text-slate-500">{label}</p>
+                <div key={label} className="rounded-2xl border border-emerald-100 bg-[#fffffb] p-5 shadow-sm">
+                  <Icon className="h-5 w-5 text-[#176b57]" />
+                  <div className="mt-4 font-display text-3xl font-bold text-[#10231f]">{value}</div>
+                  <p className="mt-1 text-sm text-[#53645f]">{label}</p>
                 </div>
               ))}
             </div>
@@ -157,7 +157,7 @@ export default function CustomersPage() {
 
         <section className="section-pad">
           <div className="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
-            <ZapIcon className="mx-auto h-8 w-8 text-[#2854ff]" />
+            <ZapIcon className="mx-auto h-8 w-8 text-[#176b57]" />
             <h2 className="section-heading mt-5">One workspace for every approval path.</h2>
             <p className="body-large mx-auto mt-5 max-w-2xl">
               Invite internal reviewers, external clients, QA partners, or executives without changing the way your team ships.
@@ -170,3 +170,5 @@ export default function CustomersPage() {
     </div>
   );
 }
+
+

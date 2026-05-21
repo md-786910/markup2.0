@@ -100,7 +100,7 @@ export default function CookieConsentManager() {
             transition={{ duration: 0.28 }}
             type="button"
             onClick={handleOpenPreferences}
-            className="fixed bottom-4 left-4 z-[70] rounded-full border border-slate-200 bg-white/85 px-4 py-2 text-sm font-medium text-slate-700 shadow-[0_16px_36px_rgba(15,23,42,0.12)] backdrop-blur-xl transition hover:border-slate-300 hover:bg-white dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-200"
+            className="fixed bottom-4 left-4 z-[70] rounded-full border border-emerald-100 bg-white/85 px-4 py-2 text-sm font-medium text-[#365047] shadow-[0_16px_36px_rgba(15,23,42,0.12)] backdrop-blur-xl transition hover:border-emerald-200 hover:bg-white dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-200"
             aria-label="Open cookie preferences"
           >
             Cookie preferences
@@ -110,3 +110,5 @@ export default function CookieConsentManager() {
     </>
   );
 }
+
+

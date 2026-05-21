@@ -91,7 +91,7 @@ export default function PricingSection() {
               <div className="mt-8 flex items-end gap-2">
                 <span className="font-display text-5xl font-bold tracking-tight">{plan.priceLabel}</span>
                 {plan.period ? (
-                  <span className={`pb-1 text-sm ${plan.popular ? 'text-white/60' : 'text-slate-400'}`}>{plan.period}</span>
+                  <span className={`pb-1 text-sm ${plan.popular ? 'text-white/60' : 'text-[#8a9b94]'}`}>{plan.period}</span>
                 ) : null}
               </div>
 
@@ -126,3 +126,4 @@ export default function PricingSection() {
     </section>
   );
 }
+

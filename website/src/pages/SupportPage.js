@@ -84,14 +84,14 @@ export default function SupportPage() {
             <p className="body-large mx-auto mt-6 max-w-2xl">
               Search common workflows, contact support, or route urgent review issues to the right team.
             </p>
-            <div className="mx-auto mt-9 max-w-2xl rounded-full border border-slate-200 bg-white/80 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur">
+            <div className="mx-auto mt-9 max-w-2xl rounded-full border border-emerald-100 bg-white/80 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur">
               <label className="sr-only" htmlFor="support-search">Search support topics</label>
               <input
                 id="support-search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search sharing, billing, integrations..."
-                className="h-12 w-full rounded-full border-0 bg-white px-5 text-sm text-slate-900 outline-none"
+                className="h-12 w-full rounded-full border-0 bg-white px-5 text-sm text-[#10231f] outline-none"
               />
             </div>
           </div>
@@ -102,9 +102,9 @@ export default function SupportPage() {
             <div className="grid gap-5 md:grid-cols-3">
               {SUPPORT_PATHS.map(([title, meta, copy]) => (
                 <article key={title} className="premium-card p-6">
-                  <ChatIcon className="h-6 w-6 text-[#2854ff]" />
-                  <h2 className="mt-5 font-display text-xl font-semibold text-slate-950">{title}</h2>
-                  <p className="mt-2 text-sm font-semibold text-slate-700">{meta}</p>
+                  <ChatIcon className="h-6 w-6 text-[#176b57]" />
+                  <h2 className="mt-5 font-display text-xl font-semibold text-[#10231f]">{title}</h2>
+                  <p className="mt-2 text-sm font-semibold text-[#365047]">{meta}</p>
                   <p className="body-copy mt-3">{copy}</p>
                 </article>
               ))}
@@ -119,7 +119,7 @@ export default function SupportPage() {
                 <span className="eyebrow">Help library</span>
                 <h2 className="section-heading mt-5">Popular support topics</h2>
               </div>
-              <p className="text-sm text-slate-500">{filteredTopics.length} article{filteredTopics.length === 1 ? '' : 's'} found</p>
+              <p className="text-sm text-[#53645f]">{filteredTopics.length} article{filteredTopics.length === 1 ? '' : 's'} found</p>
             </div>
             <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {filteredTopics.map((topic) => {
@@ -130,11 +130,11 @@ export default function SupportPage() {
                       <div className="icon-tile">
                         <Icon className="h-5 w-5" />
                       </div>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">{topic.category}</span>
+                      <span className="rounded-full bg-[#eaf6ef] px-3 py-1 text-xs font-semibold text-[#53645f]">{topic.category}</span>
                     </div>
-                    <h3 className="mt-6 font-display text-xl font-semibold leading-tight text-slate-950">{topic.title}</h3>
+                    <h3 className="mt-6 font-display text-xl font-semibold leading-tight text-[#10231f]">{topic.title}</h3>
                     <p className="body-copy mt-3">{topic.description}</p>
-                    <a href="#contact" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#2854ff]">
+                    <a href="#contact" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#176b57]">
                       Get help
                       <ArrowRightIcon className="h-4 w-4" />
                     </a>
@@ -159,8 +159,8 @@ export default function SupportPage() {
                   [ShieldIcon, 'Security and billing requests are handled privately'],
                   [UsersIcon, 'Enterprise teams can request onboarding help'],
                 ].map(([Icon, text]) => (
-                  <div key={text} className="flex items-center gap-3 text-sm font-medium text-slate-700">
-                    <Icon className="h-5 w-5 text-[#2854ff]" />
+                  <div key={text} className="flex items-center gap-3 text-sm font-medium text-[#365047]">
+                    <Icon className="h-5 w-5 text-[#176b57]" />
                     {text}
                   </div>
                 ))}
@@ -170,34 +170,34 @@ export default function SupportPage() {
             <form onSubmit={handleSubmit} className="premium-card p-6 sm:p-8">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="text-sm font-semibold text-slate-700" htmlFor="support-name">Name</label>
+                  <label className="text-sm font-semibold text-[#365047]" htmlFor="support-name">Name</label>
                   <input
                     id="support-name"
                     required
                     value={form.name}
                     onChange={(event) => setForm({ ...form, name: event.target.value })}
-                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm outline-none focus:border-[#2854ff]"
+                    className="mt-2 h-12 w-full rounded-2xl border border-emerald-100 px-4 text-sm outline-none focus:border-[#176b57]"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-slate-700" htmlFor="support-email">Email</label>
+                  <label className="text-sm font-semibold text-[#365047]" htmlFor="support-email">Email</label>
                   <input
                     id="support-email"
                     type="email"
                     required
                     value={form.email}
                     onChange={(event) => setForm({ ...form, email: event.target.value })}
-                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm outline-none focus:border-[#2854ff]"
+                    className="mt-2 h-12 w-full rounded-2xl border border-emerald-100 px-4 text-sm outline-none focus:border-[#176b57]"
                   />
                 </div>
               </div>
               <div className="mt-4">
-                <label className="text-sm font-semibold text-slate-700" htmlFor="support-topic">Topic</label>
+                <label className="text-sm font-semibold text-[#365047]" htmlFor="support-topic">Topic</label>
                 <select
                   id="support-topic"
                   value={form.topic}
                   onChange={(event) => setForm({ ...form, topic: event.target.value })}
-                  className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-[#2854ff]"
+                  className="mt-2 h-12 w-full rounded-2xl border border-emerald-100 bg-white px-4 text-sm outline-none focus:border-[#176b57]"
                 >
                   <option>Product support</option>
                   <option>Billing</option>
@@ -207,18 +207,18 @@ export default function SupportPage() {
                 </select>
               </div>
               <div className="mt-4">
-                <label className="text-sm font-semibold text-slate-700" htmlFor="support-message">Message</label>
+                <label className="text-sm font-semibold text-[#365047]" htmlFor="support-message">Message</label>
                 <textarea
                   id="support-message"
                   required
                   rows="5"
                   value={form.message}
                   onChange={(event) => setForm({ ...form, message: event.target.value })}
-                  className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-[#2854ff]"
+                  className="mt-2 w-full resize-none rounded-2xl border border-emerald-100 px-4 py-3 text-sm outline-none focus:border-[#176b57]"
                   placeholder="Share what you were trying to do and what happened."
                 />
               </div>
-              <button type="submit" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#2854ff] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(40,84,255,0.24)] transition hover:bg-[#1f45dd]">
+              <button type="submit" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#176b57] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(23,107,87,0.24)] transition hover:bg-[#0f5f4c]">
                 Send support request
                 <ArrowRightIcon className="h-4 w-4" />
               </button>
@@ -235,3 +235,5 @@ export default function SupportPage() {
     </div>
   );
 }
+
+

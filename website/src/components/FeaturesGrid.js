@@ -43,7 +43,7 @@ export default function FeaturesGrid() {
                   <div className={`flex h-8 w-8 items-center justify-center rounded-md text-white`} style={{ background: feature.gradient }}>
                     <Icon className="h-4 w-4" />
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: feature.color }}>
+                  <span className="rounded-full bg-[#eaf6ef] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: feature.color }}>
                     Included
                   </span>
                 </div>
@@ -63,3 +63,4 @@ export default function FeaturesGrid() {
     </section>
   );
 }
+

@@ -47,7 +47,7 @@ export default function HowItWorks() {
         </div>
 
         <div className="relative mt-10 grid gap-4 lg:grid-cols-3">
-          <div className="absolute left-[16.66%] right-[16.66%] top-14 hidden border-t border-dashed border-slate-300 lg:block" />
+          <div className="absolute left-[16.66%] right-[16.66%] top-14 hidden border-t border-dashed border-emerald-200 lg:block" />
           {STEPS.map((step, index) => {
             const Icon = step.icon;
             return (
@@ -62,8 +62,8 @@ export default function HowItWorks() {
                 </div>
 
                 <div className="mt-3 flex items-center justify-between gap-4">
-                  <span className="font-display text-2xl font-bold tracking-tight text-slate-950">{step.number}</span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: step.color }}>
+                  <span className="font-display text-2xl font-bold tracking-tight text-[#10231f]">{step.number}</span>
+                  <span className="rounded-full bg-[#eaf6ef] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: step.color }}>
                     Step
                   </span>
                 </div>
@@ -81,3 +81,4 @@ export default function HowItWorks() {
     </section>
   );
 }
+

@@ -90,7 +90,7 @@ export default function PricingPage() {
             <p className="body-large mx-auto mt-6 max-w-2xl">
               Start small, bring in guests, and expand into integrations and security controls when your workflow needs them.
             </p>
-            <div className="mx-auto mt-8 grid w-full max-w-xs grid-cols-2 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+            <div className="mx-auto mt-8 grid w-full max-w-xs grid-cols-2 rounded-full border border-emerald-100 bg-[#fffffb] p-1 shadow-sm">
               {[
                 ['monthly', 'Monthly'],
                 ['annual', 'Annual -20%'],
@@ -100,7 +100,7 @@ export default function PricingPage() {
                   type="button"
                   onClick={() => setBilling(value)}
                   className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    billing === value ? 'bg-[#2854ff] text-white shadow-[0_10px_24px_rgba(40,84,255,0.22)]' : 'text-slate-500 hover:text-slate-900'
+                    billing === value ? 'bg-[#176b57] text-white shadow-[0_10px_24px_rgba(23,107,87,0.22)]' : 'text-[#53645f] hover:text-[#10231f]'
                   }`}
                 >
                   {label}
@@ -117,32 +117,32 @@ export default function PricingPage() {
                 key={plan.id}
                 className={`relative rounded-[24px] p-7 sm:p-8 ${
                   plan.popular
-                    ? 'bg-[#101626] text-white shadow-[0_28px_80px_rgba(16,22,38,0.24)]'
-                    : 'premium-card text-slate-950'
+                    ? 'bg-[#10231f] text-white shadow-[0_28px_80px_rgba(16,22,38,0.24)]'
+                    : 'premium-card text-[#10231f]'
                 }`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-3 left-8 rounded-full bg-[#8fd14f] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#101626]">
+                  <div className="absolute -top-3 left-8 rounded-full bg-[#b8e36d] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#10231f]">
                     Best fit
                   </div>
                 )}
                 <h2 className="font-display text-2xl font-semibold">{plan.name}</h2>
-                <p className={`mt-3 min-h-[3.25rem] text-sm leading-6 ${plan.popular ? 'text-white/68' : 'text-slate-500'}`}>
+                <p className={`mt-3 min-h-[3.25rem] text-sm leading-6 ${plan.popular ? 'text-white/68' : 'text-[#53645f]'}`}>
                   {PLAN_COPY[plan.id] || 'Flexible review tooling for modern delivery teams.'}
                 </p>
                 <div className="mt-8 flex items-end gap-2">
                   <span className="font-display text-5xl font-bold tracking-tight">{plan.priceLabel}</span>
-                  {plan.period ? <span className={`pb-1 text-sm ${plan.popular ? 'text-white/60' : 'text-slate-400'}`}>{plan.period}</span> : null}
+                  {plan.period ? <span className={`pb-1 text-sm ${plan.popular ? 'text-white/60' : 'text-[#8a9b94]'}`}>{plan.period}</span> : null}
                 </div>
                 {billing === 'annual' && typeof plan.price === 'number' ? (
-                  <p className={`mt-2 text-xs font-medium ${plan.popular ? 'text-[#8fd14f]' : 'text-emerald-600'}`}>Billed annually, save 20%</p>
+                  <p className={`mt-2 text-xs font-medium ${plan.popular ? 'text-[#b8e36d]' : 'text-emerald-600'}`}>Billed annually, save 20%</p>
                 ) : (
-                  <p className={`mt-2 text-xs font-medium ${plan.popular ? 'text-white/45' : 'text-slate-400'}`}>Monthly billing available</p>
+                  <p className={`mt-2 text-xs font-medium ${plan.popular ? 'text-white/45' : 'text-[#8a9b94]'}`}>Monthly billing available</p>
                 )}
                 <a
                   href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/onboarding`}
                   className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold transition ${
-                    plan.popular ? 'bg-[#2854ff] text-white hover:bg-[#1f45dd]' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    plan.popular ? 'bg-[#176b57] text-white hover:bg-[#0f5f4c]' : 'border border-emerald-100 bg-white text-[#365047] hover:bg-[#f4faf4]'
                   }`}
                 >
                   {plan.cta}
@@ -151,8 +151,8 @@ export default function PricingPage() {
                 <ul className="mt-8 space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-3">
-                      <CheckIcon className={`mt-1 h-4 w-4 flex-none ${plan.popular ? 'text-[#8fd14f]' : 'text-emerald-600'}`} />
-                      <span className={`text-sm leading-6 ${plan.popular ? 'text-white/76' : 'text-slate-600'}`}>{feature}</span>
+                      <CheckIcon className={`mt-1 h-4 w-4 flex-none ${plan.popular ? 'text-[#b8e36d]' : 'text-emerald-600'}`} />
+                      <span className={`text-sm leading-6 ${plan.popular ? 'text-white/76' : 'text-[#53645f]'}`}>{feature}</span>
                     </li>
                   ))}
                 </ul>
@@ -169,19 +169,19 @@ export default function PricingPage() {
                 <h2 className="section-heading mt-5">See what changes by tier.</h2>
                 <p className="body-copy mt-4">Core review flows are available from day one. Higher tiers add scale, automation, and security controls.</p>
               </div>
-              <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.055)]">
+              <div className="overflow-x-auto rounded-[24px] border border-emerald-100 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.055)]">
                 <div className="min-w-[660px]">
-                <div className="grid grid-cols-[1.4fr_repeat(3,0.7fr)] border-b border-slate-200 bg-slate-50 px-5 py-4 text-sm font-semibold text-slate-700">
+                <div className="grid grid-cols-[1.4fr_repeat(3,0.7fr)] border-b border-emerald-100 bg-[#f4faf4] px-5 py-4 text-sm font-semibold text-[#365047]">
                   <span>Feature</span>
                   <span>Starter</span>
                   <span>Pro</span>
                   <span>Enterprise</span>
                 </div>
                 {FEATURES.map(([feature, starter, pro, enterprise]) => (
-                  <div key={feature} className="grid grid-cols-[1.4fr_repeat(3,0.7fr)] items-center border-b border-slate-100 px-5 py-4 text-sm last:border-0">
-                    <span className="font-medium text-slate-700">{feature}</span>
+                  <div key={feature} className="grid grid-cols-[1.4fr_repeat(3,0.7fr)] items-center border-b border-emerald-100 px-5 py-4 text-sm last:border-0">
+                    <span className="font-medium text-[#365047]">{feature}</span>
                     {[starter, pro, enterprise].map((included, index) => (
-                      <span key={`${feature}-${index}`} className={included ? 'text-emerald-600' : 'text-slate-300'}>
+                      <span key={`${feature}-${index}`} className={included ? 'text-emerald-600' : 'text-[#8a9b94]'}>
                         {included ? <CheckIcon className="h-4 w-4" /> : <XIcon className="h-4 w-4" />}
                       </span>
                     ))}
@@ -202,8 +202,8 @@ export default function PricingPage() {
                 [ShieldIcon, 'Controlled access', 'Password links, private projects, and workspace roles keep reviews governed.'],
               ].map(([Icon, title, copy]) => (
                 <div key={title} className="premium-card p-6">
-                  <Icon className="h-6 w-6 text-[#2854ff]" />
-                  <h3 className="mt-5 font-display text-xl font-semibold text-slate-950">{title}</h3>
+                  <Icon className="h-6 w-6 text-[#176b57]" />
+                  <h3 className="mt-5 font-display text-xl font-semibold text-[#10231f]">{title}</h3>
                   <p className="body-copy mt-3">{copy}</p>
                 </div>
               ))}
@@ -211,17 +211,17 @@ export default function PricingPage() {
 
             <div className="mt-14">
               <div className="text-center">
-                <ZapIcon className="mx-auto h-7 w-7 text-[#2854ff]" />
+                <ZapIcon className="mx-auto h-7 w-7 text-[#176b57]" />
                 <h2 className="section-heading mt-4 text-3xl lg:text-4xl">Pricing questions</h2>
               </div>
               <div className="mx-auto mt-8 max-w-3xl space-y-3">
                 {FAQ.map(([question, answer], index) => (
-                  <div key={question} className="rounded-2xl border border-slate-200 bg-white">
-                    <button type="button" className="flex w-full items-center justify-between gap-4 p-5 text-left font-semibold text-slate-900" onClick={() => setOpenFaq(openFaq === index ? -1 : index)}>
+                  <div key={question} className="rounded-2xl border border-emerald-100 bg-white">
+                    <button type="button" className="flex w-full items-center justify-between gap-4 p-5 text-left font-semibold text-[#10231f]" onClick={() => setOpenFaq(openFaq === index ? -1 : index)}>
                       {question}
-                      <span className="text-[#2854ff]">{openFaq === index ? '-' : '+'}</span>
+                      <span className="text-[#176b57]">{openFaq === index ? '-' : '+'}</span>
                     </button>
-                    {openFaq === index ? <p className="px-5 pb-5 text-sm leading-7 text-slate-500">{answer}</p> : null}
+                    {openFaq === index ? <p className="px-5 pb-5 text-sm leading-7 text-[#53645f]">{answer}</p> : null}
                   </div>
                 ))}
               </div>
@@ -234,3 +234,5 @@ export default function PricingPage() {
     </div>
   );
 }
+
+

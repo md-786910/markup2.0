@@ -26,8 +26,8 @@ function CellContent({ cell }) {
     case 'x':
       return (
         <div className="flex justify-center">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100">
-            <XIcon className="h-3.5 w-3.5 text-gray-300" />
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#eaf6ef]">
+            <XIcon className="h-3.5 w-3.5 text-[#8a9b94]" />
           </span>
         </div>
       );
@@ -44,9 +44,9 @@ function CellContent({ cell }) {
     case 'price':
       return <span className="text-sm font-semibold text-emerald-600">{cell.value}</span>;
     case 'priceGray':
-      return <span className="text-sm text-gray-400">{cell.value}</span>;
+      return <span className="text-sm text-[#8a9b94]">{cell.value}</span>;
     default:
-      return <span className="text-sm text-gray-400">{cell.value}</span>;
+      return <span className="text-sm text-[#8a9b94]">{cell.value}</span>;
   }
 }
 
@@ -97,3 +97,4 @@ export default function ComparisonTable() {
     </section>
   );
 }
+

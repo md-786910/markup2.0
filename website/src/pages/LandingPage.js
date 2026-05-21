@@ -18,7 +18,7 @@ export default function LandingPage() {
     <div className="min-h-screen overflow-x-hidden">
       <Navbar />
       <main id="main-content" className="relative">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[720px] bg-[radial-gradient(circle_at_top,rgba(40,84,255,0.09),transparent_46%)]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[720px] bg-[radial-gradient(circle_at_top,rgba(127,191,99,0.12),transparent_46%)]" />
         <HeroSection />
         <LogoCloud />
         <FeaturesGrid />
@@ -35,3 +35,4 @@ export default function LandingPage() {
     </div>
   );
 }
+
