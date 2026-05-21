@@ -108,58 +108,51 @@ function ProductMockup() {
 
             <div className="relative p-8 lg:p-14">
               {/* Hero */}
-              <div className="max-w-[760px]">
+              <div className="relative max-w-[760px]">
+                <div className="relative">
+                  <div className="absolute left-10 top-[0.08em] z-10 grid h-10 w-10 place-items-center rounded-full bg-[#2b50ff] text-white shadow-lg">
+                    1
+                  </div>
+                  <h1
+                    className="
+                      translate-x-14
+                      text-[54px]
+                      sm:text-[68px]
+                      lg:text-[96px]
+                      font-light
+                      leading-[0.9]
+                      tracking-[-0.06em]
+                      text-white
+                    "
+                  >
+                    Let&apos;s save the world,
+                    <br />
+                    shall we?
+                  </h1>
+                </div>
+
                 <div
                   className="
-                      grid h-10 w-10
-                      place-items-center
-                      rounded-full
-                      bg-[#2b50ff]
-                      text-white
-                      shadow-lg
-                    "
-                >
-                  1
-                </div>
-                <h1
-                  className="
-                    text-[54px]
-                    sm:text-[68px]
-                    lg:text-[96px]
-                    font-light
-                    leading-[0.9]
-                    tracking-[-0.06em]
-                    text-white
-                  "
-                >
-                  Let&apos;s save the world,
-                  <br />
-                  shall we?
-                </h1>
-
-                <p
-                  className="
+                    relative
                     mt-8
-                    max-w-[420px]
-                    text-[17px]
-                    leading-[1.8]
-                    text-white/80
                   "
                 >
-                  <div
-                    className="
-                        grid h-10 w-10
-                        place-items-center
-                        rounded-full
-                        bg-[#2b50ff]
-                        text-white
-                      "
-                  >
+                  <div className="absolute left-10 top-[0.12em] z-10 grid h-10 w-10 place-items-center rounded-full bg-[#2b50ff] text-white">
                     2
                   </div>
-                  See how Chlorophyll, Inc. makes sustainability
-                  a priority.
-                </p>
+                  <p
+                    className="
+                      translate-x-14
+                      max-w-[420px]
+                      text-[17px]
+                      leading-[1.8]
+                      text-white/80
+                    "
+                  >
+                    See how Chlorophyll, Inc. makes sustainability
+                    a priority.
+                  </p>
+                </div>
               </div>
 
               {/* Floating Comment */}
