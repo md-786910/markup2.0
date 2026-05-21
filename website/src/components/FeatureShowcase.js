@@ -409,7 +409,7 @@ function ShowcaseRow({ feature, index }) {
     <section className={`${bg} py-10 lg:py-10`} ref={ref}>
       <div className={`mx-auto flex max-w-7xl flex-col items-center gap-12 px-4 sm:px-6 lg:gap-20 lg:px-8 ${reversed ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}>
         <div className="flex-1" data-reveal={reversed ? 'right' : 'left'}>
-          <h2 className="font-display text-2xl font-bold leading-tight text-gray-900 md:text-3xl lg:text-4xl">
+          <h2 className="text-[14px] sm:text-[20px] md:text-[26px] lg:text-[34px] xl:text-[38px] 2xl:text-[42px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
             {feature.title}
           </h2>
           <p className="mt-4 leading-relaxed text-gray-500">{feature.description}</p>

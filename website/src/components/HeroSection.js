@@ -5,70 +5,28 @@ import { ArrowRightIcon, CheckIcon, PlayIcon, ShareIcon, MonitorIcon } from './i
 const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 
 function ProductMockup() {
-  const wrapRef = useRef(null);
-  const rotateX = useMotionValue(0);
-  const rotateY = useMotionValue(0);
-  const glowX = useMotionValue(50);
-  const glowY = useMotionValue(50);
-
-  const smoothRotateX = useSpring(rotateX, { stiffness: 140, damping: 18, mass: 0.5 });
-  const smoothRotateY = useSpring(rotateY, { stiffness: 140, damping: 18, mass: 0.5 });
-  const mouseGlowX = useTransform(glowX, (value) => `${value}%`);
-  const mouseGlowY = useTransform(glowY, (value) => `${value}%`);
-
-  const handlePointerMove = (event) => {
-    const node = wrapRef.current;
-    if (!node) return;
-
-    const rect = node.getBoundingClientRect();
-    const px = (event.clientX - rect.left) / rect.width;
-    const py = (event.clientY - rect.top) / rect.height;
-
-    rotateY.set((px - 0.5) * 8);
-    rotateX.set((0.5 - py) * 8);
-    glowX.set(px * 100);
-    glowY.set(py * 100);
-  };
-
-  const resetPointer = () => {
-    rotateX.set(0);
-    rotateY.set(0);
-    glowX.set(50);
-    glowY.set(50);
-  };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 32 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.7, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
-      className="relative mx-auto mt-10 max-w-7xl px-4 sm:mt-14"
+      className="relative mx-auto mt-10 max-w-[1400px] px-4 sm:mt-14"
     >
       <div className="absolute inset-x-8 bottom-0 h-40 rounded-full bg-[#2854ff]/10 blur-3xl" />
 
       <motion.div
-        ref={wrapRef}
-        onMouseMove={handlePointerMove}
-        onMouseLeave={resetPointer}
-        style={{ rotateX: smoothRotateX, rotateY: smoothRotateY, transformPerspective: 1800 }}
         className="relative overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_40px_110px_rgba(50,65,120,0.16)] transition-shadow duration-300 hover:shadow-[0_52px_140px_rgba(50,65,120,0.22)] sm:rounded-[32px]"
       >
         <motion.div
-          aria-hidden
-          style={{
-            background: `radial-gradient(circle at ${mouseGlowX} ${mouseGlowY}, rgba(40,84,255,0.14), transparent 22%)`,
-          }}
           className="pointer-events-none absolute inset-0 z-10"
         />
 
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-[#fbfbfd] px-3 py-3 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex shrink-0 items-center gap-1.5">
-              <span className="h-3 w-3 rounded-full bg-[#3f4cf6]" />
-            </div>
-            <p className="hidden truncate text-sm font-semibold text-slate-900 sm:block">Leanport site</p>
+            <svg width="25" height="25" viewBox="0 0 24 24" fill="none" className="text-[#3f4cf6]">
+              <path d="M7 16 L10 8 L12 12 L14 8 L17 16" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <p className="hidden truncate text-sm font-semibold text-slate-900 sm:block">web site</p>
             <div className="hidden min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-500 md:block">
-              <span className="text-slate-400">https://leanport.com/</span>content-marketing/
+              <span className="text-slate-400">https://example.com/</span>content-marketing/
             </div>
           </div>
 
@@ -87,7 +45,7 @@ function ProductMockup() {
             <button type="button" className="hidden rounded-2xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600 lg:inline-flex">
               View
             </button>
-            <button type="button" className="inline-flex items-center gap-2 rounded-2xl bg-[#2854ff] px-3 py-2 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(40,84,255,0.22)] sm:px-4">
+            <button type="button" className="inline-flex items-center gap-2 rounded-2xl bg-[#2854ff] px-3 py-2 text-sm font-semibold text-white sm:px-4">
               Comment
             </button>
             <button type="button" className="hidden items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 lg:inline-flex">
@@ -97,26 +55,24 @@ function ProductMockup() {
           </div>
         </div>
 
-        <div className="grid min-h-[600px] grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)]">
           <aside className="border-b border-slate-200 bg-[#f7f8fb] xl:border-b-0 xl:border-r">
             <div className="border-b border-slate-200 px-4 py-4">
               <div className="flex items-center gap-8 text-sm font-medium text-slate-500">
-                <span className="border-b-2 border-[#2854ff] pb-2 text-[#2854ff]">Feedback</span>
+                <span className="border-b-2 border-[#2854ff] pb-2 text-[#2854ff]">Markly</span>
                 <span>Activity</span>
                 <span>Versions</span>
               </div>
               <div className="mt-4 flex items-center gap-4 text-sm">
-                <span className="font-semibold text-slate-900">4 Active</span>
+                <span className="font-semibold text-slate-900">2 Active</span>
                 <span className="text-slate-400">1 Resolved</span>
               </div>
             </div>
 
             <div className="divide-y divide-slate-200">
               {[
-                { number: 5, name: 'sohail', text: 'Marketing', time: 'just now', badge: 'New' },
-                { number: 4, name: 'Md Ashif', text: 'tree', time: '3/27/2026' },
-                { number: 3, name: 'Najme Shaquib', text: 'work', time: '3/27/2026', badge: 'New' },
-                { number: 2, name: 'Najme Shaquib', text: '@Md Ashif check this', time: '3/27/2026' },
+                { number: 5, name: 'Jhon Doe', text: 'Marketing', time: 'just now', badge: 'New' },
+                { number: 4, name: 'Jane Smith', text: 'tree', time: '3/27/2026' },
               ].map((item, index) => (
                 <motion.div
                   key={item.number}
@@ -143,139 +99,118 @@ function ProductMockup() {
               ))}
             </div>
           </aside>
+          {/* Main Canvas */}
+          <div className="relative overflow-hidden bg-[#2b1d52]">
+            {/* Rings */}
+            <div className="absolute right-[-120px] top-[-120px] h-[420px] w-[420px] rounded-full border border-white/20" />
+            <div className="absolute right-[-80px] top-[-80px] h-[340px] w-[340px] rounded-full border border-white/20" />
+            <div className="absolute right-[-40px] top-[-40px] h-[260px] w-[260px] rounded-full border border-white/20" />
 
-          <div className="relative overflow-hidden bg-[#efefef]">
-            <div className="border-b border-slate-200 bg-white px-5 py-4">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-3">
-                    <div className="h-14 w-10 rounded-[10px] bg-gradient-to-b from-[#7aa436] to-[#385b1d]" />
-                    <div>
-                      <p className="font-display text-[2rem] font-bold leading-none tracking-tight text-[#1c1f24]">
-                        Lean<span className="text-[#74a21f]">Port</span>
-                      </p>
-                      <p className="text-xs text-slate-500">Your Port for Lean Business</p>
-                    </div>
-                  </div>
-                  <div className="hidden items-center gap-6 text-[15px] font-medium text-slate-700 xl:flex">
-                    <span>E-Commerce</span>
-                    <span className="text-[#74a21f]">Digital Marketing</span>
-                    <span>Services</span>
-                    <span>Company</span>
-                    <span>Contact Us</span>
-                  </div>
-                </div>
-                <motion.button
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="button"
-                  className="rounded-full bg-[#74b62a] px-6 py-3 text-base font-semibold text-white shadow-[0_12px_26px_rgba(116,182,42,0.22)]"
+            <div className="relative p-8 lg:p-14">
+              {/* Hero */}
+              <div className="max-w-[760px]">
+                <div
+                  className="
+                      grid h-10 w-10
+                      place-items-center
+                      rounded-full
+                      bg-[#2b50ff]
+                      text-white
+                      shadow-lg
+                    "
                 >
-                  Get Help
-                </motion.button>
-              </div>
-            </div>
-
-            <div className="relative min-h-[520px] bg-[linear-gradient(180deg,#f6f2f1_0%,#efefef_100%)] p-5 sm:p-8">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.8),transparent_24%),radial-gradient(circle_at_bottom_left,rgba(117,183,43,0.08),transparent_26%)]" />
-
-              <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-                <div className="pt-2">
-                  <h3 className="font-display text-5xl font-extrabold leading-none tracking-tight text-[#2d3551] sm:text-6xl">
-                    Marketing
-                  </h3>
-                  <p className="mt-6 max-w-xl text-xl leading-10 text-[#34415c]">
-                    Transform your brand value and reputation with the magic of content marketing strategy. LeanPort is a trusted name to create powerful and efficient content marketing strategies.
-                  </p>
-                  <div className="mt-10 inline-flex items-center gap-4">
-                    <motion.span
-                      animate={{ x: [0, 4, 0], rotate: [-10, 0, -10] }}
-                      transition={{ duration: 4.8, repeat: Infinity, ease: 'easeInOut' }}
-                      className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-slate-500 text-slate-500"
-                    >
-                      <PlayIcon className="h-5 w-5" />
-                    </motion.span>
-                    <motion.button
-                      whileHover={{ y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                      type="button"
-                      className="rounded-full bg-[#75b72b] px-10 py-4 text-xl font-semibold text-white shadow-[0_14px_28px_rgba(117,183,43,0.22)]"
-                    >
-                      Let&apos;s Start
-                    </motion.button>
-                  </div>
+                  1
                 </div>
-
-                <motion.div
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-                  className="relative overflow-hidden rounded-[6px] bg-white shadow-[0_24px_70px_rgba(47,63,91,0.14)]"
+                <h1
+                  className="
+                    text-[54px]
+                    sm:text-[68px]
+                    lg:text-[96px]
+                    font-light
+                    leading-[0.9]
+                    tracking-[-0.06em]
+                    text-white
+                  "
                 >
-                  <div className="aspect-[1.28/1] bg-[linear-gradient(135deg,#eef2f7_0%,#ffffff_36%,#e6edf6_100%)] p-6">
-                    <div className="absolute right-10 top-10 h-16 w-16 rounded-full border-[6px] border-[#0990d0]" />
-                    <div className="absolute left-8 top-10 h-20 w-20 rotate-6 rounded bg-[linear-gradient(180deg,#ffffff_0%,#f4f6fa_100%)] shadow-md" />
-                    <div className="absolute bottom-10 left-10 right-10 rounded-[8px] bg-white/80 p-6 shadow-md">
-                      <p className="text-center font-display text-5xl font-black uppercase leading-none tracking-tight text-[#171717] sm:text-6xl">
-                        Content
-                      </p>
-                      <p className="mt-2 text-center font-display text-5xl font-black uppercase leading-none tracking-tight text-[#171717] sm:text-6xl">
-                        <span className="rounded-md bg-[#d9eb00] px-3 py-1">Marketing</span>
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              </div>
+                  Let&apos;s save the world,
+                  <br />
+                  shall we?
+                </h1>
 
-              <motion.div
-                animate={{ y: [0, -5, 0] }}
-                transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute left-[19%] top-[16%] grid h-9 w-9 place-items-center rounded-full bg-[#d63d3a] text-sm font-bold text-white shadow-[0_12px_26px_rgba(214,61,58,0.28)]"
-              >
-                5
-              </motion.div>
-              <motion.div
-                animate={{ y: [0, 5, 0] }}
-                transition={{ duration: 4.4, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute bottom-[11%] left-[64%] grid h-9 w-9 place-items-center rounded-full bg-[#d63d3a] text-sm font-bold text-white shadow-[0_12px_26px_rgba(214,61,58,0.28)]"
-              >
-                4
-              </motion.div>
-
-              <motion.div
-                animate={{ y: [0, -8, 0], scale: [1, 1.004, 1] }}
-                transition={{ duration: 6.5, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute left-1/2 top-[37%] z-20 w-[min(460px,calc(100%-40px))] -translate-x-1/2 rounded-[26px] border border-white/80 bg-white/96 shadow-[0_30px_90px_rgba(47,63,91,0.18)] backdrop-blur"
-              >
-                <div className="border-b border-slate-200 px-4 py-3">
-                  <div className="flex items-center justify-between text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-[#dff2d4] px-2 py-0.5 text-[10px] font-semibold text-[#5d8e2e]">Left side</span>
-                    </div>
-                    <button type="button" className="text-xl leading-none">×</button>
-                  </div>
-                  <div className="mt-3 flex items-center gap-4 text-sm text-slate-400">
-                    <span>B</span>
-                    <span>I</span>
-                    <span>U</span>
-                    <span>/</span>
-                    <span>•</span>
-                    <span>↩</span>
-                    <span>🔗</span>
-                  </div>
-                </div>
-                <div className="min-h-[160px] px-4 py-4 text-lg text-slate-400">
-                  Leave a comment...
-                </div>
-                <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3">
-                  <span className="text-xl text-slate-400">⌁</span>
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.98 }}
-                    type="button"
-                    className="rounded-full bg-[#9bb5f8] px-6 py-2 text-base font-semibold text-white"
+                <p
+                  className="
+                    mt-8
+                    max-w-[420px]
+                    text-[17px]
+                    leading-[1.8]
+                    text-white/80
+                  "
+                >
+                  <div
+                    className="
+                        grid h-10 w-10
+                        place-items-center
+                        rounded-full
+                        bg-[#2b50ff]
+                        text-white
+                      "
                   >
-                    Post
-                  </motion.button>
+                    2
+                  </div>
+                  See how Chlorophyll, Inc. makes sustainability
+                  a priority.
+                </p>
+              </div>
+
+              {/* Floating Comment */}
+              <motion.div
+                animate={{
+                  y: [0, -6, 0],
+                }}
+                transition={{
+                  duration: 5,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+                className="
+                  absolute left-[50%] top-[24%]
+                  z-20
+                  w-[360px]
+                  -translate-x-1/2
+                  rounded-[18px]
+                  border border-white/60
+                  bg-white/95
+                  p-5
+                  shadow-[0_12px_40px_rgba(15,23,42,0.10)]
+                  backdrop-blur-xl
+                "
+              >
+                <p className="text-[15px] leading-7 text-slate-700">
+                  <span className="font-semibold text-[#2b50ff]">
+                    @Rebecca Welton
+                  </span>{' '}
+                  Let&apos;s change this tagline to
+                  &quot;Let&apos;s save the world together.&quot;
+                </p>
+
+                <div className="mt-5 flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-slate-400">
+                    <span>☺</span>
+                    <span>📎</span>
+                  </div>
+
+                  <button
+                    className="
+                      rounded-xl
+                      bg-[#b8aaf8]
+                      px-5 py-2
+                      text-[14px]
+                      font-semibold
+                      text-white
+                    "
+                  >
+                    Send
+                  </button>
                 </div>
               </motion.div>
             </div>
@@ -288,7 +223,7 @@ function ProductMockup() {
 
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden pb-12 pt-12 sm:pb-16 sm:pt-10 lg:pb-20">
+    <section className="relative overflow-hidden pb-14 pt-20 sm:pb-14 sm:pt-20 px-10 sm:px-10">
       <div className="pointer-events-none absolute inset-0 dot-pattern opacity-35" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(circle_at_50%_0%,rgba(40,84,255,0.12),transparent_52%)]" />
 
@@ -300,20 +235,20 @@ export default function HeroSection() {
           className="mx-auto max-w-5xl text-center"
         >
           <div className="eyebrow">
-            <CheckIcon className="mr-2 h-3.5 w-3.5 text-[#0f766e]" />
+            <CheckIcon className="mr-2 h-3.5 w-3.5 text-[#38BDF8]" />
             Realtime visual review for product teams
           </div>
 
-          <h1 className="mt-6 font-display text-4xl font-extrabold leading-[0.98] tracking-tight text-slate-950 sm:text-5xl md:text-6xl lg:text-[4.65rem]">
+          <h1 className="text-[38px] sm:text-[48px] md:text-[58px] lg:text-[74px] xl:text-[82px] font-extrabold leading-[0.95] tracking-[-0.04em] text-slate-950 max-w-[12ch font-sans my-4">
             Visual feedback that
-            <span className="block text-gradient">turns reviews into releases.</span>
+            <span className="block text-gradient font-sans">turns reviews into releases.</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-3xl text-base leading-8 text-slate-600 md:text-lg">
+          <p className="text-[14px] sm:text-[15px] lg:text-[16px] xl:text-[17px] leading-[1.7] text-[#475569] font-sans text-center">
             Pin comments on live pages, PDFs, and launch assets. Markly keeps teams, clients, and developers aligned with precise context, realtime threads, and controlled guest links.
           </p>
 
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <motion.a whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} href={`${APP_URL}/onboarding`} className="button-primary px-8 py-4">
               Start free
               <ArrowRightIcon className="h-5 w-5" />
@@ -327,7 +262,7 @@ export default function HeroSection() {
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-slate-500">
             {['No credit card', 'Guest reviews', 'Slack, Jira, Discord'].map((item) => (
               <span key={item} className="inline-flex items-center gap-2">
-                <CheckIcon className="h-4 w-4 text-[#0f766e]" />
+                <CheckIcon className="h-4 w-4 text-[#38BDF8]" />
                 {item}
               </span>
             ))}

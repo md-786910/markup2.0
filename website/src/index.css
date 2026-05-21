@@ -109,13 +109,14 @@
   }
 
   .eyebrow {
-    @apply inline-flex items-center rounded-full border border-slate-200/80 bg-white/85 px-3.5 py-1.5 text-[11px] font-semibold uppercase text-slate-500 shadow-sm backdrop-blur;
+    @apply inline-flex items-center rounded-full border border-slate-200/80 bg-white/85 px-3.5 py-1.5 text-[11px] font-semibold uppercase text-[#38BDF8] shadow-sm backdrop-blur;
     letter-spacing: 0.14em;
   }
 
-  /* .button-primary {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#2854ff] px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_34px_rgba(40, 84, 255, 0.24)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#1f45dd] focus-visible:outline-[#2854ff]/50;
-  } */
+  .button-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#2854ff] px-6 py-3 text-[15px] font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#1f45dd] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#2854ff]/20;
+    box-shadow: 0 14px 30px rgba(40, 84, 255, 0.22);
+  }
 
   .button-secondary {
     @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/85 px-6 py-3 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white;

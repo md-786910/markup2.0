@@ -44,7 +44,7 @@ function FaqItem({ item, isOpen, onToggle, index }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.45, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-      className={`overflow-hidden rounded-lg border bg-white transition-all duration-300 ${isOpen
+      className={`overflow-hidden rounded-[24px] border bg-white transition-all duration-300 ${isOpen
         ? 'border-blue-200 shadow-[0_14px_40px_rgba(67,82,255,0.08)]'
         : 'border-gray-200 hover:border-gray-300'
         }`}
@@ -133,7 +133,7 @@ export default function FaqSection() {
           </div>
           {/* right side content */}
           <div data-reveal="right">
-            <div className="sticky top-28 rounded-lg border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(16,24,40,0.06)]">
+            <div className="sticky top-28 rounded-[24px] border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(16,24,40,0.06)]">
               <div className="inline-flex rounded-2xl bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
                 Need more?
               </div>
