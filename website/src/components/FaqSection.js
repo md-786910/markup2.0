@@ -44,9 +44,9 @@ function FaqItem({ item, isOpen, onToggle, index }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.45, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-      className={`overflow-hidden rounded-[24px] border bg-white transition-all duration-300 ${isOpen
-        ? 'border-blue-200 shadow-[0_14px_40px_rgba(67,82,255,0.08)]'
-        : 'border-gray-200 hover:border-gray-300'
+      className={`overflow-hidden rounded-[24px] border bg-[#fffffb] transition-all duration-300 ${isOpen
+        ? 'border-emerald-200 shadow-[0_14px_40px_rgba(23,107,87,0.1)]'
+        : 'border-emerald-100 hover:border-emerald-200'
         }`}
     >
       <button
@@ -56,10 +56,10 @@ function FaqItem({ item, isOpen, onToggle, index }) {
         className="flex w-full items-start justify-between gap-4 px-4 py-3 text-left sm:px-5 sm:py-4"
       >
         <div className="min-w-0">
-          <span className="mb-2 block text-[8px] font-semibold uppercase tracking-[0.18em] text-blue-600">
+          <span className="mb-2 block text-[8px] font-semibold uppercase tracking-[0.18em] text-[#0f8f75]">
             FAQ {String(index + 1).padStart(2, '0')}
           </span>
-          <span className="text-[14px] sm:text-[15px] lg:text-[16px] xl:text-[17px] leading-[1.7] font-bold font-sans text-[#0B1D3A] max-w-[65ch]">
+          <span className="text-[14px] sm:text-[15px] lg:text-[16px] xl:text-[17px] leading-[1.7] font-bold font-sans text-[#10231f] max-w-[65ch]">
             {item.question}
           </span>
         </div>
@@ -68,8 +68,8 @@ function FaqItem({ item, isOpen, onToggle, index }) {
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           className={`mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors ${isOpen
-            ? 'border-blue-200 bg-blue-600 text-white'
-            : 'border-gray-200 bg-gray-50 text-gray-500'
+            ? 'border-emerald-200 bg-[#176b57] text-white'
+            : 'border-emerald-100 bg-[#f4faf4] text-[#6d7f77]'
             }`}
         >
           <ChevronDownIcon className="h-4 w-4" />
@@ -87,8 +87,8 @@ function FaqItem({ item, isOpen, onToggle, index }) {
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 sm:px-5 sm:pb-5">
-              <div className="mb-4 h-px bg-gradient-to-r from-blue-100 via-gray-100 to-transparent" />
-              <p className="text-[13px] sm:text-[14px] lg:text-[14.5px] xl:text-[15px] leading-[1.7] font-normal font-sans tracking-[0] text-[#475569] max-w-[65ch]">
+              <div className="mb-4 h-px bg-gradient-to-r from-emerald-100 via-lime-100 to-transparent" />
+              <p className="text-[13px] sm:text-[14px] lg:text-[14.5px] xl:text-[15px] leading-[1.7] font-normal font-sans tracking-[0] text-[#53645f] max-w-[65ch]">
                 {item.answer}
               </p>
             </div>
@@ -164,19 +164,19 @@ export default function FaqSection() {
   }, [ref]);
 
   return (
-    <section id="faq" className="relative bg-[#f7f9fc] py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
+    <section id="faq" className="relative bg-[#f4f9f4] py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(63,76,246,0.08),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(122,211,84,0.08),transparent_24%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(127,191,99,0.13),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.1),transparent_24%)]" />
       </div>
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-start" data-reveal>
-          <h4 className="text-[12px] mb-3 text-[#38BDF8] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Markly FAQ</h4>
+          <h4 className="text-[12px] mb-3 text-[#0f8f75] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Markly FAQ</h4>
           <h2 className="text-[24px] sm:text-[30px] md:text-[36px] lg:text-[44px] xl:text-[48px] 2xl:text-[52px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
             Frequently
             <span className="block text-gradient font-sans">asked questions</span>
           </h2>
-          <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#475569] font-sans">
+          <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">
             Clear answers for teams moving visual feedback, review, and approval into one place.
           </p>
         </div>
@@ -199,15 +199,15 @@ export default function FaqSection() {
             <div
               ref={rightCardRef}
               style={rightCardStyle}
-              className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(16,24,40,0.06)]"
+              className="rounded-[24px] border border-emerald-100 bg-[#fffffb] p-6 shadow-[0_18px_50px_rgba(25,54,43,0.08)]"
             >
-              <div className="inline-flex rounded-2xl bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
+              <div className="inline-flex rounded-2xl bg-[#eaf6ef] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#176b57]">
                 Need more?
               </div>
-              <h3 className="mt-5 font-display text-2xl font-semibold text-gray-900">
+              <h3 className="mt-5 font-display text-2xl font-semibold text-[#10231f]">
                 Still have questions?
               </h3>
-              <p className="mt-3 text-sm leading-7 text-gray-500">
+              <p className="mt-3 text-sm leading-7 text-[#53645f]">
                 Markly is built for review workflows that need to feel fast, clear, and easy for both internal teams and external clients.
               </p>
 
@@ -218,15 +218,15 @@ export default function FaqSection() {
                   'Cleaner handoff from feedback to delivery',
                 ].map((point) => (
                   <div key={point} className="flex items-start gap-3">
-                    <span className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-600" />
-                    <p className="text-sm leading-6 text-gray-600">{point}</p>
+                    <span className="mt-1 h-2.5 w-2.5 rounded-full bg-[#7fbf63]" />
+                    <p className="text-sm leading-6 text-[#53645f]">{point}</p>
                   </div>
                 ))}
               </div>
 
               <a
                 href="#pricing"
-                className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-[#2854ff] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(40,84,255,0.24)] transition-transform hover:-translate-y-px"
+                className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-[#176b57] px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(23,107,87,0.24)] transition-transform hover:-translate-y-px hover:bg-[#0f5f4c]"
               >
                 View pricing
               </a>

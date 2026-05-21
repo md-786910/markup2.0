@@ -9,12 +9,12 @@ export default function TestimonialsSection() {
     <section id="testimonials" className="section-shell py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center" data-reveal>
-          <h4 className="text-[12px] mb-3 text-[#38BDF8] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Use cases</h4>
+          <h4 className="text-[12px] mb-3 text-[#0f8f75] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Use cases</h4>
           <h2 className="text-[24px] sm:text-[30px] md:text-[36px] lg:text-[44px] xl:text-[48px] 2xl:text-[52px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
             Built for teams that need
             <span className="block text-gradient font-sans">feedback to become action</span>
           </h2>
-          <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#475569] font-sans">
+          <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">
             From client approvals to developer handoff, Markly keeps review work visible and specific.
           </p>
         </div>
@@ -33,7 +33,7 @@ export default function TestimonialsSection() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{testimonial.name}</p>
-                  <p className="text-sm font-medium text-[#2854ff]">{testimonial.role}</p>
+                  <p className="text-sm font-medium text-[#176b57]">{testimonial.role}</p>
                 </div>
               </div>
 

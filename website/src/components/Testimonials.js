@@ -34,12 +34,12 @@ export function Testimonial() {
   const item = items[i];
 
   return (
-    <section className="relative overflow-hidden bg-[#171b2a] py-12 text-white sm:py-12">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(48,55,124,0.34),transparent_32%),radial-gradient(circle_at_82%_78%,rgba(77,94,60,0.16),transparent_34%),linear-gradient(90deg,rgba(17,21,35,0.35),rgba(24,29,39,0.12))]" />
+    <section className="relative overflow-hidden bg-[#10231f] py-12 text-white sm:py-12">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(127,191,99,0.22),transparent_32%),radial-gradient(circle_at_82%_78%,rgba(56,189,248,0.16),transparent_34%),linear-gradient(90deg,rgba(16,35,31,0.46),rgba(24,43,38,0.16))]" />
       <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] [background-size:60px_60px]" />
 
       <div className="relative mx-auto max-w-5xl px-4 text-center sm:px-6">
-        <Quote className="mx-auto mb-10 h-11 w-11 text-[#8fd14f]" strokeWidth={1.9} />
+        <Quote className="mx-auto mb-10 h-11 w-11 text-[#b8e36d]" strokeWidth={1.9} />
 
         <div className="relative min-h-[250px] sm:min-h-[210px]">
           <AnimatePresence mode="wait">
@@ -55,7 +55,7 @@ export function Testimonial() {
               </p>
 
               <div className="mt-8 flex items-center justify-center gap-4">
-                <div className="grid h-12 w-12 place-items-center rounded-full bg-[#2854ff] text-base font-bold text-white">
+                <div className="grid h-12 w-12 place-items-center rounded-full bg-[#7fbf63] text-base font-bold text-[#10231f]">
                   {item.initials}
                 </div>
                 <div className="text-left">
