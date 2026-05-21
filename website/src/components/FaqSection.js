@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDownIcon } from './icons';
 import useScrollReveal from '../hooks/useScrollReveal';
@@ -101,11 +101,73 @@ function FaqItem({ item, isOpen, onToggle, index }) {
 
 export default function FaqSection() {
   const ref = useScrollReveal();
+  const rightColumnRef = useRef(null);
+  const rightCardRef = useRef(null);
   const [openIndex, setOpenIndex] = useState(0);
+  const [rightCardStyle, setRightCardStyle] = useState({});
+
+  useEffect(() => {
+    const navbarOffset = 80;
+    const desktopBreakpoint = 1024;
+
+    const updateRightCardPosition = () => {
+      const section = ref.current;
+      const rightColumn = rightColumnRef.current;
+      const rightCard = rightCardRef.current;
+
+      if (!section || !rightColumn || !rightCard || window.innerWidth < desktopBreakpoint) {
+        setRightCardStyle({});
+        return;
+      }
+
+      const scrollY = window.scrollY || window.pageYOffset;
+      const sectionRect = section.getBoundingClientRect();
+      const columnRect = rightColumn.getBoundingClientRect();
+      const sectionBottom = sectionRect.bottom + scrollY;
+      const columnTop = columnRect.top + scrollY;
+      const cardHeight = rightCard.offsetHeight;
+      const startStickAt = columnTop - navbarOffset;
+      const stopStickAt = sectionBottom - cardHeight - navbarOffset - 56;
+
+      if (scrollY < startStickAt) {
+        setRightCardStyle({});
+        return;
+      }
+
+      if (scrollY >= stopStickAt) {
+        setRightCardStyle({
+          position: 'absolute',
+          top: `${sectionBottom - cardHeight - columnTop - 56}px`,
+          right: 0,
+          width: `${columnRect.width}px`,
+        });
+        return;
+      }
+
+      setRightCardStyle({
+        position: 'fixed',
+        top: `${navbarOffset}px`,
+        left: `${columnRect.left}px`,
+        width: `${columnRect.width}px`,
+        zIndex: 20,
+      });
+    };
+
+    updateRightCardPosition();
+    window.addEventListener('scroll', updateRightCardPosition, { passive: true });
+    window.addEventListener('resize', updateRightCardPosition);
+
+    return () => {
+      window.removeEventListener('scroll', updateRightCardPosition);
+      window.removeEventListener('resize', updateRightCardPosition);
+    };
+  }, [ref]);
 
   return (
-    <section id="faq" className="relative overflow-hidden bg-[#f7f9fc] py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(63,76,246,0.08),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(122,211,84,0.08),transparent_24%)]" />
+    <section id="faq" className="relative bg-[#f7f9fc] py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(63,76,246,0.08),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(122,211,84,0.08),transparent_24%)]" />
+      </div>
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-start" data-reveal>
@@ -120,6 +182,7 @@ export default function FaqSection() {
         </div>
         {/* FAQ items */}
         <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+          {/* left side FAQ list */}
           <div className="space-y-4" data-reveal="left">
             {FAQ_ITEMS.map((item, index) => (
               <FaqItem
@@ -132,8 +195,12 @@ export default function FaqSection() {
             ))}
           </div>
           {/* right side content */}
-          <div data-reveal="right">
-            <div className="sticky top-28 rounded-[24px] border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(16,24,40,0.06)]">
+          <div ref={rightColumnRef} className="relative min-h-[320px] lg:self-start" data-reveal="right">
+            <div
+              ref={rightCardRef}
+              style={rightCardStyle}
+              className="rounded-[24px] border border-gray-200 bg-white p-6 shadow-[0_18px_50px_rgba(16,24,40,0.06)]"
+            >
               <div className="inline-flex rounded-2xl bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
                 Need more?
               </div>
