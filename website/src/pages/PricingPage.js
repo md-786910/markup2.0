@@ -25,7 +25,7 @@ const FEATURES = [
 ];
 
 const FAQ = [
-  ['Can I try Markly before paying?', 'Yes. Starter and Pro include a free trial so your team can run a real review before choosing a plan.'],
+  ['Can I try Kommently for free before paying?', 'Yes. Starter and Pro include a free trial so your team can run a real review before choosing a plan.'],
   ['Do client reviewers count as members?', 'Guests are separate from team members. You can invite clients through controlled review links without adding them to your internal workspace.'],
   ['What happens if we outgrow our plan?', 'You can upgrade when your team needs more guests, integrations, or project volume. Enterprise is available for custom onboarding and security requirements.'],
   ['Can we cancel monthly plans?', 'Yes. Monthly plans can be cancelled any time from billing settings.'],
@@ -60,7 +60,7 @@ export default function PricingPage() {
           }));
         if (livePlans.length) setPlans(livePlans);
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       alive = false;
@@ -99,9 +99,8 @@ export default function PricingPage() {
                   key={value}
                   type="button"
                   onClick={() => setBilling(value)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    billing === value ? 'bg-[#176b57] text-white shadow-[0_10px_24px_rgba(23,107,87,0.22)]' : 'text-[#53645f] hover:text-[#10231f]'
-                  }`}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${billing === value ? 'bg-[#176b57] text-white shadow-[0_10px_24px_rgba(23,107,87,0.22)]' : 'text-[#53645f] hover:text-[#10231f]'
+                    }`}
                 >
                   {label}
                 </button>
@@ -115,11 +114,10 @@ export default function PricingPage() {
             {displayedPlans.map((plan) => (
               <article
                 key={plan.id}
-                className={`relative rounded-[24px] p-7 sm:p-8 ${
-                  plan.popular
+                className={`relative rounded-[24px] p-7 sm:p-8 ${plan.popular
                     ? 'bg-[#10231f] text-white shadow-[0_28px_80px_rgba(16,22,38,0.24)]'
                     : 'premium-card text-[#10231f]'
-                }`}
+                  }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-8 rounded-full bg-[#b8e36d] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#10231f]">
@@ -141,9 +139,8 @@ export default function PricingPage() {
                 )}
                 <a
                   href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/onboarding`}
-                  className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold transition ${
-                    plan.popular ? 'bg-[#176b57] text-white hover:bg-[#0f5f4c]' : 'border border-emerald-100 bg-white text-[#365047] hover:bg-[#f4faf4]'
-                  }`}
+                  className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold transition ${plan.popular ? 'bg-[#176b57] text-white hover:bg-[#0f5f4c]' : 'border border-emerald-100 bg-white text-[#365047] hover:bg-[#f4faf4]'
+                    }`}
                 >
                   {plan.cta}
                   <ArrowRightIcon className="h-4 w-4" />
@@ -171,22 +168,22 @@ export default function PricingPage() {
               </div>
               <div className="overflow-x-auto rounded-[24px] border border-emerald-100 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.055)]">
                 <div className="min-w-[660px]">
-                <div className="grid grid-cols-[1.4fr_repeat(3,0.7fr)] border-b border-emerald-100 bg-[#f4faf4] px-5 py-4 text-sm font-semibold text-[#365047]">
-                  <span>Feature</span>
-                  <span>Starter</span>
-                  <span>Pro</span>
-                  <span>Enterprise</span>
-                </div>
-                {FEATURES.map(([feature, starter, pro, enterprise]) => (
-                  <div key={feature} className="grid grid-cols-[1.4fr_repeat(3,0.7fr)] items-center border-b border-emerald-100 px-5 py-4 text-sm last:border-0">
-                    <span className="font-medium text-[#365047]">{feature}</span>
-                    {[starter, pro, enterprise].map((included, index) => (
-                      <span key={`${feature}-${index}`} className={included ? 'text-emerald-600' : 'text-[#8a9b94]'}>
-                        {included ? <CheckIcon className="h-4 w-4" /> : <XIcon className="h-4 w-4" />}
-                      </span>
-                    ))}
+                  <div className="grid grid-cols-[1.4fr_repeat(3,0.7fr)] border-b border-emerald-100 bg-[#f4faf4] px-5 py-4 text-sm font-semibold text-[#365047]">
+                    <span>Feature</span>
+                    <span>Starter</span>
+                    <span>Pro</span>
+                    <span>Enterprise</span>
                   </div>
-                ))}
+                  {FEATURES.map(([feature, starter, pro, enterprise]) => (
+                    <div key={feature} className="grid grid-cols-[1.4fr_repeat(3,0.7fr)] items-center border-b border-emerald-100 px-5 py-4 text-sm last:border-0">
+                      <span className="font-medium text-[#365047]">{feature}</span>
+                      {[starter, pro, enterprise].map((included, index) => (
+                        <span key={`${feature}-${index}`} className={included ? 'text-emerald-600' : 'text-[#8a9b94]'}>
+                          {included ? <CheckIcon className="h-4 w-4" /> : <XIcon className="h-4 w-4" />}
+                        </span>
+                      ))}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

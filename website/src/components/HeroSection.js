@@ -65,14 +65,14 @@ function ProductMockup() {
               </div>
               <div className="mt-4 flex items-center gap-4 text-sm">
                 <span className="font-semibold text-[#10231f]">2 Active</span>
-                <span className="text-[#8a9b94]">1 Resolved</span>
+                <span className="text-[#8a9b94]">11 Resolved</span>
               </div>
             </div>
 
             <div className="divide-y divide-emerald-100">
               {[
-                { number: 5, name: 'Jhon Doe', text: 'Marketing', time: 'just now', badge: 'New' },
-                { number: 4, name: 'Jane Smith', text: 'tree', time: '3/27/2026' },
+                { number: 1, name: 'Leonie', text: 'Marketing', time: 'just now', badge: 'New' },
+                { number: 2, name: 'Leonie', text: 'Can we change this text', time: '3/27/2026' },
               ].map((item, index) => (
                 <motion.div
                   key={item.number}
@@ -180,7 +180,7 @@ function ProductMockup() {
               >
                 <p className="text-[15px] leading-7 text-[#365047]">
                   <span className="font-semibold text-[#176b57]">
-                    @Rebecca Welton
+                    @Felix
                   </span>{' '}
                   Let&apos;s change this tagline to
                   &quot;Let&apos;s save the world together.&quot;
@@ -233,12 +233,12 @@ export default function HeroSection() {
           </div>
 
           <h1 className="text-[38px] sm:text-[48px] md:text-[58px] lg:text-[74px] xl:text-[82px] font-extrabold leading-[0.95] tracking-[-0.04em] text-[#10231f] max-w-[12ch font-sans my-4">
-            Visual feedback that
+            Visual comment that
             <span className="block text-gradient font-sans">turns reviews into releases.</span>
           </h1>
 
           <p className="text-[14px] sm:text-[15px] lg:text-[16px] xl:text-[17px] leading-[1.7] text-[#53645f] font-sans text-center">
-            Pin comments on live pages, PDFs, and launch assets. Markly keeps teams, clients, and developers aligned with precise context, realtime threads, and controlled guest links.
+            Pin comments on live pages, PDFs, and launch assets. Kommently keeps teams, clients, and developers aligned with precise context, realtime threads, and controlled guest links.
           </p>
 
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">

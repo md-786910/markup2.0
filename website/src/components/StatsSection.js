@@ -64,7 +64,7 @@ export default function StatsSection() {
             <span className="block text-gradient font-sans">cleaner approvals, and less drift</span>
           </h2>
           <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">
-            Teams adopt Markly quickly because the workflow is obvious, feedback stays anchored, and every review moves with less friction.
+            Teams adopt Kommently quickly because the workflow is obvious, comments stay anchored, and every review moves with less friction.
           </p>
         </div>
 

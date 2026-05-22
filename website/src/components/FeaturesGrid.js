@@ -22,10 +22,10 @@ export default function FeaturesGrid() {
           <h4 className="text-[12px] mb-3 text-[#0f8f75] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Core features</h4>
           <h2 className="text-[24px] sm:text-[30px] md:text-[36px] lg:text-[44px] xl:text-[48px] 2xl:text-[52px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
             Everything teams need to turn
-            <span className="block text-gradient font-sans">feedback into shipped work</span>
+            <span className="block text-gradient font-sans">comments into shipped work</span>
           </h2>
           <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">
-            Markly combines visual review, collaboration, guest sharing, and delivery handoff in one clear workflow.
+            Kommently combines visual review, collaboration, guest sharing, and delivery handoff in one clear workflow.
           </p>
         </div>
 

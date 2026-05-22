@@ -13,7 +13,7 @@ const STEPS = [
   },
   {
     number: '02',
-    title: 'Pin feedback exactly where it belongs',
+    title: 'Pin comments to exactly where it belongs',
     description: 'Reviewers click the exact element, frame, or section they mean. Every note stays attached to the right context.',
     detail: 'Context-rich pins reduce ambiguity and remove screenshot ping-pong.',
     icon: CursorIcon,
@@ -23,7 +23,7 @@ const STEPS = [
     number: '03',
     title: 'Resolve threads and move work forward',
     description: 'Team members reply in place, mark items resolved, and keep delivery moving without fragmented review loops.',
-    detail: 'Cleaner handoff from feedback to implementation and approval.',
+    detail: 'Cleaner handoff from comments to implementation and approval.',
     icon: CheckIcon,
     color: '#8b5cf6',
   },

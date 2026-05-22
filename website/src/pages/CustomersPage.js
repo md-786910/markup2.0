@@ -14,7 +14,7 @@ const CUSTOMER_SEGMENTS = [
   },
   {
     title: 'Product teams',
-    description: 'Keep PMs, designers, engineers, and QA aligned around precise feedback before a release goes sideways.',
+    description: 'Keep PMs, designers, engineers, and QA aligned around precise comments, before a release goes sideways.',
     metrics: ['3x faster triage', 'Version-aware comments', 'Jira-ready context'],
   },
   {
@@ -29,13 +29,13 @@ const STORIES = [
     company: 'Northstar Studio',
     type: 'Creative agency',
     result: 'Cut client approval time from five days to two.',
-    quote: 'Markly gave our clients one place to review the actual page. Developers stopped receiving vague screenshots and project managers stopped translating feedback.',
+    quote: 'Kommently gave our clients one place to review the actual page. Developers stopped receiving vague screenshots and project managers stopped translating comments.',
   },
   {
     company: 'Luma Commerce',
     type: 'SaaS product team',
     result: 'Reduced launch QA meetings by 38%.',
-    quote: 'Every issue arrives with viewport, page, and thread history. Our engineers can reproduce feedback without asking three follow-up questions.',
+    quote: 'Every issue arrives with viewport, page, and thread history. Our engineers can reproduce comments without asking three follow-up questions.',
   },
 ];
 
@@ -56,7 +56,7 @@ export default function CustomersPage() {
                 Review workflows that feel clear to every stakeholder.
               </h1>
               <p className="body-large mt-6 max-w-2xl">
-                Markly helps agencies, product teams, and web operations groups turn scattered visual feedback into accountable review cycles.
+                Kommently helps agencies, product teams, and web operations groups turn scattered visual comment into accountable review cycles.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <a href={`${APP_URL}/onboarding`} className="button-primary px-8 py-4">

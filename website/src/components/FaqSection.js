@@ -5,19 +5,19 @@ import useScrollReveal from '../hooks/useScrollReveal';
 
 const FAQ_ITEMS = [
   {
-    question: 'How does Markly work?',
+    question: 'How does Kommently work?',
     answer:
-      'Paste a live URL or upload a file, then click anywhere to leave precise visual feedback. Every comment stays anchored to the exact page element, so designers, developers, and stakeholders all review the same context.',
+      'Paste a live URL or upload a file, then click anywhere to leave precise visual comments. Every comment stays anchored to the exact page element, so designers, developers, and stakeholders all review the same context.',
   },
   {
     question: 'Do guests need an account to review?',
     answer:
-      'No. You can share a review link with clients or external collaborators and let them comment without signing up. Admins still control access, passwords, expiration rules, and who can resolve feedback.',
+      'No. You can share a review link with clients or external collaborators and let them comment without signing up. Admins still control access, passwords, expiration rules, and who can resolve comments.',
   },
   {
-    question: 'What file types can I review in Markly?',
+    question: 'What file types can I review in Kommently?',
     answer:
-      'Markly supports live websites, PDFs, images, and video review workflows. Teams can keep comments in one place instead of splitting feedback across email threads, chat, and screenshots.',
+      'Kommently supports live websites, PDFs, images, and video review workflows. Teams can keep comments in one place instead of splitting comments across email threads, chat, and screenshots.',
   },
   {
     question: 'Can my team collaborate in real time?',
@@ -30,9 +30,9 @@ const FAQ_ITEMS = [
       'You can protect review links with passwords, expiration dates, private access rules, and internal-only visibility. That gives you client-friendly sharing without losing control of sensitive work.',
   },
   {
-    question: 'Does Markly integrate with the rest of our workflow?',
+    question: 'Does Kommently integrate with the rest of our workflow?',
     answer:
-      'Yes. Teams typically connect review work to project management and communication tools so comments can move into delivery without manual copy-paste. The goal is to keep feedback actionable, not isolated.',
+      'Yes. Teams typically connect review work to project management and communication tools so comments can move into delivery without manual copy-paste. The goal is to keep comments actionable, not isolated.',
   },
 ];
 
@@ -171,13 +171,13 @@ export default function FaqSection() {
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="text-start" data-reveal>
-          <h4 className="text-[12px] mb-3 text-[#0f8f75] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Markly FAQ</h4>
+          <h4 className="text-[12px] mb-3 text-[#0f8f75] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Kommently  FAQ</h4>
           <h2 className="text-[24px] sm:text-[30px] md:text-[36px] lg:text-[44px] xl:text-[48px] 2xl:text-[52px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
             Frequently
             <span className="block text-gradient font-sans">asked questions</span>
           </h2>
           <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">
-            Clear answers for teams moving visual feedback, review, and approval into one place.
+            Clear answers for teams moving visual comments, review, and approval into one place.
           </p>
         </div>
         {/* FAQ items */}
@@ -208,7 +208,7 @@ export default function FaqSection() {
                 Still have questions?
               </h3>
               <p className="mt-3 text-sm leading-7 text-[#53645f]">
-                Markly is built for review workflows that need to feel fast, clear, and easy for both internal teams and external clients.
+                Kommently is built for review workflows that need to feel fast, clear, and easy for both internal teams and external clients.
               </p>
 
               <div className="mt-6 space-y-3">

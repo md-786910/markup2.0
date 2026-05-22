@@ -60,7 +60,7 @@ export default function Navbar() {
                       <path d="M7 16 L10 8 L12 12 L14 8 L17 16" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </span>
-                  <span className="font-display text-[1.45rem] font-semibold tracking-tight text-[#10231f]">Markly</span>
+                  <span className="font-display text-[1.45rem] font-semibold tracking-tight text-[#10231f]">Kommently</span>
                 </Link>
               </div>
 

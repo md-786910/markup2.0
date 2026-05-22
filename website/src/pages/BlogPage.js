@@ -14,7 +14,7 @@ const POSTS = [
     icon: FileTextIcon,
   },
   {
-    title: 'Client feedback links that do not create security debt',
+    title: 'Client comments links that do not create security debt',
     category: 'Security',
     readTime: '6 min read',
     date: 'May 5, 2026',
@@ -26,7 +26,7 @@ const POSTS = [
     category: 'Engineering',
     readTime: '8 min read',
     date: 'April 28, 2026',
-    excerpt: 'What engineers need from visual feedback: viewport, browser, URL, reproduction notes, and a clear owner.',
+    excerpt: 'What engineers need from visual comments: viewport, browser, URL, reproduction notes, and a clear owner.',
     icon: CodeIcon,
   },
   {
@@ -50,7 +50,7 @@ const POSTS = [
     category: 'Product',
     readTime: '6 min read',
     date: 'March 26, 2026',
-    excerpt: 'Thread quality matters. Clear prompts, ownership, and resolution states prevent good feedback from going stale.',
+    excerpt: 'Thread quality matters. Clear prompts, ownership, and resolution states prevent good comments from going stale.',
     icon: ChatIcon,
   },
 ];
@@ -88,12 +88,12 @@ export default function BlogPage() {
           <div className="site-container relative z-10">
             <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
               <div>
-                <span className="eyebrow">Markly blog</span>
+                <span className="eyebrow">Kommently blog</span>
                 <h1 className="display-heading mt-6">
                   Better review systems for teams that ship web work.
                 </h1>
                 <p className="body-large mt-6 max-w-2xl">
-                  Field-tested advice on visual feedback, client approvals, QA handoff, and collaborative delivery.
+                  Field-tested advice on visual comments, client approvals, QA handoff, and collaborative delivery.
                 </p>
               </div>
               <article className="premium-card p-6 sm:p-7">
@@ -130,11 +130,10 @@ export default function BlogPage() {
                     key={category}
                     type="button"
                     onClick={() => setActiveCategory(category)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      activeCategory === category
-                        ? 'bg-[#176b57] text-white shadow-[0_12px_28px_rgba(23,107,87,0.2)]'
-                        : 'border border-emerald-100 bg-white text-[#53645f] hover:border-emerald-200'
-                    }`}
+                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${activeCategory === category
+                      ? 'bg-[#176b57] text-white shadow-[0_12px_28px_rgba(23,107,87,0.2)]'
+                      : 'border border-emerald-100 bg-white text-[#53645f] hover:border-emerald-200'
+                      }`}
                   >
                     {category}
                   </button>
@@ -172,7 +171,7 @@ export default function BlogPage() {
               <ZapIcon className="h-7 w-7 text-[#176b57]" />
               <h2 className="section-heading mt-5 lg:text-4xl">Get practical review playbooks in your inbox.</h2>
               <p className="body-copy mt-4">
-                Monthly notes on making feedback clearer, approvals faster, and stakeholder reviews easier to manage.
+                Monthly notes on making comments clearer, approvals faster, and stakeholder reviews easier to manage.
               </p>
             </div>
             <form onSubmit={handleSubscribe} className="premium-card relative p-5 sm:flex sm:gap-3">

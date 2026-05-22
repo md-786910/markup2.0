@@ -1,8 +1,8 @@
 export const FEATURES = [
   {
     id: 'pins',
-    title: 'Visual Feedback Pins',
-    description: 'Click anywhere on a live page, PDF, or image to leave precise feedback with URL, viewport, and screenshot context attached.',
+    title: 'Visual Comments Pins',
+    description: 'Click anywhere on a live page, PDF, or image to leave precise comments with URL, viewport, and screenshot context attached.',
     gradient: '#0ea5e9',
     icon: 'pin',
     color: '#0ea5e9',
@@ -42,7 +42,7 @@ export const FEATURES = [
   {
     id: 'integrations',
     title: 'Integrations',
-    description: 'Connect Slack, Discord, and Jira so approved feedback can become notifications, issues, and release work.',
+    description: 'Connect Slack, Discord, and Jira so approved comments can become notifications, issues, and release work.',
     gradient: 'from-[#e11d48] to-[#7c3aed]',
     icon: 'plug',
     color: '#ef4444',
@@ -52,7 +52,7 @@ export const FEATURES = [
 export const SHOWCASE_FEATURES = [
   {
     id: 'precision',
-    title: 'Pin feedback with precise context',
+    title: 'Pin comments with precise context',
     description: 'Every note is anchored to the element, page, and viewport your reviewer meant, so the next action is obvious.',
     bullets: [
       'Click anywhere on websites or documents',

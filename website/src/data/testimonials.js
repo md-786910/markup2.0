@@ -1,6 +1,6 @@
 export const TESTIMONIALS = [
   {
-    quote: 'Pin feedback directly on any element. Design reviews become specific, trackable, and easy to hand off.',
+    quote: 'Pin comments directly on any element. Design reviews become specific, trackable, and easy to hand off.',
     name: 'Design teams',
     role: 'Cut review cycles in half',
     company: '',

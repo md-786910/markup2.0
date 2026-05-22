@@ -41,11 +41,11 @@ export default function Footer() {
                   <path d="M3 20 L9 4 L12 12 L15 4 L21 20" />
                 </svg>
               </div>
-              <span className="font-display text-2xl font-semibold tracking-tight">Markly</span>
+              <span className="font-display text-2xl font-semibold tracking-tight">Kommently</span>
             </a>
 
             <p className="mt-5 text-[15px] leading-7 text-white/62">
-              Visual review software for teams that want cleaner feedback, faster approvals, and less operational drag between design, delivery, and stakeholders.
+              Visual review software for teams that want cleaner comments, faster approvals, and less operational drag between design, delivery, and stakeholders.
             </p>
 
             <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.06] p-5 backdrop-blur">

@@ -29,7 +29,7 @@ const HELP_TOPICS = [
     icon: FileTextIcon,
   },
   {
-    title: 'Resolve and archive feedback',
+    title: 'Resolve and archive comments',
     category: 'Workflow',
     description: 'Track open, resolved, and archived comments so launch readiness is visible.',
     icon: CheckIcon,
@@ -44,7 +44,7 @@ const HELP_TOPICS = [
 
 const SUPPORT_PATHS = [
   ['Live chat', 'Weekdays, 9am-6pm IST', 'Best for account and setup questions.'],
-  ['Email support', 'hello@feedbackly.online', 'Best for billing, security, and longer troubleshooting.'],
+  ['Email support', 'hello@kommently.online', 'Best for billing, security, and longer troubleshooting.'],
   ['Priority routing', 'Pro and Enterprise', 'Fastest help for production review workflows.'],
 ];
 

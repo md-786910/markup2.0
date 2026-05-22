@@ -14,10 +14,10 @@ export default function CtaSection() {
           Ready when your next review starts
         </span>
         <h2 className="mt-6 font-display text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
-          Replace scattered feedback with one precise review workspace.
+          Replace scattered comments with one precise review workspace.
         </h2>
         <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-white/68 sm:text-lg">
-          Start with a live URL, invite your team or client, and resolve feedback where the work actually lives.
+          Start with a live URL, invite your team or client, and resolve comments where the work actually lives.
         </p>
 
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">

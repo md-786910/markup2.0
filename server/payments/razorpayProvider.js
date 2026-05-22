@@ -1,13 +1,24 @@
 const crypto = require('crypto');
-const razorpay = require('../config/razorpay');
 const { settleInvoice } = require('./settleInvoice');
 const Invoice = require('../models/Invoice');
 const { PaymentVerificationError } = require('./errors');
 
 const ID = 'razorpay';
+let razorpayClient;
 
 function isConfigured() {
   return !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+}
+
+function getRazorpayClient() {
+  if (!isConfigured()) throw new Error('Razorpay is not configured.');
+  if (razorpayClient) return razorpayClient;
+  const Razorpay = require('razorpay');
+  razorpayClient = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+  return razorpayClient;
 }
 
 /**
@@ -20,6 +31,7 @@ function isConfigured() {
  * @returns {Promise<{ providerOrderId, amount, currency, clientPayload }>}
  */
 async function createOrder({ org, plan, planConfig, invoiceMeta = {} }) {
+  const razorpay = getRazorpayClient();
   // USD display price → INR paise (existing Razorpay India pricing math)
   const amount = Math.round(planConfig.price * 84 * 100);
   const receipt = (invoiceMeta.receipt || `rcpt_${Date.now()}`).slice(0, 40);

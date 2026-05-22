@@ -72,7 +72,7 @@ export default function ComparisonTable() {
             <div className="grid grid-cols-3 border-b border-emerald-100 bg-[#f4faf4]">
               <div className="px-6 py-4 leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">Feature</div>
               <div className="px-6 py-4 text-center leading-[1.7] max-w-[65ch] text-[#53645f] font-sans font-semibold">
-                <span className="font-display font-bold text-gradient">Markly</span>
+                <span className="font-display font-bold text-gradient">Kommently</span>
               </div>
               <div className="px-6 py-4 text-center leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">Markup.io</div>
             </div>
