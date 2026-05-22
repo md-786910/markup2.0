@@ -90,11 +90,10 @@ export default function SettingsPage() {
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`relative px-1 pb-3 text-sm font-medium transition-colors flex items-center gap-2 ${
-                activeTab === tab.id
-                  ? 'text-gray-900 border-b-2 border-gray-900'
-                  : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent'
-              }`}
+              className={`relative px-1 pb-3 text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === tab.id
+                ? 'text-gray-900 border-b-2 border-gray-900'
+                : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent'
+                }`}
             >
               {tab.label}
               {showDot && (
@@ -161,7 +160,7 @@ export default function SettingsPage() {
                   className="w-12 h-12 rounded-xl object-cover border border-gray-200"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold">
+                <div className="w-12 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white text-lg font-bold">
                   {orgInitial}
                 </div>
               )}

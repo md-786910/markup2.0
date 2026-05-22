@@ -183,7 +183,7 @@ export default function InvoicesTab() {
         }
       },
       prefill: { name: user?.name, email: user?.email },
-      theme: { color: '#2563eb' },
+      theme: { color: '#176b57' },
       modal: { ondismiss: () => setPayingInvoiceId(null) },
     };
 

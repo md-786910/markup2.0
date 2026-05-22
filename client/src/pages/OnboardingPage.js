@@ -301,7 +301,7 @@ export default function OnboardingPage() {
       name: 'Feedbackly',
       description: `${(livePlans || []).find((p) => p.id === selectedPlan)?.name || ''} subscription`,
       prefill: { name, email },
-      theme: { color: '#2563eb' },
+      theme: { color: '#176b57' },
       handler: async (response) => {
         try {
           const verifyRes = await verifyPaymentApi({

@@ -57,7 +57,7 @@
   }
 
   .text-gradient {
-    background: linear-gradient(135deg, #2563eb, #0f8f75, #6f9f32);
+    background: linear-gradient(135deg, #176b57, #0f8f75, #7fbf63);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -85,7 +85,7 @@
     position: absolute;
     inset: -1px;
     border-radius: 17px;
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.45), rgba(15, 143, 117, 0.42), rgba(143, 209, 79, 0.34));
+    background: linear-gradient(135deg, rgba(23, 107, 87, 0.38), rgba(15, 143, 117, 0.42), rgba(127, 191, 99, 0.34));
     z-index: -1;
   }
 
@@ -149,7 +149,7 @@
     inset: 0 0 auto;
     height: 620px;
     pointer-events: none;
-    background: radial-gradient(circle at 50% 0%, rgba(40, 84, 255, 0.12), transparent 52%);
+    background: radial-gradient(circle at 50% 0%, rgba(23, 107, 87, 0.14), transparent 52%);
   }
 
   .section-pad {

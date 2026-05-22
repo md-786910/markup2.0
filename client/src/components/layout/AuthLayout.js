@@ -4,7 +4,9 @@ export default function AuthLayout({ children }) {
   return (
     <div className="min-h-screen flex animate-page-enter">
       {/* Left branded panel — hidden on mobile */}
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[540px] bg-gray-900 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[480px] xl:w-[540px] bg-[#10231f] relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(127,191,99,0.22),transparent_32%),radial-gradient(circle_at_82%_78%,rgba(56,189,248,0.16),transparent_34%),linear-gradient(90deg,rgba(16,35,31,0.46),rgba(24,43,38,0.16))]" />
+        <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] [background-size:60px_60px]" />
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           {/* Logo */}
           <div className="flex items-center gap-3">
@@ -13,13 +15,13 @@ export default function AuthLayout({ children }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
               </svg>
             </div>
-            <span className="text-xl font-bold text-white tracking-tight">Feedbackly</span>
+            <span className="text-xl font-bold text-white tracking-tight">Kommently</span>
           </div>
 
           {/* Tagline */}
           <div className="flex-1 flex flex-col justify-center -mt-12">
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6">
-              Visual feedback<br />
+              Visual comments<br />
               for your websites
             </h1>
             <p className="text-lg text-gray-400 leading-relaxed max-w-sm">
@@ -54,7 +56,7 @@ export default function AuthLayout({ children }) {
           </div>
 
           {/* Footer */}
-          <p className="text-xs text-gray-600">&copy; {new Date().getFullYear()} Feedbackly. All rights reserved.</p>
+          <p className="text-xs text-gray-600">&copy; {new Date().getFullYear()} Kommently. All rights reserved.</p>
         </div>
 
         {/* Decorative background elements */}

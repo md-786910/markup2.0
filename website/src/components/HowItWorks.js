@@ -9,7 +9,7 @@ const STEPS = [
     description: 'Start from the asset your team already needs to review. No plugin installs, no migration ceremony, no extra setup burden.',
     detail: 'Supports websites, PDFs, image review, and structured share links.',
     icon: GlobeIcon,
-    color: '#ef4444',
+    color: '#3d8f80',
   },
   {
     number: '02',
@@ -25,7 +25,7 @@ const STEPS = [
     description: 'Team members reply in place, mark items resolved, and keep delivery moving without fragmented review loops.',
     detail: 'Cleaner handoff from comments to implementation and approval.',
     icon: CheckIcon,
-    color: '#8b5cf6',
+    color: '#6f9f32',
   },
 ];
 
@@ -81,4 +81,3 @@ export default function HowItWorks() {
     </section>
   );
 }
-
