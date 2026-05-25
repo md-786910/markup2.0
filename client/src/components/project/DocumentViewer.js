@@ -175,13 +175,12 @@ export default function DocumentViewer({
                   e.stopPropagation();
                   onPinClick(pin);
                 }}
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-all ${
-                  pin._id === selectedPinId
-                    ? 'bg-blue-600 text-white border-blue-700 scale-125 shadow-lg'
-                    : pin.status === 'resolved'
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-all ${pin._id === selectedPinId
+                  ? 'bg-blue-600 text-white border-blue-700 scale-125 shadow-lg'
+                  : pin.status === 'resolved'
                     ? 'bg-green-500 text-white border-green-600 hover:scale-110'
-                    : 'bg-red-500 text-white border-red-600 hover:scale-110'
-                }`}
+                    : 'bg-[#7fbf63] text-[#10231f] border-[#7fbf63fd] hover:scale-110'
+                  }`}
               >
                 {pin.pinNumber}
               </button>

@@ -126,7 +126,7 @@ export default function PendingPaymentBanner() {
       name: 'Feedbackly',
       description: `${(inv.plan || '').charAt(0).toUpperCase() + (inv.plan || '').slice(1)} plan invoice`,
       prefill: { name: user?.name, email: user?.email },
-      theme: { color: '#2563eb' },
+      theme: { color: '#176b57' },
       handler: async (resp) => {
         try {
           const verifyRes = await verifyPaymentApi({

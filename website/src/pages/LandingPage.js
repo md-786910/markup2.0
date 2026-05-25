@@ -10,14 +10,15 @@ import ComparisonTable from '../components/ComparisonTable';
 import PricingSection from '../components/PricingSection';
 import TestimonialsSection from '../components/TestimonialsSection';
 import FaqSection from '../components/FaqSection';
-import CtaSection from '../components/CtaSection';
 import Footer from '../components/Footer';
+import { Testimonial } from '../components/Testimonials';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden">
       <Navbar />
-      <main>
+      <main id="main-content" className="relative">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[720px] bg-[radial-gradient(circle_at_top,rgba(127,191,99,0.12),transparent_46%)]" />
         <HeroSection />
         <LogoCloud />
         <FeaturesGrid />
@@ -26,11 +27,12 @@ export default function LandingPage() {
         <StatsSection />
         <ComparisonTable />
         <PricingSection />
+        <Testimonial />
         <TestimonialsSection />
         <FaqSection />
-        <CtaSection />
+        <Footer />
       </main>
-      <Footer />
     </div>
   );
 }
+

@@ -3,46 +3,14 @@ import { CheckIcon, XIcon, SlackIcon, DiscordIcon, JiraIcon } from './icons';
 import useScrollReveal from '../hooks/useScrollReveal';
 
 const COMPARISONS = [
-  {
-    feature: 'Real-time collaboration',
-    feedbackly: { type: 'check' },
-    competitor: { type: 'text', value: 'Limited' },
-  },
-  {
-    feature: 'Guest review links',
-    feedbackly: { type: 'check' },
-    competitor: { type: 'check' },
-  },
-  {
-    feature: 'PDF annotation',
-    feedbackly: { type: 'check' },
-    competitor: { type: 'check' },
-  },
-  {
-    feature: 'Integrations',
-    feedbackly: { type: 'icons' },
-    competitor: { type: 'text', value: 'Slack only' },
-  },
-  {
-    feature: 'Version history',
-    feedbackly: { type: 'check' },
-    competitor: { type: 'x' },
-  },
-  {
-    feature: 'Device mode preview',
-    feedbackly: { type: 'check' },
-    competitor: { type: 'x' },
-  },
-  {
-    feature: 'Free plan',
-    feedbackly: { type: 'badge', value: 'Free forever' },
-    competitor: { type: 'text', value: '14-day trial' },
-  },
-  {
-    feature: 'Starting price',
-    feedbackly: { type: 'price', value: '$12/mo' },
-    competitor: { type: 'priceGray', value: '$39/mo' },
-  },
+  ['Real-time collaboration', { type: 'check' }, { type: 'text', value: 'Limited' }],
+  ['Guest review links', { type: 'check' }, { type: 'check' }],
+  ['PDF annotation', { type: 'check' }, { type: 'check' }],
+  ['Slack, Discord, Jira', { type: 'icons' }, { type: 'text', value: 'Slack only' }],
+  ['Version history', { type: 'check' }, { type: 'x' }],
+  ['Device mode preview', { type: 'check' }, { type: 'x' }],
+  ['Free plan', { type: 'badge', value: 'Free forever' }, { type: 'text', value: 'Trial only' }],
+  ['Starting price', { type: 'price', value: '$12/mo' }, { type: 'priceGray', value: '$39/mo' }],
 ];
 
 function CellContent({ cell }) {
@@ -50,40 +18,35 @@ function CellContent({ cell }) {
     case 'check':
       return (
         <div className="flex justify-center">
-          <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">
-            <CheckIcon className="w-3.5 h-3.5 text-emerald-600" />
-          </div>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100">
+            <CheckIcon className="h-3.5 w-3.5 text-emerald-600" />
+          </span>
         </div>
       );
     case 'x':
       return (
         <div className="flex justify-center">
-          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
-            <XIcon className="w-3.5 h-3.5 text-gray-300" />
-          </div>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#eaf6ef]">
+            <XIcon className="h-3.5 w-3.5 text-[#8a9b94]" />
+          </span>
         </div>
       );
     case 'icons':
       return (
-        <div className="flex items-center justify-center gap-1.5">
-          <SlackIcon className="w-4 h-4 text-emerald-600" />
-          <DiscordIcon className="w-4 h-4 text-emerald-600" />
-          <JiraIcon className="w-4 h-4 text-emerald-600" />
+        <div className="flex items-center justify-center gap-1.5 text-emerald-600">
+          <SlackIcon className="h-4 w-4" />
+          <DiscordIcon className="h-4 w-4" />
+          <JiraIcon className="h-4 w-4" />
         </div>
       );
     case 'badge':
-      return (
-        <div className="flex justify-center">
-          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">{cell.value}</span>
-        </div>
-      );
+      return <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">{cell.value}</span>;
     case 'price':
       return <span className="text-sm font-semibold text-emerald-600">{cell.value}</span>;
     case 'priceGray':
-      return <span className="text-sm text-gray-400">{cell.value}</span>;
-    case 'text':
+      return <span className="text-sm text-[#8a9b94]">{cell.value}</span>;
     default:
-      return <span className="text-sm text-gray-400">{cell.value}</span>;
+      return <span className="text-sm text-[#8a9b94]">{cell.value}</span>;
   }
 }
 
@@ -91,45 +54,40 @@ export default function ComparisonTable() {
   const ref = useScrollReveal();
 
   return (
-    <section id="comparison" className="bg-gray-50 py-24" ref={ref}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center max-w-2xl mx-auto" data-reveal>
-          <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Comparison</span>
-          <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mt-3">
-            Why teams switch from Markup.io
+    <section id="comparison" className="section-shell py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl text-center" data-reveal>
+          <h4 className="text-[12px] mb-3 text-[#0f8f75] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Comparison</h4>
+          <h2 className="text-[24px] sm:text-[30px] md:text-[36px] lg:text-[44px] xl:text-[48px] 2xl:text-[52px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
+            Why teams switch from
+            <span className="block text-gradient font-sans">Markup.io</span>
           </h2>
-          <p className="text-lg text-gray-500 mt-4">
-            Same workflow you already know. 70% less on your bill. Zero migration headache.
+          <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">
+            Same visual review workflow, clearer collaboration, and a lower starting price for growing teams.
           </p>
         </div>
 
-        {/* Table */}
-        <div className="max-w-4xl mx-auto mt-16" data-reveal data-delay="1">
-          <div className="rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm">
-            {/* Table header */}
-            <div className="grid grid-cols-3 bg-gray-50 border-b border-gray-200">
-              <div className="px-6 py-4 text-sm font-semibold text-gray-500">Feature</div>
-              <div className="px-6 py-4 text-sm font-semibold text-center">
-                <span className="text-gradient font-display font-bold">Feedbackly</span>
+        <div className="mx-auto mt-10 max-w-5xl overflow-x-auto rounded-[24px] border border-emerald-100 bg-[#fffffb] shadow-[0_18px_55px_rgba(25,54,43,0.08)]" data-reveal data-delay="1">
+          <div className="min-w-[620px]">
+            <div className="grid grid-cols-3 border-b border-emerald-100 bg-[#f4faf4]">
+              <div className="px-6 py-4 leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">Feature</div>
+              <div className="px-6 py-4 text-center leading-[1.7] max-w-[65ch] text-[#53645f] font-sans font-semibold">
+                <span className="font-display font-bold text-gradient">Kommently</span>
               </div>
-              <div className="px-6 py-4 text-sm font-semibold text-gray-400 text-center">Markup.io</div>
+              <div className="px-6 py-4 text-center leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">Markup.io</div>
             </div>
 
-            {/* Rows */}
-            {COMPARISONS.map((row, i) => (
+            {COMPARISONS.map(([feature, feedbackly, competitor], i) => (
               <div
-                key={row.feature}
-                className={`grid grid-cols-3 border-b border-gray-100 last:border-0 hover:bg-blue-50/30 transition-colors ${
-                  i % 2 === 0 ? '' : 'bg-gray-50/30'
-                }`}
+                key={feature}
+                className={`grid grid-cols-3 border-b border-emerald-100 transition-colors last:border-0 hover:bg-[#eef8ee]/70 ${i % 2 ? 'bg-[#fbfff8]' : ''}`}
               >
-                <div className="px-6 py-4 text-sm font-medium text-gray-700">{row.feature}</div>
-                <div className="px-6 py-4 text-center bg-blue-50/30">
-                  <CellContent cell={row.feedbackly} />
+                <div className="px-6 py-4 font-medium leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">{feature}</div>
+                <div className="bg-[#eaf6ef]/70 px-6 py-4 text-center">
+                  <CellContent cell={feedbackly} />
                 </div>
                 <div className="px-6 py-4 text-center">
-                  <CellContent cell={row.competitor} />
+                  <CellContent cell={competitor} />
                 </div>
               </div>
             ))}
@@ -139,3 +97,4 @@ export default function ComparisonTable() {
     </section>
   );
 }
+

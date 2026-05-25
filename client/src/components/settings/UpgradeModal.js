@@ -81,7 +81,7 @@ export default function UpgradeModal({ selectedPlan, currentPlanId, currentPlanN
           }
         },
         prefill: { name: user?.name, email: user?.email },
-        theme: { color: '#2563eb' },
+        theme: { color: '#176b57' },
         modal: { ondismiss: () => setLoading(false) },
       };
       const rzp = new window.Razorpay(options);

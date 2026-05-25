@@ -16,39 +16,46 @@ export default function FeaturesGrid() {
   const ref = useScrollReveal();
 
   return (
-    <section id="features" className="bg-white py-24" ref={ref}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center max-w-3xl mx-auto" data-reveal>
-          <span className="text-blue-600 font-semibold text-xs uppercase tracking-[0.2em]">Features</span>
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-gray-900 mt-4 leading-[1.15] tracking-tight [text-wrap:balance]">
-            Everything Markup.io charges $39/mo for — included free
+    <section id="features" className="section-shell py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="text-start" data-reveal>
+          <h4 className="text-[12px] mb-3 text-[#0f8f75] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Core features</h4>
+          <h2 className="text-[24px] sm:text-[30px] md:text-[36px] lg:text-[44px] xl:text-[48px] 2xl:text-[52px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
+            Everything teams need to turn
+            <span className="block text-gradient font-sans">comments into shipped work</span>
           </h2>
-          <p className="text-base md:text-lg text-gray-500 mt-5 max-w-xl mx-auto leading-relaxed">
-            Stop wasting time on scattered feedback. Get everything in one place, right where it matters.
+          <p className="text-[15px] sm:text-[16px] lg:text-[17px] xl:text-[18px] leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">
+            Kommently combines visual review, collaboration, guest sharing, and delivery handoff in one clear workflow.
           </p>
         </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mt-16">
-          {FEATURES.map((feature, i) => {
+        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {FEATURES.map((feature, index) => {
             const Icon = ICON_MAP[feature.icon];
             return (
-              <div
+              <article
                 key={feature.id}
-                className="group p-8 rounded-2xl bg-white border border-gray-100 hover:border-blue-500/20 hover:bg-blue-50/10 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-0.5"
-                data-reveal
-                data-delay={String((i % 3) + 1)}
+                className="premium-card hover-lift group rounded-[24px] p-7"
+                data-reveal="scale"
+                data-delay={String((index % 3) + 1)}
               >
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
-                  <Icon className="w-6 h-6 text-white" />
+                <div className="flex items-start justify-between gap-4">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-md text-white`} style={{ background: feature.gradient }}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <span className="rounded-full bg-[#eaf6ef] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]" style={{ color: feature.color }}>
+                    Included
+                  </span>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{feature.title}</h3>
-                <p className="text-gray-500 leading-relaxed text-[15px]">{feature.description}</p>
-                <div className="flex items-center gap-1 mt-4 text-blue-500 text-sm font-medium opacity-0 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all duration-300">
-                  Learn more <ArrowRightIcon className="w-4 h-4" />
+                <h3 className="my-3 text-[16px] sm:text-[18px] lg:text-[20px] xl:text-[22px] font-semibold leading-[1.3] tracking-[-0.02em] text-[#10231f] font-sans">{feature.title}</h3>
+                <p className="text-[10px] sm:text-[11px] lg:text-[12px] xl:text-[13px] leading-[1.7] text-[#53645f] font-sans">
+                  {feature.description}
+                </p>
+                <div className="mt-3 inline-flex items-center gap-2 text-[12px] cursor-pointer font-medium opacity-80 transition group-hover:translate-x-1 group-hover:opacity-100" style={{ color: feature.color }}>
+                  Explore workflow
+                  <ArrowRightIcon className="h-4 w-4" />
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
@@ -56,3 +63,4 @@ export default function FeaturesGrid() {
     </section>
   );
 }
+

@@ -44,7 +44,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
         var div = document.createElement('div');
         div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:2px 0';
         var avatar = document.createElement('span');
-        avatar.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#dbeafe;color:#1d4ed8;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0';
+        avatar.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#d9f0df;color:#0f5f4c;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0';
         avatar.textContent = (item.value || '?')[0].toUpperCase();
         var name = document.createElement('span');
         name.style.cssText = 'font-size:13px;color:#111827';
@@ -220,7 +220,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
               type="button"
               onClick={handleSubmit}
               disabled={loading || isBodyEmpty()}
-              className="px-5 py-2 bg-blue-600 text-white text-[13px] font-semibold rounded-full hover:bg-blue-700 disabled:opacity-40 shadow-sm shadow-blue-600/20 transition-all hover:shadow-md"
+              className="px-5 py-2 bg-[#7fbf63] text-[#10231f] text-[13px] font-semibold rounded-full hover:bg-[#7fbf63ea] disabled:opacity-40 shadow-sm shadow-blue-600/20 transition-all hover:shadow-md"
             >
               {loading ? (
                 <div className="flex items-center gap-1.5">

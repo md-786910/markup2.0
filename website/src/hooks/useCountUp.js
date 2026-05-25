@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 
-export default function useCountUp({ end, duration = 2000, suffix = '' }) {
+export default function useCountUp({ end, duration = 2000, suffix = '', decimals = 0 }) {
   const ref = useRef(null);
   const [value, setValue] = useState('0' + suffix);
   const hasAnimated = useRef(false);
@@ -21,8 +21,12 @@ export default function useCountUp({ end, duration = 2000, suffix = '' }) {
               const elapsed = currentTime - startTime;
               const progress = Math.min(elapsed / duration, 1);
               const eased = 1 - Math.pow(1 - progress, 3);
-              const current = Math.round(eased * end);
-              setValue(current.toLocaleString() + suffix);
+              const raw = eased * end;
+              const current = decimals > 0 ? Number(raw.toFixed(decimals)) : Math.round(raw);
+              setValue(current.toLocaleString(undefined, {
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals,
+              }) + suffix);
 
               if (progress < 1) {
                 requestAnimationFrame(animate);
@@ -37,7 +41,7 @@ export default function useCountUp({ end, duration = 2000, suffix = '' }) {
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [end, duration, suffix]);
+  }, [decimals, end, duration, suffix]);
 
   return { ref, value };
 }

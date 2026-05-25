@@ -113,7 +113,7 @@ export default function AppSidebar({ collapsed, onToggle }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
             </svg>
           </div>
-          <span className="text-lg font-bold tracking-tight">Feedbackly</span>
+          <span className="text-lg font-bold tracking-tight">Kommently</span>
         </div>
 
         {/* Workspace selector */}
@@ -126,7 +126,7 @@ export default function AppSidebar({ collapsed, onToggle }) {
                 className="w-8 h-8 rounded-lg object-cover shrink-0"
               />
             ) : (
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-sm font-bold shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-sm font-bold shrink-0">
                 {(user?.orgName || user?.name || '?')[0].toUpperCase()}
               </div>
             )}

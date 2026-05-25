@@ -1,20 +1,20 @@
 export const PLANS = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: 0,
-    priceLabel: '$0',
-    period: 'forever',
-    features: [
-      '2 projects',
-      '5 team members',
-      '2 guests',
-      'Basic feedback tools',
-      'Community support',
-    ],
-    cta: 'Get Started Free',
-    popular: false,
-  },
+  // {
+  //   id: 'free',
+  //   name: 'Free',
+  //   price: 0,
+  //   priceLabel: '$0',
+  //   period: 'forever',
+  //   features: [
+  //     '2 projects',
+  //     '5 team members',
+  //     '2 guests',
+  //     'Basic feedback tools',
+  //     'Community support',
+  //   ],
+  //   cta: 'Get Started Free',
+  //   popular: false,
+  // },
   {
     id: 'starter',
     name: 'Starter',

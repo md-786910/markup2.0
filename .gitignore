@@ -11,3 +11,4 @@ coverage/
 .vscode/
 .claude
 .env.dev
+.vercel
