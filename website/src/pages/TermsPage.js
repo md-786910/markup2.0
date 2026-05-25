@@ -73,10 +73,10 @@ export default function TermsPage() {
               1. Acceptance of Terms
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              By accessing or using Feedbackly ("the Service"), operated by Feedbackly ("we," "us," or "our") at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">markly.online</a>{' '}
+              By accessing or using Kommently ("the Service"), operated by Kommently ("we," "us," or "our") at{' '}
+              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.online</a>{' '}
               and{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">exapmple.markly.online</a>,
+              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">exapmple.kommently.online</a>,
               you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you may not access or use the Service.
             </p>
             <p className="text-[#53645f] leading-relaxed mb-4">
@@ -88,10 +88,10 @@ export default function TermsPage() {
               2. Description of Service
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              Feedbackly is a visual feedback and collaboration platform that enables teams to streamline their design review and approval process. The Service provides the following core capabilities:
+              Kommently is a visual comment and collaboration platform that enables teams to streamline their design review and approval process. The Service provides the following core capabilities:
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
-              <li>Pin-based visual feedback on live websites, PDFs, and design files</li>
+              <li>Pin-based visual comment on live websites, PDFs, and design files</li>
               <li>Real-time collaboration with team members and stakeholders</li>
               <li>Password-protected guest review links for external reviewers</li>
               <li>Device mode preview across desktop, tablet, and mobile viewports</li>
@@ -115,7 +115,7 @@ export default function TermsPage() {
               <li>You are responsible for maintaining the confidentiality of your account credentials.</li>
               <li>You are responsible for all activities that occur under your account.</li>
               <li>You must notify us immediately at{' '}
-                <a href="mailto:hello@feedbackly.online" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@feedbackly.online</a>{' '}
+                <a href="mailto:hello@kommently.online" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>{' '}
                 if you suspect unauthorized access to your account.
               </li>
               <li>You may not create multiple accounts for the purpose of circumventing plan limitations.</li>
@@ -156,21 +156,21 @@ export default function TermsPage() {
               5.1 Our Intellectual Property
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              The Service, including its original content, features, functionality, user interface, design, logos, and documentation, is and shall remain the exclusive property of Feedbackly and its licensors. The Service is protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, sell, or lease any part of our Service without our explicit written permission.
+              The Service, including its original content, features, functionality, user interface, design, logos, and documentation, is and shall remain the exclusive property of Kommently and its licensors. The Service is protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, sell, or lease any part of our Service without our explicit written permission.
             </p>
 
             <h3 className="font-display text-lg font-semibold text-[#10231f] mt-6 mb-2">
               5.2 Your Content
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              You retain full ownership of all content you upload, create, or share through the Service, including feedback comments, annotations, uploaded files, and project data ("Your Content"). By using the Service, you grant us a limited, non-exclusive, worldwide, royalty-free license to host, store, display, reproduce, and process Your Content solely for the purpose of providing and improving the Service. This license terminates when you delete Your Content or your account.
+              You retain full ownership of all content you upload, create, or share through the Service, including comments, annotations, uploaded files, and project data ("Your Content"). By using the Service, you grant us a limited, non-exclusive, worldwide, royalty-free license to host, store, display, reproduce, and process Your Content solely for the purpose of providing and improving the Service. This license terminates when you delete Your Content or your account.
             </p>
 
             <h3 className="font-display text-lg font-semibold text-[#10231f] mt-6 mb-2">
-              5.3 Feedback About the Service
+              5.3 Comments About the Service
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              If you provide us with suggestions, ideas, or feedback about the Service ("Service Feedback"), you acknowledge that we may use such Service Feedback without any obligation to compensate you. Service Feedback is distinct from Your Content and is not subject to the content ownership provisions above.
+              If you provide us with suggestions, ideas, or comment about the Service ("Service Comments"), you acknowledge that we may use such Service Comments without any obligation to compensate you. Service Comments is distinct from Your Content and is not subject to the content ownership provisions above.
             </p>
 
             {/* 6. Guest Review Links */}
@@ -178,13 +178,13 @@ export default function TermsPage() {
               6. Guest Review Links
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              The Service allows you to create password-protected guest review links that enable external collaborators to view project content and leave feedback without creating a Feedbackly account. By using this feature, you acknowledge and agree that:
+              The Service allows you to create password-protected guest review links that enable external collaborators to view project content and leave comments without creating a Kommently account. By using this feature, you acknowledge and agree that:
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li>You are solely responsible for determining who receives access to your guest review links and passwords.</li>
               <li>Project content shared through guest review links may be viewed and commented on by anyone with the link and password.</li>
               <li>You may revoke access to guest review links at any time through your project settings.</li>
-              <li>Feedbackly is not responsible for any unauthorized sharing of guest review links or passwords by recipients.</li>
+              <li>Kommently is not responsible for any unauthorized sharing of guest review links or passwords by recipients.</li>
               <li>Guest reviewers are subject to our Acceptable Use Policy while using the Service.</li>
             </ul>
 
@@ -197,10 +197,10 @@ export default function TermsPage() {
               7.1 Plans and Pricing
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              Feedbackly offers the following subscription plans:
+              Kommently offers the following subscription plans:
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
-              <li><strong>Free:</strong> $0 — Includes limited projects, team members, and basic feedback tools at no cost, forever.</li>
+              <li><strong>Free:</strong> $0 — Includes limited projects, team members, and basic comment tools at no cost, forever.</li>
               <li><strong>Starter:</strong> $12/month — Includes expanded project limits, guest review links, Slack integration, activity log, and email support.</li>
               <li><strong>Pro:</strong> $29/month — Includes unlimited projects and members, priority support, all integrations (Slack, Discord, Jira), version history, and advanced sharing.</li>
               <li><strong>Enterprise:</strong> Custom pricing — Includes everything in Pro plus dedicated support, custom integrations, SLA guarantee, SSO, and custom onboarding.</li>
@@ -225,7 +225,7 @@ export default function TermsPage() {
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
               Subscription fees are non-refundable except where required by applicable law. No refunds or credits will be issued for partial months of service. If you believe you have been charged in error, please contact us at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@markly.online</a>{' '}
+              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>{' '}
               within 14 days of the charge.
             </p>
 
@@ -268,7 +268,7 @@ export default function TermsPage() {
             </ul>
             <p className="text-[#53645f] leading-relaxed mb-4">
               You may delete your account at any time through your account settings or by contacting us at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@markly.online</a>.
+              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>.
               Upon termination, your data will be deleted within 30 days, except where retention is required by law or for legitimate business purposes.
             </p>
             <p className="text-[#53645f] leading-relaxed mb-4">
@@ -280,7 +280,7 @@ export default function TermsPage() {
               10. Disclaimers
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              THE SERVICE IS PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED. TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, FEEDBACKLY DISCLAIMS ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO:
+              THE SERVICE IS PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED. TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW, KOMMENTLY DISCLAIMS ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO:
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li>IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.</li>
@@ -289,7 +289,7 @@ export default function TermsPage() {
               <li>WARRANTIES THAT DEFECTS IN THE SERVICE WILL BE CORRECTED.</li>
             </ul>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              You acknowledge that you use the Service at your own risk and discretion. No advice or information, whether oral or written, obtained from Feedbackly or through the Service shall create any warranty not expressly stated herein.
+              You acknowledge that you use the Service at your own risk and discretion. No advice or information, whether oral or written, obtained from Kommently or through the Service shall create any warranty not expressly stated herein.
             </p>
 
             {/* 11. Limitation of Liability */}
@@ -297,7 +297,7 @@ export default function TermsPage() {
               11. Limitation of Liability
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL FEEDBACKLY, ITS DIRECTORS, EMPLOYEES, PARTNERS, AGENTS, SUPPLIERS, OR AFFILIATES BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO:
+              TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL KOMMENTLY, ITS DIRECTORS, EMPLOYEES, PARTNERS, AGENTS, SUPPLIERS, OR AFFILIATES BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO:
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li>Loss of profits, revenue, data, or business opportunities.</li>
@@ -306,10 +306,10 @@ export default function TermsPage() {
               <li>Any other intangible losses arising from your use of or inability to use the Service.</li>
             </ul>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              IN NO EVENT SHALL OUR TOTAL AGGREGATE LIABILITY TO YOU FOR ALL CLAIMS ARISING FROM OR RELATED TO THE SERVICE EXCEED THE GREATER OF (A) THE AMOUNT YOU PAID TO FEEDBACKLY DURING THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR (B) ONE HUNDRED DOLLARS ($100 USD).
+              IN NO EVENT SHALL OUR TOTAL AGGREGATE LIABILITY TO YOU FOR ALL CLAIMS ARISING FROM OR RELATED TO THE SERVICE EXCEED THE GREATER OF (A) THE AMOUNT YOU PAID TO KOMMENTLY DURING THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR (B) ONE HUNDRED DOLLARS ($100 USD).
             </p>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              These limitations apply regardless of the theory of liability, whether based on warranty, contract, statute, tort (including negligence), or otherwise, and even if Feedbackly has been advised of the possibility of such damages.
+              These limitations apply regardless of the theory of liability, whether based on warranty, contract, statute, tort (including negligence), or otherwise, and even if Kommently has been advised of the possibility of such damages.
             </p>
 
             {/* 12. Indemnification */}
@@ -317,7 +317,7 @@ export default function TermsPage() {
               12. Indemnification
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              You agree to defend, indemnify, and hold harmless Feedbackly and its officers, directors, employees, agents, licensors, and service providers from and against any claims, liabilities, damages, judgments, awards, losses, costs, expenses, or fees (including reasonable attorneys' fees) arising out of or relating to:
+              You agree to defend, indemnify, and hold harmless Kommently and its officers, directors, employees, agents, licensors, and service providers from and against any claims, liabilities, damages, judgments, awards, losses, costs, expenses, or fees (including reasonable attorneys' fees) arising out of or relating to:
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li>Your violation of these Terms.</li>
@@ -335,7 +335,7 @@ export default function TermsPage() {
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li><strong>Informal resolution:</strong> The parties shall first attempt to resolve any dispute through good-faith negotiation. You agree to contact us at{' '}
-                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@markly.online</a>{' '}
+                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>{' '}
                 before initiating any formal proceedings.
               </li>
               <li><strong>Formal resolution:</strong> If the dispute cannot be resolved informally within 30 days, either party may pursue resolution through binding arbitration or the courts of competent jurisdiction.</li>
@@ -370,10 +370,10 @@ export default function TermsPage() {
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li><strong>Email:</strong>{' '}
-                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@markly.online</a>
+                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>
               </li>
               <li><strong>Website:</strong>{' '}
-                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">markly.online</a>
+                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.online</a>
               </li>
             </ul>
             <p className="text-[#53645f] leading-relaxed mb-4">

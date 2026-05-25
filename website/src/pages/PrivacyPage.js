@@ -68,14 +68,14 @@ export default function PrivacyPage() {
               1. Introduction
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              Welcome to Feedbackly. Feedbackly ("we," "us," or "our") operates the website{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">example.markly.online</a>{' '}
+              Welcome to Kommently. Kommently ("we," "us," or "our") operates the website{' '}
+              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">example.Kommently.online</a>{' '}
               and the application platform at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">example.markly.online</a>{' '}
+              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">example.Kommently.online</a>{' '}
               (collectively, the "Service").
             </p>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              This Privacy Policy describes how we collect, use, disclose, and protect your personal information when you access or use our Service. By using Feedbackly, you agree to the collection and use of information in accordance with this policy. If you do not agree with any part of this policy, please do not use our Service.
+              This Privacy Policy describes how we collect, use, disclose, and protect your personal information when you access or use our Service. By using Kommently, you agree to the collection and use of information in accordance with this policy. If you do not agree with any part of this policy, please do not use our Service.
             </p>
 
             {/* 2. Information We Collect */}
@@ -98,7 +98,7 @@ export default function PrivacyPage() {
             </ul>
 
             <h3 className="font-display text-lg font-semibold text-[#10231f] mt-6 mb-2">
-              2.2 Project and Feedback Data
+              2.2 Project and Comment Data
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
               When you use our Service, we store the content you create and upload, including:
@@ -106,7 +106,7 @@ export default function PrivacyPage() {
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li>Website URLs submitted for review</li>
               <li>Uploaded PDFs, images, and design files</li>
-              <li>Feedback pins, comments, and annotations</li>
+              <li>Comment pins, comments, and annotations</li>
               <li>Project names, descriptions, and organizational data</li>
               <li>Collaboration activity such as mentions, replies, and status changes</li>
             </ul>
@@ -149,10 +149,10 @@ export default function PrivacyPage() {
               We use the information we collect for the following purposes:
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
-              <li><strong>Provide and maintain the Service:</strong> Deliver the core visual feedback and collaboration features you expect.</li>
+              <li><strong>Provide and maintain the Service:</strong> Deliver the core visual comment and collaboration features you expect.</li>
               <li><strong>Authenticate and secure accounts:</strong> Verify your identity and protect against unauthorized access.</li>
-              <li><strong>Enable collaboration:</strong> Facilitate real-time feedback, guest review sessions, and team communication.</li>
-              <li><strong>Send transactional communications:</strong> Notify you of account activity, security alerts, feedback updates, and important Service changes.</li>
+              <li><strong>Enable collaboration:</strong> Facilitate real-time comment, guest review sessions, and team communication.</li>
+              <li><strong>Send transactional communications:</strong> Notify you of account activity, security alerts, comment updates, and important Service changes.</li>
               <li><strong>Improve and develop the Service:</strong> Analyze usage patterns, diagnose technical issues, and develop new features.</li>
               <li><strong>Provide customer support:</strong> Respond to your inquiries, troubleshoot issues, and fulfill your requests.</li>
               <li><strong>Detect and prevent abuse:</strong> Identify and mitigate fraudulent activity, spam, and violations of our terms.</li>
@@ -178,14 +178,14 @@ export default function PrivacyPage() {
               4.2 Third-Party Integrations
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              When you choose to connect third-party integrations such as Slack, Discord, or Jira, relevant feedback and project data will be transmitted to those platforms to enable the integration functionality. These third-party services are governed by their own privacy policies, and we encourage you to review them before connecting.
+              When you choose to connect third-party integrations such as Slack, Discord, or Jira, relevant comment and project data will be transmitted to those platforms to enable the integration functionality. These third-party services are governed by their own privacy policies, and we encourage you to review them before connecting.
             </p>
 
             <h3 className="font-display text-lg font-semibold text-[#10231f] mt-6 mb-2">
               4.3 Guest Review Links
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              When you create a guest review link, the associated project content becomes accessible to anyone who possesses the link and its password. You are responsible for managing who you share these links with. Guest reviewers may view content and leave feedback without creating a Feedbackly account.
+              When you create a guest review link, the associated project content becomes accessible to anyone who possesses the link and its password. You are responsible for managing who you share these links with. Guest reviewers may view content and leave comment without creating a Kommently account.
             </p>
 
             <h3 className="font-display text-lg font-semibold text-[#10231f] mt-6 mb-2">
@@ -204,7 +204,7 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li><strong>Account data:</strong> Retained for as long as your account remains active. Upon account deletion request, your personal data will be removed within 30 days.</li>
-              <li><strong>Project and feedback data:</strong> Retained until you delete it or your account is terminated. You may delete individual projects and feedback at any time.</li>
+              <li><strong>Project and comment data:</strong> Retained until you delete it or your account is terminated. You may delete individual projects and comments at any time.</li>
               <li><strong>Usage logs:</strong> Retained for up to 12 months for analytics and security purposes, then automatically purged.</li>
               <li><strong>Backup data:</strong> May persist in encrypted backups for up to 90 days after deletion from the active system.</li>
             </ul>
@@ -273,7 +273,7 @@ export default function PrivacyPage() {
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
               To exercise any of these rights, please contact us at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@markly.online</a>.
+              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>.
               We will respond to your request within 30 days. We may need to verify your identity before processing certain requests.
             </p>
 
@@ -282,8 +282,8 @@ export default function PrivacyPage() {
               8. Children's Privacy
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              Feedbackly is not directed to individuals under the age of 16. We do not knowingly collect personal information from children under 16. If we become aware that we have inadvertently collected personal data from a child under 16, we will take steps to delete that information as promptly as possible. If you believe that a child under 16 has provided us with personal information, please contact us at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@markly.online</a>.
+              Kommently is not directed to individuals under the age of 16. We do not knowingly collect personal information from children under 16. If we become aware that we have inadvertently collected personal data from a child under 16, we will take steps to delete that information as promptly as possible. If you believe that a child under 16 has provided us with personal information, please contact us at{' '}
+              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>.
             </p>
 
             {/* 9. International Data Transfers */}
@@ -314,10 +314,10 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li><strong>Email:</strong>{' '}
-                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@markly.online</a>
+                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>
               </li>
               <li><strong>Website:</strong>{' '}
-                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">markly.online</a>
+                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.online</a>
               </li>
             </ul>
             <p className="text-[#53645f] leading-relaxed mb-4">

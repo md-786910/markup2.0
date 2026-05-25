@@ -56,7 +56,7 @@ export default function CookiePolicyPage() {
               1. Overview
             </h2>
             <p className="mb-4 leading-relaxed text-[#53645f]">
-              This Cookie Policy explains how Markly uses cookies and similar technologies on our landing pages and product surfaces. Cookies help us keep the site secure, remember your consent settings, improve usability, and understand how visitors interact with the experience.
+              This Cookie Policy explains how Kommently uses cookies and similar technologies on our landing pages and product surfaces. Cookies help us keep the site secure, remember your consent settings, improve usability, and understand how visitors interact with the experience.
             </p>
             <p className="mb-4 leading-relaxed text-[#53645f]">
               Essential cookies are required for the website to function. Optional cookies are only used where you have given permission through our cookie banner or preferences panel.
@@ -136,7 +136,7 @@ export default function CookiePolicyPage() {
             <p className="mb-4 leading-relaxed text-[#53645f]">
               If you have questions about this Cookie Policy or how consent is handled, contact us at{' '}
               <a href="#" className="text-[#176b57] underline hover:text-[#0f5f4c]">
-                hello@markly.online
+                hello@kommently.online
               </a>.
             </p>
           </div>

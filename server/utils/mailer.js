@@ -19,12 +19,12 @@ function getTransporter() {
 }
 
 async function sendInvitationEmail(toEmail, inviterName, projectName, signupUrl) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
       <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+        <h1 style="color: white; margin: 0; font-size: 20px;">Kommently</h1>
       </div>
       <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
         <h2 style="margin: 0 0 8px; font-size: 18px; color: #111827;">You've been invited!</h2>
@@ -46,18 +46,18 @@ async function sendInvitationEmail(toEmail, inviterName, projectName, signupUrl)
   await getTransporter().sendMail({
     from,
     to: toEmail,
-    subject: `${inviterName} invited you to ${projectName} on Markup`,
+    subject: `${inviterName} invited you to ${projectName} on Kommently`,
     html,
   });
 }
 
 async function sendPinNotificationEmail(toEmail, actorName, projectName, pinPageUrl, directLink) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
       <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+        <h1 style="color: white; margin: 0; font-size: 20px;">Kommently</h1>
       </div>
       <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
         <h2 style="margin: 0 0 8px; font-size: 18px; color: #111827;">New Pin Added</h2>
@@ -88,13 +88,13 @@ async function sendPinNotificationEmail(toEmail, actorName, projectName, pinPage
 }
 
 async function sendCommentNotificationEmail(toEmail, actorName, projectName, commentBody, directLink) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
   const preview = commentBody.length > 200 ? commentBody.substring(0, 200) + '...' : commentBody;
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
       <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+        <h1 style="color: white; margin: 0; font-size: 20px;">Kommently</h1>
       </div>
       <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
         <h2 style="margin: 0 0 8px; font-size: 18px; color: #111827;">New Comment</h2>
@@ -125,13 +125,13 @@ async function sendCommentNotificationEmail(toEmail, actorName, projectName, com
 }
 
 async function sendMentionNotificationEmail(toEmail, actorName, projectName, commentBody, directLink) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
   const preview = commentBody.length > 200 ? commentBody.substring(0, 200) + '...' : commentBody;
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
       <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+        <h1 style="color: white; margin: 0; font-size: 20px;">Kommently</h1>
       </div>
       <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
         <h2 style="margin: 0 0 8px; font-size: 18px; color: #111827;">You were mentioned</h2>
@@ -162,7 +162,7 @@ async function sendMentionNotificationEmail(toEmail, actorName, projectName, com
 }
 
 async function sendPinStatusEmail(toEmail, actorName, projectName, newStatus, directLink) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
   const isResolved = newStatus === 'resolved';
   const statusLabel = isResolved ? 'Resolved' : 'Reopened';
   const accentColor = isResolved ? '#22c55e' : '#f59e0b';
@@ -170,7 +170,7 @@ async function sendPinStatusEmail(toEmail, actorName, projectName, newStatus, di
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
       <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+        <h1 style="color: white; margin: 0; font-size: 20px;">Kommently</h1>
       </div>
       <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
         <div style="display: flex; align-items: center; gap: 8px; margin: 0 0 8px;">
@@ -201,12 +201,12 @@ async function sendPinStatusEmail(toEmail, actorName, projectName, newStatus, di
 }
 
 async function sendPasswordResetEmail(toEmail, resetUrl) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
       <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+        <h1 style="color: white; margin: 0; font-size: 20px;">Kommently</h1>
       </div>
       <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
         <h2 style="margin: 0 0 8px; font-size: 18px; color: #111827;">Reset Your Password</h2>
@@ -233,7 +233,7 @@ async function sendPasswordResetEmail(toEmail, resetUrl) {
 }
 
 async function sendDigestEmail(toEmail, projectName, events) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
 
   // Group events by type
   const groups = {};
@@ -297,7 +297,7 @@ async function sendDigestEmail(toEmail, projectName, events) {
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
       <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+        <h1 style="color: white; margin: 0; font-size: 20px;">Kommently</h1>
       </div>
       <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
         <h2 style="margin: 0 0 16px; font-size: 18px; color: #111827;">${totalCount} update${totalCount > 1 ? 's' : ''} on ${projectName}</h2>
@@ -325,7 +325,7 @@ function billingShell({ heading, body, ctaLabel, ctaUrl, footer }) {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
       <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
+        <h1 style="color: white; margin: 0; font-size: 20px;">Kommently</h1>
       </div>
       <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
         <h2 style="margin: 0 0 12px; font-size: 18px; color: #111827;">${heading}</h2>
@@ -366,7 +366,7 @@ async function sendInvoiceCreatedEmail(toEmail, orgName, planName, amountInPaise
 }
 
 async function sendPaymentReminderEmail(toEmail, orgName, daysLeft, amountInPaise, payUrl) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
   const html = billingShell({
     heading: 'Reminder: invoice due soon',
     body: `Just a friendly nudge — your invoice for <strong>${orgName}</strong> (<strong>${formatInr(amountInPaise)}</strong>)
@@ -382,7 +382,7 @@ async function sendPaymentReminderEmail(toEmail, orgName, daysLeft, amountInPais
 }
 
 async function sendUrgentPaymentReminderEmail(toEmail, orgName, daysLeft, amountInPaise, payUrl) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
   const html = billingShell({
     heading: 'Urgent: pay to avoid lockout',
     body: `Your invoice for <strong>${orgName}</strong> (<strong>${formatInr(amountInPaise)}</strong>) is still unpaid.<br/><br/>
@@ -399,7 +399,7 @@ async function sendUrgentPaymentReminderEmail(toEmail, orgName, daysLeft, amount
 }
 
 async function sendOrgLockedEmail(toEmail, orgName, amountInPaise, payUrl) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
   const html = billingShell({
     heading: 'Workspace locked',
     body: `Your workspace <strong>${orgName}</strong> has been locked because the invoice for <strong>${formatInr(amountInPaise)}</strong> is overdue.<br/><br/>
@@ -415,16 +415,16 @@ async function sendOrgLockedEmail(toEmail, orgName, amountInPaise, payUrl) {
 }
 
 async function sendEmailVerificationOtp(toEmail, otp) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
       <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px;">Feedbackly</h1>
+        <h1 style="color: white; margin: 0; font-size: 20px;">Kommently</h1>
       </div>
       <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
         <h2 style="margin: 0 0 12px; font-size: 18px; color: #111827;">Verify your email</h2>
         <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
-          Use this code to finish creating your Feedbackly workspace. The code expires in 10 minutes.
+          Use this code to finish creating your Kommently workspace. The code expires in 10 minutes.
         </p>
         <div style="background: #f3f4f6; border: 1px dashed #d1d5db; border-radius: 10px; padding: 18px; text-align: center; margin: 0 0 20px;">
           <span style="font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 28px; font-weight: 700; letter-spacing: 8px; color: #111827;">
@@ -439,7 +439,7 @@ async function sendEmailVerificationOtp(toEmail, otp) {
   `;
   await getTransporter().sendMail({
     from, to: toEmail,
-    subject: `${otp} is your Feedbackly verification code`,
+    subject: `${otp} is your Kommently verification code`,
     html,
   });
 }

@@ -96,7 +96,7 @@ export default function BillingTab() {
         if (res.data?.planList) setLivePlanList(res.data.planList);
         setAllowDowngrades(!!res.data?.allowDowngrades);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const currentPlanId = user?.orgPlan || "trial";
@@ -107,7 +107,7 @@ export default function BillingTab() {
     updateUser(userData);
     getPlanApi()
       .then((res) => setPlanData(res.data))
-      .catch(() => {});
+      .catch(() => { });
   };
 
   if (loading) {
@@ -137,11 +137,10 @@ export default function BillingTab() {
     <div className="space-y-8 pb-10">
       {statusMessage && (
         <div
-          className={`flex items-center gap-2 p-4 rounded-xl text-sm font-medium shadow-sm ${
-            statusMessage.includes("successful")
+          className={`flex items-center gap-2 p-4 rounded-xl text-sm font-medium shadow-sm ${statusMessage.includes("successful")
               ? "bg-green-50 text-green-800 border border-green-200"
               : "bg-amber-50 text-amber-800 border border-amber-200"
-          }`}
+            }`}
         >
           <svg
             className="w-5 h-5 shrink-0"
@@ -226,9 +225,8 @@ export default function BillingTab() {
                   : livePlans[currentPlanId]?.name || "Free"}
               </h2>
               <span
-                className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-full ${
-                  badgeColors[livePlans[currentPlanId]?.badgeColor || "gray"]
-                }`}
+                className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-full ${badgeColors[livePlans[currentPlanId]?.badgeColor || "gray"]
+                  }`}
               >
                 {currentPlanId === "trial" ? "Trial" : "Active"}
               </span>
@@ -275,26 +273,24 @@ export default function BillingTab() {
                   Trial Progress
                 </span>
                 <span
-                  className={`text-xs font-bold ${
-                    urgency === "critical"
+                  className={`text-xs font-bold ${urgency === "critical"
                       ? "text-red-600"
                       : urgency === "warning"
                         ? "text-amber-600"
                         : "text-blue-600"
-                  }`}
+                    }`}
                 >
                   {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
                 </span>
               </div>
               <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner">
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    urgency === "critical"
+                  className={`h-full rounded-full transition-all duration-500 ${urgency === "critical"
                       ? "bg-red-500"
                       : urgency === "warning"
                         ? "bg-amber-500"
                         : "bg-blue-500"
-                  }`}
+                    }`}
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
@@ -373,16 +369,15 @@ export default function BillingTab() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative flex flex-col bg-white rounded-2xl p-6 transition-all duration-200 ${
-                    isCurrent
+                  className={`relative flex flex-col bg-white rounded-2xl p-6 transition-all duration-200 ${isCurrent
                       ? "border-2 border-blue-500 shadow-md transform -translate-y-1"
                       : "border border-gray-200 hover:border-gray-300 hover:shadow-sm"
-                  }`}
+                    }`}
                 >
                   {/* Popular badge */}
                   {plan.popular && (
                     <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-sm">
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-sm">
                         Most Popular
                       </span>
                     </div>

@@ -21,7 +21,7 @@ const FOOTER_LINKS = {
     { label: 'Privacy Policy', href: '/privacy' },
     { label: 'Cookie Policy', href: '/cookie-policy' },
     { label: 'Terms of Service', href: '/terms' },
-    { label: 'Contact', href: 'mailto:hello@feedbackly.online' },
+    { label: 'Contact', href: 'mailto:hello@kommently.online' },
   ],
 };
 
