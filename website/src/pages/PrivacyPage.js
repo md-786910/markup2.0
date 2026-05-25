@@ -26,7 +26,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-white overflow-x-hidden">
       <Navbar />
 
-      <main>
+      <main id="main-content">
         {/* Hero Banner */}
         <section className="page-hero">
           <div className="relative z-10 max-w-4xl mx-auto text-center px-4 sm:px-6">
@@ -69,9 +69,9 @@ export default function PrivacyPage() {
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
               Welcome to Kommently. Kommently ("we," "us," or "our") operates the website{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">example.Kommently.online</a>{' '}
+              <a href="https://kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.app</a>{' '}
               and the application platform at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">example.Kommently.online</a>{' '}
+              <a href="https://example.kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">example.Kommently.app</a>{' '}
               (collectively, the "Service").
             </p>
             <p className="text-[#53645f] leading-relaxed mb-4">
@@ -273,7 +273,7 @@ export default function PrivacyPage() {
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
               To exercise any of these rights, please contact us at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>.
+              <a href="mailto:hello@kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.app</a>.
               We will respond to your request within 30 days. We may need to verify your identity before processing certain requests.
             </p>
 
@@ -283,7 +283,7 @@ export default function PrivacyPage() {
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
               Kommently is not directed to individuals under the age of 16. We do not knowingly collect personal information from children under 16. If we become aware that we have inadvertently collected personal data from a child under 16, we will take steps to delete that information as promptly as possible. If you believe that a child under 16 has provided us with personal information, please contact us at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>.
+              <a href="mailto:hello@kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.app</a>.
             </p>
 
             {/* 9. International Data Transfers */}
@@ -314,10 +314,10 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li><strong>Email:</strong>{' '}
-                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>
+                <a href="mailto:hello@kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.app</a>
               </li>
               <li><strong>Website:</strong>{' '}
-                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.online</a>
+                <a href="https://kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.app</a>
               </li>
             </ul>
             <p className="text-[#53645f] leading-relaxed mb-4">

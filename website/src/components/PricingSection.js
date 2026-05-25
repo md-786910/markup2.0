@@ -110,7 +110,7 @@ export default function PricingSection() {
               </ul>
 
               <a
-                href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/onboarding`}
+                href={plan.id === 'enterprise' ? 'mailto:hello@kommently.app' : `${APP_URL}/onboarding`}
                 className={`mt-10 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-all duration-300 ${plan.popular
                   ? 'bg-[#b8e36d] text-[#10231f] shadow-[0_16px_36px_rgba(143,209,79,0.28)] hover:-translate-y-px'
                   : 'border border-emerald-100 bg-white text-[#365047] hover:border-emerald-200 hover:bg-[#fbfff8]'

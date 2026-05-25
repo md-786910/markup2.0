@@ -21,7 +21,7 @@ const FOOTER_LINKS = {
     { label: 'Privacy Policy', href: '/privacy' },
     { label: 'Cookie Policy', href: '/cookie-policy' },
     { label: 'Terms of Service', href: '/terms' },
-    { label: 'Contact', href: 'mailto:hello@kommently.online' },
+    { label: 'Contact', href: 'mailto:hello@kommently.app' },
   ],
 };
 
@@ -73,7 +73,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-8 text-sm text-white/45 sm:flex-row sm:items-center sm:justify-between">
-          <p>&copy; {new Date().getFullYear()} Markly. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Kommently. All rights reserved.</p>
           <p className="flex items-center gap-2">
             Crafted with <HeartIcon className="h-4 w-4 text-red-500" /> for faster review teams
           </p>

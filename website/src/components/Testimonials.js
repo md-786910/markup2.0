@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 const items = [
   {
-    quote: "Markly replaced six tools and three weekly meetings. Our launches went from two weeks late to two days early.",
+    quote: "Kommently replaced six tools and three weekly meetings. Our launches went from two weeks late to two days early.",
     name: "Rebecca Welton",
     role: "Head of Brand, Northwind",
     initials: "RW",
@@ -16,7 +16,7 @@ const items = [
     initials: "DR",
   },
   {
-    quote: "We onboarded 40 reviewers in a day. Zero training. Markly is the rare tool people actually want to use.",
+    quote: "We onboarded 40 reviewers in a day. Zero training. Kommently is the rare tool people actually want to use.",
     name: "Sam Obisi",
     role: "VP Product, Globex",
     initials: "SO",

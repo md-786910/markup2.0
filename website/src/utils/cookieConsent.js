@@ -1,4 +1,4 @@
-export const COOKIE_CONSENT_STORAGE_KEY = 'markly.cookie-consent';
+export const COOKIE_CONSENT_STORAGE_KEY = 'kommently.cookie-consent';
 
 export const DEFAULT_COOKIE_PREFERENCES = {
   necessary: true,

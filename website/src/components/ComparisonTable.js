@@ -77,14 +77,14 @@ export default function ComparisonTable() {
               <div className="px-6 py-4 text-center leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">Markup.io</div>
             </div>
 
-            {COMPARISONS.map(([feature, feedbackly, competitor], i) => (
+            {COMPARISONS.map(([feature, kommently, competitor], i) => (
               <div
                 key={feature}
                 className={`grid grid-cols-3 border-b border-emerald-100 transition-colors last:border-0 hover:bg-[#eef8ee]/70 ${i % 2 ? 'bg-[#fbfff8]' : ''}`}
               >
                 <div className="px-6 py-4 font-medium leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">{feature}</div>
                 <div className="bg-[#eaf6ef]/70 px-6 py-4 text-center">
-                  <CellContent cell={feedbackly} />
+                  <CellContent cell={kommently} />
                 </div>
                 <div className="px-6 py-4 text-center">
                   <CellContent cell={competitor} />

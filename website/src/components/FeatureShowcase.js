@@ -280,7 +280,7 @@ const SHARING_SLIDES = [
   {
     id: 'sharing-open',
     password: 'password required',
-    link: 'feedbackly.online/review/a8f3k...',
+    link: 'kommently.app/review/a8f3k...',
     viewers: ['J', 'K', 'M'],
     note: '3 guests viewing',
     toggleOn: true,
@@ -291,7 +291,7 @@ const SHARING_SLIDES = [
   {
     id: 'sharing-expiry',
     password: 'expires in 24 hours',
-    link: 'feedbackly.online/review/staging-v2...',
+    link: 'kommently.app/review/staging-v2...',
     viewers: ['L', 'N', 'A'],
     note: 'Link shared with stakeholders',
     toggleOn: true,
@@ -302,7 +302,7 @@ const SHARING_SLIDES = [
   {
     id: 'sharing-private',
     password: 'invite only access',
-    link: 'feedbackly.online/review/private-qa...',
+    link: 'kommently.app/review/private-qa...',
     viewers: ['P', 'R', 'S'],
     note: 'Private review enabled',
     toggleOn: false,

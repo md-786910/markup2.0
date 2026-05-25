@@ -1,4 +1,16 @@
 User-agent: *
 Allow: /
+Disallow: /app
+Disallow: /auth
+Disallow: /dashboard
+Disallow: /login
+Disallow: /onboarding
+Disallow: /settings
+Disallow: /projects
+Disallow: /profile
+Disallow: /reset-password
+Disallow: /forgot-password
+Disallow: /admin
+Disallow: /api
 
-Sitemap: https://feedbackly.online/sitemap.xml
+Sitemap: https://kommently.app/sitemap.xml

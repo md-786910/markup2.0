@@ -22,7 +22,7 @@ export default function CookiePolicyPage() {
     <div className="min-h-screen overflow-x-hidden bg-white">
       <Navbar />
 
-      <main>
+      <main id="main-content">
         <section className="page-hero">
           <div className="relative z-10 mx-auto max-w-4xl px-4 text-center sm:px-6">
             <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#176b57] text-white shadow-[0_16px_34px_rgba(23,107,87,0.24)]">
@@ -135,8 +135,8 @@ export default function CookiePolicyPage() {
             </h2>
             <p className="mb-4 leading-relaxed text-[#53645f]">
               If you have questions about this Cookie Policy or how consent is handled, contact us at{' '}
-              <a href="#" className="text-[#176b57] underline hover:text-[#0f5f4c]">
-                hello@kommently.online
+              <a href="mailto:hello@kommently.app" className="text-[#176b57] underline hover:text-[#0f5f4c]">
+                hello@kommently.app
               </a>.
             </p>
           </div>
@@ -147,5 +147,4 @@ export default function CookiePolicyPage() {
     </div>
   );
 }
-
 

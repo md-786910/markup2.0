@@ -31,7 +31,7 @@ export default function TermsPage() {
     <div className="min-h-screen bg-white overflow-x-hidden">
       <Navbar />
 
-      <main>
+      <main id="main-content">
         {/* Hero Banner */}
         <section className="page-hero">
           <div className="relative z-10 max-w-4xl mx-auto text-center px-4 sm:px-6">
@@ -74,9 +74,9 @@ export default function TermsPage() {
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
               By accessing or using Kommently ("the Service"), operated by Kommently ("we," "us," or "our") at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.online</a>{' '}
+              <a href="https://kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.app</a>{' '}
               and{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">exapmple.kommently.online</a>,
+              <a href="https://example.kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">example.kommently.app</a>,
               you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you may not access or use the Service.
             </p>
             <p className="text-[#53645f] leading-relaxed mb-4">
@@ -115,7 +115,7 @@ export default function TermsPage() {
               <li>You are responsible for maintaining the confidentiality of your account credentials.</li>
               <li>You are responsible for all activities that occur under your account.</li>
               <li>You must notify us immediately at{' '}
-                <a href="mailto:hello@kommently.online" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>{' '}
+                <a href="mailto:hello@kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.app</a>{' '}
                 if you suspect unauthorized access to your account.
               </li>
               <li>You may not create multiple accounts for the purpose of circumventing plan limitations.</li>
@@ -225,7 +225,7 @@ export default function TermsPage() {
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
               Subscription fees are non-refundable except where required by applicable law. No refunds or credits will be issued for partial months of service. If you believe you have been charged in error, please contact us at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>{' '}
+              <a href="mailto:hello@kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.app</a>{' '}
               within 14 days of the charge.
             </p>
 
@@ -268,7 +268,7 @@ export default function TermsPage() {
             </ul>
             <p className="text-[#53645f] leading-relaxed mb-4">
               You may delete your account at any time through your account settings or by contacting us at{' '}
-              <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>.
+              <a href="mailto:hello@kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.app</a>.
               Upon termination, your data will be deleted within 30 days, except where retention is required by law or for legitimate business purposes.
             </p>
             <p className="text-[#53645f] leading-relaxed mb-4">
@@ -335,7 +335,7 @@ export default function TermsPage() {
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li><strong>Informal resolution:</strong> The parties shall first attempt to resolve any dispute through good-faith negotiation. You agree to contact us at{' '}
-                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>{' '}
+                <a href="mailto:hello@kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.app</a>{' '}
                 before initiating any formal proceedings.
               </li>
               <li><strong>Formal resolution:</strong> If the dispute cannot be resolved informally within 30 days, either party may pursue resolution through binding arbitration or the courts of competent jurisdiction.</li>
@@ -370,10 +370,10 @@ export default function TermsPage() {
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li><strong>Email:</strong>{' '}
-                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.online</a>
+                <a href="mailto:hello@kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">hello@kommently.app</a>
               </li>
               <li><strong>Website:</strong>{' '}
-                <a href="#" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.online</a>
+                <a href="https://kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.app</a>
               </li>
             </ul>
             <p className="text-[#53645f] leading-relaxed mb-4">

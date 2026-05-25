@@ -44,7 +44,7 @@ const HELP_TOPICS = [
 
 const SUPPORT_PATHS = [
   ['Live chat', 'Weekdays, 9am-6pm IST', 'Best for account and setup questions.'],
-  ['Email support', 'hello@kommently.online', 'Best for billing, security, and longer troubleshooting.'],
+  ['Email support', 'hello@kommently.app', 'Best for billing, security, and longer troubleshooting.'],
   ['Priority routing', 'Pro and Enterprise', 'Fastest help for production review workflows.'],
 ];
 
@@ -235,5 +235,4 @@ export default function SupportPage() {
     </div>
   );
 }
-
 

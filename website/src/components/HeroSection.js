@@ -59,7 +59,7 @@ function ProductMockup() {
           <aside className="border-b border-emerald-100 bg-[#f5faf3] xl:border-b-0 xl:border-r">
             <div className="border-b border-emerald-100 px-4 py-4">
               <div className="flex items-center gap-8 text-sm font-medium text-[#6d7f77]">
-                <span className="border-b-2 border-[#176b57] pb-2 text-[#176b57]">Markly</span>
+                <span className="border-b-2 border-[#176b57] pb-2 text-[#176b57]">Kommently</span>
                 <span>Activity</span>
                 <span>Versions</span>
               </div>
@@ -113,7 +113,7 @@ function ProductMockup() {
                   <div className="absolute left-10 top-[0.08em] z-10 grid h-10 w-10 place-items-center rounded-full bg-[#7fbf63] text-[#10231f] shadow-lg">
                     1
                   </div>
-                  <h1
+                  <p
                     className="
                       translate-x-14
                       text-[54px]
@@ -128,7 +128,7 @@ function ProductMockup() {
                     Let&apos;s save the world,
                     <br />
                     shall we?
-                  </h1>
+                  </p>
                 </div>
 
                 <div

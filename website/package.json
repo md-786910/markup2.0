@@ -1,5 +1,5 @@
 {
-  "name": "feedbackly-website",
+  "name": "kommently-website",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
@@ -18,7 +18,10 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build"
+    "prebuild": "node scripts/generate-seo-files.cjs",
+    "build": "react-scripts build",
+    "postbuild": "node scripts/postbuild-seo.cjs",
+    "seo:generate": "node scripts/generate-seo-files.cjs"
   },
   "browserslist": {
     "production": [

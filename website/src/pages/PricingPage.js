@@ -115,8 +115,8 @@ export default function PricingPage() {
               <article
                 key={plan.id}
                 className={`relative rounded-[24px] p-7 sm:p-8 ${plan.popular
-                    ? 'bg-[#10231f] text-white shadow-[0_28px_80px_rgba(16,22,38,0.24)]'
-                    : 'premium-card text-[#10231f]'
+                  ? 'bg-[#10231f] text-white shadow-[0_28px_80px_rgba(16,22,38,0.24)]'
+                  : 'premium-card text-[#10231f]'
                   }`}
               >
                 {plan.popular && (
@@ -138,7 +138,7 @@ export default function PricingPage() {
                   <p className={`mt-2 text-xs font-medium ${plan.popular ? 'text-white/45' : 'text-[#8a9b94]'}`}>Monthly billing available</p>
                 )}
                 <a
-                  href={plan.id === 'enterprise' ? 'mailto:hello@feedbackly.online' : `${APP_URL}/onboarding`}
+                  href={plan.id === 'enterprise' ? 'mailto:hello@kommently.app' : `${APP_URL}/onboarding`}
                   className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold transition ${plan.popular ? 'bg-[#176b57] text-white hover:bg-[#0f5f4c]' : 'border border-emerald-100 bg-white text-[#365047] hover:bg-[#f4faf4]'
                     }`}
                 >
