@@ -406,20 +406,20 @@ function ShowcaseRow({ feature, index }) {
   const bg = index % 2 === 0 ? 'bg-[#f4f9f4]' : 'bg-white';
 
   return (
-    <section className={`${bg} py-10 lg:py-10`} ref={ref}>
-      <div className={`mx-auto flex max-w-7xl flex-col items-center gap-12 px-4 sm:px-6 lg:gap-20 lg:px-8 ${reversed ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}>
+    <section className={`${bg} page-hero`} ref={ref}>
+      <div className={`mx-auto flex max-w-7xl flex-col items-center gap-12 px-4 sm:px-6 lg:px-8 lg:gap-20 ${reversed ? 'lg:flex-row-reverse' : 'lg:flex-row'}`}>
         <div className="flex-1" data-reveal={reversed ? 'right' : 'left'}>
-          <h2 className="text-[14px] sm:text-[20px] md:text-[26px] lg:text-[34px] xl:text-[38px] 2xl:text-[42px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
+          <h2 className="text-[19px] sm:text-[25px] md:text-[31px] lg:text-[39px] xl:text-[43px] 2xl:text-[47px] leading-[1.05] tracking-[-0.03em] font-bold font-sans mb-3">
             {feature.title}
           </h2>
-          <p className="mt-4 leading-relaxed text-[#53645f]">{feature.description}</p>
+          <p className="text-[14px] sm:text-[15px] lg:text-[16px] xl:text-[17px] leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">{feature.description}</p>
           <ul className="mt-6 space-y-3">
             {feature.bullets.map((bullet) => (
               <li key={bullet} className="flex items-start gap-3">
                 <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100">
                   <CheckIcon className="h-3 w-3 text-emerald-600" />
                 </div>
-                <span className="text-[15px] text-[#53645f]">{bullet}</span>
+                <span className="text-[14px] sm:text-[15px] lg:text-[16px] xl:text-[17px] leading-[1.7] max-w-[65ch] text-[#53645f] font-sans">{bullet}</span>
               </li>
             ))}
           </ul>

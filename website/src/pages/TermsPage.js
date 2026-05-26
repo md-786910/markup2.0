@@ -76,7 +76,7 @@ export default function TermsPage() {
               By accessing or using Kommently ("the Service"), operated by Kommently ("we," "us," or "our") at{' '}
               <a href="https://kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.app</a>{' '}
               and{' '}
-              <a href="https://example.kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">example.kommently.app</a>,
+              <a href="https://site.kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">site.kommently.app</a>,
               you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you may not access or use the Service.
             </p>
             <p className="text-[#53645f] leading-relaxed mb-4">

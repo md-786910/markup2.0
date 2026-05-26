@@ -71,7 +71,7 @@ export default function PrivacyPage() {
               Welcome to Kommently. Kommently ("we," "us," or "our") operates the website{' '}
               <a href="https://kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">kommently.app</a>{' '}
               and the application platform at{' '}
-              <a href="https://example.kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">example.Kommently.app</a>{' '}
+              <a href="https://site.kommently.app" className="text-[#176b57] hover:text-[#0f5f4c] underline">site.Kommently.app</a>{' '}
               (collectively, the "Service").
             </p>
             <p className="text-[#53645f] leading-relaxed mb-4">
