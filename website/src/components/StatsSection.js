@@ -45,7 +45,7 @@ export default function StatsSection() {
   const ref = useScrollReveal();
 
   return (
-    <section className="section-shell py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
+    <section className="section-shell page-hero" ref={ref}>
       <div className="absolute left-[8%] top-16 hidden lg:block animate-float">
         <CodeIcon className="h-4 w-4 text-emerald-200" />
       </div>

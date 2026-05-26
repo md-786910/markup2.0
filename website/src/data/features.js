@@ -43,7 +43,7 @@ export const FEATURES = [
     id: 'integrations',
     title: 'Integrations',
     description: 'Connect Slack, Discord, and Jira so approved comments can become notifications, issues, and release work.',
-    gradient: 'from-[#7fbf63] to-[#176b57]',
+    gradient: '#176b57',
     icon: 'plug',
     color: '#176b57',
   },

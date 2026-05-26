@@ -164,7 +164,7 @@ export default function FaqSection() {
   }, [ref]);
 
   return (
-    <section id="faq" className="relative bg-[#f4f9f4] py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
+    <section id="faq" className="relative bg-[#f4f9f4] page-hero" ref={ref}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(127,191,99,0.13),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.1),transparent_24%)]" />
       </div>
