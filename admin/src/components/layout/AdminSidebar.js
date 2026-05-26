@@ -65,7 +65,7 @@ export default function AdminSidebar() {
   return (
     <aside className="w-60 bg-gray-900 text-white flex flex-col h-screen sticky top-0">
       <div className="px-5 py-5 border-b border-gray-800">
-        <h1 className="text-lg font-bold tracking-tight">Feedbackly</h1>
+        <h1 className="text-lg font-bold tracking-tight">Kommently</h1>
         <p className="text-xs text-gray-400 mt-0.5">Admin Panel</p>
       </div>
 
@@ -75,10 +75,9 @@ export default function AdminSidebar() {
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-gray-800 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive
+                ? 'bg-gray-800 text-white'
+                : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
               }`
             }
           >
