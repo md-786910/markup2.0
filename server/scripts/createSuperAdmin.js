@@ -5,16 +5,21 @@
  *   - If not, creates a new superadmin user (no organization).
  */
 
-require('dotenv').config();
-const mongoose = require('mongoose');
-const User = require('../models/User');
-const connectDB = require('../config/db');
+require("dotenv").config();
+const mongoose = require("mongoose");
+const User = require("../models/User");
+const connectDB = require("../config/db");
+
+const superAdmin = {
+  email: "admin@leanport.com",
+  password: "BUBPVStGHultOKAD",
+};
 
 async function main() {
-  const [,, email, password] = process.argv;
-
+  // const [,, email, password] = process.argv;
+  const { email, password } = superAdmin;
   if (!email || !password) {
-    console.error('Usage: node scripts/createSuperAdmin.js <email> <password>');
+    console.error("Usage: node scripts/createSuperAdmin.js <email> <password>");
     process.exit(1);
   }
 
@@ -23,17 +28,17 @@ async function main() {
   const existing = await User.findOne({ email: email.toLowerCase().trim() });
 
   if (existing) {
-    existing.role = 'superadmin';
+    existing.role = "superadmin";
     await existing.save({ validateBeforeSave: false });
     console.log(`Promoted ${email} to superadmin.`);
   } else {
-    const crypto = require('crypto');
+    const crypto = require("crypto");
     await User.create({
-      name: 'Super Admin',
+      name: "Super Admin",
       email: email.toLowerCase().trim(),
       passwordHash: password,
-      role: 'superadmin',
-      sessionToken: crypto.randomBytes(32).toString('hex'),
+      role: "superadmin",
+      sessionToken: crypto.randomBytes(32).toString("hex"),
     });
     console.log(`Created superadmin: ${email}`);
   }
