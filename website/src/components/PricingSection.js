@@ -45,7 +45,7 @@ export default function PricingSection() {
   }, []);
 
   return (
-    <section id="pricing" className="section-shell py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
+    <section id="pricing" className="section-shell page-hero" ref={ref}>
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center" data-reveal>
           <h4 className="text-[12px] mb-3 text-[#0f8f75] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Pricing</h4>

@@ -16,7 +16,7 @@ export default function FeaturesGrid() {
   const ref = useScrollReveal();
 
   return (
-    <section id="features" className="section-shell py-14 sm:py-14 px-10 sm:px-10" ref={ref}>
+    <section id="features" className="section-shell page-hero" ref={ref}>
       <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-start" data-reveal>
           <h4 className="text-[12px] mb-3 text-[#0f8f75] font-serif font-bold uppercase"><span className="font-extrabold">––</span> Core features</h4>

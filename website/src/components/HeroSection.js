@@ -8,7 +8,7 @@ function ProductMockup() {
 
   return (
     <motion.div
-      className="relative mx-auto mt-10 max-w-[1400px] px-4 sm:mt-14"
+      className="relative mx-auto mt-10 max-w-[1400px] px-4 sm:mt-14 hidden lg:block"
     >
       <div className="absolute inset-x-8 bottom-0 h-40 rounded-full bg-[#7fbf63]/18 blur-3xl" />
 
@@ -216,7 +216,7 @@ function ProductMockup() {
 
 export default function HeroSection() {
   return (
-    <section className="relative overflow-hidden pb-14 pt-20 sm:pb-14 sm:pt-20 px-10 sm:px-10">
+    <section className="relative overflow-hidden page-hero">
       <div className="pointer-events-none absolute inset-0 dot-pattern opacity-35" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[620px] bg-[radial-gradient(circle_at_50%_0%,rgba(127,191,99,0.16),transparent_48%),radial-gradient(circle_at_18%_20%,rgba(56,189,248,0.12),transparent_32%)]" />
 
