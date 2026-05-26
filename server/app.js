@@ -51,7 +51,7 @@ app.use(
 // CORS allowlist: env-driven (ALLOWED_ORIGINS=comma,separated,list) with a
 // hardcoded fallback for the known prod hosts. Localhost matches in dev only.
 const FALLBACK_ORIGINS = [
-  ...(process.env.CLIENT_ORIGIN || "http://localhost:3000")
+  ...(process.env.CORS_ORIGIN || "http://localhost:3000")
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean),

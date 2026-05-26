@@ -14,7 +14,7 @@ connectDB()
 
     const io = new Server(server, {
       cors: {
-        origin: (process.env.CLIENT_ORIGIN || "http://localhost:3000")
+        origin: (process.env.CORS_ORIGIN || "http://localhost:3000")
           .split(",")
           .map((o) => o.trim()),
         methods: ["GET", "POST"],
