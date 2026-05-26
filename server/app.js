@@ -51,7 +51,10 @@ app.use(
 // CORS allowlist: env-driven (ALLOWED_ORIGINS=comma,separated,list) with a
 // hardcoded fallback for the known prod hosts. Localhost matches in dev only.
 const FALLBACK_ORIGINS = [
-  process.env.CLIENT_ORIGIN || "http://localhost:3000",
+  ...(process.env.CLIENT_ORIGIN || "http://localhost:3000")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
   process.env.ADMIN_ORIGIN || "http://localhost:3001",
   process.env.WEBSITE_ORIGIN || "http://localhost:3002",
   "https://app.feedbackly.online",

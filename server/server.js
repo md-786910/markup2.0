@@ -14,7 +14,9 @@ connectDB()
 
     const io = new Server(server, {
       cors: {
-        origin: process.env.CLIENT_ORIGIN || "http://localhost:3000",
+        origin: (process.env.CLIENT_ORIGIN || "http://localhost:3000")
+          .split(",")
+          .map((o) => o.trim()),
         methods: ["GET", "POST"],
         credentials: true,
       },
@@ -25,7 +27,9 @@ connectDB()
       const token = socket.handshake.auth?.token;
       if (!token) return next(new Error("No token provided"));
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+        const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+          algorithms: ["HS256"],
+        });
         const user = await User.findById(decoded.id).select("name email");
         if (!user) return next(new Error("User not found"));
         socket.user = user;
@@ -62,7 +66,9 @@ connectDB()
       socket.on("leave:project", (projectId) => {
         socket.leave(`project:${projectId}`);
         const now = new Date();
-        User.findByIdAndUpdate(socket.user._id, { lastSeen: now }).catch(() => {});
+        User.findByIdAndUpdate(socket.user._id, { lastSeen: now }).catch(
+          () => {},
+        );
         socket.to(`project:${projectId}`).emit("presence:left", {
           userId: socket.user._id.toString(),
           lastSeen: now.toISOString(),
@@ -73,7 +79,9 @@ connectDB()
         const projectId = socket.data.projectId;
         if (projectId) {
           const now = new Date();
-          User.findByIdAndUpdate(socket.user._id, { lastSeen: now }).catch(() => {});
+          User.findByIdAndUpdate(socket.user._id, { lastSeen: now }).catch(
+            () => {},
+          );
           socket.to(`project:${projectId}`).emit("presence:left", {
             userId: socket.user._id.toString(),
             lastSeen: now.toISOString(),
