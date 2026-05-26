@@ -1,4 +1,4 @@
-# Feedbackly App — block indexing of private app routes
+# Kommently App — block indexing of private app routes
 User-agent: *
 Disallow: /dashboard
 Disallow: /project/
@@ -12,4 +12,4 @@ Disallow: /reset-password/
 Disallow: /onboarding
 Allow: /review/
 
-Sitemap: https://feedbackly.online/sitemap.xml
+Sitemap: https://Kommently.app/sitemap.xml
