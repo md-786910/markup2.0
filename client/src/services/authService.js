@@ -12,8 +12,8 @@ export const sendOtpApi = (email) =>
 export const verifyOtpApi = (email, otp) =>
   api.post('/auth/verify-otp', { email, otp });
 
-export const signupApi = (name, email, password) =>
-  api.post('/auth/signup', { name, email, password });
+export const signupApi = (name, email, password, invitationToken) =>
+  api.post('/auth/signup', { name, email, password, invitationToken });
 
 export const getMeApi = () =>
   api.get('/auth/me');

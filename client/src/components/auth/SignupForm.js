@@ -42,7 +42,7 @@ export default function SignupForm() {
     setError('');
     setLoading(true);
     try {
-      const data = await signup(name, email, password);
+      await signup(name, email, password, token);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Signup failed');

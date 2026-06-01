@@ -149,7 +149,7 @@ const setCookieAndRespond = async (res, user, org, statusCode = 200, extra = {})
 };
 
 exports.signup = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, invitationToken } = req.body;
 
   if (!name || !email || !password) {
     return res
@@ -169,11 +169,29 @@ exports.signup = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Email already registered" });
   }
 
+  const now = new Date();
+  let invitationForSignup = null;
+  if (invitationToken) {
+    invitationForSignup = await Invitation.findOne({
+      token: invitationToken,
+      email: emailNorm,
+      status: "pending",
+      expiresAt: { $gt: now },
+    });
+
+    if (!invitationForSignup) {
+      return res
+        .status(400)
+        .json({ message: "Invitation not found, expired, or does not match this email." });
+    }
+  }
+
   // Email must have been verified via OTP within the past 10 minutes.
   // The first-user case bypasses this gate so a fresh deploy isn't bricked
-  // when SMTP isn't configured yet — every subsequent signup must verify.
+  // when SMTP isn't configured yet. A valid invitation token also proves
+  // control of the invited inbox because it was delivered to that address.
   const userCountForGate = await User.countDocuments();
-  if (userCountForGate > 0) {
+  if (userCountForGate > 0 && !invitationForSignup) {
     const EmailVerification = require("../models/EmailVerification");
     const verification = await EmailVerification.findOne({ email: emailNorm });
     const fresh =
@@ -230,8 +248,9 @@ exports.signup = asyncHandler(async (req, res) => {
 
   // Auto-accept any pending invitations for this email
   const pendingInvites = await Invitation.find({
-    email: email.toLowerCase(),
+    email: emailNorm,
     status: "pending",
+    expiresAt: { $gt: new Date() },
   });
   if (pendingInvites.length > 0) {
     // Assign the highest role from invitations (for non-first users)
