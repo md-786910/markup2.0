@@ -13,6 +13,53 @@ import {
   deleteProjectApi,
 } from '../services/projectService';
 
+const DEFAULT_DATE_RANGE = { preset: null, start: '', end: '' };
+
+function getDateBounds(dateRange = DEFAULT_DATE_RANGE) {
+  const now = new Date();
+  let start = null;
+  let end = null;
+
+  if (dateRange.preset === 'today') {
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  } else if (dateRange.preset === '7d') {
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+    end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  } else if (dateRange.preset === '30d') {
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+    end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  } else if (dateRange.preset === 'month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1);
+    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  } else if (dateRange.preset === 'custom') {
+    if (dateRange.start) {
+      const [year, month, day] = dateRange.start.split('-').map(Number);
+      start = new Date(year, month - 1, day);
+    }
+    if (dateRange.end) {
+      const [year, month, day] = dateRange.end.split('-').map(Number);
+      end = new Date(year, month - 1, day, 23, 59, 59, 999);
+    }
+  }
+
+  return { start, end };
+}
+
+function isInDateRange(project, dateRange) {
+  const { start, end } = getDateBounds(dateRange);
+  if (!start && !end) return true;
+
+  const value = project.createdAt || project.updatedAt;
+  if (!value) return false;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  if (start && date < start) return false;
+  if (end && date > end) return false;
+  return true;
+}
+
 export default function DashboardPage() {
   const { user, isAdmin } = useAuth();
   const [searchParams] = useSearchParams();
@@ -30,6 +77,7 @@ export default function DashboardPage() {
     type: null,
     ownership: null,
     search: '',
+    dateRange: DEFAULT_DATE_RANGE,
   });
 
   const loadProjects = useCallback(() => {
@@ -47,8 +95,13 @@ export default function DashboardPage() {
     loadProjects();
   }, [loadProjects]);
 
-  const activeProjects = projects.filter((p) => p.status === 'active');
-  const archivedProjects = projects.filter((p) => p.status === 'archived');
+  const dateFilteredProjects = useMemo(
+    () => projects.filter((p) => isInDateRange(p, filters.dateRange)),
+    [projects, filters.dateRange]
+  );
+
+  const activeProjects = dateFilteredProjects.filter((p) => p.status === 'active');
+  const archivedProjects = dateFilteredProjects.filter((p) => p.status === 'archived');
 
   const filteredProjects = useMemo(() => {
     let result = tab === 'archived' ? archivedProjects : activeProjects;
@@ -77,17 +130,18 @@ export default function DashboardPage() {
   }, [tab, activeProjects, archivedProjects, filters, user?.id]);
 
   const activeFilterCount =
-    [filters.status, filters.type, filters.ownership].filter(Boolean).length +
+    [filters.status, filters.type, filters.ownership, filters.dateRange?.preset].filter(Boolean).length +
     (filters.search.trim() ? 1 : 0);
+  const dateFilterCount = filters.dateRange?.preset ? 1 : 0;
 
   // Collect unique members across all projects
   const allMembers = [];
   const seenIds = new Set();
-  projects.forEach((project) => {
+  dateFilteredProjects.forEach((project) => {
     (project.members || []).forEach((member) => {
       if (!seenIds.has(member._id)) {
         seenIds.add(member._id);
-        const memberProjects = projects.filter((p) =>
+        const memberProjects = dateFilteredProjects.filter((p) =>
           (p.members || []).some((m) => m._id === member._id)
         );
         allMembers.push({ ...member, projects: memberProjects });
@@ -145,7 +199,7 @@ export default function DashboardPage() {
 
   const pageTitle = tab === 'members' ? 'Team' : tab === 'archived' ? 'Archive' : 'Dashboard';
   const pageSubtitle = tab === 'members'
-    ? `${allMembers.length} member${allMembers.length !== 1 ? 's' : ''} across ${projects.length} project${projects.length !== 1 ? 's' : ''}`
+    ? `${allMembers.length} member${allMembers.length !== 1 ? 's' : ''} across ${dateFilteredProjects.length} project${dateFilteredProjects.length !== 1 ? 's' : ''}`
     : `${websiteCount} website${websiteCount !== 1 ? 's' : ''}${documentCount > 0 ? ` · ${documentCount} document${documentCount !== 1 ? 's' : ''}` : ''}${archivedProjects.length > 0 && tab !== 'archived' ? ` · ${archivedProjects.length} archived` : ''}`;
 
   return (
@@ -170,19 +224,18 @@ export default function DashboardPage() {
       </div>
 
       {/* Filter Bar */}
-      {tab !== 'members' && (
-        <FilterBar
-          filters={filters}
-          onFiltersChange={setFilters}
-          activeFilterCount={activeFilterCount}
-        />
-      )}
+      <FilterBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        activeFilterCount={tab === 'members' ? dateFilterCount : activeFilterCount}
+        dateOnly={tab === 'members'}
+      />
 
       {/* Content */}
       {tab === 'members' ? (
         <MembersTab
           members={allMembers}
-          projects={projects}
+          projects={dateFilteredProjects}
           isAdmin={isAdmin}
           currentUserId={user?.id}
           onProjectsChanged={loadProjects}
