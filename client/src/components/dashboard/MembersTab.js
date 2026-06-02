@@ -8,6 +8,7 @@ import {
 import {
   getProjectInvitationsApi,
   cancelInvitationApi,
+  resendInvitationApi,
 } from '../../services/invitationService';
 
 const ROLE_STYLES = {
@@ -54,9 +55,11 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
   const [pendingInvitations, setPendingInvitations] = useState([]);
   const [invitationsLoading, setInvitationsLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
+  const [resendingId, setResendingId] = useState(null);
   const [confirmRevoke, setConfirmRevoke] = useState(null);
   const [showInvitations, setShowInvitations] = useState(true);
   const [invitationsError, setInvitationsError] = useState('');
+  const [invitationSuccess, setInvitationSuccess] = useState('');
   const [menuOpen, setMenuOpen] = useState(null);
   const menuRef = useRef(null);
 
@@ -99,13 +102,41 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
 
   const handleCancelInvitation = async (invitationId) => {
     setCancellingId(invitationId);
+    setInvitationsError('');
+    setInvitationSuccess('');
     try {
       await cancelInvitationApi(invitationId);
       setPendingInvitations((prev) => prev.filter((inv) => inv._id !== invitationId));
+      setInvitationSuccess('Invitation revoked');
+      setTimeout(() => setInvitationSuccess(''), 3000);
     } catch (err) {
       console.error('Failed to cancel invitation:', err);
+      setInvitationsError(err.response?.data?.message || 'Failed to revoke invitation');
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const handleResendInvitation = async (invitation) => {
+    setResendingId(invitation._id);
+    setInvitationsError('');
+    setInvitationSuccess('');
+    try {
+      const res = await resendInvitationApi(invitation._id);
+      setInvitationSuccess(res.data?.message || `Invitation resent to ${invitation.email}`);
+      setPendingInvitations((prev) =>
+        prev.map((inv) => (
+          inv._id === invitation._id
+            ? { ...inv, ...(res.data?.invitation || {}), projectName: inv.projectName }
+            : inv
+        ))
+      );
+      setTimeout(() => setInvitationSuccess(''), 3000);
+    } catch (err) {
+      console.error('Failed to resend invitation:', err);
+      setInvitationsError(err.response?.data?.message || 'Failed to resend invitation');
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -334,18 +365,36 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setConfirmRevoke(inv._id)}
-                        className="text-xs text-gray-400 hover:text-red-500 px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
-                      >
-                        Revoke
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleResendInvitation(inv)}
+                          disabled={resendingId === inv._id}
+                          className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded-md hover:bg-blue-50 transition-colors disabled:opacity-50"
+                        >
+                          {resendingId === inv._id ? 'Sending...' : 'Resend'}
+                        </button>
+                        <button
+                          onClick={() => setConfirmRevoke(inv._id)}
+                          className="text-xs text-gray-400 hover:text-red-500 px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
+                        >
+                          Revoke
+                        </button>
+                      </div>
                     )
                   )}
                 </div>
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {invitationSuccess && (
+        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-100 px-4 py-2.5 rounded-lg">
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {invitationSuccess}
         </div>
       )}
 

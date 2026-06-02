@@ -8,3 +8,6 @@ export const getProjectInvitationsApi = (projectId) =>
 
 export const cancelInvitationApi = (invitationId) =>
   api.delete(`/invitations/${invitationId}`);
+
+export const resendInvitationApi = (invitationId) =>
+  api.post(`/invitations/${invitationId}/resend`);
