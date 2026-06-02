@@ -14,7 +14,9 @@ export default function InviteMemberModal({ isOpen, onClose, projectId, onInvite
     setLoading(true);
     try {
       const res = await inviteMemberApi(projectId, email, role);
-      onInvited(res.data.project);
+      if (res.data?.project) {
+        onInvited(res.data.project);
+      }
       setEmail('');
       setRole('member');
       onClose();

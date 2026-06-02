@@ -285,10 +285,15 @@ exports.inviteMember = asyncHandler(async (req, res) => {
   await invitation.populate('project', 'name');
   await invitation.populate('invitedBy', 'name email');
 
+  const updated = await Project.findById(project._id)
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen avatar');
+
   res.status(201).json({
     message: emailSent
       ? 'Invitation sent'
       : 'Invitation created but email could not be sent. Please check your SMTP settings.',
+    project: updated,
     invitation,
     emailSent,
     emailError: emailSent ? undefined : emailError,

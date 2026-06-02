@@ -73,7 +73,9 @@ export default function MembersPage() {
     setInviteLoading(true);
     try {
       const res = await inviteMemberApi(projectId, email, inviteRole);
-      setProject(res.data.project);
+      if (res.data?.project) {
+        setProject(res.data.project);
+      }
       setInviteSuccess(`${email} has been invited`);
       setEmail('');
       setInviteRole('member');

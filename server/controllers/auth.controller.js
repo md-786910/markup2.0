@@ -252,6 +252,7 @@ exports.signup = asyncHandler(async (req, res) => {
     status: "pending",
     expiresAt: { $gt: new Date() },
   });
+  let acceptedProjectId = null;
   if (pendingInvites.length > 0) {
     // Assign the highest role from invitations (for non-first users)
     if (!isFirstUser) {
@@ -281,12 +282,18 @@ exports.signup = asyncHandler(async (req, res) => {
       await Project.findByIdAndUpdate(invite.project, {
         $addToSet: { members: user._id },
       });
+      if (!acceptedProjectId) {
+        acceptedProjectId = invite.project;
+      }
       invite.status = "accepted";
       await invite.save();
     }
   }
 
-  await setCookieAndRespond(res, user, org, 201, { isNewOrg: isFirstUser });
+  await setCookieAndRespond(res, user, org, 201, {
+    isNewOrg: isFirstUser,
+    invitedProjectId: acceptedProjectId ? acceptedProjectId.toString() : undefined,
+  });
 });
 
 exports.login = asyncHandler(async (req, res) => {

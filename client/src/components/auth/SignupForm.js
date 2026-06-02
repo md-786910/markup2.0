@@ -42,8 +42,8 @@ export default function SignupForm() {
     setError('');
     setLoading(true);
     try {
-      await signup(name, email, password, token);
-      navigate('/dashboard');
+      const data = await signup(name, email, password, token);
+      navigate(data?.invitedProjectId ? `/project/${data.invitedProjectId}` : '/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Signup failed');
     } finally {
