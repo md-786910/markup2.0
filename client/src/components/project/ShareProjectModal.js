@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { enableShareApi, updateShareApi, disableShareApi } from '../../services/projectService';
+import { useState, useEffect, useRef } from 'react';
+import { enableShareApi, updateShareApi } from '../../services/projectService';
 
 export default function ShareProjectModal({ isOpen, onClose, project, onProjectUpdate }) {
   const [loading, setLoading] = useState(false);
@@ -8,6 +8,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
   const [password, setPassword] = useState('');
   const [allowComments, setAllowComments] = useState(true);
   const [shareUrl, setShareUrl] = useState('');
+  const autoEnableProjectRef = useRef(null);
 
   const isSharing = project?.shareSettings?.enabled;
 
@@ -22,24 +23,38 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
     }
   }, [project]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen || !project?._id || isSharing || autoEnableProjectRef.current === project._id) return;
 
-  const handleEnable = async () => {
+    let cancelled = false;
+    autoEnableProjectRef.current = project._id;
     setLoading(true);
     setError('');
-    try {
-      const res = await enableShareApi(project._id, {
-        password: password || null,
-        allowComments,
+
+    enableShareApi(project._id, {
+      password: null,
+      allowComments: true,
+    })
+      .then((res) => {
+        if (cancelled) return;
+        setShareUrl(res.data.shareUrl);
+        onProjectUpdate({ ...project, shareSettings: res.data.shareSettings });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        autoEnableProjectRef.current = null;
+        setError(err.response?.data?.message || 'Failed to enable sharing');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-      setShareUrl(res.data.shareUrl);
-      onProjectUpdate({ ...project, shareSettings: res.data.shareSettings });
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to enable sharing');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, project, isSharing, onProjectUpdate]);
+
+  if (!isOpen) return null;
 
   const handleUpdate = async () => {
     setLoading(true);
@@ -52,20 +67,6 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
       onProjectUpdate({ ...project, shareSettings: res.data.shareSettings });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update settings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDisable = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await disableShareApi(project._id);
-      setShareUrl('');
-      onProjectUpdate({ ...project, shareSettings: { ...project.shareSettings, enabled: false } });
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to disable sharing');
     } finally {
       setLoading(false);
     }
@@ -94,6 +95,12 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
         </div>
 
         <div className="p-6 space-y-5">
+          {loading && !isSharing && (
+            <div className="flex items-center justify-center py-6">
+              <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
+            </div>
+          )}
+
           {/* Share link */}
           {isSharing && shareUrl && (
             <div>
@@ -109,11 +116,10 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
                 />
                 <button
                   onClick={handleCopy}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 ${
-                    copied
+                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 ${copied
                       ? 'bg-green-100 text-green-700'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
+                    }`}
                 >
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
@@ -125,7 +131,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
           )}
 
           {/* Settings */}
-          <div className="space-y-4">
+          {isSharing && <div className="space-y-4">
             {/* Password */}
             <div>
               <label className="text-sm font-medium text-gray-700 mb-1.5 block">
@@ -147,50 +153,32 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
                 <p className="text-xs text-gray-400">Guests can add pins and comments</p>
               </div>
               <div
-                className={`relative w-11 h-6 rounded-full transition-colors ${
-                  allowComments ? 'bg-blue-600' : 'bg-gray-200'
-                }`}
+                className={`relative w-11 h-6 rounded-full transition-colors ${allowComments ? 'bg-blue-600' : 'bg-gray-200'
+                  }`}
                 onClick={() => setAllowComments(!allowComments)}
               >
                 <div
-                  className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    allowComments ? 'translate-x-[22px]' : 'translate-x-0.5'
-                  }`}
+                  className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${allowComments ? 'translate-x-[22px]' : 'translate-x-0.5'
+                    }`}
                 />
               </div>
             </label>
-          </div>
+          </div>}
 
           {error && (
             <p className="text-sm text-red-500 text-center">{error}</p>
           )}
 
           {/* Actions */}
-          <div className="flex gap-3">
-            {!isSharing ? (
+          {isSharing && (
+            <div className="flex gap-3">
               <>
                 <button
                   onClick={onClose}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={loading}
+                  className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
                 >
                   Cancel
-                </button>
-                <button
-                  onClick={handleEnable}
-                  disabled={loading}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {loading ? 'Enabling...' : 'Enable Sharing'}
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={handleDisable}
-                  disabled={loading}
-                  className="px-4 py-2.5 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50 transition-colors"
-                >
-                  Disable
                 </button>
                 <button
                   onClick={handleUpdate}
@@ -200,8 +188,8 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
                   {loading ? 'Saving...' : 'Save Settings'}
                 </button>
               </>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
