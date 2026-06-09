@@ -130,6 +130,29 @@ exports.getProject = asyncHandler(async (req, res) => {
   res.json({ project });
 });
 
+exports.getWorkspaceMembers = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const orgId = project.organization;
+
+  if (!orgId) {
+    return res.json({ members: [] });
+  }
+
+  const excludedIds = [
+    project.owner?.toString?.() || project.owner,
+    ...(project.members || []).map((member) => member.toString()),
+  ].filter(Boolean);
+
+  const members = await User.find({
+    organization: orgId,
+    _id: { $nin: excludedIds },
+  })
+    .sort({ name: 1, email: 1 })
+    .select('name email role avatar lastSeen');
+
+  res.json({ members });
+});
+
 exports.updateProject = asyncHandler(async (req, res) => {
   const { name, websiteUrl, status, projectStatus } = req.body;
   const project = req.project;

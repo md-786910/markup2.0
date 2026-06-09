@@ -723,10 +723,12 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         isOpen={showInvite}
         onClose={() => setShowInvite(false)}
         projectId={project._id}
+        project={project}
         onInvited={(updated) => {
           onProjectUpdate(updated);
           setShowInvite(false);
         }}
+        onProjectUpdate={onProjectUpdate}
       />
     </div>
   );

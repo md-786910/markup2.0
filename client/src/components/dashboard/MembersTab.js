@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   inviteMemberApi,
@@ -40,7 +40,11 @@ const INVITE_ROLES = [
 
 export default function MembersTab({ members, projects, isAdmin, currentUserId, onProjectsChanged }) {
   const navigate = useNavigate();
-  const [inviteProjectId, setInviteProjectId] = useState('');
+  const activeProjects = useMemo(
+    () => (projects || []).filter((p) => p.status === 'active'),
+    [projects]
+  );
+  const [inviteProjectIds, setInviteProjectIds] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -62,16 +66,40 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
   const [invitationSuccess, setInvitationSuccess] = useState('');
   const [menuOpen, setMenuOpen] = useState(null);
   const menuRef = useRef(null);
+  const projectDropdownRef = useRef(null);
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+
+  const selectedInviteProjects = useMemo(
+    () => activeProjects.filter((project) => inviteProjectIds.includes(project._id)),
+    [activeProjects, inviteProjectIds]
+  );
+  const projectSelectLabel = selectedInviteProjects.length === 0
+    ? 'Select projects'
+    : selectedInviteProjects.length === 1
+      ? selectedInviteProjects[0].name
+      : `${selectedInviteProjects.length} projects selected`;
 
   // Close menu on outside click
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !projectDropdownOpen) return;
     const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(null);
+      if (menuOpen && menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(null);
+      if (projectDropdownOpen && projectDropdownRef.current && !projectDropdownRef.current.contains(e.target)) {
+        setProjectDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [menuOpen]);
+  }, [menuOpen, projectDropdownOpen]);
+
+  useEffect(() => {
+    if (inviteProjectIds.length === 0) return;
+    const activeIds = new Set(activeProjects.map((project) => project._id));
+    const filteredIds = inviteProjectIds.filter((projectId) => activeIds.has(projectId));
+    if (filteredIds.length !== inviteProjectIds.length) {
+      setInviteProjectIds(filteredIds);
+    }
+  }, [activeProjects, inviteProjectIds]);
 
   const fetchInvitations = useCallback(async () => {
     if (!projects?.length) return;
@@ -149,22 +177,42 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
 
   const handleInvite = async (e) => {
     e.preventDefault();
-    if (!inviteEmail.trim() || !inviteProjectId) return;
+    if (!inviteEmail.trim() || inviteProjectIds.length === 0) return;
     setInviteError('');
     setInviteSuccess('');
     setInviteLoading(true);
     try {
-      const res = await inviteMemberApi(inviteProjectId, inviteEmail, inviteRole);
-      if (res.data?.invitation && res.data?.emailSent === false) {
-        setInviteError(res.data.message || 'Invitation created but email could not be sent');
-      } else {
-        const msg = res.data?.invitation
-          ? `Invitation sent to ${inviteEmail}`
-          : `${inviteEmail} added successfully`;
-        setInviteSuccess(msg);
+      const results = await Promise.allSettled(
+        inviteProjectIds.map((projectId) => inviteMemberApi(projectId, inviteEmail, inviteRole))
+      );
+
+      const failures = [];
+      let successCount = 0;
+
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          successCount += 1;
+          return;
+        }
+        failures.push(result.reason?.response?.data?.message || 'Failed to invite member');
+      });
+
+      if (successCount > 0) {
+        const suffix = successCount === 1 ? 'project' : 'projects';
+        setInviteSuccess(`Invitation sent to ${inviteEmail} for ${successCount} ${suffix}`);
         setTimeout(() => setInviteSuccess(''), 3000);
       }
-      setInviteEmail('');
+
+      if (failures.length > 0) {
+        setInviteError(failures[0]);
+      }
+
+      if (successCount > 0 && failures.length === 0) {
+        setInviteEmail('');
+        setInviteProjectIds([]);
+        setProjectDropdownOpen(false);
+      }
+
       onProjectsChanged();
       setTimeout(() => fetchInvitations(), 500);
     } catch (err) {
@@ -210,7 +258,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
 
       {/* ===== INVITE CARD ===== */}
       {isAdmin && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-visible relative">
           <div className="px-6 py-4 border-b border-gray-100">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -246,17 +294,71 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
             <form onSubmit={handleInvite} className="space-y-4">
               {/* Row 1: Project + Email */}
               <div className="flex gap-3 flex-wrap sm:flex-nowrap">
-                <select
-                  value={inviteProjectId}
-                  onChange={(e) => setInviteProjectId(e.target.value)}
-                  required
-                  className="px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white w-full sm:w-48"
-                >
-                  <option value="">Select project</option>
-                  {projects.filter((p) => p.status === 'active').map((p) => (
-                    <option key={p._id} value={p._id}>{p.name}</option>
-                  ))}
-                </select>
+                <div ref={projectDropdownRef} className="relative w-full sm:w-60 shrink-0 z-30">
+                  <button
+                    type="button"
+                    onClick={() => setProjectDropdownOpen((open) => !open)}
+                    aria-haspopup="listbox"
+                    aria-expanded={projectDropdownOpen}
+                    className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm border rounded-lg bg-white transition-all ${
+                      projectDropdownOpen
+                        ? 'border-blue-500 ring-2 ring-blue-500/20'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className={`truncate text-left ${selectedInviteProjects.length === 0 ? 'text-gray-400' : 'text-gray-900'}`}>
+                      {projectSelectLabel}
+                    </span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      {selectedInviteProjects.length > 0 && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                          {selectedInviteProjects.length}
+                        </span>
+                      )}
+                      <svg className={`w-4 h-4 text-gray-400 transition-transform ${projectDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </span>
+                  </button>
+
+                  {projectDropdownOpen && (
+                    <div className="absolute left-0 top-full mt-1 z-50 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+                      <div className="max-h-64 overflow-y-auto py-1">
+                        {activeProjects.length === 0 ? (
+                          <div className="px-3.5 py-3 text-sm text-gray-400">
+                            No active projects available
+                          </div>
+                        ) : (
+                          activeProjects.map((project) => {
+                            const checked = inviteProjectIds.includes(project._id);
+                            return (
+                              <label
+                                key={project._id}
+                                className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-gray-50 ${
+                                  checked ? 'bg-blue-50/60' : ''
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    setInviteProjectIds((prev) => (
+                                      prev.includes(project._id)
+                                        ? prev.filter((id) => id !== project._id)
+                                        : [...prev, project._id]
+                                    ));
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="min-w-0 flex-1 truncate text-gray-700">{project.name}</span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <input
                   type="email"
                   value={inviteEmail}
@@ -288,7 +390,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                 </div>
                 <button
                   type="submit"
-                  disabled={inviteLoading}
+                  disabled={inviteLoading || selectedInviteProjects.length === 0}
                   className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
                 >
                   {inviteLoading ? (

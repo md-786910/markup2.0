@@ -8,6 +8,7 @@ const {
   createProject,
   getProjects,
   getProject,
+  getWorkspaceMembers,
   updateProject,
   deleteProject,
   inviteMember,
@@ -27,6 +28,7 @@ router.get('/:projectId', projectAccess, getProject);
 router.patch('/:projectId', projectAccess, authorize('owner', 'admin'), checkOrgNotLocked, updateProject);
 router.delete('/:projectId', projectAccess, authorize('owner', 'admin'), checkOrgNotLocked, deleteProject);
 router.get('/:projectId/invitations', projectAccess, require('../controllers/invitation.controller').getProjectInvitations);
+router.get('/:projectId/workspace-members', projectAccess, getWorkspaceMembers);
 router.post('/:projectId/members', projectAccess, checkOrgNotLocked, checkMemberLimit, checkGuestLimit, inviteMember);
 router.patch('/:projectId/members/:userId/role', projectAccess, checkOrgNotLocked, updateMemberRole);
 router.delete('/:projectId/members/:userId', projectAccess, checkOrgNotLocked, removeMember);

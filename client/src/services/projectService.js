@@ -26,6 +26,9 @@ export const deleteProjectApi = (projectId) =>
 export const inviteMemberApi = (projectId, email, role = 'member') =>
   api.post(`/projects/${projectId}/members`, { email, role });
 
+export const getWorkspaceMembersApi = (projectId) =>
+  api.get(`/projects/${projectId}/workspace-members`);
+
 export const updateMemberRoleApi = (projectId, userId, role) =>
   api.patch(`/projects/${projectId}/members/${userId}/role`, { role });
 

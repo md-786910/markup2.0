@@ -1,11 +1,19 @@
 import React from 'react';
 
-export default function Modal({ isOpen, onClose, title, children }) {
+const SIZE_CLASSES = {
+  sm: 'max-w-md',
+  md: 'max-w-lg',
+  lg: 'max-w-2xl',
+  xl: 'max-w-3xl',
+  '2xl': 'max-w-4xl',
+};
+
+export default function Modal({ isOpen, onClose, title, children, size = '2xl' }) {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scale-in">
+      <div className={`bg-white rounded-2xl shadow-xl w-full ${SIZE_CLASSES[size] || SIZE_CLASSES['2xl']} mx-4 animate-scale-in`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <button
