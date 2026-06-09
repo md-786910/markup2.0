@@ -3,9 +3,8 @@ import React from 'react';
 const SIZE_CLASSES = {
   sm: 'max-w-md',
   md: 'max-w-lg',
-  lg: 'max-w-2xl',
-  xl: 'max-w-3xl',
-  '2xl': 'max-w-4xl',
+  lg: 'max-w-xl',
+  '2xl': 'max-w-2xl',
 };
 
 export default function Modal({ isOpen, onClose, title, children, size = '2xl' }) {
