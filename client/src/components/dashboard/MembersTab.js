@@ -38,6 +38,18 @@ const INVITE_ROLES = [
   { value: 'guest', label: 'Guest', desc: 'View only' },
 ];
 
+const EMAIL_SPLIT_RE = /[,\n\r\t ]+/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function parseEmailList(value) {
+  return [...new Set(
+    (value || '')
+      .split(EMAIL_SPLIT_RE)
+      .map((email) => email.trim())
+      .filter(Boolean)
+  )];
+}
+
 export default function MembersTab({ members, projects, isAdmin, currentUserId, onProjectsChanged }) {
   const navigate = useNavigate();
   const activeProjects = useMemo(
@@ -45,7 +57,8 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
     [projects]
   );
   const [inviteProjectIds, setInviteProjectIds] = useState([]);
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteEmails, setInviteEmails] = useState([]);
+  const [inviteEmailInput, setInviteEmailInput] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState('');
@@ -67,6 +80,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
   const [menuOpen, setMenuOpen] = useState(null);
   const menuRef = useRef(null);
   const projectDropdownRef = useRef(null);
+  const inviteEmailInputRef = useRef(null);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
 
   const selectedInviteProjects = useMemo(
@@ -78,6 +92,34 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
     : selectedInviteProjects.length === 1
       ? selectedInviteProjects[0].name
       : `${selectedInviteProjects.length} projects selected`;
+
+  const addInviteEmails = useCallback((value) => {
+    const nextEmails = parseEmailList(value);
+    if (nextEmails.length === 0) return;
+
+    setInviteEmails((prev) => {
+      const seen = new Set(prev.map((email) => email.toLowerCase()));
+      const merged = [...prev];
+      nextEmails.forEach((email) => {
+        const normalized = email.toLowerCase();
+        if (seen.has(normalized)) return;
+        seen.add(normalized);
+        merged.push(email);
+      });
+      return merged;
+    });
+  }, []);
+
+  const commitInviteInput = useCallback(() => {
+    const trimmed = inviteEmailInput.trim();
+    if (!trimmed) return;
+    addInviteEmails(trimmed);
+    setInviteEmailInput('');
+  }, [addInviteEmails, inviteEmailInput]);
+
+  const removeInviteEmail = useCallback((emailToRemove) => {
+    setInviteEmails((prev) => prev.filter((email) => email !== emailToRemove));
+  }, []);
 
   // Close menu on outside click
   useEffect(() => {
@@ -170,20 +212,35 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
 
   const filtered = search
     ? members.filter((m) =>
-        (m.name || '').toLowerCase().includes(search.toLowerCase()) ||
-        (m.email || '').toLowerCase().includes(search.toLowerCase())
-      )
+      (m.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (m.email || '').toLowerCase().includes(search.toLowerCase())
+    )
     : members;
 
   const handleInvite = async (e) => {
     e.preventDefault();
-    if (!inviteEmail.trim() || inviteProjectIds.length === 0) return;
+    const draftEmails = parseEmailList(inviteEmailInput);
+
+    const emails = [...inviteEmails, ...draftEmails];
+    const uniqueEmails = [...new Set(emails.map((email) => email.toLowerCase()))]
+      .map((lowerEmail) => emails.find((email) => email.toLowerCase() === lowerEmail))
+      .filter(Boolean);
+    if (uniqueEmails.length === 0 || inviteProjectIds.length === 0) return;
+
+    const invalidEmails = uniqueEmails.filter((email) => !EMAIL_RE.test(email));
+    if (invalidEmails.length > 0) {
+      setInviteError(`Invalid email address${invalidEmails.length > 1 ? 'es' : ''}: ${invalidEmails.join(', ')}`);
+      return;
+    }
+
     setInviteError('');
     setInviteSuccess('');
     setInviteLoading(true);
     try {
       const results = await Promise.allSettled(
-        inviteProjectIds.map((projectId) => inviteMemberApi(projectId, inviteEmail, inviteRole))
+        inviteProjectIds.flatMap((projectId) =>
+          uniqueEmails.map((email) => inviteMemberApi(projectId, email, inviteRole))
+        )
       );
 
       const failures = [];
@@ -198,8 +255,8 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
       });
 
       if (successCount > 0) {
-        const suffix = successCount === 1 ? 'project' : 'projects';
-        setInviteSuccess(`Invitation sent to ${inviteEmail} for ${successCount} ${suffix}`);
+        const suffix = successCount === 1 ? 'invitation' : 'invitations';
+        setInviteSuccess(`${successCount} ${suffix} sent successfully`);
         setTimeout(() => setInviteSuccess(''), 3000);
       }
 
@@ -208,7 +265,8 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
       }
 
       if (successCount > 0 && failures.length === 0) {
-        setInviteEmail('');
+        setInviteEmails([]);
+        setInviteEmailInput('');
         setInviteProjectIds([]);
         setProjectDropdownOpen(false);
       }
@@ -300,11 +358,10 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                     onClick={() => setProjectDropdownOpen((open) => !open)}
                     aria-haspopup="listbox"
                     aria-expanded={projectDropdownOpen}
-                    className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm border rounded-lg bg-white transition-all ${
-                      projectDropdownOpen
+                    className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm border rounded-lg bg-white transition-all ${projectDropdownOpen
                         ? 'border-blue-500 ring-2 ring-blue-500/20'
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <span className={`truncate text-left ${selectedInviteProjects.length === 0 ? 'text-gray-400' : 'text-gray-900'}`}>
                       {projectSelectLabel}
@@ -334,9 +391,8 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                             return (
                               <label
                                 key={project._id}
-                                className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-gray-50 ${
-                                  checked ? 'bg-blue-50/60' : ''
-                                }`}
+                                className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-gray-50 ${checked ? 'bg-blue-50/60' : ''
+                                  }`}
                               >
                                 <input
                                   type="checkbox"
@@ -359,14 +415,66 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                     </div>
                   )}
                 </div>
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => { setInviteEmail(e.target.value); setInviteError(''); }}
-                  placeholder="colleague@company.com"
-                  required
-                  className="flex-1 px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[200px]"
-                />
+                <div className="flex-1 min-w-[200px]">
+                  <div
+                    className="flex min-h-[44px] flex-wrap items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20"
+                    onClick={() => inviteEmailInputRef.current?.focus()}
+                  >
+                    {inviteEmails.map((email) => (
+                      <span
+                        key={email}
+                        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700"
+                      >
+                        <span className="max-w-[180px] truncate">{email}</span>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            removeInviteEmail(email);
+                          }}
+                          className="flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700"
+                          aria-label={`Remove ${email}`}
+                        >
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      ref={inviteEmailInputRef}
+                      type="text"
+                      value={inviteEmailInput}
+                      onChange={(e) => { setInviteEmailInput(e.target.value); setInviteError(''); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ',' || e.key === 'Tab') {
+                          if (inviteEmailInput.trim()) {
+                            e.preventDefault();
+                            commitInviteInput();
+                          }
+                          return;
+                        }
+                        if (e.key === 'Backspace' && !inviteEmailInput && inviteEmails.length > 0) {
+                          removeInviteEmail(inviteEmails[inviteEmails.length - 1]);
+                        }
+                      }}
+                      onBlur={commitInviteInput}
+                      onPaste={(e) => {
+                        const pasted = e.clipboardData.getData('text');
+                        if (/[,\n\r\t ]/.test(pasted)) {
+                          e.preventDefault();
+                          addInviteEmails(pasted);
+                          setInviteEmailInput('');
+                        }
+                      }}
+                      placeholder={inviteEmails.length === 0 ? 'colleague@company.com, teammate@company.com' : ''}
+                      className="min-w-[180px] flex-1 border-0 bg-transparent px-1 py-1 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+                    />
+                  </div>
+                  {/* <p className="mt-1 text-[11px] text-gray-400">
+                    Press Enter, Tab, or comma to add an email. Paste multiple emails at once.
+                  </p> */}
+                </div>
               </div>
 
               {/* Row 2: Role pills + Invite button */}
@@ -377,11 +485,10 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                       key={r.value}
                       type="button"
                       onClick={() => setInviteRole(r.value)}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                        inviteRole === r.value
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${inviteRole === r.value
                           ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
                           : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                      }`}
+                        }`}
                       title={r.desc}
                     >
                       {r.label}
