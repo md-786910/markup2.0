@@ -210,7 +210,8 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   var pinMode = false;
   var pins = [];
   var pinContainer = null;
-  var prevSelectedId = null;
+  var _pendingScrollPinId = null;
+  var _pendingScrollPin = null;
 
   function _skipUrl(rawUrl) {
     return !rawUrl || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:') ||
@@ -548,6 +549,16 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         case 'MARKUP_UPDATE_PINS':
           pins = e.data.pins || [];
           renderPins();
+          // A pending scroll request may now be satisfiable (e.g. the target
+          // pin's page just finished loading after a navigation).
+          tryPendingScroll();
+          break;
+        case 'MARKUP_SCROLL_TO_PIN':
+          _pendingScrollPinId = e.data.pinId || null;
+          // Optional explicit pin payload — lets us scroll even when the pin
+          // isn't (yet) in the current page-filtered pin set.
+          _pendingScrollPin = e.data.pin || null;
+          tryPendingScroll();
           break;
         case 'MARKUP_SELECT_PIN':
           highlightPin(e.data.pinId);
@@ -722,14 +733,6 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         delete _pinElements[id];
       }
     }
-
-    // Only scroll when the selected pin actually changes
-    var sel = pins.find(function(p) { return p.selected; });
-    var newSelectedId = sel ? sel.id : null;
-    if (newSelectedId && newSelectedId !== prevSelectedId) {
-      scrollToSelected();
-    }
-    prevSelectedId = newSelectedId;
   }
 
   // Debounced re-render for layout-shift compensation
@@ -750,15 +753,29 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
 
   var _scrollTimer = null;
 
-  function scrollToSelected() {
+  // Resolve a pending scroll request once the target pin is present in the
+  // current pin set. If it isn't there yet (e.g. a navigation is still in
+  // flight), the request stays pending and is retried on the next pin update.
+  function tryPendingScroll() {
+    if (!_pendingScrollPinId) return;
+    // Prefer the pin from the current rendered set; otherwise fall back to the
+    // explicit payload carried by the scroll request (covers the brief window
+    // where the target page's pins haven't been delivered yet).
+    var target = pins.find(function(p) { return p.id === _pendingScrollPinId; }) || _pendingScrollPin;
+    if (!target) return;
+    _pendingScrollPinId = null;
+    _pendingScrollPin = null;
+    scrollToPin(target);
+  }
+
+  function scrollToPin(pin) {
     // Cancel any previous scroll polling chain
     if (_scrollTimer) {
       clearTimeout(_scrollTimer);
       _scrollTimer = null;
     }
 
-    var sel = pins.find(function(p) { return p.selected; });
-    if (!sel) return;
+    if (!pin) return;
 
     var lastHeight = 0;
     var attempts = 0;
@@ -776,7 +793,26 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       }
 
       _scrollTimer = null;
-      var pos = getPinPosition(sel);
+
+      // Prefer scrolling the anchor element into view: scrollIntoView walks up
+      // and scrolls whatever container actually holds the element, so it works
+      // on sites that use a custom/transformed scroll container or a smooth-
+      // scroll library (where window.scrollTo is a no-op).
+      if (pin.selector) {
+        try {
+          var anchor = document.querySelector(pin.selector);
+          if (anchor) {
+            var rect = anchor.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              anchor.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+              return;
+            }
+          }
+        } catch (err) { /* fall through to window scroll */ }
+      }
+
+      // Fallback: native window scroll using the computed pin position.
+      var pos = getPinPosition(pin);
       window.scrollTo({ top: pos.top - (window.innerHeight / 2), behavior: 'smooth' });
     }
 

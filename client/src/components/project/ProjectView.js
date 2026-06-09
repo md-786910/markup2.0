@@ -437,7 +437,9 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
       if (pin.deviceMode && pin.deviceMode !== deviceMode) {
         handleDeviceChange(pin.deviceMode);
       }
-      if (pin.pageUrl !== targetUrl) {
+      // Navigate based on the page actually shown in the iframe (currentPageUrl),
+      // not the last requested targetUrl — they diverge after in-iframe browsing.
+      if (pin.pageUrl !== currentPageUrl) {
         setTargetUrl(pin.pageUrl);
       }
     }
@@ -690,6 +692,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
               pinMode={pinMode}
               pins={pins}
               selectedPinId={selectedPin?._id}
+              selectedPin={selectedPin}
               loading={iframeLoading || modeSwitching}
               hidePins={!pinMode}
               onLoad={handleIframeLoad}

@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 
 const DESKTOP_WIDTH = 1440;
 
-export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, selectedPinId, loading, hidePins, onLoad, viewportWidth = DESKTOP_WIDTH }) {
+export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, selectedPinId, selectedPin, loading, hidePins, onLoad, viewportWidth = DESKTOP_WIDTH }) {
   const isDesktop = viewportWidth >= DESKTOP_WIDTH;
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
@@ -102,6 +102,37 @@ export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, se
     iframe.addEventListener('load', sendPins);
     return () => iframe.removeEventListener('load', sendPins);
   }, [pins, selectedPinId, hidePins]);
+
+  // Request the iframe to scroll to the selected pin. The iframe keeps this
+  // request pending until that pin is present, so it resolves correctly even
+  // after a navigation reload (where the load listener re-issues the request).
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !selectedPinId) return;
+
+    const sendScrollToPin = () => {
+      // Carry the pin's position data so the iframe can scroll to it even if
+      // that pin isn't (yet) in its current page-filtered pin set.
+      const pin = selectedPin && selectedPin._id === selectedPinId ? {
+        id: selectedPin._id,
+        selector: selectedPin.selector || null,
+        elementOffsetX: selectedPin.elementOffsetX != null ? selectedPin.elementOffsetX : null,
+        elementOffsetY: selectedPin.elementOffsetY != null ? selectedPin.elementOffsetY : null,
+        xPercent: selectedPin.xPercent,
+        yPercent: selectedPin.yPercent,
+        documentWidth: selectedPin.documentWidth || null,
+        documentHeight: selectedPin.documentHeight || null,
+      } : null;
+      iframe.contentWindow.postMessage(
+        { type: 'MARKUP_SCROLL_TO_PIN', pinId: selectedPinId, pin },
+        '*'
+      );
+    };
+
+    sendScrollToPin();
+    iframe.addEventListener('load', sendScrollToPin);
+    return () => iframe.removeEventListener('load', sendScrollToPin);
+  }, [selectedPinId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Center the iframe when it's narrower than the container (tablet/mobile only)
   const iframeScaledWidth = viewportWidth * scaleFactor;
