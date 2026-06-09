@@ -119,7 +119,30 @@ exports.getProjects = asyncHandler(async (req, res) => {
     .populate('owner', 'name email lastSeen')
     .populate('members', 'name email role lastSeen avatar');
 
-  res.json({ projects });
+  // Compute the comment count per project: Comment -> Pin -> Project.
+  const projectIds = projects.map((p) => p._id);
+  const pins = await Pin.find({ project: { $in: projectIds } }).select('_id project');
+  const pinToProject = new Map(pins.map((pin) => [pin._id.toString(), pin.project.toString()]));
+
+  const commentsByPin = await Comment.aggregate([
+    { $match: { pin: { $in: pins.map((pin) => pin._id) } } },
+    { $group: { _id: '$pin', count: { $sum: 1 } } },
+  ]);
+
+  const commentCountByProject = {};
+  commentsByPin.forEach(({ _id, count }) => {
+    const projectId = pinToProject.get(_id.toString());
+    if (projectId) {
+      commentCountByProject[projectId] = (commentCountByProject[projectId] || 0) + count;
+    }
+  });
+
+  const projectsWithCounts = projects.map((project) => ({
+    ...project.toObject(),
+    commentCount: commentCountByProject[project._id.toString()] || 0,
+  }));
+
+  res.json({ projects: projectsWithCounts });
 });
 
 exports.getProject = asyncHandler(async (req, res) => {
