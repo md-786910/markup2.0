@@ -250,6 +250,11 @@ exports.inviteMember = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'User is already a member' });
     }
 
+    // Keep the selected project role in sync with the user record so the UI
+    // and later member actions reflect the invited permission level.
+    user.role = roleToAssign;
+    await user.save({ validateBeforeSave: false });
+
     project.members.push(user._id);
     await project.save();
 

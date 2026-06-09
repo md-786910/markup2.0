@@ -60,6 +60,14 @@ export default function InviteMemberModal({
     });
   }, [workspaceMembers, memberSearch]);
 
+  const selectedWorkspaceMembers = useMemo(
+    () =>
+      selectedWorkspaceMemberIds
+        .map((memberId) => workspaceMembers.find((member) => member._id === memberId))
+        .filter(Boolean),
+    [selectedWorkspaceMemberIds, workspaceMembers]
+  );
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -390,6 +398,47 @@ export default function InviteMemberModal({
               </div>
               <span className="text-[11px] text-gray-400">{selectedWorkspaceMemberIds.length} selected</span>
             </div>
+
+            {selectedWorkspaceMembers.length > 0 && (
+              <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+                    Selected Members
+                  </p>
+                  <span className="text-[11px] text-emerald-700/80">
+                    {selectedWorkspaceMembers.length} picked
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedWorkspaceMembers.map((member) => {
+                    const selectedRole = selectedWorkspaceMemberRoles[member._id] || member.role || 'member';
+                    return (
+                      <div
+                        key={member._id}
+                        className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm"
+                      >
+                        <span className="max-w-[180px] truncate font-medium">
+                          {member.name || member.email || 'Unknown member'}
+                        </span>
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                          {selectedRole}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => toggleWorkspaceMember(member)}
+                          className="flex h-5 w-5 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                          aria-label={`Remove ${member.name || member.email} from selection`}
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <input
               type="text"
