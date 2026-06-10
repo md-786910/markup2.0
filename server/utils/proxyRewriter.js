@@ -363,6 +363,16 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       }, 16);
     }, { passive: true });
 
+    // Smooth-scroll libraries (Locomotive/Lenis) transform a container instead of
+    // scrolling the window, so the native 'scroll' event above never fires. Hook
+    // the captured instance's own scroll event to keep pin markers aligned.
+    try {
+      var _scroller = window.__markupScroller;
+      if (_scroller && typeof _scroller.on === 'function') {
+        _scroller.on('scroll', function() { scheduleRenderPins(); });
+      }
+    } catch (e) {}
+
     window.addEventListener('resize', function() {
       sendMessage('MARKUP_SCROLL', getDimensions());
       renderPins();
@@ -750,6 +760,40 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
 
   var _scrollTimer = null;
 
+  // Resolve a pin's anchor element from its selector (non-zero rect required).
+  function resolveAnchor(pin) {
+    if (!pin || !pin.selector) return null;
+    try {
+      var el = document.querySelector(pin.selector);
+      if (el) {
+        var rect = el.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) return el;
+      }
+    } catch (err) { /* invalid selector */ }
+    return null;
+  }
+
+  // Scroll via a captured smooth-scroll library instance (Locomotive/Lenis),
+  // whose own scrollTo drives the transform-based scrolling these sites use.
+  function smoothScrollToEl(anchor) {
+    var s = window.__markupScroller;
+    if (!s || typeof s.scrollTo !== 'function') return false;
+    var offset = -Math.round(window.innerHeight / 2); // center-ish
+    try {
+      if (s.scroll && s.scroll.instance) {
+        s.scrollTo(anchor, offset, 800);              // Locomotive v3 positional
+      } else {
+        s.scrollTo(anchor, { offset: offset, duration: 0.8 }); // v4 / Lenis options
+      }
+      // Re-align the pin overlay after the library finishes animating.
+      setTimeout(scheduleRenderPins, 850);
+      return true;
+    } catch (e) {
+      try { s.scrollTo(anchor); setTimeout(scheduleRenderPins, 850); return true; }
+      catch (e2) { return false; }
+    }
+  }
+
   function scrollToSelected() {
     // Cancel any previous scroll polling chain
     if (_scrollTimer) {
@@ -776,6 +820,17 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       }
 
       _scrollTimer = null;
+
+      // Prefer the anchor element so we scroll whatever container actually holds
+      // it: (1) a smooth-scroll library instance (Locomotive/Lenis) where native
+      // scroll is a no-op, (2) native scrollIntoView, then (3) window.scrollTo.
+      var anchor = resolveAnchor(sel);
+      if (anchor) {
+        if (smoothScrollToEl(anchor)) return;
+        anchor.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        return;
+      }
+
       var pos = getPinPosition(sel);
       window.scrollTo({ top: pos.top - (window.innerHeight / 2), behavior: 'smooth' });
     }
@@ -881,8 +936,56 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
 })();
 </script>`;
 
-  // Inject before the LAST </body> to avoid inserting inside inline scripts
-  // that contain "</body>" in string literals (common in WordPress themes)
+  // Early capture script — must run BEFORE the page's own scripts so it can wrap
+  // smooth-scroll library constructors (Locomotive Scroll, Lenis) and record the
+  // created instance on window.__markupScroller. These libraries fake scrolling
+  // via CSS transforms, so window.scrollTo/scrollIntoView are no-ops; we later
+  // route scroll-to-pin through the instance's own scrollTo(). Non-destructive:
+  // the real constructor still runs and the site's scrolling is untouched.
+  const captureScript = `
+<script>
+(function() {
+  try {
+    function record(inst) { try { if (inst) window.__markupScroller = inst; } catch(e){} }
+    function wrap(Real) {
+      if (typeof Real !== 'function' || Real.__markupWrapped) return Real;
+      function Wrapped() {
+        var inst = Reflect.construct(Real, Array.prototype.slice.call(arguments), Wrapped);
+        record(inst);
+        return inst;
+      }
+      Wrapped.prototype = Real.prototype;
+      Wrapped.__markupWrapped = true;
+      for (var k in Real) { try { Wrapped[k] = Real[k]; } catch(e){} }
+      return Wrapped;
+    }
+    ['LocomotiveScroll', 'Lenis'].forEach(function(name) {
+      try {
+        var current = window[name];
+        if (typeof current === 'function') { window[name] = wrap(current); return; }
+        Object.defineProperty(window, name, {
+          configurable: true,
+          get: function() { return this['__markup_' + name]; },
+          set: function(v) { this['__markup_' + name] = wrap(v); }
+        });
+      } catch(e){}
+    });
+  } catch(e){}
+})();
+</script>`;
+
+  // Insert the capture script as early as possible (right after <head>), so it
+  // precedes the page's smooth-scroll library + init scripts.
+  const headMatch = html.match(/<head[^>]*>/i);
+  if (headMatch) {
+    const idx = headMatch.index + headMatch[0].length;
+    html = html.slice(0, idx) + captureScript + html.slice(idx);
+  } else {
+    html = captureScript + html;
+  }
+
+  // Inject the main script before the LAST </body> to avoid inserting inside inline
+  // scripts that contain "</body>" in string literals (common in WordPress themes)
   const lastBodyIdx = html.lastIndexOf('</body>');
   if (lastBodyIdx !== -1) {
     return html.slice(0, lastBodyIdx) + injectionScript + html.slice(lastBodyIdx);
