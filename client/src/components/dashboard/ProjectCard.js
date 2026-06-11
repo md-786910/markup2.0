@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { PROJECT_STATUSES } from "../../utils/projectConstants";
 
 const API_BASE = (
@@ -314,9 +314,9 @@ export default function ProjectCard({
       )}
 
       {/* Thumbnail area */}
-      <div
-        onClick={() => navigate(`/project/${project._id}`)}
-        className="cursor-pointer"
+      <Link
+        to={`/project/${project._id}`}
+        className="cursor-pointer block"
       >
         <div className="h-40 bg-gray-50 border-b border-gray-100 relative rounded-t-xl overflow-hidden">
           {isDocProject ? (
@@ -381,12 +381,12 @@ export default function ProjectCard({
               )}
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Card body */}
-      <div
-        onClick={() => navigate(`/project/${project._id}`)}
-        className="p-4 cursor-pointer"
+      <Link
+        to={`/project/${project._id}`}
+        className="p-4 cursor-pointer block"
       >
         <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-1 mb-1 pr-6">
           {project.name}
@@ -438,7 +438,7 @@ export default function ProjectCard({
             </div>
           </div>
         </div>
-      </div>
+      </Link>
     </div>
   );
 }
