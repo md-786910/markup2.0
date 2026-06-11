@@ -502,22 +502,22 @@ export default function CommentSidebar({
 
       {/* Screenshot */}
       {pin.screenshot?.path && (
-        <div className="px-3 py-2 border-b border-gray-200 shrink-0">
-          <p className="text-[11px] text-gray-400 mb-1.5 font-medium">
+        <div className="px-3 py-1.5 border-b border-gray-200 shrink-0">
+          <p className="text-[10px] text-gray-400 mb-1 font-medium">
             Screenshot
           </p>
           <button
-            className="w-full flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors overflow-hidden h-10 px-2"
+            className="w-full flex items-center gap-1.5 rounded border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors overflow-hidden h-7 px-1.5"
             onClick={() => setLightbox({ src: `/${pin.screenshot.path}`, pin })}
           >
-            <div className="w-8 h-8 rounded shrink-0 overflow-hidden">
+            <div className="w-5 h-5 rounded shrink-0 overflow-hidden">
               <img
                 src={`/${pin.screenshot.path}`}
                 alt=""
                 className="w-full h-full object-cover blur-sm scale-110"
               />
             </div>
-            <span className="flex-1 text-center text-xs text-gray-500 font-medium">
+            <span className="flex-1 text-center text-[11px] text-gray-500 font-medium">
               View screenshot
             </span>
             <svg
@@ -539,7 +539,7 @@ export default function CommentSidebar({
 
       {/* Prev / Next Navigation */}
       {pins.length > 1 && (
-        <div className="flex items-center justify-between px-3 py-2.5 border-t border-gray-200 bg-gray-50 shrink-0">
+        <div className="flex items-center justify-between px-3 py-1.5 border-t border-gray-200 bg-gray-50 shrink-0">
           <button
             disabled={!hasPrev}
             onClick={() => hasPrev && onNavigate(pins[currentIndex - 1])}
