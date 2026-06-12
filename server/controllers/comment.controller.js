@@ -30,7 +30,7 @@ exports.createComment = asyncHandler(async (req, res) => {
     filename: file.filename,
     originalName: file.originalname,
     mimetype: file.mimetype,
-    path: `uploads/${file.filename}`,
+    path: `uploads/documents/${file.filename}`,
   }));
 
   const comment = await Comment.create({

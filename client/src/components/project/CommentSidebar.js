@@ -10,6 +10,9 @@ import { useAuth } from "../../hooks/useAuth";
 import MentionInput from "./MentionInput";
 import { stripHtmlForEdit } from "../../utils/htmlUtils";
 import renderCommentBody from "../../utils/renderCommentBody";
+import AttachmentChip from "./AttachmentChip";
+import AttachmentItem from "./AttachmentItem";
+import { ACCEPTED_ATTACHMENT_TYPES } from "../../utils/attachmentHelpers";
 
 function formatDateTime(dateStr) {
   const d = new Date(dateStr);
@@ -448,12 +451,10 @@ export default function CommentSidebar({
                 {comment.attachments?.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {comment.attachments.map((att, i) => (
-                      <img
+                      <AttachmentItem
                         key={i}
-                        src={`/${att.path}`}
-                        alt={att.originalName}
-                        className="w-16 h-16 object-cover rounded-md border border-gray-200 cursor-pointer hover:border-blue-400 transition-colors"
-                        onClick={() => setLightbox({ src: `/${att.path}` })}
+                        attachment={att}
+                        onImageClick={(src) => setLightbox({ src })}
                       />
                     ))}
                   </div>
@@ -479,16 +480,27 @@ export default function CommentSidebar({
           disabled={loading}
           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white"
         />
+        {files.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap mt-2">
+            {files.map((f, i) => (
+              <AttachmentChip
+                key={i}
+                file={f}
+                onRemove={() => setFiles(files.filter((_, j) => j !== i))}
+              />
+            ))}
+          </div>
+        )}
         <div className="flex items-center justify-between mt-2">
           <label className="cursor-pointer text-xs text-gray-500 hover:text-blue-600 transition-colors">
             <input
               type="file"
               multiple
-              accept="image/*"
+              accept={ACCEPTED_ATTACHMENT_TYPES}
               className="hidden"
-              onChange={(e) => setFiles(Array.from(e.target.files))}
+              onChange={(e) => setFiles((prev) => [...prev, ...Array.from(e.target.files)])}
             />
-            {files.length > 0 ? `${files.length} file(s)` : "Attach"}
+            Attach
           </label>
           <button
             type="submit"

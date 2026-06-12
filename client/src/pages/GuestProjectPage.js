@@ -8,6 +8,11 @@ import {
   createGuestCommentApi,
 } from '../services/guestService';
 import renderCommentBody from '../utils/renderCommentBody';
+import AttachmentChip from '../components/project/AttachmentChip';
+import AttachmentItem from '../components/project/AttachmentItem';
+import { ACCEPTED_ATTACHMENT_TYPES } from '../utils/attachmentHelpers';
+
+const UPLOADS_BASE_URL = (process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
 
 const AVATAR_COLORS = [
   { bg: 'bg-blue-100', text: 'text-blue-700' },
@@ -74,6 +79,7 @@ export default function GuestProjectPage() {
   );
   const [showIdentityForm, setShowIdentityForm] = useState(false);
   const [commentBody, setCommentBody] = useState('');
+  const [commentFiles, setCommentFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
   // New state for redesign
@@ -157,13 +163,15 @@ export default function GuestProjectPage() {
 
     setSubmitting(true);
     try {
-      const res = await createGuestCommentApi(shareToken, selectedPin._id, {
-        guestName,
-        guestEmail,
-        body: commentBody,
-      });
+      const formData = new FormData();
+      formData.append('guestName', guestName);
+      formData.append('guestEmail', guestEmail);
+      formData.append('body', commentBody);
+      commentFiles.forEach((f) => formData.append('attachments', f));
+      const res = await createGuestCommentApi(shareToken, selectedPin._id, formData);
       setComments((prev) => [...prev, res.data.comment]);
       setCommentBody('');
+      setCommentFiles([]);
     } catch (err) {
       console.error('Failed to add comment:', err);
     } finally {
@@ -439,6 +447,17 @@ export default function GuestProjectPage() {
                               <span className="text-[11px] text-gray-400">{timeAgo(comment.createdAt)}</span>
                             </div>
                             <p className="text-[13px] text-gray-600 leading-relaxed">{renderCommentBody(comment.body)}</p>
+                            {comment.attachments?.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {comment.attachments.map((att, i) => (
+                                  <AttachmentItem
+                                    key={i}
+                                    attachment={att}
+                                    src={`${UPLOADS_BASE_URL}/${att.path}`}
+                                  />
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -498,7 +517,28 @@ export default function GuestProjectPage() {
                             }}
                           />
                         </div>
-                        <div className="flex justify-end mt-2">
+                        {commentFiles.length > 0 && (
+                          <div className="flex items-center gap-2 flex-wrap mt-2 ml-9">
+                            {commentFiles.map((f, i) => (
+                              <AttachmentChip
+                                key={i}
+                                file={f}
+                                onRemove={() => setCommentFiles(commentFiles.filter((_, j) => j !== i))}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mt-2">
+                          <label className="cursor-pointer text-[11px] text-gray-500 hover:text-blue-600 transition-colors">
+                            <input
+                              type="file"
+                              multiple
+                              accept={ACCEPTED_ATTACHMENT_TYPES}
+                              className="hidden"
+                              onChange={(e) => setCommentFiles((prev) => [...prev, ...Array.from(e.target.files)])}
+                            />
+                            Attach
+                          </label>
                           <button
                             onClick={handleAddComment}
                             disabled={!commentBody.trim() || submitting}

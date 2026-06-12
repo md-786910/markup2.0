@@ -247,11 +247,19 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Pin not found.' });
   }
 
+  const attachments = (req.files || []).map((file) => ({
+    filename: file.filename,
+    originalName: file.originalname,
+    mimetype: file.mimetype,
+    path: `uploads/documents/${file.filename}`,
+  }));
+
   const comment = await Comment.create({
     pin: pinId,
     author: null,
     authorGuest: { name: guestName, email: guestEmail },
     body,
+    attachments,
   });
 
   // Activity log

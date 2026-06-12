@@ -5,6 +5,8 @@ import { Mention, MentionBlot } from 'quill-mention';
 import 'quill-mention/dist/quill.mention.css';
 import { createCommentApi } from '../../services/commentService';
 import { createPinApi } from '../../services/pinService';
+import AttachmentChip from './AttachmentChip';
+import { ACCEPTED_ATTACHMENT_TYPES } from '../../utils/attachmentHelpers';
 
 // Register mention module and blot with Quill
 Quill.register({ 'blots/mention': MentionBlot, 'modules/mention': Mention });
@@ -175,21 +177,11 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
           {files.length > 0 && (
             <div className="px-4 pb-2 flex items-center gap-2 flex-wrap">
               {files.map((f, i) => (
-                <div key={i} className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2.5 py-1.5 text-xs text-gray-600">
-                  <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                  </svg>
-                  <span className="truncate max-w-[120px]">{f.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                    className="text-gray-300 hover:text-gray-500 transition-colors"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
+                <AttachmentChip
+                  key={i}
+                  file={f}
+                  onRemove={() => setFiles(files.filter((_, j) => j !== i))}
+                />
               ))}
             </div>
           )}
@@ -204,7 +196,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
                 <input
                   type="file"
                   multiple
-                  accept="image/*"
+                  accept={ACCEPTED_ATTACHMENT_TYPES}
                   className="hidden"
                   onChange={(e) => setFiles((prev) => [...prev, ...Array.from(e.target.files)])}
                 />

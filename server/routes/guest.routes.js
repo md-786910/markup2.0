@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const uploadDocument = require('../middleware/uploadDocument');
 const {
   getGuestProject,
   getGuestPins,
@@ -12,6 +13,6 @@ router.get('/:shareToken', getGuestProject);
 router.get('/:shareToken/pins', getGuestPins);
 router.get('/:shareToken/pins/:pinId/comments', getGuestComments);
 router.post('/:shareToken/pins', createGuestPin);
-router.post('/:shareToken/pins/:pinId/comments', createGuestComment);
+router.post('/:shareToken/pins/:pinId/comments', uploadDocument.array('attachments', 5), createGuestComment);
 
 module.exports = router;
