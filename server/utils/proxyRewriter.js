@@ -343,8 +343,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     // Create pin container
     pinContainer = document.createElement('div');
     pinContainer.id = '__markup_pin_container';
-    pinContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999999;';
-    document.body.style.position = document.body.style.position || 'relative';
+    pinContainer.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999999;overflow:visible;';
     document.body.appendChild(pinContainer);
 
     sendMessage('MARKUP_READY', Object.assign(getDimensions(), { pageUrl: __markupPageUrl }));
@@ -356,11 +355,20 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
 
     // Scroll tracking (throttled)
     var scrollTimeout;
+    var _pinScrollRaf = null;
     window.addEventListener('scroll', function() {
       clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(function() {
         sendMessage('MARKUP_SCROLL', getDimensions());
       }, 16);
+      // position:fixed pin container needs viewport coords recalculated on every scroll
+      if (pins.length > 0) {
+        if (_pinScrollRaf) cancelAnimationFrame(_pinScrollRaf);
+        _pinScrollRaf = requestAnimationFrame(function() {
+          _pinScrollRaf = null;
+          renderPins();
+        });
+      }
     }, { passive: true });
 
     // Smooth-scroll libraries (Locomotive/Lenis) transform a container instead of
@@ -715,8 +723,10 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         _pinElements[pin.id] = el;
       }
 
-      el.style.left = (pos.left - 14) + 'px';
-      el.style.top = (pos.top - 14) + 'px';
+      var _sx = window.scrollX || window.pageXOffset;
+      var _sy = window.scrollY || window.pageYOffset;
+      el.style.left = (pos.left - 14 - _sx) + 'px';
+      el.style.top = (pos.top - 14 - _sy) + 'px';
       el.style.background = color;
       el.style.borderWidth = '3px';
       el.style.borderStyle = 'solid';
@@ -926,6 +936,13 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       childList: true, subtree: true,
       attributes: true, attributeFilter: ['src','href','poster','data-src','data-lazy-src','action','srcset','data-srcset','style','class','width','height']
     });
+
+    // Walk elements already in the DOM at script load time — catches images/backgrounds
+    // set by scripts that ran before this one (e.g. slider JS earlier in </body>).
+    var _existing = document.querySelectorAll(
+      '[src],[href],[poster],[data-src],[data-lazy-src],[srcset],[data-srcset],style,[style]'
+    );
+    for (var _i = 0; _i < _existing.length; _i++) rewriteElement(_existing[_i]);
   } catch(e) {}
 
   if (document.readyState === 'loading') {
