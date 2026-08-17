@@ -50,6 +50,10 @@ function parseEmailList(value) {
   )];
 }
 
+function isInvitationExpired(invitation) {
+  return new Date(invitation.expiresAt).getTime() <= Date.now();
+}
+
 export default function MembersTab({ members, projects, isAdmin, currentUserId, onProjectsChanged }) {
   const navigate = useNavigate();
   const activeProjects = useMemo(
@@ -527,7 +531,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                 </svg>
               </div>
               <span className="text-xs font-semibold text-gray-700">
-                Pending Invitations
+                Invitations
               </span>
               <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
                 {pendingInvitations.length}
@@ -539,8 +543,10 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
           </button>
           {showInvitations && (
             <div className="border-t border-gray-100 divide-y divide-gray-50">
-              {pendingInvitations.map((inv) => (
-                <div key={inv._id} className="px-5 py-3 flex items-center gap-3">
+              {pendingInvitations.map((inv) => {
+                const expired = isInvitationExpired(inv);
+                return (
+                  <div key={inv._id} className="px-5 py-3 flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -553,7 +559,13 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                       <span className="text-gray-200">·</span>
                       <span className="text-[10px] text-gray-400">{inv.role || 'member'}</span>
                       <span className="text-gray-200">·</span>
-                      <span className="text-[10px] text-gray-400">{new Date(inv.createdAt).toLocaleDateString()}</span>
+                      <span className={`text-[10px] font-medium ${expired ? 'text-red-600' : 'text-amber-600'}`}>
+                        {expired ? 'Expired' : 'Pending'}
+                      </span>
+                      <span className="text-gray-200">·</span>
+                      <span className="text-[10px] text-gray-400">
+                        {expired ? 'Expired' : 'Expires'} {new Date(inv.expiresAt).toLocaleDateString()}
+                      </span>
                     </div>
                   </div>
                   {isAdmin && (
@@ -591,8 +603,9 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                       </div>
                     )
                   )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

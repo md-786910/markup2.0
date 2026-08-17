@@ -304,6 +304,11 @@ exports.inviteMember = asyncHandler(async (req, res) => {
     status: 'pending',
   });
   if (existingInvite) {
+    if (existingInvite.expiresAt <= new Date()) {
+      return res.status(400).json({
+        message: 'A previous invitation to this email has expired. Resend it from the Invitations panel.',
+      });
+    }
     return res.status(400).json({ message: 'Invitation already sent to this email' });
   }
 

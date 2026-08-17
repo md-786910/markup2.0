@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const Invitation = require('../models/Invitation');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendInvitationEmail } = require('../utils/mailer');
@@ -34,7 +35,6 @@ exports.getProjectInvitations = asyncHandler(async (req, res) => {
   const invitations = await Invitation.find({
     project: projectId,
     status: 'pending',
-    expiresAt: { $gt: new Date() },
   })
     .populate('invitedBy', 'name email')
     .sort({ createdAt: -1 });
@@ -74,6 +74,8 @@ exports.resendInvitation = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Not authorized to resend this invitation' });
   }
 
+  // Rotate the token so any link in an earlier email remains invalid.
+  invitation.token = crypto.randomBytes(32).toString('hex');
   invitation.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   await invitation.save();
 
