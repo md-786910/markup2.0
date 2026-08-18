@@ -31,6 +31,15 @@ exports.getInvitation = asyncHandler(async (req, res) => {
 // GET /api/projects/:projectId/invitations — auth required
 exports.getProjectInvitations = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
+  const now = new Date();
+
+  // Expired invitations are no longer useful and should not remain in the
+  // pending-invitations list.
+  await Invitation.deleteMany({
+    project: projectId,
+    status: 'pending',
+    expiresAt: { $lte: now },
+  });
 
   const invitations = await Invitation.find({
     project: projectId,
@@ -76,7 +85,7 @@ exports.resendInvitation = asyncHandler(async (req, res) => {
 
   // Rotate the token so any link in an earlier email remains invalid.
   invitation.token = crypto.randomBytes(32).toString('hex');
-  invitation.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  invitation.expiresAt = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
   await invitation.save();
 
   const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';

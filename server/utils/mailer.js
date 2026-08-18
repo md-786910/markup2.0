@@ -37,7 +37,7 @@ async function sendInvitationEmail(toEmail, inviterName, projectName, signupUrl)
           Create Your Account
         </a>
         <p style="color: #9ca3af; font-size: 12px; margin: 24px 0 0; line-height: 1.5;">
-          This invitation expires in 7 days. If you didn't expect this email, you can safely ignore it.
+          This invitation expires in 5 days. If you didn't expect this email, you can safely ignore it.
         </p>
       </div>
     </div>
