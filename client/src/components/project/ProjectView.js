@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import IframeContainer from "./IframeContainer";
 import DocumentViewer, { parseDocPageUrl } from "./DocumentViewer";
 import PinListSidebar from "./PinListSidebar";
@@ -46,6 +46,7 @@ function getAvatarColor(id) {
 
 export default function ProjectView({ project, onProjectUpdate, initialPinId }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin, canCreate, user } = useAuth();
   const limits = user?.orgLimits || {};
   const [pins, setPins] = useState([]);
@@ -228,6 +229,52 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     }
   }, [iframeState.screenshot, iframeState.clearScreenshot, pendingPinData, lastCreatedPinId]);
 
+  const DEVICE_WIDTHS = { desktop: 1440, tablet: 768, mobile: 375 };
+
+  const handleDeviceChange = useCallback((mode) => {
+    setDeviceMode(mode);
+    setViewportWidth(DEVICE_WIDTHS[mode]);
+  }, []);
+
+  const handlePinNavigate = useCallback((pin) => {
+    if (!pin) return;
+    if (!pinMode) setPinMode(true);
+    setSelectedPin(pin);
+
+    // Update URL with pin ID routing query parameter
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('pin', pin._id);
+      return next;
+    }, { replace: true });
+
+    if (isDocumentProject) {
+      const parsed = parseDocPageUrl(pin.pageUrl);
+      if (parsed) {
+        const docIdx = project.documents.findIndex((d) => d.filename === parsed.filename);
+        if (docIdx >= 0 && docIdx !== currentDocIndex) setCurrentDocIndex(docIdx);
+        if (parsed.page !== currentDocPage) setCurrentDocPage(parsed.page);
+      }
+    } else {
+      if (pin.deviceMode && pin.deviceMode !== deviceMode) {
+        handleDeviceChange(pin.deviceMode);
+      }
+      if (pin.pageUrl !== targetUrl) {
+        setTargetUrl(pin.pageUrl);
+      }
+    }
+  }, [pinMode, isDocumentProject, project.documents, currentDocIndex, currentDocPage, deviceMode, targetUrl, setSearchParams, handleDeviceChange]);
+
+  const handleClosePin = useCallback(() => {
+    setSelectedPin(null);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('pin');
+      next.delete('comment');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   // Listen for pin clicks from iframe
   useEffect(() => {
     const handler = (event) => {
@@ -236,13 +283,13 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         const pin = pins.find((p) => p._id === data.pinId) || allPins.find((p) => p._id === data.pinId);
         if (pin) {
           setPendingPinData(null);
-          setSelectedPin(pin);
+          handlePinNavigate(pin);
         }
       }
     };
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, [pins, allPins]);
+  }, [pins, allPins, handlePinNavigate]);
 
   const handleDeletePin = async (pinId) => {
     try {
@@ -253,7 +300,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
         setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
       }
       await deletePinApi(project._id, pinId);
-      setSelectedPin(null);
+      handleClosePin();
       await loadPins();
       await loadAllPins();
     } catch (err) {
@@ -395,22 +442,16 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     });
   }, [onEvent]);
 
-  // --- Deep-link from email: navigate to pin ---
+  // --- Deep-link from email or URL query param on refresh: navigate to pin ---
   useEffect(() => {
-    if (!initialPinId || allPins.length === 0 || deepLinkHandled.current) return;
-    const targetPin = allPins.find((p) => p._id === initialPinId);
+    const urlPinId = searchParams.get('pin') || searchParams.get('comment') || initialPinId;
+    if (!urlPinId || allPins.length === 0 || deepLinkHandled.current) return;
+    const targetPin = allPins.find((p) => p._id === urlPinId);
     if (targetPin) {
       deepLinkHandled.current = true;
       handlePinNavigate(targetPin);
     }
-  }, [initialPinId, allPins]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const DEVICE_WIDTHS = { desktop: 1440, tablet: 768, mobile: 375 };
-
-  const handleDeviceChange = (mode) => {
-    setDeviceMode(mode);
-    setViewportWidth(DEVICE_WIDTHS[mode]);
-  };
+  }, [searchParams, initialPinId, allPins, handlePinNavigate]);
 
   const handleDocumentClick = useCallback((clickData) => {
     if (pendingPinData) return;
@@ -421,27 +462,6 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const handleDocScreenshot = useCallback((screenshot) => {
     setPendingPinData((prev) => prev ? { ...prev, screenshot } : prev);
   }, []);
-
-  const handlePinNavigate = (pin) => {
-    if (!pinMode) setPinMode(true);
-    setSelectedPin(pin);
-
-    if (isDocumentProject) {
-      const parsed = parseDocPageUrl(pin.pageUrl);
-      if (parsed) {
-        const docIdx = project.documents.findIndex((d) => d.filename === parsed.filename);
-        if (docIdx >= 0 && docIdx !== currentDocIndex) setCurrentDocIndex(docIdx);
-        if (parsed.page !== currentDocPage) setCurrentDocPage(parsed.page);
-      }
-    } else {
-      if (pin.deviceMode && pin.deviceMode !== deviceMode) {
-        handleDeviceChange(pin.deviceMode);
-      }
-      if (pin.pageUrl !== targetUrl) {
-        setTargetUrl(pin.pageUrl);
-      }
-    }
-  };
 
   return (
     <div className="flex flex-col h-screen">
@@ -619,7 +639,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
             selectedPinId={selectedPin?._id}
             selectedPin={selectedPin}
             onPinClick={handlePinNavigate}
-            onClosePin={() => setSelectedPin(null)}
+            onClosePin={handleClosePin}
             onDeletePin={handleDeletePin}
             onNavigatePin={handlePinNavigate}
             onStatusChange={handleStatusChange}

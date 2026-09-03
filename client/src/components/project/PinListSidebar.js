@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import CommentSidebar from './CommentSidebar';
 import { useAuth } from '../../hooks/useAuth';
 import renderCommentBody from '../../utils/renderCommentBody';
@@ -73,6 +74,31 @@ function markCommentsRead(pinId, userId) {
 }
 
 
+const AVATAR_COLORS = [
+  { bg: 'bg-blue-100', text: 'text-blue-700' },
+  { bg: 'bg-purple-100', text: 'text-purple-700' },
+  { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  { bg: 'bg-amber-100', text: 'text-amber-700' },
+  { bg: 'bg-rose-100', text: 'text-rose-700' },
+  { bg: 'bg-cyan-100', text: 'text-cyan-700' },
+  { bg: 'bg-indigo-100', text: 'text-indigo-700' },
+  { bg: 'bg-teal-100', text: 'text-teal-700' },
+];
+
+function getAvatarColor(id) {
+  let hash = 0;
+  const str = (id || '').toString();
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
 const TABS = [
   { key: 'open', label: 'Active' },
   { key: 'resolved', label: 'Resolved' },
@@ -103,11 +129,23 @@ export default function PinListSidebar({
   const [searchOpen, setSearchOpen] = useState(false);
   const [sortBy, setSortBy] = useState('page'); // 'page' | 'pin_order' | 'latest_activity'
   const [sortOpen, setSortOpen] = useState(false);
-  const [filterOption, setFilterOption] = useState(null); // null | 'on_this_page' | 'mentions'
+  const [filterOption, setFilterOption] = useState(null); // null | 'on_this_page' | 'mentions' | 'assignee'
+  const [selectedMentionUser, setSelectedMentionUser] = useState(null); // null | member object
+  const [selectedAssigneeUsers, setSelectedAssigneeUsers] = useState([]); // array of member objects
   const [filterOpen, setFilterOpen] = useState(false);
+  const [mentionModalOpen, setMentionModalOpen] = useState(false);
+  const [assigneeModalOpen, setAssigneeModalOpen] = useState(false);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [assigneeMemberSearch, setAssigneeMemberSearch] = useState('');
+  const [modalPos, setModalPos] = useState({ top: 0, left: 0 });
+  const [assigneeModalPos, setAssigneeModalPos] = useState({ top: 0, left: 0 });
   const [collapsedGroups, setCollapsedGroups] = useState(new Set());
   const sortRef = useRef(null);
   const filterRef = useRef(null);
+  const mentionBtnRef = useRef(null);
+  const mentionModalRef = useRef(null);
+  const assigneeBtnRef = useRef(null);
+  const assigneeModalRef = useRef(null);
 
   const handleCardClick = (pin) => {
     onPinClick(pin);
@@ -136,15 +174,44 @@ export default function PinListSidebar({
     return () => document.removeEventListener('mousedown', handler);
   }, [sortOpen]);
 
-  // Close filter dropdown on outside click
+  // Position the portal modal dynamically next to the Mentions button
   useEffect(() => {
-    if (!filterOpen) return;
+    if (mentionModalOpen && mentionBtnRef.current) {
+      const rect = mentionBtnRef.current.getBoundingClientRect();
+      setModalPos({
+        top: Math.max(10, rect.top - 4),
+        left: rect.right + 8,
+      });
+    }
+  }, [mentionModalOpen]);
+
+  // Position the portal modal dynamically next to the Assignee button
+  useEffect(() => {
+    if (assigneeModalOpen && assigneeBtnRef.current) {
+      const rect = assigneeBtnRef.current.getBoundingClientRect();
+      setAssigneeModalPos({
+        top: Math.max(10, rect.top - 4),
+        left: rect.right + 8,
+      });
+    }
+  }, [assigneeModalOpen]);
+
+  // Close filter dropdown & modals on outside click
+  useEffect(() => {
+    if (!filterOpen && !mentionModalOpen && !assigneeModalOpen) return;
     const handler = (e) => {
-      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false);
+      const inFilter = filterRef.current && filterRef.current.contains(e.target);
+      const inMentionModal = mentionModalRef.current && mentionModalRef.current.contains(e.target);
+      const inAssigneeModal = assigneeModalRef.current && assigneeModalRef.current.contains(e.target);
+      if (!inFilter && !inMentionModal && !inAssigneeModal) {
+        setFilterOpen(false);
+        setMentionModalOpen(false);
+        setAssigneeModalOpen(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [filterOpen]);
+  }, [filterOpen, mentionModalOpen, assigneeModalOpen]);
 
   // Close pin action menu on outside click
   useEffect(() => {
@@ -156,6 +223,26 @@ export default function PinListSidebar({
     return () => document.removeEventListener('mousedown', handler);
   }, [confirmDelete]);
 
+  // Filter members by memberSearch query
+  const filteredMembers = useMemo(() => {
+    if (!memberSearch.trim()) return members;
+    const q = memberSearch.toLowerCase();
+    return members.filter((m) =>
+      (m.name || '').toLowerCase().includes(q) ||
+      (m.email || '').toLowerCase().includes(q)
+    );
+  }, [members, memberSearch]);
+
+  // Filter members by assigneeMemberSearch query
+  const filteredAssigneeMembers = useMemo(() => {
+    if (!assigneeMemberSearch.trim()) return members;
+    const q = assigneeMemberSearch.toLowerCase();
+    return members.filter((m) =>
+      (m.name || '').toLowerCase().includes(q) ||
+      (m.email || '').toLowerCase().includes(q)
+    );
+  }, [members, assigneeMemberSearch]);
+
   // Filter, search, and sort
   const filteredPins = useMemo(() => {
     let result = pins;
@@ -166,13 +253,54 @@ export default function PinListSidebar({
 
     // Filter option
     if (filterOption === 'on_this_page') {
-      // Show only pins that share the same page path as the first pin
-      // (mirrors "On this page" — filter to the most common or first page)
       const pages = [...new Set(result.map((p) => getPagePath(p.pageUrl)))];
       if (pages.length > 0) result = result.filter((p) => getPagePath(p.pageUrl) === pages[0]);
     } else if (filterOption === 'mentions') {
-      // Show only pins whose comments mention the viewer — for now show pins with any mentions array
-      result = result.filter((p) => p.commentsCount > 0);
+      if (selectedMentionUser) {
+        const targetId = (selectedMentionUser._id || selectedMentionUser).toString();
+        const targetName = (selectedMentionUser.name || '').toLowerCase();
+        result = result.filter((p) => {
+          // Check aggregated mentionedUserIds from backend
+          if (p.mentionedUserIds && p.mentionedUserIds.includes(targetId)) return true;
+          // Check text in firstComment and latestComment
+          const firstBody = (p.firstComment?.body || '').toLowerCase();
+          const latestBody = (p.latestComment?.body || '').toLowerCase();
+          if (firstBody.includes(targetId) || (targetName && firstBody.includes(`@${targetName}`))) return true;
+          if (latestBody.includes(targetId) || (targetName && latestBody.includes(`@${targetName}`))) return true;
+          return false;
+        });
+      } else {
+        result = result.filter((p) => (p.mentionedUserIds && p.mentionedUserIds.length > 0) || p.commentsCount > 0);
+      }
+    } else if (filterOption === 'assignee') {
+      if (selectedAssigneeUsers.length > 0) {
+        const targetIds = selectedAssigneeUsers.map((u) => (u._id || u).toString());
+        const targetNames = selectedAssigneeUsers.map((u) => (u.name || '').toLowerCase()).filter(Boolean);
+
+        result = result.filter((p) => {
+          // Check pin authorUserIds
+          if (p.authorUserIds && p.authorUserIds.some((id) => targetIds.includes(id))) return true;
+
+          // Check createdBy
+          const createdById = (p.createdBy?._id || p.createdBy || '').toString();
+          if (createdById && targetIds.includes(createdById)) return true;
+
+          // Check firstComment author
+          const firstAuthorId = (p.firstComment?.author?._id || p.firstComment?.author || '').toString();
+          if (firstAuthorId && targetIds.includes(firstAuthorId)) return true;
+
+          // Check latestComment author
+          const latestAuthorId = (p.latestComment?.author?._id || p.latestComment?.author || '').toString();
+          if (latestAuthorId && targetIds.includes(latestAuthorId)) return true;
+
+          // Check author name match in comments
+          const firstAuthorName = (p.firstComment?.author?.name || p.createdBy?.name || '').toLowerCase();
+          const latestAuthorName = (p.latestComment?.author?.name || '').toLowerCase();
+          if (targetNames.some((name) => firstAuthorName.includes(name) || latestAuthorName.includes(name))) return true;
+
+          return false;
+        });
+      }
     }
 
     if (searchQuery.trim()) {
@@ -193,7 +321,30 @@ export default function PinListSidebar({
     }
 
     return result;
-  }, [pins, filterStatus, searchQuery, sortBy, filterOption]);
+  }, [pins, filterStatus, searchQuery, sortBy, filterOption, selectedMentionUser, selectedAssigneeUsers]);
+
+  // Check if any filter, non-default sort, or search query is currently active
+  const hasActiveFilters = Boolean(
+    filterOption !== null ||
+    selectedMentionUser !== null ||
+    selectedAssigneeUsers.length > 0 ||
+    sortBy !== 'page' ||
+    searchQuery.trim() !== ''
+  );
+
+  // Clear all filters, sorting, and search
+  const handleClearAllFilters = () => {
+    setFilterOption(null);
+    setSelectedMentionUser(null);
+    setSelectedAssigneeUsers([]);
+    setSortBy('page');
+    setSearchQuery('');
+    setSearchOpen(false);
+    setFilterOpen(false);
+    setSortOpen(false);
+    setMentionModalOpen(false);
+    setAssigneeModalOpen(false);
+  };
 
   // Filter counts
   const openCount = pins.filter((p) => p.status === 'pending').length;
@@ -321,6 +472,21 @@ export default function PinListSidebar({
                         </span>
                       </button>
                     ))}
+
+                    {/* Reset Sort */}
+                    {sortBy !== 'page' && (
+                      <div className="border-t border-gray-100 mt-1 pt-1">
+                        <button
+                          onClick={() => { setSortBy('page'); setSortOpen(false); }}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-[12px] text-blue-600 hover:bg-blue-50 font-medium transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Reset sort
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -337,43 +503,319 @@ export default function PinListSidebar({
                 </button>
 
                 {filterOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
-                    {[
-                      { key: 'on_this_page', label: 'On this page' },
-                      { key: 'mentions', label: 'Mentions' },
-                      { key: 'priority', label: 'Priority', hasArrow: true },
-                    ].map((opt) => {
-                      const isActive = filterOption === opt.key;
-                      return (
-                        <button
-                          key={opt.key}
-                          onClick={() => {
-                            if (!opt.hasArrow) {
-                              setFilterOption(isActive ? null : opt.key);
-                              setFilterOpen(false);
-                            }
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
-                        >
-                          <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isActive ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
-                            }`}>
-                            {isActive && (
-                              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </span>
-                          <span className={`text-[13px] flex-1 ${isActive ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
-                            {opt.label}
-                          </span>
-                          {opt.hasArrow && (
-                            <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-visible">
+                    {/* Option 1: On this page */}
+                    <button
+                      onClick={() => {
+                        setFilterOption(filterOption === 'on_this_page' ? null : 'on_this_page');
+                        setMentionModalOpen(false);
+                        setAssigneeModalOpen(false);
+                        setFilterOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                    >
+                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        filterOption === 'on_this_page' ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                      }`}>
+                        {filterOption === 'on_this_page' && (
+                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className={`text-[13px] flex-1 ${filterOption === 'on_this_page' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                        On this page
+                      </span>
+                    </button>
+
+                    {/* Option 2: Mentions (with user selection flyout modal) */}
+                    <div>
+                      <button
+                        ref={mentionBtnRef}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMentionModalOpen((v) => !v);
+                          setAssigneeModalOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${
+                          filterOption === 'mentions' ? 'bg-blue-50/50' : ''
+                        }`}
+                      >
+                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          filterOption === 'mentions' ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                        }`}>
+                          {filterOption === 'mentions' && (
+                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                             </svg>
                           )}
+                        </span>
+                        <span className={`text-[13px] flex-1 truncate ${filterOption === 'mentions' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                          {selectedMentionUser ? `Mentions: ${selectedMentionUser.name}` : 'Mentions'}
+                        </span>
+                        <svg className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${mentionModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+
+                      {/* Mentions User Flyout Modal — Portaled to body */}
+                      {mentionModalOpen && createPortal(
+                        <div
+                          ref={mentionModalRef}
+                          className="fixed w-64 bg-white border border-gray-200 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.18)] z-[99999] overflow-hidden flex flex-col"
+                          style={{
+                            top: `${modalPos.top}px`,
+                            left: `${modalPos.left}px`,
+                            maxHeight: '350px',
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/70">
+                            <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Project Members</span>
+                            {selectedMentionUser && (
+                              <button
+                                onClick={() => {
+                                  setSelectedMentionUser(null);
+                                  setFilterOption(null);
+                                  setMentionModalOpen(false);
+                                  setFilterOpen(false);
+                                }}
+                                className="text-[11px] text-blue-600 hover:text-blue-800 font-medium"
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Member search if > 3 members */}
+                          {members.length > 3 && (
+                            <div className="px-3 pt-2 pb-1 bg-white border-b border-gray-50">
+                              <input
+                                type="text"
+                                value={memberSearch}
+                                onChange={(e) => setMemberSearch(e.target.value)}
+                                placeholder="Search user..."
+                                className="w-full text-[12px] px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                              />
+                            </div>
+                          )}
+
+                          {/* User List */}
+                          <div className="overflow-y-auto max-h-56 py-1">
+                            {filteredMembers.length === 0 ? (
+                              <div className="p-4 text-center text-xs text-gray-400">No project members found</div>
+                            ) : (
+                              filteredMembers.map((member) => {
+                                const isUserSelected = selectedMentionUser && (selectedMentionUser._id === member._id);
+                                const avatarColor = getAvatarColor(member._id);
+                                return (
+                                  <button
+                                    key={member._id}
+                                    onClick={() => {
+                                      if (isUserSelected) {
+                                        setSelectedMentionUser(null);
+                                        setFilterOption(null);
+                                      } else {
+                                        setSelectedMentionUser(member);
+                                        setFilterOption('mentions');
+                                      }
+                                      setMentionModalOpen(false);
+                                      setFilterOpen(false);
+                                    }}
+                                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-gray-50 transition-colors ${
+                                      isUserSelected ? 'bg-blue-50/70' : ''
+                                    }`}
+                                  >
+                                    {/* User Avatar */}
+                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
+                                      {getInitials(member.name)}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-[12px] truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
+                                        {member.name}
+                                      </p>
+                                      {member.email && (
+                                        <p className="text-[10px] text-gray-400 truncate">{member.email}</p>
+                                      )}
+                                    </div>
+                                    {/* Checkbox Icon */}
+                                    <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                      isUserSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
+                                    }`}>
+                                      {isUserSelected && (
+                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      )}
+                                    </span>
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>,
+                        document.body
+                      )}
+                    </div>
+
+                    {/* Option 3: Assignee (with multi-user selection flyout modal) */}
+                    <div>
+                      <button
+                        ref={assigneeBtnRef}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAssigneeModalOpen((v) => !v);
+                          setMentionModalOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${
+                          filterOption === 'assignee' ? 'bg-blue-50/50' : ''
+                        }`}
+                      >
+                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          filterOption === 'assignee' ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                        }`}>
+                          {filterOption === 'assignee' && (
+                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </span>
+                        <span className={`text-[13px] flex-1 truncate ${filterOption === 'assignee' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                          {selectedAssigneeUsers.length > 0
+                            ? `Assignee (${selectedAssigneeUsers.length})`
+                            : 'Assignee'}
+                        </span>
+                        <svg className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${assigneeModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+
+                      {/* Assignee User Flyout Modal — Portaled to body */}
+                      {assigneeModalOpen && createPortal(
+                        <div
+                          ref={assigneeModalRef}
+                          className="fixed w-64 bg-white border border-gray-200 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.18)] z-[99999] overflow-hidden flex flex-col"
+                          style={{
+                            top: `${assigneeModalPos.top}px`,
+                            left: `${assigneeModalPos.left}px`,
+                            maxHeight: '350px',
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/70">
+                            <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+                              Assignee ({selectedAssigneeUsers.length}/{members.length})
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {selectedAssigneeUsers.length > 0 && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedAssigneeUsers([]);
+                                    setFilterOption(null);
+                                  }}
+                                  className="text-[11px] text-blue-600 hover:text-blue-800 font-medium"
+                                >
+                                  Clear
+                                </button>
+                              )}
+                              {selectedAssigneeUsers.length < members.length && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedAssigneeUsers([...members]);
+                                    setFilterOption('assignee');
+                                  }}
+                                  className="text-[11px] text-gray-500 hover:text-gray-800 font-medium"
+                                >
+                                  Select All
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Member search if > 3 members */}
+                          {members.length > 3 && (
+                            <div className="px-3 pt-2 pb-1 bg-white border-b border-gray-50">
+                              <input
+                                type="text"
+                                value={assigneeMemberSearch}
+                                onChange={(e) => setAssigneeMemberSearch(e.target.value)}
+                                placeholder="Search user..."
+                                className="w-full text-[12px] px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                              />
+                            </div>
+                          )}
+
+                          {/* User List with multi-select */}
+                          <div className="overflow-y-auto max-h-56 py-1">
+                            {filteredAssigneeMembers.length === 0 ? (
+                              <div className="p-4 text-center text-xs text-gray-400">No project members found</div>
+                            ) : (
+                              filteredAssigneeMembers.map((member) => {
+                                const isUserSelected = selectedAssigneeUsers.some((u) => u._id === member._id);
+                                const avatarColor = getAvatarColor(member._id);
+                                return (
+                                  <button
+                                    key={member._id}
+                                    onClick={() => {
+                                      let updated;
+                                      if (isUserSelected) {
+                                        updated = selectedAssigneeUsers.filter((u) => u._id !== member._id);
+                                      } else {
+                                        updated = [...selectedAssigneeUsers, member];
+                                      }
+                                      setSelectedAssigneeUsers(updated);
+                                      setFilterOption(updated.length > 0 ? 'assignee' : null);
+                                    }}
+                                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-gray-50 transition-colors ${
+                                      isUserSelected ? 'bg-blue-50/70' : ''
+                                    }`}
+                                  >
+                                    {/* User Avatar */}
+                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
+                                      {getInitials(member.name)}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-[12px] truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
+                                        {member.name}
+                                      </p>
+                                      {member.email && (
+                                        <p className="text-[10px] text-gray-400 truncate">{member.email}</p>
+                                      )}
+                                    </div>
+                                    {/* Checkbox Icon */}
+                                    <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                      isUserSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
+                                    }`}>
+                                      {isUserSelected && (
+                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      )}
+                                    </span>
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>,
+                        document.body
+                      )}
+                    </div>
+
+                    {/* Clear All Filters Option inside dropdown */}
+                    {hasActiveFilters && (
+                      <div className="border-t border-gray-100 mt-1 pt-1">
+                        <button
+                          onClick={handleClearAllFilters}
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-[12px] text-blue-600 hover:bg-blue-50 font-medium transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          Clear Filters
                         </button>
-                      );
-                    })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -389,6 +831,100 @@ export default function PinListSidebar({
               </button>
             </div>
           </div>
+
+          {/* Active Filters Bar — Unified for all active filters, sorting, and search */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 bg-slate-50 border-b border-gray-200 text-[11px] animate-fadeIn">
+              <span className="text-gray-400 font-medium mr-0.5">Filtered:</span>
+
+              {filterOption === 'on_this_page' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-medium">
+                  On this page
+                  <button
+                    onClick={() => setFilterOption(null)}
+                    className="hover:text-blue-950 p-0.5"
+                    title="Remove filter"
+                  >
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )}
+
+              {filterOption === 'mentions' && selectedMentionUser && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-medium">
+                  Mention: @{selectedMentionUser.name}
+                  <button
+                    onClick={() => { setSelectedMentionUser(null); setFilterOption(null); }}
+                    className="hover:text-purple-950 p-0.5"
+                    title="Remove filter"
+                  >
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )}
+
+              {filterOption === 'assignee' && selectedAssigneeUsers.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
+                  Assignee: {selectedAssigneeUsers.map((u) => `@${u.name}`).join(', ')}
+                  <button
+                    onClick={() => { setSelectedAssigneeUsers([]); setFilterOption(null); }}
+                    className="hover:text-emerald-950 p-0.5"
+                    title="Remove filter"
+                  >
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )}
+
+              {sortBy !== 'page' && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
+                  Sort: {sortBy === 'pin_order' ? 'Pin order' : 'Latest activity'}
+                  <button
+                    onClick={() => setSortBy('page')}
+                    className="hover:text-amber-950 p-0.5"
+                    title="Reset to default Page sort"
+                  >
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )}
+
+              {searchQuery && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-200 text-gray-800 font-medium truncate max-w-[130px]">
+                  "{searchQuery}"
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="hover:text-gray-950 p-0.5"
+                    title="Clear search"
+                  >
+                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )}
+
+              {/* Clear Filters button */}
+              <button
+                onClick={handleClearAllFilters}
+                className="ml-auto text-[11px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-blue-50 transition-colors"
+                title="Reset all filters, sorting, and search"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Clear Filters
+              </button>
+            </div>
+          )}
 
           {/* Search bar — only shown when searchOpen */}
           {searchOpen && (
@@ -431,7 +967,9 @@ export default function PinListSidebar({
                 {searchQuery
                   ? 'No matching comments'
                   : filterOption === 'mentions'
-                    ? 'No mentions found'
+                    ? (selectedMentionUser ? `No pins mentioning @${selectedMentionUser.name}` : 'No mentions found')
+                    : filterOption === 'assignee'
+                      ? (selectedAssigneeUsers.length > 0 ? `No comments created by ${selectedAssigneeUsers.map((u) => u.name).join(', ')}` : 'No assignee comments found')
                     : filterOption === 'on_this_page'
                       ? 'No pins on this page'
                       : filterStatus === 'resolved'
@@ -440,6 +978,19 @@ export default function PinListSidebar({
                           ? 'No open comments'
                           : 'No comments yet'}
               </p>
+
+              {/* Reset action button in empty state */}
+              {hasActiveFilters && (
+                <button
+                  onClick={handleClearAllFilters}
+                  className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors shadow-sm"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Clear Filters
+                </button>
+              )}
               {!searchQuery && filterStatus === 'open' && pins.length === 0 && (
                 <p className="text-xs text-gray-300 mt-1">Click Pin Mode to start</p>
               )}

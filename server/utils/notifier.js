@@ -87,10 +87,12 @@ async function emailProjectMembers(type, { projectId, actorUserId, actorName, pr
 async function emailMentionedUsers({ mentionedUserIds, actorUserId, actorName, projectName, pin, comment }) {
   try {
     if (!mentionedUserIds || mentionedUserIds.length === 0) return;
-    const actorStr = actorUserId.toString();
+    const actorStr = actorUserId ? actorUserId.toString() : '';
     const users = await User.find({ _id: { $in: mentionedUserIds } }).select('name email');
-    const link = buildPinLink(pin.project.toString(), pin._id);
-    const projectId = pin.project.toString();
+    const projectId = (pin.project?._id || pin.project || '').toString();
+    const pinId = (pin._id || '').toString();
+    const link = buildPinLink(projectId, pinId);
+    const senderName = actorName || comment?.author?.name || 'Someone';
 
     for (const user of users) {
       if (user._id.toString() === actorStr) continue;
@@ -98,7 +100,7 @@ async function emailMentionedUsers({ mentionedUserIds, actorUserId, actorName, p
         projectId,
         projectName,
         type: 'mention',
-        actorName,
+        actorName: senderName,
         commentBody: comment.body,
         link,
       });

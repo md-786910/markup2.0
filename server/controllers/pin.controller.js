@@ -4,6 +4,7 @@ const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 const { emitToProject, emailProjectMembers, notifyIntegrations } = require('../utils/notifier');
 const { logActivity } = require('../utils/activityLogger');
+const { extractMentionedUserIds } = require('../utils/mentionHelper');
 
 exports.createPin = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
@@ -117,6 +118,9 @@ exports.getPins = asyncHandler(async (req, res) => {
         latestBody: { $last: '$body' },
         latestAuthor: { $last: '$author' },
         latestCreatedAt: { $last: '$createdAt' },
+        allMentions: { $push: '$mentions' },
+        allBodies: { $push: '$body' },
+        allAuthors: { $push: '$author' },
       },
     },
   ]);
@@ -135,8 +139,15 @@ exports.getPins = asyncHandler(async (req, res) => {
 
   const commentMap = {};
   commentAgg.forEach((c) => {
+    const directMentions = (c.allMentions || []).flat().filter(Boolean).map((id) => id.toString());
+    const bodyMentions = (c.allBodies || []).flatMap((b) => extractMentionedUserIds(b));
+    const mentionedUserIds = [...new Set([...directMentions, ...bodyMentions])];
+    const commentAuthorIds = (c.allAuthors || []).filter(Boolean).map((id) => id.toString());
+
     commentMap[c._id.toString()] = {
       count: c.count,
+      mentionedUserIds,
+      commentAuthorIds,
       firstComment: c.firstBody ? {
         body: c.firstBody,
         author: authorMap[c.firstAuthor?.toString()] || null,
@@ -152,9 +163,14 @@ exports.getPins = asyncHandler(async (req, res) => {
 
   const pinsWithCounts = pins.map((pin) => {
     const info = commentMap[pin._id.toString()] || {};
+    const createdById = pin.createdBy?._id?.toString() || pin.createdBy?.toString();
+    const authorUserIds = [...new Set([createdById, ...(info.commentAuthorIds || [])].filter(Boolean))];
+
     return {
       ...pin.toObject(),
       commentsCount: info.count || 0,
+      mentionedUserIds: info.mentionedUserIds || [],
+      authorUserIds,
       firstComment: info.firstComment || null,
       latestComment: info.latestComment || null,
     };

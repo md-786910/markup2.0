@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { formatCommentForEmail, stripHtmlAndMentions } = require('./mentionHelper');
 
 let transporter = null;
 
@@ -89,7 +90,8 @@ async function sendPinNotificationEmail(toEmail, actorName, projectName, pinPage
 
 async function sendCommentNotificationEmail(toEmail, actorName, projectName, commentBody, directLink) {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
-  const preview = commentBody.length > 200 ? commentBody.substring(0, 200) + '...' : commentBody;
+  const senderName = actorName || 'Someone';
+  const formattedContent = formatCommentForEmail(commentBody);
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
@@ -98,12 +100,12 @@ async function sendCommentNotificationEmail(toEmail, actorName, projectName, com
       </div>
       <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
         <h2 style="margin: 0 0 8px; font-size: 18px; color: #111827;">New Comment</h2>
-        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">
-          <strong style="color: #111827;">${actorName}</strong> commented on
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+          <strong style="color: #111827;">${senderName}</strong> commented on
           <strong style="color: #111827;">${projectName}</strong>:
         </p>
-        <div style="background: #f9fafb; border-left: 3px solid #2563eb; padding: 12px 16px; margin: 0 0 24px; border-radius: 0 8px 8px 0;">
-          <p style="color: #374151; font-size: 14px; line-height: 1.6; margin: 0;">${preview}</p>
+        <div style="background: #f9fafb; border-left: 3px solid #2563eb; padding: 12px 16px; margin: 0 0 24px; border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.6;">
+          ${formattedContent}
         </div>
         <a href="${directLink}"
            style="display: inline-block; background: #2563eb; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
@@ -119,14 +121,15 @@ async function sendCommentNotificationEmail(toEmail, actorName, projectName, com
   await getTransporter().sendMail({
     from,
     to: toEmail,
-    subject: `New comment on ${projectName} by ${actorName}`,
+    subject: `New comment on ${projectName} by ${senderName}`,
     html,
   });
 }
 
 async function sendMentionNotificationEmail(toEmail, actorName, projectName, commentBody, directLink) {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
-  const preview = commentBody.length > 200 ? commentBody.substring(0, 200) + '...' : commentBody;
+  const senderName = actorName || 'Someone';
+  const formattedContent = formatCommentForEmail(commentBody);
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
@@ -135,12 +138,12 @@ async function sendMentionNotificationEmail(toEmail, actorName, projectName, com
       </div>
       <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
         <h2 style="margin: 0 0 8px; font-size: 18px; color: #111827;">You were mentioned</h2>
-        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">
-          <strong style="color: #111827;">${actorName}</strong> mentioned you in a comment on
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+          <strong style="color: #111827;">${senderName}</strong> mentioned you in a comment on
           <strong style="color: #111827;">${projectName}</strong>:
         </p>
-        <div style="background: #f9fafb; border-left: 3px solid #2563eb; padding: 12px 16px; margin: 0 0 24px; border-radius: 0 8px 8px 0;">
-          <p style="color: #374151; font-size: 14px; line-height: 1.6; margin: 0;">${preview}</p>
+        <div style="background: #f9fafb; border-left: 3px solid #2563eb; padding: 12px 16px; margin: 0 0 24px; border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.6;">
+          ${formattedContent}
         </div>
         <a href="${directLink}"
            style="display: inline-block; background: #2563eb; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
@@ -156,7 +159,7 @@ async function sendMentionNotificationEmail(toEmail, actorName, projectName, com
   await getTransporter().sendMail({
     from,
     to: toEmail,
-    subject: `${actorName} mentioned you in ${projectName}`,
+    subject: `${senderName} mentioned you in ${projectName}`,
     html,
   });
 }
@@ -166,6 +169,7 @@ async function sendPinStatusEmail(toEmail, actorName, projectName, newStatus, di
   const isResolved = newStatus === 'resolved';
   const statusLabel = isResolved ? 'Resolved' : 'Reopened';
   const accentColor = isResolved ? '#22c55e' : '#f59e0b';
+  const senderName = actorName || 'Someone';
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
@@ -178,7 +182,7 @@ async function sendPinStatusEmail(toEmail, actorName, projectName, newStatus, di
           <h2 style="margin: 0; font-size: 18px; color: #111827;">Pin ${statusLabel}</h2>
         </div>
         <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
-          <strong style="color: #111827;">${actorName}</strong> ${isResolved ? 'resolved' : 'reopened'} a pin on
+          <strong style="color: #111827;">${senderName}</strong> ${isResolved ? 'resolved' : 'reopened'} a pin on
           <strong style="color: #111827;">${projectName}</strong>.
         </p>
         <a href="${directLink}"
@@ -195,7 +199,7 @@ async function sendPinStatusEmail(toEmail, actorName, projectName, newStatus, di
   await getTransporter().sendMail({
     from,
     to: toEmail,
-    subject: `Pin ${isResolved ? 'resolved' : 'reopened'} on ${projectName} by ${actorName}`,
+    subject: `Pin ${isResolved ? 'resolved' : 'reopened'} on ${projectName} by ${senderName}`,
     html,
   });
 }
@@ -252,22 +256,24 @@ async function sendDigestEmail(toEmail, projectName, events) {
   const typeOrder = ['pin', 'status', 'comment', 'mention'];
 
   function renderEvent(ev) {
-    const preview = ev.commentBody ? (ev.commentBody.length > 80 ? ev.commentBody.substring(0, 80) + '...' : ev.commentBody) : '';
+    const rawPreview = stripHtmlAndMentions(ev.commentBody);
+    const preview = rawPreview ? (rawPreview.length > 80 ? rawPreview.substring(0, 80) + '...' : rawPreview) : '';
+    const actor = ev.actorName || 'Someone';
     let description = '';
     switch (ev.type) {
       case 'pin':
-        description = `<strong>${ev.actorName}</strong> added a new pin`;
+        description = `<strong>${actor}</strong> added a new pin`;
         if (ev.pinNumber) description += ` #${ev.pinNumber}`;
         break;
       case 'status':
-        description = `<strong>${ev.actorName}</strong> ${ev.pinStatus === 'resolved' ? 'resolved' : 'reopened'} pin`;
+        description = `<strong>${actor}</strong> ${ev.pinStatus === 'resolved' ? 'resolved' : 'reopened'} pin`;
         if (ev.pinNumber) description += ` #${ev.pinNumber}`;
         break;
       case 'comment':
-        description = `<strong>${ev.actorName}</strong>: "${preview}"`;
+        description = `<strong>${actor}</strong>: "${preview}"`;
         break;
       case 'mention':
-        description = `<strong>${ev.actorName}</strong> mentioned you: "${preview}"`;
+        description = `<strong>${actor}</strong> mentioned you: "${preview}"`;
         break;
     }
     return `

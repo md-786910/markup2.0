@@ -7,7 +7,7 @@ export default function ProjectPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialPinId = searchParams.get('pin');
+  const initialPinId = searchParams.get('pin') || searchParams.get('comment');
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

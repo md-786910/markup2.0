@@ -4,6 +4,7 @@ const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 const { emitToProject, emailProjectMembers, emailMentionedUsers, notifyIntegrations } = require('../utils/notifier');
 const { logActivity } = require('../utils/activityLogger');
+const { extractMentionedUserIds, stripHtmlAndMentions } = require('../utils/mentionHelper');
 
 exports.createComment = asyncHandler(async (req, res) => {
   const { pinId } = req.params;
@@ -18,13 +19,8 @@ exports.createComment = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Pin not found' });
   }
 
-  // Parse @[Name](userId) mention tokens from body
-  const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
-  const mentionedUserIds = [];
-  let mentionMatch;
-  while ((mentionMatch = MENTION_REGEX.exec(body)) !== null) {
-    mentionedUserIds.push(mentionMatch[2]);
-  }
+  // Parse mentioned user IDs from body (supports @[Name](userId) and Quill HTML <span class="mention" data-id="...">)
+  const mentionedUserIds = extractMentionedUserIds(body);
 
   const attachments = (req.files || []).map((file) => ({
     filename: file.filename,
@@ -57,6 +53,7 @@ exports.createComment = asyncHandler(async (req, res) => {
   // Check if this is the first comment on the pin (combined pin+comment notification)
   const priorCommentCount = await Comment.countDocuments({ pin: pinId, _id: { $ne: comment._id } });
   const isFirstComment = priorCommentCount === 0;
+  const actorName = req.user.name || populated.author?.name || 'Someone';
 
   Project.findById(projectId).select('name organization').then((proj) => {
     if (!proj) return;
@@ -65,18 +62,18 @@ exports.createComment = asyncHandler(async (req, res) => {
     // First comment uses 'pin.created' action for a combined notification
     notifyIntegrations(projectId, proj.organization, {
       action: isFirstComment ? 'pin.created' : 'comment.created',
-      actorName: req.user.name,
+      actorName,
       projectName: proj.name,
       pinNumber: pin.pinNumber,
       pinId: pin._id.toString(),
       projectId,
-      comment: body?.substring(0, 200),
+      comment: stripHtmlAndMentions(body).substring(0, 200),
     });
 
     emailProjectMembers('comment', {
       projectId,
       actorUserId: req.user._id,
-      actorName: req.user.name,
+      actorName,
       projectName: proj.name,
       pin,
       comment: populated,
@@ -87,7 +84,7 @@ exports.createComment = asyncHandler(async (req, res) => {
       emailMentionedUsers({
         mentionedUserIds,
         actorUserId: req.user._id,
-        actorName: req.user.name,
+        actorName,
         projectName: proj.name,
         pin,
         comment: populated,
@@ -158,12 +155,7 @@ exports.updateComment = asyncHandler(async (req, res) => {
   }
 
   // Re-parse mentions from updated body
-  const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
-  const mentionedUserIds = [];
-  let match;
-  while ((match = MENTION_REGEX.exec(body)) !== null) {
-    mentionedUserIds.push(match[2]);
-  }
+  const mentionedUserIds = extractMentionedUserIds(body);
 
   comment.body = body;
   comment.mentions = mentionedUserIds;
