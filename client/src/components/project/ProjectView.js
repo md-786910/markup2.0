@@ -8,6 +8,7 @@ import VersionSidebar from "./VersionSidebar";
 import InviteMemberModal from "./InviteMemberModal";
 import ShareProjectModal from "./ShareProjectModal";
 import NewPinCommentPopup from "./NewPinCommentPopup";
+import NotificationBell from "../common/NotificationBell";
 import { useAuth } from "../../hooks/useAuth";
 import { useIframeMessages } from "../../hooks/useIframeMessages";
 import {
@@ -600,6 +601,9 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
               </div>
             )}
           </div>
+
+          {/* Bell Notifications */}
+          <NotificationBell />
 
           <div className="w-px h-6 bg-gray-200/80"></div>
 

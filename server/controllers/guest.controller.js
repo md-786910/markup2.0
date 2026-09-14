@@ -4,6 +4,7 @@ const Pin = require('../models/Pin');
 const Comment = require('../models/Comment');
 const asyncHandler = require('../utils/asyncHandler');
 const { logGuestActivity } = require('../utils/activityLogger');
+const { createProjectNotifications } = require('../utils/notificationHelper');
 
 // Verify a guest-supplied password against either the bcrypt hash (preferred,
 // new projects + migrated ones) or the legacy plaintext field (pre-migration
@@ -203,6 +204,16 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
   // Activity log
   logGuestActivity(project._id, guestName, guestEmail, 'guest.pin_created', { pinNumber });
 
+  // In-app notifications to project members
+  createProjectNotifications({
+    io: req.app.get('io'),
+    projectId: project._id,
+    actorGuest: { name: guestName, email: guestEmail },
+    type: 'pin_created',
+    pin,
+    metadata: { pinNumber, pageUrl },
+  }).catch(() => {});
+
   // Emit real-time event
   const io = req.app.get('io');
   if (io) {
@@ -264,6 +275,18 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
 
   // Activity log
   logGuestActivity(project._id, guestName, guestEmail, 'guest.commented', { pinNumber: pin.pinNumber });
+
+  // In-app notifications to project members
+  createProjectNotifications({
+    io: req.app.get('io'),
+    projectId: project._id,
+    actorGuest: { name: guestName, email: guestEmail },
+    type: 'comment',
+    pin,
+    comment,
+    message: body,
+    metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl },
+  }).catch(() => {});
 
   // Real-time event
   const io = req.app.get('io');

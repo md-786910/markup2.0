@@ -7,6 +7,7 @@ import MembersTab from '../components/dashboard/MembersTab';
 import NewProjectDropdown from '../components/dashboard/NewProjectDropdown';
 import FilterBar from '../components/dashboard/FilterBar';
 import TrialDashboardBanner from '../components/common/TrialDashboardBanner';
+import NotificationBell from '../components/common/NotificationBell';
 import {
   getProjectsApi,
   updateProjectApi,
@@ -213,14 +214,17 @@ export default function DashboardPage() {
           <h2 className="text-2xl font-bold text-gray-900">{pageTitle}</h2>
           <p className="text-sm text-gray-500 mt-1">{pageSubtitle}</p>
         </div>
-        {isAdmin && tab !== 'members' && (
-          <NewProjectDropdown
-            onSelect={(type) => {
-              setCreateType(type);
-              setShowCreate(true);
-            }}
-          />
-        )}
+        <div className="flex items-center gap-3">
+          <NotificationBell />
+          {isAdmin && tab !== 'members' && (
+            <NewProjectDropdown
+              onSelect={(type) => {
+                setCreateType(type);
+                setShowCreate(true);
+              }}
+            />
+          )}
+        </div>
       </div>
 
       {/* Filter Bar */}

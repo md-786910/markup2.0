@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import PrivateRoute from './components/common/PrivateRoute';
 import AppLayout from './components/layout/AppLayout';
 import './index.css';
@@ -32,29 +33,31 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/onboarding" element={<OnboardingPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-            <Route path="/review/:shareToken" element={<GuestProjectPage />} />
-            <Route element={<PrivateRoute />}>
-              {/* Routes WITH sidebar layout */}
-              <Route element={<AppLayout />}>
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/project/:projectId/members" element={<MembersPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/integrations" element={<IntegrationsPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+        <NotificationProvider>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+              <Route path="/review/:shareToken" element={<GuestProjectPage />} />
+              <Route element={<PrivateRoute />}>
+                {/* Routes WITH sidebar layout */}
+                <Route element={<AppLayout />}>
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/project/:projectId/members" element={<MembersPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/integrations" element={<IntegrationsPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                </Route>
+                {/* Routes WITHOUT sidebar */}
+                <Route path="/project/:projectId" element={<ProjectPage />} />
               </Route>
-              {/* Routes WITHOUT sidebar */}
-              <Route path="/project/:projectId" element={<ProjectPage />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/dashboard" />} />
-          </Routes>
-        </Suspense>
+              <Route path="*" element={<Navigate to="/dashboard" />} />
+            </Routes>
+          </Suspense>
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   );

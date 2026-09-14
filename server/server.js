@@ -41,6 +41,11 @@ connectDB()
 
     // Connection handler — room management + presence tracking
     io.on("connection", (socket) => {
+      // Auto-join personal user room for targeted notifications
+      if (socket.user?._id) {
+        socket.join(`user:${socket.user._id.toString()}`);
+      }
+
       socket.on("join:project", (projectId) => {
         socket.join(`project:${projectId}`);
         socket.data.projectId = projectId;

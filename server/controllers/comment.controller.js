@@ -5,6 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { emitToProject, emailProjectMembers, emailMentionedUsers, notifyIntegrations } = require('../utils/notifier');
 const { logActivity } = require('../utils/activityLogger');
 const { extractMentionedUserIds, stripHtmlAndMentions } = require('../utils/mentionHelper');
+const { createProjectNotifications } = require('../utils/notificationHelper');
 
 exports.createComment = asyncHandler(async (req, res) => {
   const { pinId } = req.params;
@@ -49,6 +50,19 @@ exports.createComment = asyncHandler(async (req, res) => {
   // Real-time + email notifications
   const io = req.app.get('io');
   emitToProject(io, projectId, 'comment:created', { comment: populated, pinId });
+
+  // In-app notifications to all project members / mentions
+  createProjectNotifications({
+    io,
+    projectId,
+    actor: req.user,
+    type: 'comment',
+    pin,
+    comment: populated,
+    mentionedUserIds,
+    message: stripHtmlAndMentions(body),
+    metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl },
+  }).catch(() => {});
 
   // Check if this is the first comment on the pin (combined pin+comment notification)
   const priorCommentCount = await Comment.countDocuments({ pin: pinId, _id: { $ne: comment._id } });

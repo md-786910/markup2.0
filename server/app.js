@@ -18,6 +18,7 @@ const guestRoutes = require("./routes/guest.routes");
 const versionRoutes = require("./routes/version.routes");
 const integrationRoutes = require("./routes/integration.routes");
 const adminRoutes = require("./routes/admin.routes");
+const notificationRoutes = require("./routes/notification.routes");
 
 const {
   authLimiter,
@@ -161,6 +162,7 @@ app.use("/api/guest", guestRoutes);
 app.use("/api/projects", versionRoutes);
 app.use("/api/integrations", integrationRoutes);
 app.use("/api/admin", adminLimiter, adminRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

@@ -5,6 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { emitToProject, emailProjectMembers, notifyIntegrations } = require('../utils/notifier');
 const { logActivity } = require('../utils/activityLogger');
 const { extractMentionedUserIds } = require('../utils/mentionHelper');
+const { createProjectNotifications } = require('../utils/notificationHelper');
 
 exports.createPin = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
@@ -70,6 +71,15 @@ exports.createPin = asyncHandler(async (req, res) => {
   // Skip if client signals a comment will follow — the comment endpoint sends a combined notification
   const hasInitialComment = req.body.initialComment === 'true' || req.body.initialComment === true;
   if (!hasInitialComment) {
+    createProjectNotifications({
+      io,
+      projectId,
+      actor: req.user,
+      type: 'pin_created',
+      pin: populated,
+      metadata: { pinNumber, pageUrl },
+    }).catch(() => {});
+
     const project = await Project.findById(projectId).select('name organization');
     if (project) {
       notifyIntegrations(projectId, project.organization, {
@@ -201,6 +211,15 @@ exports.updatePin = asyncHandler(async (req, res) => {
   if (status) {
     const action = status === 'resolved' ? 'pin.resolved' : 'pin.reopened';
     logActivity(pin.project.toString(), req.user._id, action, { pinNumber: pin.pinNumber });
+
+    createProjectNotifications({
+      io,
+      projectId: pin.project.toString(),
+      actor: req.user,
+      type: status === 'resolved' ? 'pin_resolved' : 'pin_reopened',
+      pin: populated,
+      metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl, status },
+    }).catch(() => {});
   }
 
   // Email + integration notifications for status changes (fire-and-forget)
