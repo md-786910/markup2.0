@@ -130,6 +130,22 @@ export default function NotificationBell({ className = '' }) {
             </svg>
           </span>
         );
+      case 'member_invited':
+        return (
+          <span className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+          </span>
+        );
+      case 'member_removed':
+        return (
+          <span className="w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-sm">
+            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
+            </svg>
+          </span>
+        );
       case 'pin_created':
       default:
         return (
@@ -322,7 +338,25 @@ export default function NotificationBell({ className = '' }) {
                             deleted <span className="font-medium text-gray-600">Pin #{pinNum}</span>
                           </span>
                         )}
-                        {projName && (
+                        {notif.type === 'member_invited' && (
+                          <span>
+                            {notif.title ? (
+                              <span>{notif.title.startsWith(actorName) ? notif.title.slice(actorName.length).trim() : notif.title}</span>
+                            ) : (
+                              <span>invited a member to <span className="font-medium text-blue-600">{projName}</span></span>
+                            )}
+                          </span>
+                        )}
+                        {notif.type === 'member_removed' && (
+                          <span>
+                            {notif.title ? (
+                              <span>{notif.title.startsWith(actorName) ? notif.title.slice(actorName.length).trim() : notif.title}</span>
+                            ) : (
+                              <span>removed a member from <span className="font-medium text-rose-600">{projName}</span></span>
+                            )}
+                          </span>
+                        )}
+                        {projName && !['member_invited', 'member_removed'].includes(notif.type) && (
                           <span className="text-gray-400 font-normal"> in {projName}</span>
                         )}
                       </p>

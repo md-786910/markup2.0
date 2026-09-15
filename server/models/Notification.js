@@ -36,7 +36,16 @@ const notificationSchema = new Schema({
   },
   type: {
     type: String,
-    enum: ['comment', 'mention', 'pin_created', 'pin_resolved', 'pin_reopened', 'pin_deleted'],
+    enum: [
+      'comment',
+      'mention',
+      'pin_created',
+      'pin_resolved',
+      'pin_reopened',
+      'pin_deleted',
+      'member_invited',
+      'member_removed',
+    ],
     required: true,
   },
   title: {

@@ -15,7 +15,8 @@ const { ROLE_HIERARCHY } = require("../middleware/roles");
 const { getLimitsForPlanAsync, getNewSignupPlanMode } = require("../config/plans");
 const { generateCsrfToken, CSRF_COOKIE } = require("../middleware/csrf");
 const { validatePassword } = require("../utils/passwordPolicy");
-const { logOrgActivity } = require("../utils/activityLogger");
+const { logOrgActivity, logActivity } = require("../utils/activityLogger");
+const { createProjectNotifications, createSingleNotification } = require("../utils/notificationHelper");
 
 // Build the plan-related fields for a freshly-created Organization.
 // When admin has flipped Free as the default for new signups, skip the trial
@@ -278,6 +279,7 @@ exports.signup = asyncHandler(async (req, res) => {
     }
 
     // Add user to all invited projects
+    const io = req.app.get('io');
     for (const invite of pendingInvites) {
       await Project.findByIdAndUpdate(invite.project, {
         $addToSet: { members: user._id },
@@ -287,6 +289,39 @@ exports.signup = asyncHandler(async (req, res) => {
       }
       invite.status = "accepted";
       await invite.save();
+
+      const invProj = await Project.findById(invite.project);
+      if (invProj) {
+        logActivity(invProj._id, user._id, 'member.joined', {
+          memberName: user.name,
+          memberEmail: user.email,
+        });
+
+        createSingleNotification({
+          io,
+          recipientId: user._id,
+          actor: invite.invitedBy,
+          projectId: invProj._id,
+          type: 'member_invited',
+          title: `Welcome to ${invProj.name}!`,
+          message: `You have joined the project.`,
+          metadata: { projectName: invProj.name },
+        });
+
+        createProjectNotifications({
+          io,
+          projectId: invProj._id,
+          actor: user,
+          type: 'member_invited',
+          message: `${user.name} joined the project.`,
+          metadata: {
+            projectName: invProj.name,
+            targetMemberName: user.name,
+            targetMemberEmail: user.email,
+          },
+          excludeRecipientIds: [user._id.toString()],
+        });
+      }
     }
   }
 

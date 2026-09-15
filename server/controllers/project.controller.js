@@ -12,6 +12,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendInvitationEmail } = require('../utils/mailer');
 const { canAssignRole } = require('../middleware/roles');
 const { logActivity } = require('../utils/activityLogger');
+const { createProjectNotifications, createSingleNotification } = require('../utils/notificationHelper');
 
 // Hash a share-link password with bcrypt. 10 rounds (vs 12 for user passwords)
 // because share passwords are typically shorter / lower-stakes and we want
@@ -246,6 +247,7 @@ exports.deleteProject = asyncHandler(async (req, res) => {
 });
 
 exports.inviteMember = asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
   const { email, role: invitedRole } = req.body;
   const project = req.project;
 
@@ -283,6 +285,39 @@ exports.inviteMember = asyncHandler(async (req, res) => {
 
     // Activity log
     logActivity(project._id, req.user._id, 'member.joined', { memberName: user.name, memberEmail: email });
+
+    // Send in-app notification to the invited user
+    createSingleNotification({
+      io,
+      recipientId: user._id,
+      actor: req.user,
+      projectId: project._id,
+      type: 'member_invited',
+      title: `${req.user.name || 'Someone'} added you to ${project.name}`,
+      message: `You were added to the project as a ${roleToAssign}.`,
+      metadata: {
+        projectName: project.name,
+        role: roleToAssign,
+        targetMemberName: user.name,
+      },
+    });
+
+    // In-app notifications to other project members
+    createProjectNotifications({
+      io,
+      projectId: project._id,
+      actor: req.user,
+      type: 'member_invited',
+      message: `${user.name || email} has been added to the project.`,
+      metadata: {
+        projectName: project.name,
+        targetUserId: user._id.toString(),
+        targetMemberName: user.name,
+        targetMemberEmail: email,
+        role: roleToAssign,
+      },
+      excludeRecipientIds: [user._id.toString()],
+    });
 
     // If user doesn't belong to an org yet, link them
     if (!user.organization && req.user.organization) {
@@ -323,6 +358,20 @@ exports.inviteMember = asyncHandler(async (req, res) => {
 
   // Activity log
   logActivity(project._id, req.user._id, 'member.invited', { memberEmail: email, role: roleToAssign });
+
+  // In-app notifications to other existing project members that an invite was sent
+  createProjectNotifications({
+    io,
+    projectId: project._id,
+    actor: req.user,
+    type: 'member_invited',
+    message: `Invitation sent to ${email}.`,
+    metadata: {
+      projectName: project.name,
+      targetMemberEmail: email,
+      role: roleToAssign,
+    },
+  });
 
   // Send email
   const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
@@ -409,6 +458,7 @@ exports.updateMemberRole = asyncHandler(async (req, res) => {
 });
 
 exports.removeMember = asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
   const project = req.project;
   const { userId } = req.params;
 
@@ -434,6 +484,37 @@ exports.removeMember = asyncHandler(async (req, res) => {
   // Activity log
   logActivity(project._id, req.user._id, 'member.removed', {
     memberName: targetUser?.name,
+  });
+
+  // 1) In-app notification to the removed member
+  if (targetUser) {
+    createSingleNotification({
+      io,
+      recipientId: targetUser._id,
+      actor: req.user,
+      projectId: project._id,
+      type: 'member_removed',
+      title: `${req.user.name || 'Someone'} removed you from ${project.name}`,
+      message: `You are no longer a member of ${project.name}.`,
+      metadata: {
+        projectName: project.name,
+        targetMemberName: targetUser.name,
+      },
+    });
+  }
+
+  // 2) In-app notification to remaining project members
+  createProjectNotifications({
+    io,
+    projectId: project._id,
+    actor: req.user,
+    type: 'member_removed',
+    message: `${targetUser?.name || 'A member'} was removed from the project.`,
+    metadata: {
+      projectName: project.name,
+      targetMemberName: targetUser?.name,
+    },
+    excludeRecipientIds: targetUser ? [targetUser._id.toString()] : [],
   });
 
   const updated = await Project.findById(project._id)
