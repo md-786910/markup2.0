@@ -105,7 +105,7 @@ function getActionBadge(type) {
   }
 }
 
-export default function NotificationBell({ className = '', variant, projectId }) {
+export default function NotificationBell({ className = '', variant, projectId, onSelectPin }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -227,11 +227,6 @@ export default function NotificationBell({ className = '', variant, projectId })
 
   // Handle click for summary group (Dashboard)
   const handleGroupClick = (group) => {
-    const unreadNotifs = group.notifications.filter((n) => !n.read);
-    unreadNotifs.forEach((n) => {
-      markAsRead(n._id);
-    });
-
     setIsOpen(false);
 
     if (group.projectId) {
@@ -255,6 +250,12 @@ export default function NotificationBell({ className = '', variant, projectId })
 
     const targetProjectId = notif.project?._id || notif.project || currentProjectId;
     const pinId = notif.pin?._id || notif.pin;
+    const isCurrentProject = !targetProjectId || String(targetProjectId) === String(currentProjectId);
+
+    if (onSelectPin && pinId && isCurrentProject) {
+      const pinObj = typeof notif.pin === 'object' && notif.pin !== null ? notif.pin : { _id: pinId };
+      onSelectPin(pinObj);
+    }
 
     if (targetProjectId) {
       if (pinId) {
