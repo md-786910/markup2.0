@@ -603,7 +603,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           </div>
 
           {/* Bell Notifications */}
-          <NotificationBell />
+          <NotificationBell variant="detailed" projectId={project?._id} />
 
           <div className="w-px h-6 bg-gray-200/80"></div>
 
