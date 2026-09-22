@@ -1,5 +1,6 @@
 const Notification = require('../models/Notification');
 const Project = require('../models/Project');
+const { stripHtmlAndMentions } = require('./mentionHelper');
 
 /**
  * Creates in-app notification for a single recipient and emits real-time Socket.IO event.
@@ -35,7 +36,7 @@ async function createSingleNotification({
       comment: commentId,
       type,
       title,
-      message: message ? message.substring(0, 200) : '',
+      message: message ? stripHtmlAndMentions(message).substring(0, 200) : '',
       metadata: {
         ...metadata,
       },
@@ -153,7 +154,7 @@ async function createProjectNotifications({
         comment: commentId,
         type: notifType,
         title,
-        message: message ? message.substring(0, 200) : '',
+        message: message ? stripHtmlAndMentions(message).substring(0, 200) : '',
         metadata: {
           pinNumber,
           pageUrl: pin?.pageUrl || metadata?.pageUrl || '',

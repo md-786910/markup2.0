@@ -29,6 +29,20 @@ function getAvatarColor(id) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+function cleanText(text) {
+  if (!text) return '';
+  return text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function formatTimeAgo(dateStr) {
   if (!dateStr) return '';
   const date = new Date(dateStr);
@@ -529,7 +543,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
                       {/* Message preview */}
                       {notif.message && (
                         <p className="text-[11px] text-gray-500 mt-1 line-clamp-2 italic bg-gray-50/80 px-2 py-1 rounded border border-gray-100">
-                          &ldquo;{notif.message}&rdquo;
+                          &ldquo;{cleanText(notif.message)}&rdquo;
                         </p>
                       )}
 
