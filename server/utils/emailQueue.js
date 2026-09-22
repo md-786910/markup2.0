@@ -43,6 +43,15 @@ async function flush(key, recipientEmail) {
   if (events.length === 0) return;
 
   try {
+    const projectId = events[0].projectId;
+    if (projectId) {
+      const User = require('../models/User');
+      const user = await User.findOne({ email: recipientEmail.toLowerCase() }).select('mutedProjectEmails');
+      if (user && user.mutedProjectEmails && user.mutedProjectEmails.some((p) => p.toString() === projectId.toString())) {
+        return; // Muted by recipient
+      }
+    }
+
     if (events.length === 1) {
       // Single event — send the original specific email (no digest wrapper)
       await sendSingleEmail(recipientEmail, events[0]);

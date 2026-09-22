@@ -58,3 +58,7 @@ export const updateVersionApi = (projectId, versionId, data) =>
 
 export const deleteVersionApi = (projectId, versionId) =>
   api.delete(`/projects/${projectId}/versions/${versionId}`);
+
+export const updateProjectEmailNotificationsApi = (projectId, enabled) =>
+  api.patch(`/projects/${projectId}/email-notifications`, { enabled });
+

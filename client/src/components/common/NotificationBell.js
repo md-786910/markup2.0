@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
+import { useAuth } from '../../hooks/useAuth';
+import { updateProjectEmailNotificationsApi } from '../../services/projectService';
 
 const AVATAR_COLORS = [
   { bg: 'bg-blue-100', text: 'text-blue-700' },
@@ -128,6 +130,29 @@ export default function NotificationBell({ className = '', variant, projectId, o
     markAllAsRead,
     deleteNotification,
   } = useNotifications();
+
+  const { user, updateUser } = useAuth();
+  const [emailToggling, setEmailToggling] = useState(false);
+  const isProjectEmailEnabled = Boolean(
+    currentProjectId && !user?.mutedProjectEmails?.includes(String(currentProjectId))
+  );
+
+  const handleToggleProjectEmails = async (e) => {
+    e.stopPropagation();
+    if (!currentProjectId || emailToggling) return;
+    setEmailToggling(true);
+    try {
+      const nextState = !isProjectEmailEnabled;
+      const res = await updateProjectEmailNotificationsApi(currentProjectId, nextState);
+      if (res.data?.mutedProjectEmails && updateUser) {
+        updateUser({ mutedProjectEmails: res.data.mutedProjectEmails });
+      }
+    } catch (err) {
+      console.error('Failed to toggle project email notifications:', err);
+    } finally {
+      setEmailToggling(false);
+    }
+  };
 
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState('all'); // 'all' | 'unread'
@@ -582,6 +607,39 @@ export default function NotificationBell({ className = '', variant, projectId, o
               })
             )}
           </div>
+
+          {/* Project Email Notifications Footer (when viewing inside a project) */}
+          {isDetailed && currentProjectId && (
+            <div className="px-4 py-2.5 bg-gray-50/90 border-t border-gray-100 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+                <span className="font-medium text-gray-700">Project Email Notifications</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleProjectEmails}
+                disabled={emailToggling}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+                  isProjectEmailEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                }`}
+                title={
+                  isProjectEmailEnabled
+                    ? 'Email notifications enabled for this project'
+                    : 'Email notifications muted for this project'
+                }
+                aria-label="Toggle project email notifications"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    isProjectEmailEnabled ? 'translate-x-4' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

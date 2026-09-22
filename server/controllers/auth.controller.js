@@ -69,6 +69,7 @@ const userResponse = (user, org, dynamicLimits) => ({
   // Attached by callers via attachPendingInvoice(org) before calling userResponse.
   // null when the org has no pending invoice.
   orgPendingInvoice: org && org._pendingInvoice ? org._pendingInvoice : null,
+  mutedProjectEmails: (user.mutedProjectEmails || []).map((id) => id.toString()),
 });
 
 const DAY_MS = 24 * 60 * 60 * 1000;

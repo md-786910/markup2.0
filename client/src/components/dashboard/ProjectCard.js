@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { PROJECT_STATUSES } from "../../utils/projectConstants";
+import { useAuth } from "../../hooks/useAuth";
+import { updateProjectEmailNotificationsApi } from "../../services/projectService";
 
 const API_BASE = (
   process.env.REACT_APP_BASE_URL || "http://localhost:5000/api"
@@ -106,10 +108,30 @@ export default function ProjectCard({
   onManageMembers,
   onStatusChange,
 }) {
-  const navigate = useNavigate();
+  const { user, updateUser } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [emailToggling, setEmailToggling] = useState(false);
   const menuRef = useRef(null);
+
+  const isEmailNotifEnabled = !user?.mutedProjectEmails?.includes(project._id);
+
+  const handleToggleEmailNotifications = async (e) => {
+    e?.stopPropagation();
+    if (emailToggling) return;
+    setEmailToggling(true);
+    try {
+      const nextState = !isEmailNotifEnabled;
+      const res = await updateProjectEmailNotificationsApi(project._id, nextState);
+      if (res.data?.mutedProjectEmails && updateUser) {
+        updateUser({ mutedProjectEmails: res.data.mutedProjectEmails });
+      }
+    } catch (err) {
+      console.error("Failed to toggle project email notifications:", err);
+    } finally {
+      setEmailToggling(false);
+    }
+  };
 
   useEffect(() => {
     if (!menuOpen) {
@@ -139,9 +161,61 @@ export default function ProjectCard({
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-200 group relative">
-      {/* Three-dot menu — positioned on card root to avoid overflow clipping */}
-      {canManage && (
-        <div ref={menuRef} className="absolute top-2 right-2 z-20">
+      {/* Top-Right Quick Actions */}
+      <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
+        {/* Quick Email Notification Toggle */}
+        <button
+          type="button"
+          onClick={handleToggleEmailNotifications}
+          disabled={emailToggling}
+          className={`p-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm border border-gray-200/60 transition-all ${
+            !isEmailNotifEnabled
+              ? "opacity-100 text-red-500 hover:text-red-600 hover:bg-white"
+              : "opacity-0 group-hover:opacity-100 text-gray-500 hover:text-blue-600 hover:bg-white"
+          }`}
+          title={
+            isEmailNotifEnabled
+              ? "Email notifications: ON (click to mute for this project)"
+              : "Email notifications: MUTED (click to enable for this project)"
+          }
+          aria-label="Toggle email notifications"
+        >
+          {isEmailNotifEnabled ? (
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={1.75}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+              />
+            </svg>
+          ) : (
+            <div className="relative flex items-center justify-center">
+              <svg
+                className="w-4 h-4 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={1.75}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+                />
+              </svg>
+              <span className="absolute w-[18px] h-[1.5px] bg-red-500 -rotate-45 transform origin-center rounded-full pointer-events-none" />
+            </div>
+          )}
+        </button>
+
+        {/* Three-dot menu */}
+        <div ref={menuRef} className="relative">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -157,29 +231,69 @@ export default function ProjectCard({
 
           {menuOpen && (
             <div className="absolute right-0 top-9 w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 animate-scale-in">
+              {/* Project Email Notifications Item */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setMenuOpen(false);
-                  onEdit(project);
+                  handleToggleEmailNotifications(e);
                 }}
-                className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
+                disabled={emailToggling}
+                className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between transition-colors"
               >
-                <svg
-                  className="w-4 h-4 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+                <span className="flex items-center gap-2.5">
+                  <svg
+                    className="w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.75}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+                    />
+                  </svg>
+                  <span>Email Alerts</span>
+                </span>
+                <span
+                  className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+                    isEmailNotifEnabled
+                      ? "bg-blue-50 text-blue-700"
+                      : "bg-gray-100 text-gray-500"
+                  }`}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                  />
-                </svg>
-                Edit
+                  {isEmailNotifEnabled ? "On" : "Muted"}
+                </span>
               </button>
+
+              {canManage && (
+                <>
+                  <div className="border-t border-gray-100 my-1" />
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(false);
+                      onEdit(project);
+                    }}
+                    className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
+                  >
+                    <svg
+                      className="w-4 h-4 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                    Edit
+                  </button>
               {/* <button
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(false); navigate(`/project/${project._id}/members`); }}
                 className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
@@ -308,10 +422,13 @@ export default function ProjectCard({
                 </svg>
                 Delete
               </button>
-            </div>
+            </>
           )}
         </div>
       )}
+    </div>
+  </div>
+
 
       {/* Thumbnail area */}
       <Link

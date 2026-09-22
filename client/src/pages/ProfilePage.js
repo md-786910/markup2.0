@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -7,6 +7,10 @@ import {
   uploadAvatarApi,
   deleteAccountApi,
 } from '../services/authService';
+import {
+  getProjectsApi,
+  updateProjectEmailNotificationsApi,
+} from '../services/projectService';
 
 function FieldRow({ label, children }) {
   return (
@@ -78,6 +82,40 @@ export default function ProfilePage() {
   // Avatar
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarError, setAvatarError] = useState('');
+
+  // Projects & Notifications
+  const [projects, setProjects] = useState([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [togglingProjectId, setTogglingProjectId] = useState(null);
+
+  useEffect(() => {
+    getProjectsApi()
+      .then((res) => {
+        setProjects(res.data.projects || []);
+      })
+      .catch((err) => {
+        console.error('Failed to load projects for notifications:', err);
+      })
+      .finally(() => {
+        setProjectsLoading(false);
+      });
+  }, []);
+
+  const handleToggleProject = async (projectId, currentlyEnabled) => {
+    if (togglingProjectId === projectId) return;
+    setTogglingProjectId(projectId);
+    try {
+      const nextState = !currentlyEnabled;
+      const res = await updateProjectEmailNotificationsApi(projectId, nextState);
+      if (res.data?.mutedProjectEmails && updateUser) {
+        updateUser({ mutedProjectEmails: res.data.mutedProjectEmails });
+      }
+    } catch (err) {
+      console.error('Failed to update project email notifications:', err);
+    } finally {
+      setTogglingProjectId(null);
+    }
+  };
 
   // Delete
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -275,6 +313,85 @@ export default function ProfilePage() {
         </div>
         {avatarError && <p className="text-xs text-red-500 mt-1.5">{avatarError}</p>}
       </FieldRow>
+
+      <div className="border-t border-gray-200 my-4" />
+
+      {/* Project Email Notifications */}
+      <div className="py-6">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Project Email Notifications</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Turn email notifications on or off independently for each project. When muted, you will not receive comment, mention, or status emails for that project.
+          </p>
+        </div>
+
+        {projectsLoading ? (
+          <div className="py-6 text-center text-gray-400">
+            <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-2" />
+            <p className="text-xs">Loading projects...</p>
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="p-4 bg-gray-50 rounded-xl text-center text-xs text-gray-400 border border-gray-100">
+            No projects found in this workspace.
+          </div>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden shadow-sm">
+            {projects.map((proj) => {
+              const isEnabled = !user?.mutedProjectEmails?.includes(proj._id);
+              const isToggling = togglingProjectId === proj._id;
+
+              return (
+                <div
+                  key={proj._id}
+                  className="p-4 flex items-center justify-between gap-4 hover:bg-gray-50/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                      {proj.projectType === 'document' ? (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{proj.name}</p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {proj.projectType === 'document' ? 'Document project' : proj.websiteUrl || 'Website'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className={`text-xs font-medium ${isEnabled ? 'text-blue-600' : 'text-gray-400'}`}>
+                      {isEnabled ? 'Emails On' : 'Muted'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleProject(proj._id, isEnabled)}
+                      disabled={isToggling}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+                        isEnabled ? 'bg-blue-600' : 'bg-gray-200'
+                      }`}
+                      title={isEnabled ? 'Email notifications enabled' : 'Email notifications muted'}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          isEnabled ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <div className="border-t border-gray-200 my-4" />
 

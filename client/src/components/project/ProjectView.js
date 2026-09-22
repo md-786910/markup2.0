@@ -17,6 +17,7 @@ import {
   deletePinApi,
   uploadPinScreenshotApi,
 } from "../../services/pinService";
+import { updateProjectEmailNotificationsApi } from "../../services/projectService";
 import { TOKEN_KEY } from "../../utils/constants";
 import { useSocket } from "../../hooks/useSocket";
 
@@ -48,8 +49,27 @@ function getAvatarColor(id) {
 export default function ProjectView({ project, onProjectUpdate, initialPinId }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAdmin, canCreate, user } = useAuth();
+  const { isAdmin, canCreate, user, updateUser } = useAuth();
   const limits = user?.orgLimits || {};
+  const [emailNotifLoading, setEmailNotifLoading] = useState(false);
+  const isEmailNotifEnabled = !user?.mutedProjectEmails?.includes(project._id);
+
+  const handleToggleEmailNotifications = async () => {
+    if (emailNotifLoading) return;
+    setEmailNotifLoading(true);
+    try {
+      const nextState = !isEmailNotifEnabled;
+      const res = await updateProjectEmailNotificationsApi(project._id, nextState);
+      if (res.data?.mutedProjectEmails && updateUser) {
+        updateUser({ mutedProjectEmails: res.data.mutedProjectEmails });
+      }
+    } catch (err) {
+      console.error('Failed to update email notification preferences:', err);
+    } finally {
+      setEmailNotifLoading(false);
+    }
+  };
+
   const [pins, setPins] = useState([]);
   const [allPins, setAllPins] = useState([]);
   const [selectedPin, setSelectedPin] = useState(null);
@@ -622,6 +642,41 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
               </div>
             )}
           </div>
+
+          {/* Project Email Notifications Toggle */}
+          <button
+            type="button"
+            onClick={handleToggleEmailNotifications}
+            disabled={emailNotifLoading}
+            className={`relative p-2 rounded-lg transition-colors focus:outline-none ${
+              isEmailNotifEnabled
+                ? 'text-gray-500 hover:text-blue-600 hover:bg-gray-100'
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100 bg-gray-50'
+            }`}
+            title={
+              isEmailNotifEnabled
+                ? 'Email notifications: ON (click to mute for this project)'
+                : 'Email notifications: MUTED (click to turn on for this project)'
+            }
+            aria-label={
+              isEmailNotifEnabled
+                ? 'Email notifications enabled'
+                : 'Email notifications muted'
+            }
+          >
+            {isEmailNotifEnabled ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+              </svg>
+            ) : (
+              <div className="relative flex items-center justify-center">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+                <span className="absolute w-[22px] h-[1.5px] bg-red-500 -rotate-45 transform origin-center rounded-full pointer-events-none" />
+              </div>
+            )}
+          </button>
 
           {/* Bell Notifications */}
           <NotificationBell variant="detailed" projectId={project?._id} onSelectPin={handlePinNavigate} />

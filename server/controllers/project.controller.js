@@ -241,6 +241,12 @@ exports.deleteProject = asyncHandler(async (req, res) => {
     }
   }
 
+  // Remove project from any user's mutedProjectEmails
+  await User.updateMany(
+    { mutedProjectEmails: project._id },
+    { $pull: { mutedProjectEmails: project._id } }
+  );
+
   await Project.findByIdAndDelete(project._id);
 
   res.json({ message: 'Project deleted' });
@@ -480,6 +486,7 @@ exports.removeMember = asyncHandler(async (req, res) => {
 
   project.members = project.members.filter((m) => m.toString() !== userId);
   await project.save();
+  await User.findByIdAndUpdate(userId, { $pull: { mutedProjectEmails: project._id } });
 
   // Activity log
   logActivity(project._id, req.user._id, 'member.removed', {
@@ -659,3 +666,44 @@ exports.disableShare = asyncHandler(async (req, res) => {
 
   res.json({ message: 'Sharing disabled' });
 });
+
+/**
+ * PATCH /api/projects/:projectId/email-notifications
+ * Toggle or set email notifications preference for the current user on this project.
+ * Body: { enabled: boolean }
+ */
+exports.updateProjectEmailNotifications = asyncHandler(async (req, res) => {
+  const projectId = req.project._id;
+  const userId = req.user._id;
+  const { enabled } = req.body;
+
+  if (typeof enabled !== 'boolean') {
+    return res.status(400).json({ message: 'The "enabled" boolean field is required' });
+  }
+
+  let user;
+  if (!enabled) {
+    user = await User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { mutedProjectEmails: projectId } },
+      { new: true }
+    );
+  } else {
+    user = await User.findByIdAndUpdate(
+      userId,
+      { $pull: { mutedProjectEmails: projectId } },
+      { new: true }
+    );
+  }
+
+  const mutedProjectEmails = (user.mutedProjectEmails || []).map((id) => id.toString());
+
+  res.json({
+    message: enabled
+      ? 'Email notifications enabled for this project'
+      : 'Email notifications muted for this project',
+    emailNotificationsEnabled: enabled,
+    mutedProjectEmails,
+  });
+});
+

@@ -18,6 +18,7 @@ const {
   enableShare,
   updateShare,
   disableShare,
+  updateProjectEmailNotifications,
 } = require('../controllers/project.controller');
 
 router.use(auth);
@@ -27,6 +28,7 @@ router.get('/', getProjects);
 router.get('/:projectId', projectAccess, getProject);
 router.patch('/:projectId', projectAccess, authorize('owner', 'admin'), checkOrgNotLocked, updateProject);
 router.delete('/:projectId', projectAccess, authorize('owner', 'admin'), checkOrgNotLocked, deleteProject);
+router.patch('/:projectId/email-notifications', projectAccess, updateProjectEmailNotifications);
 router.get('/:projectId/invitations', projectAccess, require('../controllers/invitation.controller').getProjectInvitations);
 router.get('/:projectId/workspace-members', projectAccess, getWorkspaceMembers);
 router.post('/:projectId/members', projectAccess, checkOrgNotLocked, checkMemberLimit, checkGuestLimit, inviteMember);

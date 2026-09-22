@@ -14,22 +14,29 @@ function buildPinLink(projectId, pinId) {
 }
 
 /**
- * Get all project members (owner + members) except the actor.
+ * Get all project members (owner + members) except the actor and those who muted the project.
  * Returns array of { _id, name, email }.
  */
 async function getRecipients(projectId, excludeUserId) {
   const project = await Project.findById(projectId)
-    .populate('owner', 'name email')
-    .populate('members', 'name email');
+    .populate('owner', 'name email mutedProjectEmails')
+    .populate('members', 'name email mutedProjectEmails');
   if (!project) return [];
 
   const all = [project.owner, ...project.members].filter(Boolean);
-  const excludeStr = excludeUserId.toString();
+  const excludeStr = excludeUserId ? excludeUserId.toString() : '';
+  const projIdStr = projectId ? projectId.toString() : '';
   const seen = new Set();
   return all.filter((u) => {
     const id = u._id.toString();
     if (id === excludeStr || seen.has(id)) return false;
     seen.add(id);
+
+    // Skip if user muted email notifications for this project
+    if (u.mutedProjectEmails && u.mutedProjectEmails.some((p) => p.toString() === projIdStr)) {
+      return false;
+    }
+
     return true;
   });
 }
@@ -88,7 +95,7 @@ async function emailMentionedUsers({ mentionedUserIds, actorUserId, actorName, p
   try {
     if (!mentionedUserIds || mentionedUserIds.length === 0) return;
     const actorStr = actorUserId ? actorUserId.toString() : '';
-    const users = await User.find({ _id: { $in: mentionedUserIds } }).select('name email');
+    const users = await User.find({ _id: { $in: mentionedUserIds } }).select('name email mutedProjectEmails');
     const projectId = (pin.project?._id || pin.project || '').toString();
     const pinId = (pin._id || '').toString();
     const link = buildPinLink(projectId, pinId);
@@ -96,6 +103,12 @@ async function emailMentionedUsers({ mentionedUserIds, actorUserId, actorName, p
 
     for (const user of users) {
       if (user._id.toString() === actorStr) continue;
+
+      // Skip if user muted email notifications for this project
+      if (user.mutedProjectEmails && user.mutedProjectEmails.some((p) => p.toString() === projectId)) {
+        continue;
+      }
+
       queueNotification(user.email, {
         projectId,
         projectName,
