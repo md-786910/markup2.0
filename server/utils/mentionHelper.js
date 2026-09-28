@@ -110,6 +110,15 @@ function stripHtmlAndMentions(body) {
   // Strip remaining HTML tags
   clean = clean.replace(/<[^>]+>/g, ' ');
 
+  // Decode common HTML entities (including &nbsp; to space)
+  clean = clean
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'");
+
   // Collapse multiple whitespace
   return clean.replace(/\s+/g, ' ').trim();
 }

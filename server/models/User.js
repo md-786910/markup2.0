@@ -67,6 +67,11 @@ const userSchema = new mongoose.Schema({
     type: Date,
     select: false,
   },
+  mutedProjectEmails: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    default: [],
+  }],
 }, { timestamps: true });
 
 userSchema.pre('save', async function () {

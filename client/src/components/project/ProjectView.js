@@ -17,6 +17,7 @@ import {
   deletePinApi,
   uploadPinScreenshotApi,
 } from "../../services/pinService";
+import { updateProjectEmailNotificationsApi } from "../../services/projectService";
 import { TOKEN_KEY } from "../../utils/constants";
 import { useSocket } from "../../hooks/useSocket";
 
@@ -48,8 +49,27 @@ function getAvatarColor(id) {
 export default function ProjectView({ project, onProjectUpdate, initialPinId }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAdmin, canCreate, user } = useAuth();
+  const { isAdmin, canCreate, user, updateUser } = useAuth();
   const limits = user?.orgLimits || {};
+  const [emailNotifLoading, setEmailNotifLoading] = useState(false);
+  const isEmailNotifEnabled = !user?.mutedProjectEmails?.includes(project._id);
+
+  const handleToggleEmailNotifications = async () => {
+    if (emailNotifLoading) return;
+    setEmailNotifLoading(true);
+    try {
+      const nextState = !isEmailNotifEnabled;
+      const res = await updateProjectEmailNotificationsApi(project._id, nextState);
+      if (res.data?.mutedProjectEmails && updateUser) {
+        updateUser({ mutedProjectEmails: res.data.mutedProjectEmails });
+      }
+    } catch (err) {
+      console.error('Failed to update email notification preferences:', err);
+    } finally {
+      setEmailNotifLoading(false);
+    }
+  };
+
   const [pins, setPins] = useState([]);
   const [allPins, setAllPins] = useState([]);
   const [selectedPin, setSelectedPin] = useState(null);
@@ -70,7 +90,7 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const [selectedVersionId, setSelectedVersionId] = useState(null);
   const iframeState = useIframeMessages();
   const { onEvent, onlineUsers, lastSeenMap } = useSocket(project._id);
-  const deepLinkHandled = useRef(false);
+  const initialPinHandled = useRef(false);
 
   const isDocumentProject = project.projectType === 'document';
 
@@ -240,31 +260,41 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
   const handlePinNavigate = useCallback((pin) => {
     if (!pin) return;
     if (!pinMode) setPinMode(true);
-    setSelectedPin(pin);
+    if (sidebarTab !== 'pins') setSidebarTab('pins');
+
+    const pinId = pin._id || pin;
+    const fullPin = (typeof pin === 'object' && pin.xPercent != null)
+      ? pin
+      : (allPins.find((p) => p._id === pinId) || pins.find((p) => p._id === pinId) || pin);
+
+    setSelectedPin(fullPin);
 
     // Update URL with pin ID routing query parameter
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      next.set('pin', pin._id);
-      return next;
+      if (next.get('pin') !== pinId) {
+        next.set('pin', pinId);
+        return next;
+      }
+      return prev;
     }, { replace: true });
 
     if (isDocumentProject) {
-      const parsed = parseDocPageUrl(pin.pageUrl);
+      const parsed = parseDocPageUrl(fullPin.pageUrl);
       if (parsed) {
-        const docIdx = project.documents.findIndex((d) => d.filename === parsed.filename);
+        const docIdx = project.documents?.findIndex((d) => d.filename === parsed.filename);
         if (docIdx >= 0 && docIdx !== currentDocIndex) setCurrentDocIndex(docIdx);
         if (parsed.page !== currentDocPage) setCurrentDocPage(parsed.page);
       }
     } else {
-      if (pin.deviceMode && pin.deviceMode !== deviceMode) {
-        handleDeviceChange(pin.deviceMode);
+      if (fullPin.deviceMode && fullPin.deviceMode !== deviceMode) {
+        handleDeviceChange(fullPin.deviceMode);
       }
-      if (pin.pageUrl !== targetUrl) {
-        setTargetUrl(pin.pageUrl);
+      if (fullPin.pageUrl && fullPin.pageUrl !== targetUrl) {
+        setTargetUrl(fullPin.pageUrl);
       }
     }
-  }, [pinMode, isDocumentProject, project.documents, currentDocIndex, currentDocPage, deviceMode, targetUrl, setSearchParams, handleDeviceChange]);
+  }, [pinMode, sidebarTab, isDocumentProject, project.documents, currentDocIndex, currentDocPage, deviceMode, targetUrl, setSearchParams, handleDeviceChange, allPins, pins]);
 
   const handleClosePin = useCallback(() => {
     setSelectedPin(null);
@@ -443,16 +473,27 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     });
   }, [onEvent]);
 
-  // --- Deep-link from email or URL query param on refresh: navigate to pin ---
+  // --- Deep-link from email or URL query param on initial load: navigate to pin ---
   useEffect(() => {
     const urlPinId = searchParams.get('pin') || searchParams.get('comment') || initialPinId;
-    if (!urlPinId || allPins.length === 0 || deepLinkHandled.current) return;
-    const targetPin = allPins.find((p) => p._id === urlPinId);
+    if (!urlPinId || initialPinHandled.current) return;
+
+    const targetPin = allPins.find((p) => p._id === urlPinId) || pins.find((p) => p._id === urlPinId);
     if (targetPin) {
-      deepLinkHandled.current = true;
+      initialPinHandled.current = true;
       handlePinNavigate(targetPin);
+    } else {
+      getPinsApi(project._id)
+        .then((res) => {
+          const found = res.data.pins?.find((p) => p._id === urlPinId);
+          if (found) {
+            initialPinHandled.current = true;
+            handlePinNavigate(found);
+          }
+        })
+        .catch(() => {});
     }
-  }, [searchParams, initialPinId, allPins, handlePinNavigate]);
+  }, [searchParams, initialPinId, allPins, pins, project._id, handlePinNavigate]);
 
   const handleDocumentClick = useCallback((clickData) => {
     if (pendingPinData) return;
@@ -602,8 +643,43 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
             )}
           </div>
 
+          {/* Project Email Notifications Toggle */}
+          <button
+            type="button"
+            onClick={handleToggleEmailNotifications}
+            disabled={emailNotifLoading}
+            className={`relative p-2 rounded-lg transition-colors focus:outline-none ${
+              isEmailNotifEnabled
+                ? 'text-gray-500 hover:text-blue-600 hover:bg-gray-100'
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100 bg-gray-50'
+            }`}
+            title={
+              isEmailNotifEnabled
+                ? 'Email notifications: ON (click to mute for this project)'
+                : 'Email notifications: MUTED (click to turn on for this project)'
+            }
+            aria-label={
+              isEmailNotifEnabled
+                ? 'Email notifications enabled'
+                : 'Email notifications muted'
+            }
+          >
+            {isEmailNotifEnabled ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+              </svg>
+            ) : (
+              <div className="relative flex items-center justify-center">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+                <span className="absolute w-[22px] h-[1.5px] bg-red-500 -rotate-45 transform origin-center rounded-full pointer-events-none" />
+              </div>
+            )}
+          </button>
+
           {/* Bell Notifications */}
-          <NotificationBell />
+          <NotificationBell variant="detailed" projectId={project?._id} onSelectPin={handlePinNavigate} />
 
           <div className="w-px h-6 bg-gray-200/80"></div>
 
