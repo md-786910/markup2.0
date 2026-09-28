@@ -215,7 +215,6 @@ export default function DashboardPage() {
           <p className="text-sm text-gray-500 mt-1">{pageSubtitle}</p>
         </div>
         <div className="flex items-center gap-3">
-          <NotificationBell />
           {isAdmin && tab !== 'members' && (
             <NewProjectDropdown
               onSelect={(type) => {
@@ -224,6 +223,7 @@ export default function DashboardPage() {
               }}
             />
           )}
+          <NotificationBell />
         </div>
       </div>
 

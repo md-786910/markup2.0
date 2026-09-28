@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { PROJECT_STATUSES } from "../../utils/projectConstants";
 import { useAuth } from "../../hooks/useAuth";
 import { updateProjectEmailNotificationsApi } from "../../services/projectService";
+import { TOKEN_KEY } from "../../utils/constants";
 
 const API_BASE = (
   process.env.REACT_APP_BASE_URL || "http://localhost:5000/api"
@@ -31,14 +32,14 @@ function IframeThumbnail({ src, title }) {
   return (
     <div
       ref={wrapperRef}
-      className="absolute inset-0"
+      className="absolute inset-0 bg-white"
       style={{ overflow: "hidden" }}
     >
       <iframe
         src={src}
         title={title}
         loading="lazy"
-        sandbox="allow-same-origin"
+        sandbox="allow-scripts allow-same-origin allow-forms"
         style={{
           width: `${IFRAME_WIDTH}px`,
           height: `${IFRAME_HEIGHT}px`,
@@ -46,6 +47,7 @@ function IframeThumbnail({ src, title }) {
           transformOrigin: "top left",
           border: "none",
           pointerEvents: "none",
+          background: "white",
         }}
       />
     </div>
@@ -163,57 +165,6 @@ export default function ProjectCard({
     <div className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all duration-200 group relative">
       {/* Top-Right Quick Actions */}
       <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
-        {/* Quick Email Notification Toggle */}
-        <button
-          type="button"
-          onClick={handleToggleEmailNotifications}
-          disabled={emailToggling}
-          className={`p-1.5 rounded-lg bg-white/90 backdrop-blur-sm shadow-sm border border-gray-200/60 transition-all ${
-            !isEmailNotifEnabled
-              ? "opacity-100 text-red-500 hover:text-red-600 hover:bg-white"
-              : "opacity-0 group-hover:opacity-100 text-gray-500 hover:text-blue-600 hover:bg-white"
-          }`}
-          title={
-            isEmailNotifEnabled
-              ? "Email notifications: ON (click to mute for this project)"
-              : "Email notifications: MUTED (click to enable for this project)"
-          }
-          aria-label="Toggle email notifications"
-        >
-          {isEmailNotifEnabled ? (
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={1.75}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
-              />
-            </svg>
-          ) : (
-            <div className="relative flex items-center justify-center">
-              <svg
-                className="w-4 h-4 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                strokeWidth={1.75}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
-                />
-              </svg>
-              <span className="absolute w-[18px] h-[1.5px] bg-red-500 -rotate-45 transform origin-center rounded-full pointer-events-none" />
-            </div>
-          )}
-        </button>
-
         {/* Three-dot menu */}
         <div ref={menuRef} className="relative">
           <button
@@ -433,6 +384,7 @@ export default function ProjectCard({
       {/* Thumbnail area */}
       <Link
         to={`/project/${project._id}`}
+        target="_blank"
         className="cursor-pointer block"
       >
         <div className="h-40 bg-gray-50 border-b border-gray-100 relative rounded-t-xl overflow-hidden">
@@ -474,15 +426,15 @@ export default function ProjectCard({
           ) : (
             /* Live iframe preview — use container-query scale to fill width */
             <IframeThumbnail
-              src={`${API_BASE}/api/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}`}
+              src={`${API_BASE}/api/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}&token=${encodeURIComponent(localStorage.getItem(TOKEN_KEY) || "")}`}
               title={project.name}
             />
           )}
           {/* Gradient overlay for clean bottom edge */}
-          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-gray-50 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none" />
 
           {/* Status badges */}
-          <div className="absolute top-2 left-2 flex gap-1.5 z-10">
+          <div className="absolute top-2 left-2 flex gap-1.5 z-20">
             {project.status === "archived" && (
               <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-gray-900/70 text-white backdrop-blur-sm">
                 Archived
@@ -496,6 +448,13 @@ export default function ProjectCard({
                   {statusInfo.label}
                 </span>
               )}
+          </div>
+
+          {/* Hover Open Button - MarkUp style */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center z-10">
+            <span className="px-5 py-2 bg-white text-gray-900 text-sm font-semibold rounded-full shadow-xl transform scale-90 group-hover:scale-100 hover:scale-105 active:scale-95 transition-all duration-200">
+              Open
+            </span>
           </div>
         </div>
       </Link>
