@@ -382,12 +382,7 @@ export default function ProjectCard({
 
 
       {/* Thumbnail area */}
-      <Link
-        to={`/project/${project._id}`}
-        target="_blank"
-        className="cursor-pointer block"
-      >
-        <div className="h-40 bg-gray-50 border-b border-gray-100 relative rounded-t-xl overflow-hidden">
+      <div className="h-40 bg-gray-50 border-b border-gray-100 relative rounded-t-xl overflow-hidden">
           {isDocProject ? (
             /* Document thumbnail */
             <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
@@ -451,19 +446,19 @@ export default function ProjectCard({
           </div>
 
           {/* Hover Open Button - MarkUp style */}
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center z-10">
-            <span className="px-5 py-2 bg-white text-gray-900 text-sm font-semibold rounded-full shadow-xl transform scale-90 group-hover:scale-100 hover:scale-105 active:scale-95 transition-all duration-200">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center z-10 pointer-events-none">
+            <Link
+              to={`/project/${project._id}`}
+              target="_blank"
+              className="pointer-events-auto px-5 py-2 bg-white text-gray-900 text-sm font-semibold rounded-full shadow-xl transform scale-90 group-hover:scale-100 hover:scale-105 active:scale-95 transition-all duration-200"
+            >
               Open
-            </span>
+            </Link>
           </div>
         </div>
-      </Link>
 
       {/* Card body */}
-      <Link
-        to={`/project/${project._id}`}
-        className="p-4 cursor-pointer block"
-      >
+      <div className="p-4">
         <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-1 mb-1 pr-6">
           {project.name}
         </h3>
@@ -514,7 +509,7 @@ export default function ProjectCard({
             </div>
           </div>
         </div>
-      </Link>
+      </div>
     </div>
   );
 }
