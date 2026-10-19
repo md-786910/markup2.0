@@ -46,7 +46,7 @@ Run: `cd server && npm run dev` (port 5000); `cd client && DISABLE_ESLINT_PLUGIN
 
 ### Notifications
 `utils/notifier.js` is the hub.
-- **Email**: members get emails, respecting `User.mutedProjectEmails` (the per-project toggle). `utils/emailQueue.js` batches per recipient for `EMAIL_BATCH_DELAY_MS` (default 5 min) and sends a digest when there are several. The queue is in-memory, so it is lost on restart. Templates are in `utils/mailer.js` (nodemailer).
+- **Email**: members get emails, respecting `User.mutedProjectEmails` (the per-project toggle). `utils/emailQueue.js` batches per recipient for `EMAIL_BATCH_DELAY_MS` (default 5 min) and sends a digest when there are several. The queue is in-memory, so it is lost on restart. Templates live in `utils/email/templates.js`: pure functions returning `{subject, html, text}`. They're built from the shared blocks in `utils/email/layout.js` (app green theme, table-based, auto-escaped; `**bold**` markup in text). `utils/mailer.js` only sends them. Preview them all with `npm run preview:emails [outDir]`. Set the optional `EMAIL_LOGO_URL` env var to use an image logo instead of the text "K" mark.
 - **In-app**: `utils/notificationHelper.js` creates the Notification and emits it.
 - **Integrations**: `{slack,discord,teams}Notifier.js` send webhooks. `jiraSync.js` creates an issue on `pin.created`.
 - **Mentions**: written as `@[Name](id)` or Quill `data-id` (`utils/mentionHelper.js`).

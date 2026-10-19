@@ -172,7 +172,7 @@ async function phaseGenerateAnniversary() {
     const owner = await ownerEmail(org._id);
     if (owner?.email) {
       await safeSend(`invoice-created→${owner.email}`, () =>
-        sendInvoiceCreatedEmail(owner.email, org.name, plan.name, order.amount, dueAt, PAY_URL)
+        sendInvoiceCreatedEmail(owner.email, org.name, plan.name, order.amount, dueAt, PAY_URL, order.currency)
       );
     }
   }
@@ -206,7 +206,7 @@ async function phaseProcessPending() {
     // Day-4 reminder
     if (elapsed >= 4 && !inv.reminders.day4Sent) {
       if (email) await safeSend(`reminder-day4→${email}`, () =>
-        sendPaymentReminderEmail(email, org.name, daysLeft, inv.amount, PAY_URL)
+        sendPaymentReminderEmail(email, org.name, daysLeft, inv.amount, PAY_URL, inv.currency)
       );
       inv.reminders.day4Sent = true;
       touched = true;
@@ -215,7 +215,7 @@ async function phaseProcessPending() {
     // Day-7 reminder
     if (elapsed >= 7 && !inv.reminders.day7Sent) {
       if (email) await safeSend(`reminder-day7→${email}`, () =>
-        sendPaymentReminderEmail(email, org.name, daysLeft, inv.amount, PAY_URL)
+        sendPaymentReminderEmail(email, org.name, daysLeft, inv.amount, PAY_URL, inv.currency)
       );
       inv.reminders.day7Sent = true;
       touched = true;
@@ -224,7 +224,7 @@ async function phaseProcessPending() {
     // Day-9 urgent reminder
     if (elapsed >= 9 && !inv.reminders.day9Sent) {
       if (email) await safeSend(`reminder-day9→${email}`, () =>
-        sendUrgentPaymentReminderEmail(email, org.name, daysLeft, inv.amount, PAY_URL)
+        sendUrgentPaymentReminderEmail(email, org.name, daysLeft, inv.amount, PAY_URL, inv.currency)
       );
       inv.reminders.day9Sent = true;
       touched = true;
@@ -242,7 +242,7 @@ async function phaseProcessPending() {
         console.log(`[billing] LOCKED org ${org._id} for invoice ${inv._id}`);
       }
       if (email) await safeSend(`org-locked→${email}`, () =>
-        sendOrgLockedEmail(email, org.name, inv.amount, PAY_URL)
+        sendOrgLockedEmail(email, org.name, inv.amount, PAY_URL, inv.currency)
       );
       inv.reminders.lockSent = true;
       touched = true;

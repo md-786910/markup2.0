@@ -115,6 +115,7 @@ async function emailMentionedUsers({ mentionedUserIds, actorUserId, actorName, p
         type: 'mention',
         actorName: senderName,
         commentBody: comment.body,
+        pinNumber: pin?.pinNumber || null,
         link,
       });
     }

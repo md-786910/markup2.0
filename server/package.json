@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "clear:pending-invitations": "node scripts/clearPendingInvitations.js"
+    "clear:pending-invitations": "node scripts/clearPendingInvitations.js",
+    "preview:emails": "node scripts/previewEmails.js"
   },
   "keywords": [],
   "author": "",

@@ -69,18 +69,19 @@ async function flush(key, recipientEmail) {
  * Send an individual email using the original mailer functions.
  */
 async function sendSingleEmail(toEmail, event) {
+  const extra = { pinNumber: event.pinNumber };
   switch (event.type) {
     case 'pin':
-      await sendPinNotificationEmail(toEmail, event.actorName, event.projectName, event.pinPageUrl, event.link);
+      await sendPinNotificationEmail(toEmail, event.actorName, event.projectName, event.pinPageUrl, event.link, extra);
       break;
     case 'comment':
-      await sendCommentNotificationEmail(toEmail, event.actorName, event.projectName, event.commentBody, event.link);
+      await sendCommentNotificationEmail(toEmail, event.actorName, event.projectName, event.commentBody, event.link, extra);
       break;
     case 'mention':
-      await sendMentionNotificationEmail(toEmail, event.actorName, event.projectName, event.commentBody, event.link);
+      await sendMentionNotificationEmail(toEmail, event.actorName, event.projectName, event.commentBody, event.link, extra);
       break;
     case 'status':
-      await sendPinStatusEmail(toEmail, event.actorName, event.projectName, event.pinStatus, event.link);
+      await sendPinStatusEmail(toEmail, event.actorName, event.projectName, event.pinStatus, event.link, extra);
       break;
     default:
       console.warn(`Unknown email event type: ${event.type}`);
