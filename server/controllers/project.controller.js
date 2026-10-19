@@ -122,8 +122,17 @@ exports.getProjects = asyncHandler(async (req, res) => {
 
   // Compute the comment count per project: Comment -> Pin -> Project.
   const projectIds = projects.map((p) => p._id);
-  const pins = await Pin.find({ project: { $in: projectIds } }).select('_id project');
+  const pins = await Pin.find({ project: { $in: projectIds } }).select('_id project status');
   const pinToProject = new Map(pins.map((pin) => [pin._id.toString(), pin.project.toString()]));
+
+  // Open vs resolved threads (pins) per project, for the dashboard card.
+  const pinStatusByProject = {};
+  pins.forEach((pin) => {
+    const key = pin.project.toString();
+    const counts = pinStatusByProject[key] || (pinStatusByProject[key] = { open: 0, resolved: 0 });
+    if (pin.status === 'resolved') counts.resolved += 1;
+    else counts.open += 1;
+  });
 
   const commentsByPin = await Comment.aggregate([
     { $match: { pin: { $in: pins.map((pin) => pin._id) } } },
@@ -141,6 +150,8 @@ exports.getProjects = asyncHandler(async (req, res) => {
   const projectsWithCounts = projects.map((project) => ({
     ...project.toObject(),
     commentCount: commentCountByProject[project._id.toString()] || 0,
+    openPinCount: pinStatusByProject[project._id.toString()]?.open || 0,
+    resolvedPinCount: pinStatusByProject[project._id.toString()]?.resolved || 0,
   }));
 
   res.json({ projects: projectsWithCounts });

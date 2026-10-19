@@ -153,6 +153,7 @@ export default function ProjectCard({
   const isOwner = project.owner?._id === userId || project.owner === userId;
   const canManage = isAdmin || isOwner;
   const members = project.members || [];
+  const openCount = project.openPinCount || 0;
   const isDocProject = project.projectType === "document";
   const domain = isDocProject
     ? project.documents?.[0]?.mimetype === "application/pdf"
@@ -490,8 +491,17 @@ export default function ProjectCard({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 text-gray-400">
-            <div className="flex items-center gap-1" title="Comments">
+          <div className="flex items-center gap-2">
+            {openCount > 0 && (
+              <div
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 ring-1 ring-inset ring-red-100"
+                title={`${openCount} open comment${openCount === 1 ? "" : "s"}`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                <span className="text-[11px] font-semibold tabular-nums">{openCount} open</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1 text-gray-400" title="Comments">
               <svg
                 className="w-3.5 h-3.5"
                 fill="none"

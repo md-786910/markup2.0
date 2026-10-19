@@ -9,6 +9,7 @@ import InviteMemberModal from "./InviteMemberModal";
 import ShareProjectModal from "./ShareProjectModal";
 import NewPinCommentPopup from "./NewPinCommentPopup";
 import NotificationBell from "../common/NotificationBell";
+import MembersPresencePopover from "./MembersPresencePopover";
 import { useAuth } from "../../hooks/useAuth";
 import { useIframeMessages } from "../../hooks/useIframeMessages";
 import {
@@ -90,31 +91,21 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
     return list;
   }, [project.owner, project.members]);
 
-  const formatLastSeen = useCallback((dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHr = Math.floor(diffMin / 60);
-    const diffDays = Math.floor(diffHr / 24);
+  // Presence info for the header avatar hover cards
+  const getMemberPresence = useCallback((member) => {
+    const ownerId = project.owner?._id || project.owner;
+    return {
+      member,
+      isOnline: onlineUsers.has(member._id),
+      lastSeen: lastSeenMap[member._id] || member.lastSeen,
+      role: member._id === ownerId ? 'owner' : member.role,
+      isYou: member._id === (user?.id || user?._id),
+      color: getAvatarColor(member._id),
+      initials: getInitials(member.name || member.email),
+    };
+  }, [onlineUsers, lastSeenMap, project.owner, user?.id, user?._id]);
 
-    if (diffSec < 60) return 'just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
-    if (diffHr < 24) return `${diffHr}h ago`;
-    if (diffDays === 1) return 'yesterday';
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  }, []);
-
-  const getMemberTooltip = useCallback((member) => {
-    const name = member.name || member.email;
-    if (onlineUsers.has(member._id)) return `${name} — Online`;
-    const lastSeen = lastSeenMap[member._id] || member.lastSeen;
-    if (lastSeen) return `${name} — Last seen ${formatLastSeen(lastSeen)}`;
-    return name;
-  }, [onlineUsers, lastSeenMap, formatLastSeen]);
+  const memberPresence = useMemo(() => allMembers.map(getMemberPresence), [allMembers, getMemberPresence]);
 
   const token = localStorage.getItem(TOKEN_KEY);
   const proxyUrl = !isDocumentProject ? `${process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api'}/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${project._id}&token=${token}` : null;
@@ -603,26 +594,25 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
           </div>}
 
           {/* Member avatars */}
-          <div className="flex items-center -space-x-2">
-            {allMembers.slice(0, 5).map((member) => {
-              const color = getAvatarColor(member._id);
-              return (
-              <div key={member._id} className="relative" title={getMemberTooltip(member)}>
-                <div className={`w-8 h-8 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-[11px] font-bold border-[2.5px] border-white`}>
-                  {getInitials(member.name || member.email)}
+          <MembersPresencePopover entries={memberPresence}>
+          <div tabIndex={0} className="flex items-center -space-x-2 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+            {memberPresence.slice(0, 5).map((p) => (
+              <div key={p.member._id} className="relative transition-transform hover:-translate-y-0.5 hover:z-10">
+                <div className={`w-8 h-8 rounded-full ${p.color.bg} ${p.color.text} flex items-center justify-center text-[11px] font-bold border-[2.5px] border-white`}>
+                  {p.initials}
                 </div>
                 <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-[2px] border-white ${
-                  onlineUsers.has(member._id) ? 'bg-green-500' : 'bg-gray-300'
+                  p.isOnline ? 'bg-green-500' : 'bg-gray-300'
                 }`} />
               </div>
-              );
-            })}
-            {allMembers.length > 5 && (
+            ))}
+            {memberPresence.length > 5 && (
               <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-bold border-[2.5px] border-white">
-                +{allMembers.length - 5}
+                +{memberPresence.length - 5}
               </div>
             )}
           </div>
+          </MembersPresencePopover>
 
           {/* Bell Notifications */}
           <NotificationBell variant="detailed" projectId={project?._id} onSelectPin={handlePinNavigate} />
