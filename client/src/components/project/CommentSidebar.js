@@ -13,6 +13,7 @@ import renderCommentBody from "../../utils/renderCommentBody";
 import AttachmentChip from "./AttachmentChip";
 import AttachmentItem from "./AttachmentItem";
 import { ACCEPTED_ATTACHMENT_TYPES } from "../../utils/attachmentHelpers";
+import { formatFullTimestamp } from "../../utils/formatTimestamp";
 
 function formatDateTime(dateStr) {
   const d = new Date(dateStr);
@@ -230,7 +231,7 @@ export default function CommentSidebar({
                 pin.status === "resolved" ? "bg-green-500" : "bg-amber-500"
               }`}
             ></span>
-            <span className="text-[12px] text-gray-400">
+            <span className="text-[12px] text-gray-400" title={formatFullTimestamp(pin.createdAt)}>
               {pin.createdBy?.name || "Unknown"} &middot;{" "}
               {formatDateTime(pin.createdAt)}
             </span>
@@ -365,7 +366,7 @@ export default function CommentSidebar({
                 <span className="text-sm font-medium text-gray-800 truncate">
                   {comment.author?.name || "Unknown"}
                 </span>
-                <span className="text-[11px] text-gray-400 shrink-0">
+                <span className="text-[11px] text-gray-400 shrink-0" title={formatFullTimestamp(comment.createdAt)}>
                   {formatDateTime(comment.createdAt)}
                 </span>
                 {/* Edit / Delete actions */}

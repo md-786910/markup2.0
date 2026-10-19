@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import CommentSidebar from './CommentSidebar';
 import { useAuth } from '../../hooks/useAuth';
 import renderCommentBody from '../../utils/renderCommentBody';
+import { formatTimestamp, formatFullTimestamp } from '../../utils/formatTimestamp';
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -13,8 +14,9 @@ function timeAgo(date) {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 30) return `${days}d ago`;
-  return new Date(date).toLocaleDateString();
+  return formatTimestamp(date);
 }
+
 
 function getPagePath(url) {
   if (url && url.startsWith('doc:')) {
@@ -1118,7 +1120,7 @@ export default function PinListSidebar({
                         </div>
 
                         {/* Time */}
-                        <p className="text-[11px] text-gray-400 mb-1.5">{timeAgo(pin.createdAt)}</p>
+                        <p className="text-[11px] text-gray-400 mb-1.5 tabular-nums" title={formatFullTimestamp(pin.createdAt)}>{timeAgo(pin.createdAt)}</p>
 
                         {/* Comment preview — first comment as title */}
                         {pin.firstComment ? (
