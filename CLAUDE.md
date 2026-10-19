@@ -76,6 +76,10 @@ Run: `cd server && npm run dev` (port 5000); `cd client && DISABLE_ESLINT_PLUGIN
 - `middleware/projectAccess.js`: any `admin`/`owner` passes for **any** project with no org check, so cross-tenant access is possible.
 - Guest pin/comment endpoints (`controllers/guest.controller.js`) don't re-check the share password or expiry; only `getGuestProject` does.
 - Proxy: no SSRF/private-IP guard, `url` isn't restricted to `project.websiteUrl`, and sub-resources trust the proxy cookie without a DB check.
-- `POST /api/billing/upgrade` switches the plan and clears billing locks before payment.
+- `POST /api/billing/upgrade` switches the plan and clears billing locks before payment (and creates no invoice, so month 1 goes unbilled).
+- Monthly invoicing (deferred, not fixed):
+  - `settleInvoice` extends `currentPeriodEnd` by one more month when a cron invoice is paid. `runBilling.js` already moved it forward, so orgs end up billed every other month.
+  - Nothing in the repo schedules `runBilling.js`. It needs an external crontab.
+  - `setMonth(+1)` overflows (Jan 31 → Mar 3) and mixes local time with UTC.
 - The free plan's `features` text says 3 projects, but `maxProjects` is 2. The `app.js` comment says a 1mb body limit, but the actual limit is 10mb.
 - `.claude/` is gitignored, so agents in `.claude/agents/` are local only.

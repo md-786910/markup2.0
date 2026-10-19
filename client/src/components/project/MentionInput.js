@@ -1,5 +1,8 @@
-import { useState, useRef, useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
+import { useState, useRef, useCallback, useImperativeHandle, forwardRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
+
+const ENCODED_MENTION = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/;
+const ENCODED_MENTION_G = new RegExp(ENCODED_MENTION.source, 'g');
 
 /**
  * MentionInput — textarea/input with @mention support.
@@ -40,6 +43,20 @@ const MentionInput = forwardRef(function MentionInput({
   const inputRef = useRef(null);
   const wrapperRef = useRef(null);
   const [dropdownPos, setDropdownPos] = useState(null);
+
+  // Decode stored mentions "@[Name](id)" (e.g. when editing an existing comment)
+  // into display text "@Name", remembering the ids so getEncodedValue() restores
+  // them. Layout effect so the raw token never paints.
+  useLayoutEffect(() => {
+    if (!value || !ENCODED_MENTION.test(value)) return;
+    const found = {};
+    const decoded = value.replace(ENCODED_MENTION_G, (_, name, id) => {
+      found[name] = id;
+      return `@${name}`;
+    });
+    setMentionMap((prev) => ({ ...prev, ...found }));
+    onChange(decoded);
+  }, [value, onChange]);
 
   // Expose getEncodedValue() to parent via ref
   useImperativeHandle(ref, () => ({
