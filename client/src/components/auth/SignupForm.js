@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PasswordInput from '../common/PasswordInput';
 import { useAuth } from '../../hooks/useAuth';
 import { Link, useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { getInvitationApi } from '../../services/invitationService';
@@ -128,8 +129,7 @@ export default function SignupForm() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required

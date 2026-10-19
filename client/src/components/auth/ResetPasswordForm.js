@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PasswordInput from '../common/PasswordInput';
 import { Link, useParams } from 'react-router-dom';
 import { resetPasswordApi } from '../../services/authService';
 
@@ -76,8 +77,7 @@ export default function ResetPasswordForm() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">New Password</label>
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -88,8 +88,7 @@ export default function ResetPasswordForm() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
-          <input
-            type="password"
+          <PasswordInput
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required

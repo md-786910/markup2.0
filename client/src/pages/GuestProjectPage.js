@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import PasswordInput from '../components/common/PasswordInput';
 import { useParams } from 'react-router-dom';
 import {
   getGuestProjectApi,
@@ -210,15 +211,15 @@ export default function GuestProjectPage() {
           </div>
           <h2 className="text-lg font-semibold text-gray-900 text-center mb-1">Password Required</h2>
           <p className="text-sm text-gray-500 text-center mb-5">Enter the password to access this review.</p>
-          <input
-            type="password"
+          <PasswordInput
+            wrapperClassName="mb-3"
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
               if (passwordError) setPasswordError('');
             }}
             placeholder="Enter password"
-            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 outline-none mb-3 ${
+            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 outline-none ${
               passwordError
                 ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
                 : 'border-gray-200 focus:ring-blue-500 focus:border-blue-500'

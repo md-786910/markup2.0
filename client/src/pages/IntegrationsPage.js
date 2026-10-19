@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PasswordInput from "../components/common/PasswordInput";
 import { useAuth } from "../hooks/useAuth";
 import {
   getIntegrationsApi,
@@ -314,8 +315,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
                 <label className="text-sm text-gray-500 mb-1.5 block">
                   API Token
                 </label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={jiraToken}
                   onChange={(e) => setJiraToken(e.target.value)}
                   placeholder="Your Jira API token"
