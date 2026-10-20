@@ -1,0 +1,248 @@
+{
+  "site": {
+    "name": "Kommently",
+    "legalName": "Kommently",
+    "url": "https://kommently.app",
+    "appUrl": "https://app.kommently.app",
+    "email": "hello@kommently.app",
+    "locale": "en_US",
+    "twitterHandle": "@Kommently",
+    "defaultOgImage": "/og-image.png",
+    "logo": "/icon-512x512.png"
+  },
+  "blockedPaths": [
+    "/app",
+    "/auth",
+    "/dashboard",
+    "/login",
+    "/onboarding",
+    "/settings",
+    "/projects",
+    "/profile",
+    "/reset-password",
+    "/forgot-password",
+    "/admin",
+    "/api"
+  ],
+  "routes": [
+    {
+      "path": "/",
+      "title": "Kommently | Visual Comment Tool for Website Reviews",
+      "description": "Pin comments on live websites, PDFs, and launch assets with real-time collaboration, guest review links, and faster approvals for agencies and product teams.",
+      "keywords": "visual comment tool, website annotation, client feedback tool, design review, website review software",
+      "h1": "Visual comment that turns reviews into releases.",
+      "summary": "Kommently helps teams replace screenshot threads with precise pinned comments, threaded collaboration, and controlled guest reviews.",
+      "changefreq": "weekly",
+      "priority": 1,
+      "schema": [
+        "Organization",
+        "WebSite",
+        "SoftwareApplication",
+        "FAQPage",
+        "BreadcrumbList"
+      ],
+      "breadcrumbs": [
+        {
+          "name": "Home",
+          "path": "/"
+        }
+      ],
+      "faq": [
+        {
+          "question": "How does Kommently work?",
+          "answer": "Paste a live URL or upload a file, then click anywhere to leave precise visual comments. Comments stay anchored to the page context for designers, developers, and stakeholders."
+        },
+        {
+          "question": "Do guests need an account to review?",
+          "answer": "No. You can share controlled review links with clients or external collaborators so they can comment without creating an account."
+        },
+        {
+          "question": "What file types can I review in Kommently?",
+          "answer": "Kommently supports live websites, PDFs, images, and launch assets so teams can keep feedback in one workflow."
+        },
+        {
+          "question": "Can my team collaborate in real time?",
+          "answer": "Yes. Comments, replies, presence, and status changes update in real time so teams avoid duplicate notes and slow handoffs."
+        }
+      ]
+    },
+    {
+      "path": "/customers",
+      "title": "Customer Review Workflows for Agencies and Product Teams | Kommently",
+      "description": "See how agencies, product teams, and web operations teams use Kommently to collect clearer feedback, reduce revision loops, and speed up approval cycles.",
+      "keywords": "customer review workflow, agency feedback software, product team review, client approval tool",
+      "h1": "Review workflows that feel clear to every stakeholder.",
+      "summary": "Use Kommently to keep client approvals, QA notes, and web launch reviews clear across every stakeholder group.",
+      "changefreq": "monthly",
+      "priority": 0.8,
+      "schema": [
+        "Organization",
+        "BreadcrumbList"
+      ],
+      "breadcrumbs": [
+        {
+          "name": "Home",
+          "path": "/"
+        },
+        {
+          "name": "Customers",
+          "path": "/customers"
+        }
+      ]
+    },
+    {
+      "path": "/pricing",
+      "title": "Kommently Pricing | Visual Feedback Plans for Growing Teams",
+      "description": "Compare Kommently pricing for visual website reviews, guest feedback links, real-time collaboration, integrations, and secure team workflows.",
+      "keywords": "Kommently pricing, visual feedback pricing, website annotation pricing, client feedback plans",
+      "h1": "Plans that scale with review volume, not confusion.",
+      "summary": "Choose the Kommently plan that matches your review volume, collaboration needs, and integration requirements.",
+      "changefreq": "weekly",
+      "priority": 0.9,
+      "schema": [
+        "SoftwareApplication",
+        "FAQPage",
+        "BreadcrumbList"
+      ],
+      "breadcrumbs": [
+        {
+          "name": "Home",
+          "path": "/"
+        },
+        {
+          "name": "Pricing",
+          "path": "/pricing"
+        }
+      ],
+      "faq": [
+        {
+          "question": "Can I try Kommently for free before paying?",
+          "answer": "Yes. Starter and Pro include a free trial so your team can run a real review before choosing a plan."
+        },
+        {
+          "question": "Do client reviewers count as members?",
+          "answer": "Guests are separate from team members. You can invite clients through controlled review links without adding them to your internal workspace."
+        },
+        {
+          "question": "Can we cancel monthly plans?",
+          "answer": "Yes. Monthly plans can be cancelled any time from billing settings."
+        }
+      ]
+    },
+    {
+      "path": "/blog",
+      "title": "Kommently Blog | Visual Review, QA, and Client Feedback Guides",
+      "description": "Read practical guides for better visual comments, client approvals, QA handoff, website review workflows, and collaborative delivery.",
+      "keywords": "visual review blog, QA handoff, client feedback tips, website review workflow",
+      "h1": "Better review systems for teams that ship web work.",
+      "summary": "Guides and playbooks for turning scattered review notes into precise, developer-ready feedback.",
+      "changefreq": "weekly",
+      "priority": 0.7,
+      "schema": [
+        "BreadcrumbList"
+      ],
+      "breadcrumbs": [
+        {
+          "name": "Home",
+          "path": "/"
+        },
+        {
+          "name": "Blog",
+          "path": "/blog"
+        }
+      ]
+    },
+    {
+      "path": "/support",
+      "title": "Kommently Support Center | Help for Visual Website Reviews",
+      "description": "Find help for guest review links, integrations, project access, billing, and visual feedback workflows in Kommently.",
+      "keywords": "Kommently support, website review help, guest review links, visual feedback support",
+      "h1": "Get unstuck quickly and keep reviews moving.",
+      "summary": "Search common workflows, contact support, and get help with the review paths your team uses most.",
+      "changefreq": "monthly",
+      "priority": 0.7,
+      "schema": [
+        "BreadcrumbList"
+      ],
+      "breadcrumbs": [
+        {
+          "name": "Home",
+          "path": "/"
+        },
+        {
+          "name": "Support",
+          "path": "/support"
+        }
+      ]
+    },
+    {
+      "path": "/privacy",
+      "title": "Privacy Policy | Kommently",
+      "description": "Read the Kommently Privacy Policy to understand how personal information, project data, cookies, and service providers are handled.",
+      "keywords": "Kommently privacy policy, data protection, project data privacy",
+      "h1": "Privacy Policy",
+      "summary": "Kommently's privacy policy explains how account, project, usage, and cookie data are collected and protected.",
+      "changefreq": "yearly",
+      "priority": 0.4,
+      "schema": [
+        "BreadcrumbList"
+      ],
+      "breadcrumbs": [
+        {
+          "name": "Home",
+          "path": "/"
+        },
+        {
+          "name": "Privacy Policy",
+          "path": "/privacy"
+        }
+      ]
+    },
+    {
+      "path": "/terms",
+      "title": "Terms of Service | Kommently",
+      "description": "Read the Kommently Terms of Service for account rules, acceptable use, guest review links, billing, cancellation, and service terms.",
+      "keywords": "Kommently terms, terms of service, acceptable use policy",
+      "h1": "Terms of Service",
+      "summary": "Kommently's terms define the rules for using visual comments, guest review links, billing, and account access.",
+      "changefreq": "yearly",
+      "priority": 0.4,
+      "schema": [
+        "BreadcrumbList"
+      ],
+      "breadcrumbs": [
+        {
+          "name": "Home",
+          "path": "/"
+        },
+        {
+          "name": "Terms of Service",
+          "path": "/terms"
+        }
+      ]
+    },
+    {
+      "path": "/cookie-policy",
+      "title": "Cookie Policy | Kommently",
+      "description": "Learn how Kommently uses essential, analytics, preference, and marketing cookies and how visitors can manage cookie consent.",
+      "keywords": "Kommently cookie policy, cookie consent, analytics cookies",
+      "h1": "Cookie Policy",
+      "summary": "Kommently's cookie policy explains cookie types, consent controls, retention, and preference management.",
+      "changefreq": "yearly",
+      "priority": 0.4,
+      "schema": [
+        "BreadcrumbList"
+      ],
+      "breadcrumbs": [
+        {
+          "name": "Home",
+          "path": "/"
+        },
+        {
+          "name": "Cookie Policy",
+          "path": "/cookie-policy"
+        }
+      ]
+    }
+  ]
+}

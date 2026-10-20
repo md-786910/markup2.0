@@ -13,10 +13,20 @@ const invitationSchema = new Schema({
     ref: 'Project',
     required: true,
   },
+  organization: {
+    type: Schema.Types.ObjectId,
+    ref: 'Organization',
+    required: true,
+  },
   invitedBy: {
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true,
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'member', 'guest'],
+    default: 'member',
   },
   token: {
     type: String,
@@ -30,10 +40,11 @@ const invitationSchema = new Schema({
   },
   expiresAt: {
     type: Date,
-    default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    default: () => new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
   },
 }, { timestamps: true });
 
 invitationSchema.index({ email: 1, project: 1 });
+invitationSchema.index({ organization: 1 });
 
 module.exports = mongoose.model('Invitation', invitationSchema);

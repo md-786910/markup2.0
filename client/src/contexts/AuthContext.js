@@ -30,11 +30,12 @@ export function AuthProvider({ children }) {
     setUser(res.data.user);
   }, []);
 
-  const signup = useCallback(async (name, email, password) => {
-    const res = await signupApi(name, email, password);
+  const signup = useCallback(async (name, email, password, invitationToken) => {
+    const res = await signupApi(name, email, password, invitationToken);
     localStorage.setItem(TOKEN_KEY, res.data.token);
     setToken(res.data.token);
     setUser(res.data.user);
+    return res.data; // Return full response so caller can check isNewOrg
   }, []);
 
   const logout = useCallback(() => {
@@ -43,16 +44,29 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((userData) => {
+    setUser((prev) => (prev ? { ...prev, ...userData } : prev));
+  }, []);
+
+  const role = user?.role;
+  const orgLocked = user?.orgLocked || false;
+
   return (
     <AuthContext.Provider value={{
       user,
       token,
       loading,
       isAuthenticated: !!user,
-      isAdmin: user?.role === 'admin',
+      isOwner: role === 'owner',
+      isAdmin: role === 'admin' || role === 'owner',
+      isGuest: role === 'guest',
+      canManage: role === 'owner' || role === 'admin',
+      canCreate: role !== 'guest' && !orgLocked,
+      orgLocked,
       login,
       signup,
       logout,
+      updateUser,
     }}>
       {children}
     </AuthContext.Provider>

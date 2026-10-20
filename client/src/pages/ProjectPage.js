@@ -1,40 +1,51 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import ProjectView from '../components/project/ProjectView';
 import { getProjectApi } from '../services/projectService';
 
 export default function ProjectPage() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialPinId = searchParams.get('pin') || searchParams.get('comment');
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getProjectApi(projectId)
-      .then((res) => setProject(res.data.project))
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
+    getProjectApi(projectId, controller.signal)
+      .then((res) => {
+        if (!controller.signal.aborted) setProject(res.data.project);
+      })
       .catch((err) => {
+        if (controller.signal.aborted) return;
         setError(err.response?.data?.message || 'Failed to load project');
         if (err.response?.status === 404 || err.response?.status === 403) {
           setTimeout(() => navigate('/dashboard'), 2000);
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [projectId, navigate]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-screen animate-fade-in">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-blue-600"></div>
       </div>
     );
   }
 
-  if (error) {
+  if (error || !project) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <p className="text-red-600 text-lg">{error}</p>
+          <p className="text-red-600 text-lg">{error || 'Project not found'}</p>
           <p className="text-gray-400 text-sm mt-2">Redirecting to dashboard...</p>
         </div>
       </div>
@@ -42,9 +53,12 @@ export default function ProjectPage() {
   }
 
   return (
-    <ProjectView
-      project={project}
-      onProjectUpdate={(updated) => setProject(updated)}
-    />
+    <div className="animate-page-enter h-screen">
+      <ProjectView
+        project={project}
+        onProjectUpdate={(updated) => setProject(updated)}
+        initialPinId={initialPinId}
+      />
+    </div>
   );
 }

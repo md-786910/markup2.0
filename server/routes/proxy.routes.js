@@ -1,7 +1,7 @@
 const router = require("express").Router();
-const auth = require("../middleware/auth");
+const proxyAuth = require("../middleware/proxyAuth");
 const { proxyPage } = require("../controllers/proxy.controller");
 
-router.get("/", auth, proxyPage);
+router.all("/", proxyAuth, proxyPage);
 
 module.exports = router;

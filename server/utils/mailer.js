@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const templates = require('./email/templates');
 
 let transporter = null;
 
@@ -8,7 +9,7 @@ function getTransporter() {
   transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: false,
+    secure: process.env.SMTP_SECURE === 'true' || parseInt(process.env.SMTP_PORT || '587', 10) === 465,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
@@ -18,37 +19,89 @@ function getTransporter() {
   return transporter;
 }
 
-async function sendInvitationEmail(toEmail, inviterName, projectName, signupUrl) {
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@markup.app';
+// "Kommently <noreply@…>" — keeps a display name SMTP_FROM already has.
+function fromAddress() {
+  const raw = process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@kommently.app';
+  return raw.includes('<') ? raw : `Kommently <${raw}>`;
+}
 
-  const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 0;">
-      <div style="background: #2563eb; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px;">Markup</h1>
-      </div>
-      <div style="background: white; padding: 32px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-        <h2 style="margin: 0 0 8px; font-size: 18px; color: #111827;">You've been invited!</h2>
-        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
-          <strong style="color: #111827;">${inviterName}</strong> has invited you to collaborate on
-          <strong style="color: #111827;">${projectName}</strong>.
-        </p>
-        <a href="${signupUrl}"
-           style="display: inline-block; background: #2563eb; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600;">
-          Create Your Account
-        </a>
-        <p style="color: #9ca3af; font-size: 12px; margin: 24px 0 0; line-height: 1.5;">
-          This invitation expires in 7 days. If you didn't expect this email, you can safely ignore it.
-        </p>
-      </div>
-    </div>
-  `;
-
+async function send(to, { subject, html, text }) {
   await getTransporter().sendMail({
-    from,
-    to: toEmail,
-    subject: `${inviterName} invited you to ${projectName} on Markup`,
+    from: fromAddress(),
+    to,
+    subject: subject.replace(/[\r\n]+/g, ' '),
     html,
+    text,
   });
 }
 
-module.exports = { sendInvitationEmail };
+// ── Collaboration ───────────────────────────────────────────────────────────
+
+async function sendInvitationEmail(toEmail, inviterName, projectName, signupUrl) {
+  await send(toEmail, templates.invitation({ inviterName, projectName, signupUrl }));
+}
+
+async function sendPinNotificationEmail(toEmail, actorName, projectName, pinPageUrl, directLink, { pinNumber } = {}) {
+  await send(toEmail, templates.newPin({ actorName, projectName, pageUrl: pinPageUrl, pinNumber, link: directLink }));
+}
+
+async function sendCommentNotificationEmail(toEmail, actorName, projectName, commentBody, directLink, { pinNumber } = {}) {
+  await send(toEmail, templates.comment({ actorName, projectName, commentBody, pinNumber, link: directLink }));
+}
+
+async function sendMentionNotificationEmail(toEmail, actorName, projectName, commentBody, directLink, { pinNumber } = {}) {
+  await send(toEmail, templates.mention({ actorName, projectName, commentBody, pinNumber, link: directLink }));
+}
+
+async function sendPinStatusEmail(toEmail, actorName, projectName, newStatus, directLink, { pinNumber } = {}) {
+  await send(toEmail, templates.pinStatus({ actorName, projectName, newStatus, pinNumber, link: directLink }));
+}
+
+async function sendDigestEmail(toEmail, projectName, events) {
+  await send(toEmail, templates.digest({ projectName, events }));
+}
+
+// ── Account ─────────────────────────────────────────────────────────────────
+
+async function sendPasswordResetEmail(toEmail, resetUrl) {
+  await send(toEmail, templates.passwordReset({ resetUrl }));
+}
+
+async function sendEmailVerificationOtp(toEmail, otp) {
+  await send(toEmail, templates.verificationOtp({ otp }));
+}
+
+// ── Billing (monthly invoicing flow) ────────────────────────────────────────
+// Amounts are in the smallest currency unit (paise / cents). `currency`
+// defaults to INR for callers that predate PayPal support.
+
+async function sendInvoiceCreatedEmail(toEmail, orgName, planName, amount, dueAt, payUrl, currency = 'INR') {
+  await send(toEmail, templates.invoiceCreated({ orgName, planName, amount, currency, dueAt, payUrl }));
+}
+
+async function sendPaymentReminderEmail(toEmail, orgName, daysLeft, amount, payUrl, currency = 'INR') {
+  await send(toEmail, templates.paymentReminder({ orgName, daysLeft, amount, currency, payUrl }));
+}
+
+async function sendUrgentPaymentReminderEmail(toEmail, orgName, daysLeft, amount, payUrl, currency = 'INR') {
+  await send(toEmail, templates.urgentPaymentReminder({ orgName, daysLeft, amount, currency, payUrl }));
+}
+
+async function sendOrgLockedEmail(toEmail, orgName, amount, payUrl, currency = 'INR') {
+  await send(toEmail, templates.orgLocked({ orgName, amount, currency, payUrl }));
+}
+
+module.exports = {
+  sendInvitationEmail,
+  sendPinNotificationEmail,
+  sendCommentNotificationEmail,
+  sendMentionNotificationEmail,
+  sendPinStatusEmail,
+  sendDigestEmail,
+  sendPasswordResetEmail,
+  sendInvoiceCreatedEmail,
+  sendPaymentReminderEmail,
+  sendUrgentPaymentReminderEmail,
+  sendOrgLockedEmail,
+  sendEmailVerificationOtp,
+};

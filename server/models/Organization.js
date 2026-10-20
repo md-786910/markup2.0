@@ -1,0 +1,93 @@
+const mongoose = require('mongoose');
+const { DEFAULT_TRIAL_DAYS } = require('../config/plans');
+
+const organizationSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Organization name is required'],
+    trim: true,
+  },
+  slug: {
+    type: String,
+    unique: true,
+    lowercase: true,
+    trim: true,
+  },
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  logo: {
+    type: String,
+    default: null,
+  },
+  plan: {
+    type: String,
+    enum: ['trial', 'free', 'starter', 'pro', 'enterprise'],
+    default: 'trial',
+  },
+  limits: {
+    maxMembers: { type: Number, default: 10 },
+    maxGuests: { type: Number, default: 5 },
+    maxProjects: { type: Number, default: 5 },
+    hasIntegrations: { type: Boolean, default: false },
+    hasActivityLogs: { type: Boolean, default: false },
+    hasVersionHistory: { type: Boolean, default: false },
+  },
+  trialDays: {
+    type: Number,
+    default: DEFAULT_TRIAL_DAYS,
+  },
+  trialEndsAt: {
+    type: Date,
+    default: () => new Date(Date.now() + DEFAULT_TRIAL_DAYS * 24 * 60 * 60 * 1000),
+  },
+  isLocked: {
+    type: Boolean,
+    default: false,
+  },
+  lockedAt: {
+    type: Date,
+    default: null,
+  },
+  lockedReason: {
+    type: String,
+    default: null,
+  },
+  subscription: {
+    status: {
+      type: String,
+      enum: ['active', 'past_due', 'canceled', 'none', 'halted'],
+      default: 'none',
+    },
+    currentPeriodEnd: { type: Date, default: null },
+    externalId: { type: String, default: null }, // Could be razorpaySubscriptionId
+    provider: {
+      type: String,
+      enum: ['razorpay', 'paypal', null],
+      default: null,
+    },
+    razorpayCustomerId: { type: String, default: null },
+    razorpayPlanId: { type: String, default: null },
+    razorpaySubscriptionId: { type: String, default: null },
+    paypalSubscriptionId: { type: String, default: null },
+  },
+}, { timestamps: true });
+
+// Auto-generate slug from name before save
+organizationSchema.pre('save', function () {
+  if (this.isModified('name') && !this.slug) {
+    this.slug = this.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 50)
+      + '-' + Math.random().toString(36).slice(2, 8);
+  }
+});
+
+organizationSchema.index({ slug: 1 });
+organizationSchema.index({ owner: 1 });
+
+module.exports = mongoose.model('Organization', organizationSchema);

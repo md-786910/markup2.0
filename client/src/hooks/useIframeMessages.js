@@ -1,19 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
-
-const INITIAL_STATE = {
-  scrollX: 0,
-  scrollY: 0,
-  documentWidth: 0,
-  documentHeight: 0,
-  viewportWidth: 0,
-  viewportHeight: 0,
-  ready: false,
-  lastClick: null,
-  currentPageUrl: null,
-};
+import { useState, useEffect, useCallback, useRef } from "react";
 
 export function useIframeMessages() {
-  const [state, setState] = useState(INITIAL_STATE);
+  // Scroll data stored in ref — updates do NOT trigger re-renders
+  const scrollRef = useRef({
+    scrollX: 0,
+    scrollY: 0,
+    documentWidth: 0,
+    documentHeight: 0,
+    viewportWidth: 0,
+    viewportHeight: 0,
+  });
+
+  // Only data that drives UI re-renders goes in state
+  const [state, setState] = useState({
+    ready: false,
+    navigating: false,
+    lastClick: null,
+    currentPageUrl: null,
+    screenshot: null,
+  });
 
   useEffect(() => {
     const handler = (event) => {
@@ -26,30 +31,56 @@ export function useIframeMessages() {
         return;
 
       switch (data.type) {
+        case "MARKUP_NAVIGATING":
+          setState((prev) => ({
+            ...prev,
+            navigating: true,
+            ready: false,
+          }));
+          break;
         case "MARKUP_READY":
           setState((prev) => ({
             ...prev,
             ready: true,
-            documentWidth: data.documentWidth,
-            documentHeight: data.documentHeight,
+            navigating: false,
             currentPageUrl: data.pageUrl || prev.currentPageUrl,
           }));
+          scrollRef.current.documentWidth = data.documentWidth;
+          scrollRef.current.documentHeight = data.documentHeight;
           break;
         case "MARKUP_SCROLL":
-          setState((prev) => ({
-            ...prev,
+          // Update ref only — no re-render needed
+          scrollRef.current = {
             scrollX: data.scrollX,
             scrollY: data.scrollY,
             documentWidth: data.documentWidth,
             documentHeight: data.documentHeight,
             viewportWidth: data.viewportWidth,
             viewportHeight: data.viewportHeight,
-          }));
+          };
           break;
         case "MARKUP_CLICK":
           setState((prev) => ({
             ...prev,
-            lastClick: { xPercent: data.xPercent, yPercent: data.yPercent, pageUrl: data.pageUrl },
+            screenshot: null,
+            lastClick: {
+              xPercent: data.xPercent,
+              yPercent: data.yPercent,
+              viewportXPercent: data.viewportXPercent != null ? data.viewportXPercent : null,
+              viewportYPercent: data.viewportYPercent != null ? data.viewportYPercent : null,
+              pageUrl: data.pageUrl,
+              selector: data.selector || null,
+              elementOffsetX: data.elementOffsetX != null ? data.elementOffsetX : null,
+              elementOffsetY: data.elementOffsetY != null ? data.elementOffsetY : null,
+              documentWidth: data.documentWidth != null ? data.documentWidth : null,
+              documentHeight: data.documentHeight != null ? data.documentHeight : null,
+            },
+          }));
+          break;
+        case "MARKUP_SCREENSHOT":
+          setState((prev) => ({
+            ...prev,
+            screenshot: data.screenshot,
           }));
           break;
         default:
@@ -69,5 +100,9 @@ export function useIframeMessages() {
     setState((prev) => ({ ...prev, ready: false }));
   }, []);
 
-  return { ...state, clearLastClick, resetReady };
+  const clearScreenshot = useCallback(() => {
+    setState((prev) => ({ ...prev, screenshot: null }));
+  }, []);
+
+  return { ...state, scroll: scrollRef, clearLastClick, resetReady, clearScreenshot };
 }

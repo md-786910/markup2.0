@@ -2,11 +2,170 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  body {
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+      'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 8% 6%, rgba(199, 229, 214, 0.72), transparent 30%),
+      radial-gradient(circle at 90% 0%, rgba(218, 239, 226, 0.62), transparent 28%),
+      linear-gradient(180deg, #fbfdf9 0%, #f4f9f4 52%, #ffffff 100%);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    @apply text-gray-900;
+  }
+
+  *::selection {
+    background: rgba(23, 107, 87, 0.18);
+    color: #0d2a23;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(23, 107, 87, 0.45);
+    outline-offset: 2px;
+  }
+}
+
+/* Quill editor — clean minimal styles for comment popup */
+.markup-quill-wrapper .quill {
+  border: none !important;
+}
+.markup-quill-wrapper .ql-toolbar {
+  display: none !important;
+}
+.markup-quill-wrapper .ql-container {
+  border: none !important;
+  font-family: inherit;
+  font-size: 14px;
+}
+.markup-quill-wrapper .ql-editor {
+  padding: 8px 16px 8px 16px;
+  min-height: 100px;
+  max-height: 180px;
+  overflow-y: auto;
+  line-height: 1.6;
+  color: #17382f;
+}
+.markup-quill-wrapper .ql-editor.ql-blank::before {
+  color: #8ca39a;
+  font-style: normal;
+  left: 16px;
+  right: 16px;
+}
+.markup-quill-wrapper .ql-editor p {
+  margin-bottom: 4px;
+}
+.markup-quill-wrapper .ql-editor blockquote {
+  border-left: 3px solid #bed5c7;
+  padding-left: 12px;
+  color: #637a71;
+  margin: 4px 0;
+}
+.markup-quill-wrapper .ql-editor code {
+  background: #eaf4ed;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #dc2626;
+}
+.markup-quill-wrapper .ql-editor a {
+  color: #176b57;
+  text-decoration: underline;
+}
+
+/* Custom toolbar styling */
+#markup-comment-toolbar {
+  border: none !important;
+  padding: 6px 12px !important;
+  background: transparent !important;
+}
+#markup-comment-toolbar .ql-formats {
+  margin-right: 0 !important;
+}
+#markup-comment-toolbar button {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 4px !important;
+  border-radius: 6px !important;
+  color: #8ca39a !important;
+  transition: all 0.15s !important;
+}
+#markup-comment-toolbar button:hover {
+  color: #2d443b !important;
+  background: #f4f9f4 !important;
+}
+#markup-comment-toolbar button.ql-active {
+  color: #176b57 !important;
+  background: #edf8f0 !important;
+}
+#markup-comment-toolbar .ql-stroke {
+  stroke: currentColor !important;
+}
+#markup-comment-toolbar .ql-fill {
+  fill: currentColor !important;
+}
+
+/* Quill mention overrides */
+.markup-quill-wrapper .ql-mention-list-container {
+  border-radius: 10px !important;
+  border: 1px solid #d7e7dc !important;
+  box-shadow: 0 18px 45px rgba(25,54,43,0.12) !important;
+  overflow: hidden !important;
+  z-index: 99999 !important;
+}
+.markup-quill-wrapper .ql-mention-list-item {
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+  transition: background 0.1s !important;
+}
+.markup-quill-wrapper .ql-mention-list-item.selected {
+  background: #edf8f0 !important;
+}
+.markup-quill-wrapper .mention {
+  background: #edf8f0;
+  color: #176b57;
+  font-weight: 500;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.comment-rich-content .mention {
+  background: #edf8f0;
+  color: #176b57;
+  font-weight: 500;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+/* Rich comment content rendering */
+.comment-rich-content p { margin-bottom: 2px; }
+.comment-rich-content strong { font-weight: 600; }
+.comment-rich-content em { font-style: italic; }
+.comment-rich-content u { text-decoration: underline; }
+.comment-rich-content code { background: #eaf4ed; padding: 1px 4px; border-radius: 3px; font-size: 12px; color: #dc2626; }
+.comment-rich-content blockquote { border-left: 3px solid #bed5c7; padding-left: 10px; color: #637a71; margin: 4px 0; }
+.comment-rich-content ul { list-style: disc; padding-left: 20px; }
+.comment-rich-content ol { list-style: decimal; padding-left: 20px; }
+.comment-rich-content a { color: #176b57; text-decoration: underline; }
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #bed5c7 transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #bed5c7;
+    border-radius: 3px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: #8ca39a;
+  }
 }

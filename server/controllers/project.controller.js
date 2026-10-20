@@ -1,61 +1,230 @@
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const bcrypt = require('bcryptjs');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Pin = require('../models/Pin');
 const Comment = require('../models/Comment');
 const Invitation = require('../models/Invitation');
+const Activity = require('../models/Activity');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendInvitationEmail } = require('../utils/mailer');
+const { canAssignRole } = require('../middleware/roles');
+const { logActivity } = require('../utils/activityLogger');
+const { createProjectNotifications, createSingleNotification } = require('../utils/notificationHelper');
+
+// Hash a share-link password with bcrypt. 10 rounds (vs 12 for user passwords)
+// because share passwords are typically shorter / lower-stakes and we want
+// cheap verification on every guest review-page load.
+async function hashSharePassword(plaintext) {
+  if (!plaintext) return null;
+  return bcrypt.hash(String(plaintext), 10);
+}
+
+// Strip password / passwordHash before sending shareSettings back to the client.
+// Both fields are scrubbed: clients never need them, and the hash shouldn't
+// leak even though it's bcrypt.
+function sanitizeShareSettings(shareSettings) {
+  if (!shareSettings) return shareSettings;
+  const obj = shareSettings.toObject ? shareSettings.toObject() : { ...shareSettings };
+  delete obj.password;
+  delete obj.passwordHash;
+  obj.hasPassword = !!(shareSettings.passwordHash || shareSettings.password);
+  return obj;
+}
 
 exports.createProject = asyncHandler(async (req, res) => {
-  const { name, websiteUrl } = req.body;
+  const { name, websiteUrl, projectType = 'website' } = req.body;
 
-  if (!name || !websiteUrl) {
-    return res.status(400).json({ message: 'Name and website URL are required' });
+  if (!name) {
+    return res.status(400).json({ message: 'Project name is required' });
   }
 
-  const project = await Project.create({
-    name,
-    websiteUrl,
-    owner: req.user._id,
-    members: [req.user._id],
+  if (projectType === 'website' && !websiteUrl) {
+    return res.status(400).json({ message: 'Website URL is required for website projects' });
+  }
+
+  if (projectType === 'document' && (!req.files || req.files.length === 0)) {
+    return res.status(400).json({ message: 'At least one document file is required' });
+  }
+
+  const orgId = req.user.organization;
+  const existing = await Project.findOne({
+    organization: orgId,
+    name: { $regex: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
   });
+  if (existing) {
+    return res.status(400).json({ message: 'A project with this name already exists' });
+  }
+
+  const projectData = {
+    name,
+    projectType,
+    owner: req.user._id,
+    organization: orgId,
+    members: [req.user._id],
+  };
+
+  if (projectType === 'website') {
+    projectData.websiteUrl = websiteUrl;
+  } else {
+    // Build documents array from uploaded files
+    const documents = [];
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i];
+      let pageCount = 1;
+
+      if (file.mimetype === 'application/pdf') {
+        try {
+          const pdfParse = require('pdf-parse');
+          const dataBuffer = fs.readFileSync(file.path);
+          const pdfData = await pdfParse(dataBuffer);
+          pageCount = pdfData.numpages || 1;
+        } catch (err) {
+          console.error('Failed to parse PDF page count:', err.message);
+        }
+      }
+
+      documents.push({
+        filename: file.filename,
+        originalName: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        path: `uploads/documents/${file.filename}`,
+        pageCount,
+        order: i,
+      });
+    }
+    projectData.documents = documents;
+  }
+
+  const project = await Project.create(projectData);
+
+  // Activity log
+  logActivity(project._id, req.user._id, 'project.created', { projectName: name });
 
   res.status(201).json({ project });
 });
 
 exports.getProjects = asyncHandler(async (req, res) => {
-  const projects = await Project.find({
-    members: req.user._id,
-  }).populate('owner', 'name email').populate('members', 'name email role');
+  const orgId = req.user.organization;
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
 
-  res.json({ projects });
+  // Admins/owners see all org projects; members/guests see only their projects
+  const query = isPlatformAdmin
+    ? { organization: orgId }
+    : { organization: orgId, members: req.user._id };
+
+  const projects = await Project.find(query)
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen avatar');
+
+  // Compute the comment count per project: Comment -> Pin -> Project.
+  const projectIds = projects.map((p) => p._id);
+  const pins = await Pin.find({ project: { $in: projectIds } }).select('_id project status');
+  const pinToProject = new Map(pins.map((pin) => [pin._id.toString(), pin.project.toString()]));
+
+  // Open vs resolved threads (pins) per project, for the dashboard card.
+  const pinStatusByProject = {};
+  pins.forEach((pin) => {
+    const key = pin.project.toString();
+    const counts = pinStatusByProject[key] || (pinStatusByProject[key] = { open: 0, resolved: 0 });
+    if (pin.status === 'resolved') counts.resolved += 1;
+    else counts.open += 1;
+  });
+
+  const commentsByPin = await Comment.aggregate([
+    { $match: { pin: { $in: pins.map((pin) => pin._id) } } },
+    { $group: { _id: '$pin', count: { $sum: 1 } } },
+  ]);
+
+  const commentCountByProject = {};
+  commentsByPin.forEach(({ _id, count }) => {
+    const projectId = pinToProject.get(_id.toString());
+    if (projectId) {
+      commentCountByProject[projectId] = (commentCountByProject[projectId] || 0) + count;
+    }
+  });
+
+  const projectsWithCounts = projects.map((project) => ({
+    ...project.toObject(),
+    commentCount: commentCountByProject[project._id.toString()] || 0,
+    openPinCount: pinStatusByProject[project._id.toString()]?.open || 0,
+    resolvedPinCount: pinStatusByProject[project._id.toString()]?.resolved || 0,
+  }));
+
+  res.json({ projects: projectsWithCounts });
 });
 
 exports.getProject = asyncHandler(async (req, res) => {
   const project = await Project.findById(req.params.projectId)
-    .populate('owner', 'name email')
-    .populate('members', 'name email role');
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen avatar');
 
   res.json({ project });
 });
 
+exports.getWorkspaceMembers = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const orgId = project.organization;
+
+  if (!orgId) {
+    return res.json({ members: [] });
+  }
+
+  const excludedIds = [
+    project.owner?.toString?.() || project.owner,
+    ...(project.members || []).map((member) => member.toString()),
+  ].filter(Boolean);
+
+  const members = await User.find({
+    organization: orgId,
+    _id: { $nin: excludedIds },
+  })
+    .sort({ name: 1, email: 1 })
+    .select('name email role avatar lastSeen');
+
+  res.json({ members });
+});
+
 exports.updateProject = asyncHandler(async (req, res) => {
-  const { name, websiteUrl, status } = req.body;
+  const { name, websiteUrl, status, projectStatus } = req.body;
   const project = req.project;
 
-  if (project.owner.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: 'Only the project owner can update' });
+  const isProjectOwner = project.owner.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!isProjectOwner && !isPlatformAdmin) {
+    return res.status(403).json({ message: 'Only the project owner or admin can update' });
   }
+
+  const oldProjectStatus = project.projectStatus;
+  const oldStatus = project.status;
 
   if (name) project.name = name;
   if (websiteUrl) project.websiteUrl = websiteUrl;
   if (status && ['active', 'archived'].includes(status)) project.status = status;
+  if (projectStatus && ['not_started', 'in_progress', 'in_review', 'approved', 'completed'].includes(projectStatus)) project.projectStatus = projectStatus;
   await project.save();
 
+  // Activity log for status changes
+  if (projectStatus && projectStatus !== oldProjectStatus) {
+    logActivity(project._id, req.user._id, 'project.status_changed', {
+      oldStatus: oldProjectStatus,
+      newStatus: projectStatus,
+    });
+  }
+  if (status && status !== oldStatus) {
+    const action = status === 'archived' ? 'project.archived' : 'project.unarchived';
+    logActivity(project._id, req.user._id, action, { projectName: project.name });
+  }
+  if (name || websiteUrl) {
+    logActivity(project._id, req.user._id, 'project.updated', { name, websiteUrl });
+  }
+
   const updated = await Project.findById(project._id)
-    .populate('owner', 'name email')
-    .populate('members', 'name email role');
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen avatar');
 
   res.json({ project: updated });
 });
@@ -63,8 +232,10 @@ exports.updateProject = asyncHandler(async (req, res) => {
 exports.deleteProject = asyncHandler(async (req, res) => {
   const project = req.project;
 
-  if (project.owner.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: 'Only the project owner can delete' });
+  const isProjectOwner = project.owner.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!isProjectOwner && !isPlatformAdmin) {
+    return res.status(403).json({ message: 'Only the project owner or admin can delete' });
   }
 
   // Cascade delete pins and comments
@@ -72,35 +243,108 @@ exports.deleteProject = asyncHandler(async (req, res) => {
   const pinIds = pins.map((p) => p._id);
   await Comment.deleteMany({ pin: { $in: pinIds } });
   await Pin.deleteMany({ project: project._id });
+
+  // Clean up uploaded document files
+  if (project.projectType === 'document' && project.documents) {
+    for (const doc of project.documents) {
+      const filePath = path.join(__dirname, '..', doc.path);
+      try { fs.unlinkSync(filePath); } catch {}
+    }
+  }
+
+  // Remove project from any user's mutedProjectEmails
+  await User.updateMany(
+    { mutedProjectEmails: project._id },
+    { $pull: { mutedProjectEmails: project._id } }
+  );
+
   await Project.findByIdAndDelete(project._id);
 
   res.json({ message: 'Project deleted' });
 });
 
 exports.inviteMember = asyncHandler(async (req, res) => {
-  const { email } = req.body;
+  const io = req.app.get('io');
+  const { email, role: invitedRole } = req.body;
   const project = req.project;
 
-  const isOwner = project.owner.toString() === req.user._id.toString();
-  if (!isOwner && req.user.role !== 'admin') {
+  // Authorization: only project owner, platform admin, or platform owner can invite
+  const isProjectOwner = project.owner.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!isProjectOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Only the project owner or admin can invite members' });
+  }
+
+  // Validate and enforce role hierarchy
+  const validRoles = ['admin', 'member', 'guest'];
+  const roleToAssign = validRoles.includes(invitedRole) ? invitedRole : 'member';
+
+  if (!canAssignRole(req.user.role, roleToAssign)) {
+    return res.status(403).json({ message: 'Cannot assign a role higher than your own' });
   }
 
   // Check if user already exists
   const user = await User.findOne({ email });
 
   if (user) {
-    // Existing user — add directly
+    // Existing user — add directly to project
     if (project.members.some((m) => m.toString() === user._id.toString())) {
       return res.status(400).json({ message: 'User is already a member' });
     }
 
+    // Keep the selected project role in sync with the user record so the UI
+    // and later member actions reflect the invited permission level.
+    user.role = roleToAssign;
+    await user.save({ validateBeforeSave: false });
+
     project.members.push(user._id);
     await project.save();
 
+    // Activity log
+    logActivity(project._id, req.user._id, 'member.joined', { memberName: user.name, memberEmail: email });
+
+    // Send in-app notification to the invited user
+    createSingleNotification({
+      io,
+      recipientId: user._id,
+      actor: req.user,
+      projectId: project._id,
+      type: 'member_invited',
+      title: `${req.user.name || 'Someone'} added you to ${project.name}`,
+      message: `You were added to the project as a ${roleToAssign}.`,
+      metadata: {
+        projectName: project.name,
+        role: roleToAssign,
+        targetMemberName: user.name,
+      },
+    });
+
+    // In-app notifications to other project members
+    createProjectNotifications({
+      io,
+      projectId: project._id,
+      actor: req.user,
+      type: 'member_invited',
+      message: `${user.name || email} has been added to the project.`,
+      metadata: {
+        projectName: project.name,
+        targetUserId: user._id.toString(),
+        targetMemberName: user.name,
+        targetMemberEmail: email,
+        role: roleToAssign,
+      },
+      excludeRecipientIds: [user._id.toString()],
+    });
+
+    // If user doesn't belong to an org yet, link them
+    if (!user.organization && req.user.organization) {
+      user.organization = req.user.organization;
+      await user.save({ validateBeforeSave: false });
+    }
+
     const updated = await Project.findById(project._id)
-      .populate('owner', 'name email')
-      .populate('members', 'name email role');
+      .populate('owner', 'name email lastSeen')
+      .populate('members', 'name email role lastSeen avatar');
 
     return res.json({ project: updated });
   }
@@ -112,32 +356,68 @@ exports.inviteMember = asyncHandler(async (req, res) => {
     status: 'pending',
   });
   if (existingInvite) {
-    return res.status(400).json({ message: 'Invitation already sent to this email' });
+    if (existingInvite.expiresAt <= new Date()) {
+      await Invitation.deleteOne({ _id: existingInvite._id });
+    } else {
+      return res.status(400).json({ message: 'Invitation already sent to this email' });
+    }
   }
 
   const token = crypto.randomBytes(32).toString('hex');
   const invitation = await Invitation.create({
     email,
     project: project._id,
+    organization: req.user.organization,
     invitedBy: req.user._id,
+    role: roleToAssign,
     token,
   });
 
-  // Send email (non-blocking — don't fail the request if email fails)
+  // Activity log
+  logActivity(project._id, req.user._id, 'member.invited', { memberEmail: email, role: roleToAssign });
+
+  // In-app notifications to other existing project members that an invite was sent
+  createProjectNotifications({
+    io,
+    projectId: project._id,
+    actor: req.user,
+    type: 'member_invited',
+    message: `Invitation sent to ${email}.`,
+    metadata: {
+      projectName: project.name,
+      targetMemberEmail: email,
+      role: roleToAssign,
+    },
+  });
+
+  // Send email
   const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
   const signupUrl = `${clientOrigin}/signup?token=${token}`;
+  let emailSent = true;
+  let emailError = '';
   try {
     await sendInvitationEmail(email, req.user.name, project.name, signupUrl);
   } catch (err) {
+    emailSent = false;
+    emailError = err.message || 'Unknown email error';
     console.error('Failed to send invitation email:', err.message);
   }
 
   await invitation.populate('project', 'name');
   await invitation.populate('invitedBy', 'name email');
 
+  const updated = await Project.findById(project._id)
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen avatar');
+
   res.status(201).json({
-    message: 'Invitation sent',
+    message: emailSent
+      ? 'Invitation sent'
+      : 'Invitation created but email could not be sent. Please check your SMTP settings.',
+    project: updated,
     invitation,
+    emailSent,
+    emailError: emailSent ? undefined : emailError,
   });
 });
 
@@ -145,18 +425,33 @@ exports.updateMemberRole = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const { role } = req.body;
 
-  if (!role || !['admin', 'member'].includes(role)) {
-    return res.status(400).json({ message: 'Role must be admin or member' });
+  if (!role || !['admin', 'member', 'guest'].includes(role)) {
+    return res.status(400).json({ message: 'Role must be admin, member, or guest' });
   }
 
   const project = req.project;
-  const isOwner = project.owner.toString() === req.user._id.toString();
-  if (!isOwner && req.user.role !== 'admin') {
+  const isProjectOwner = project.owner.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!isProjectOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Only the project owner or admin can change roles' });
+  }
+
+  // Enforce role hierarchy
+  if (!canAssignRole(req.user.role, role)) {
+    return res.status(403).json({ message: 'Cannot assign a role higher than your own' });
   }
 
   if (req.user._id.toString() === userId) {
     return res.status(400).json({ message: 'Cannot change your own role' });
+  }
+
+  // Protect owner role
+  const targetUser = await User.findById(userId);
+  if (!targetUser) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+  if (targetUser.role === 'owner') {
+    return res.status(403).json({ message: "Cannot change the owner's role" });
   }
 
   const isMember = project.members.some((m) => m.toString() === userId);
@@ -166,19 +461,27 @@ exports.updateMemberRole = asyncHandler(async (req, res) => {
 
   await User.findByIdAndUpdate(userId, { role });
 
+  // Activity log
+  logActivity(project._id, req.user._id, 'member.role_changed', {
+    memberName: targetUser.name,
+    newRole: role,
+  });
+
   const updated = await Project.findById(project._id)
-    .populate('owner', 'name email')
-    .populate('members', 'name email role');
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen avatar');
 
   res.json({ project: updated });
 });
 
 exports.removeMember = asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
   const project = req.project;
   const { userId } = req.params;
 
-  const isOwner = project.owner.toString() === req.user._id.toString();
-  if (!isOwner && req.user.role !== 'admin') {
+  const isProjectOwner = project.owner.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!isProjectOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Only the project owner or admin can remove members' });
   }
 
@@ -186,12 +489,232 @@ exports.removeMember = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Cannot remove the project owner' });
   }
 
+  // Protect platform owner from being removed
+  const targetUser = await User.findById(userId);
+  if (targetUser && targetUser.role === 'owner') {
+    return res.status(403).json({ message: "Cannot remove the organization owner" });
+  }
+
   project.members = project.members.filter((m) => m.toString() !== userId);
   await project.save();
+  await User.findByIdAndUpdate(userId, { $pull: { mutedProjectEmails: project._id } });
+
+  // Activity log
+  logActivity(project._id, req.user._id, 'member.removed', {
+    memberName: targetUser?.name,
+  });
+
+  // 1) In-app notification to the removed member
+  if (targetUser) {
+    createSingleNotification({
+      io,
+      recipientId: targetUser._id,
+      actor: req.user,
+      projectId: project._id,
+      type: 'member_removed',
+      title: `${req.user.name || 'Someone'} removed you from ${project.name}`,
+      message: `You are no longer a member of ${project.name}.`,
+      metadata: {
+        projectName: project.name,
+        targetMemberName: targetUser.name,
+      },
+    });
+  }
+
+  // 2) In-app notification to remaining project members
+  createProjectNotifications({
+    io,
+    projectId: project._id,
+    actor: req.user,
+    type: 'member_removed',
+    message: `${targetUser?.name || 'A member'} was removed from the project.`,
+    metadata: {
+      projectName: project.name,
+      targetMemberName: targetUser?.name,
+    },
+    excludeRecipientIds: targetUser ? [targetUser._id.toString()] : [],
+  });
 
   const updated = await Project.findById(project._id)
-    .populate('owner', 'name email')
-    .populate('members', 'name email role');
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen avatar');
 
   res.json({ project: updated });
 });
+
+/**
+ * GET /api/projects/:projectId/activity
+ * Returns paginated activity log for a project.
+ */
+exports.getActivity = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 30));
+  const skip = (page - 1) * limit;
+
+  const [activities, total] = await Promise.all([
+    Activity.find({ project: projectId })
+      .populate('actor', 'name email avatar')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Activity.countDocuments({ project: projectId }),
+  ]);
+
+  res.json({
+    activities,
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  });
+});
+
+/**
+ * POST /api/projects/:projectId/share
+ * Enable sharing and generate a share token.
+ */
+exports.enableShare = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  const isProjectOwner = project.owner.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!isProjectOwner && !isPlatformAdmin) {
+    return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
+  }
+
+  const { password, allowComments = true, expiresAt } = req.body;
+
+  if (!project.shareSettings?.token) {
+    project.shareSettings = {
+      enabled: true,
+      token: crypto.randomBytes(16).toString('hex'),
+      password: null,
+      passwordHash: await hashSharePassword(password),
+      allowComments,
+      expiresAt: expiresAt || null,
+    };
+  } else {
+    project.shareSettings.enabled = true;
+    if (password !== undefined) {
+      project.shareSettings.password = null;
+      project.shareSettings.passwordHash = await hashSharePassword(password);
+    }
+    if (allowComments !== undefined) project.shareSettings.allowComments = allowComments;
+    if (expiresAt !== undefined) project.shareSettings.expiresAt = expiresAt || null;
+  }
+
+  await project.save();
+
+  // Activity log
+  logActivity(project._id, req.user._id, 'share.enabled');
+
+  const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+  res.json({
+    shareSettings: sanitizeShareSettings(project.shareSettings),
+    shareUrl: `${clientOrigin}/review/${project.shareSettings.token}`,
+  });
+});
+
+/**
+ * PATCH /api/projects/:projectId/share
+ * Update share settings.
+ */
+exports.updateShare = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  const isProjectOwner = project.owner.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!isProjectOwner && !isPlatformAdmin) {
+    return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
+  }
+
+  const { password, allowComments, expiresAt } = req.body;
+
+  if (!project.shareSettings?.token) {
+    return res.status(400).json({ message: 'Sharing is not enabled for this project.' });
+  }
+
+  if (password !== undefined) {
+    project.shareSettings.password = null;
+    project.shareSettings.passwordHash = await hashSharePassword(password);
+  }
+  if (allowComments !== undefined) project.shareSettings.allowComments = allowComments;
+  if (expiresAt !== undefined) project.shareSettings.expiresAt = expiresAt || null;
+
+  await project.save();
+
+  const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+  res.json({
+    shareSettings: sanitizeShareSettings(project.shareSettings),
+    shareUrl: `${clientOrigin}/review/${project.shareSettings.token}`,
+  });
+});
+
+/**
+ * DELETE /api/projects/:projectId/share
+ * Disable sharing.
+ */
+exports.disableShare = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  const isProjectOwner = project.owner.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!isProjectOwner && !isPlatformAdmin) {
+    return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
+  }
+
+  if (project.shareSettings) {
+    project.shareSettings.enabled = false;
+  }
+  await project.save();
+
+  // Activity log
+  logActivity(project._id, req.user._id, 'share.disabled');
+
+  res.json({ message: 'Sharing disabled' });
+});
+
+/**
+ * PATCH /api/projects/:projectId/email-notifications
+ * Toggle or set email notifications preference for the current user on this project.
+ * Body: { enabled: boolean }
+ */
+exports.updateProjectEmailNotifications = asyncHandler(async (req, res) => {
+  const projectId = req.project._id;
+  const userId = req.user._id;
+  const { enabled } = req.body;
+
+  if (typeof enabled !== 'boolean') {
+    return res.status(400).json({ message: 'The "enabled" boolean field is required' });
+  }
+
+  let user;
+  if (!enabled) {
+    user = await User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { mutedProjectEmails: projectId } },
+      { new: true }
+    );
+  } else {
+    user = await User.findByIdAndUpdate(
+      userId,
+      { $pull: { mutedProjectEmails: projectId } },
+      { new: true }
+    );
+  }
+
+  const mutedProjectEmails = (user.mutedProjectEmails || []).map((id) => id.toString());
+
+  res.json({
+    message: enabled
+      ? 'Email notifications enabled for this project'
+      : 'Email notifications muted for this project',
+    emailNotificationsEnabled: enabled,
+    mutedProjectEmails,
+  });
+});
+

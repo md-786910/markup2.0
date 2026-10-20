@@ -1,0 +1,84 @@
+export const PLANS = {
+  free: {
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    priceLabel: '$0',
+    period: 'forever',
+    limits: { maxProjects: 2, maxMembers: 5, maxGuests: 2, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false },
+    features: [
+      '2 projects',
+      '5 team members',
+      '2 guests',
+      'Basic feedback tools',
+    ],
+    badgeColor: 'gray',
+    order: 0,
+  },
+  starter: {
+    id: 'starter',
+    name: 'Starter',
+    price: 12,
+    priceLabel: '$12',
+    period: '/month',
+    limits: { maxProjects: 15, maxMembers: 25, maxGuests: 10, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: false },
+    features: [
+      '15 projects',
+      '25 team members',
+      '10 guests',
+      'Guest review links',
+      'Slack integration',
+      'Activity log',
+    ],
+    badgeColor: 'blue',
+    order: 1,
+  },
+  pro: {
+    id: 'pro',
+    name: 'Pro',
+    price: 29,
+    priceLabel: '$29',
+    period: '/month',
+    popular: true,
+    limits: { maxProjects: 999, maxMembers: 999, maxGuests: 50, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
+    features: [
+      'Unlimited projects',
+      'Unlimited members',
+      '50 guests',
+      'Priority support',
+      'Slack, Jira & Discord integrations',
+      'Activity log & version history',
+      'Guest review links',
+    ],
+    badgeColor: 'purple',
+    order: 2,
+  },
+  enterprise: {
+    id: 'enterprise',
+    name: 'Enterprise',
+    price: null,
+    priceLabel: 'Custom',
+    period: '',
+    limits: { maxProjects: 9999, maxMembers: 9999, maxGuests: 9999, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
+    features: [
+      'Everything in Pro',
+      'Dedicated support',
+      'Custom integrations',
+      'SLA guarantee',
+    ],
+    badgeColor: 'amber',
+    order: 3,
+  },
+};
+
+export const DEFAULT_TRIAL_DAYS = 30;
+
+export const PLAN_LIST = Object.values(PLANS).sort((a, b) => a.order - b.order);
+
+export const UPGRADEABLE_PLANS = ['starter', 'pro'];
+
+export function getLimitsForPlan(planId) {
+  if (planId === 'trial') return { ...PLANS.free.limits };
+  const plan = PLANS[planId];
+  return plan ? { ...plan.limits } : { ...PLANS.free.limits };
+}

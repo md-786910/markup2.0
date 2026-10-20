@@ -21,9 +21,57 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'member'],
+    enum: ['superadmin', 'owner', 'admin', 'member', 'guest'],
     default: 'member',
   },
+  organization: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    default: null,
+  },
+  avatar: {
+    type: String,
+    default: null,
+  },
+  sessionToken: {
+    type: String,
+    default: null,
+  },
+  lastSeen: {
+    type: Date,
+    default: null,
+  },
+  lastLoginIp: {
+    type: String,
+    default: null,
+  },
+  lastLoginLocation: {
+    city: { type: String, default: null },
+    region: { type: String, default: null },
+    country: { type: String, default: null },
+  },
+  signupIp: {
+    type: String,
+    default: null,
+  },
+  signupLocation: {
+    city: { type: String, default: null },
+    region: { type: String, default: null },
+    country: { type: String, default: null },
+  },
+  resetPasswordToken: {
+    type: String,
+    select: false,
+  },
+  resetPasswordExpires: {
+    type: Date,
+    select: false,
+  },
+  mutedProjectEmails: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project',
+    default: [],
+  }],
 }, { timestamps: true });
 
 userSchema.pre('save', async function () {
@@ -38,6 +86,7 @@ userSchema.methods.comparePassword = async function (candidate) {
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.passwordHash;
+  delete obj.sessionToken;
   return obj;
 };
 

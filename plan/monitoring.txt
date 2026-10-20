@@ -1,0 +1,6 @@
+1. setup monitoring backend - sentry + logging as well keep logger in application enable it
+
+2. setup monitoring frontend - posthog(event)
+3. backup db - mongodump (keep backup in drive)
+
+

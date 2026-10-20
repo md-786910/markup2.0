@@ -1,6 +1,11 @@
 const Comment = require('../models/Comment');
 const Pin = require('../models/Pin');
+const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
+const { emitToProject, emailProjectMembers, emailMentionedUsers, notifyIntegrations } = require('../utils/notifier');
+const { logActivity } = require('../utils/activityLogger');
+const { extractMentionedUserIds, stripHtmlAndMentions } = require('../utils/mentionHelper');
+const { createProjectNotifications } = require('../utils/notificationHelper');
 
 exports.createComment = asyncHandler(async (req, res) => {
   const { pinId } = req.params;
@@ -15,11 +20,14 @@ exports.createComment = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Pin not found' });
   }
 
+  // Parse mentioned user IDs from body (supports @[Name](userId) and Quill HTML <span class="mention" data-id="...">)
+  const mentionedUserIds = extractMentionedUserIds(body);
+
   const attachments = (req.files || []).map((file) => ({
     filename: file.filename,
     originalName: file.originalname,
     mimetype: file.mimetype,
-    path: `uploads/${file.filename}`,
+    path: `uploads/documents/${file.filename}`,
   }));
 
   const comment = await Comment.create({
@@ -28,10 +36,75 @@ exports.createComment = asyncHandler(async (req, res) => {
     body,
     attachments,
     parentComment: parentComment || null,
+    mentions: mentionedUserIds,
   });
 
   const populated = await Comment.findById(comment._id)
-    .populate('author', 'name email');
+    .populate('author', 'name email')
+    .populate('mentions', 'name email');
+
+  // Activity log
+  const projectId = pin.project.toString();
+  logActivity(projectId, req.user._id, 'comment.created', { pinNumber: pin.pinNumber });
+
+  // Real-time + email notifications
+  const io = req.app.get('io');
+  emitToProject(io, projectId, 'comment:created', { comment: populated, pinId });
+
+  // In-app notifications to all project members / mentions
+  createProjectNotifications({
+    io,
+    projectId,
+    actor: req.user,
+    type: 'comment',
+    pin,
+    comment: populated,
+    mentionedUserIds,
+    message: stripHtmlAndMentions(body),
+    metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl },
+  }).catch(() => {});
+
+  // Check if this is the first comment on the pin (combined pin+comment notification)
+  const priorCommentCount = await Comment.countDocuments({ pin: pinId, _id: { $ne: comment._id } });
+  const isFirstComment = priorCommentCount === 0;
+  const actorName = req.user.name || populated.author?.name || 'Someone';
+
+  Project.findById(projectId).select('name organization').then((proj) => {
+    if (!proj) return;
+
+    // Notify integrations (Slack, Discord, Jira)
+    // First comment uses 'pin.created' action for a combined notification
+    notifyIntegrations(projectId, proj.organization, {
+      action: isFirstComment ? 'pin.created' : 'comment.created',
+      actorName,
+      projectName: proj.name,
+      pinNumber: pin.pinNumber,
+      pinId: pin._id.toString(),
+      projectId,
+      comment: stripHtmlAndMentions(body).substring(0, 200),
+    });
+
+    emailProjectMembers('comment', {
+      projectId,
+      actorUserId: req.user._id,
+      actorName,
+      projectName: proj.name,
+      pin,
+      comment: populated,
+      excludeUserIds: mentionedUserIds,
+    }).catch(() => {});
+
+    if (mentionedUserIds.length > 0) {
+      emailMentionedUsers({
+        mentionedUserIds,
+        actorUserId: req.user._id,
+        actorName,
+        projectName: proj.name,
+        pin,
+        comment: populated,
+      }).catch(() => {});
+    }
+  }).catch(() => {});
 
   res.status(201).json({ comment: populated });
 });
@@ -54,11 +127,67 @@ exports.deleteComment = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Comment not found' });
   }
 
-  if (comment.author.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+  if (comment.author.toString() !== req.user._id.toString()) {
     return res.status(403).json({ message: 'Not authorized to delete this comment' });
   }
 
   await Comment.findByIdAndDelete(commentId);
 
+  // Activity log + Real-time notification
+  const pin = await Pin.findById(comment.pin);
+  if (pin) {
+    logActivity(pin.project.toString(), req.user._id, 'comment.deleted', { pinNumber: pin.pinNumber });
+  }
+
+  const io = req.app.get('io');
+  if (pin) {
+    emitToProject(io, pin.project.toString(), 'comment:deleted', {
+      commentId,
+      pinId: comment.pin.toString(),
+    });
+  }
+
   res.json({ message: 'Comment deleted' });
+});
+
+exports.updateComment = asyncHandler(async (req, res) => {
+  const { commentId } = req.params;
+  const { body } = req.body;
+
+  if (!body || !body.trim()) {
+    return res.status(400).json({ message: 'Comment body is required' });
+  }
+
+  const comment = await Comment.findById(commentId);
+  if (!comment) {
+    return res.status(404).json({ message: 'Comment not found' });
+  }
+
+  // Only the author can edit their own comment
+  if (comment.author.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized to edit this comment' });
+  }
+
+  // Re-parse mentions from updated body
+  const mentionedUserIds = extractMentionedUserIds(body);
+
+  comment.body = body;
+  comment.mentions = mentionedUserIds;
+  await comment.save();
+
+  const populated = await Comment.findById(comment._id)
+    .populate('author', 'name email')
+    .populate('mentions', 'name email');
+
+  // Real-time notification
+  const io = req.app.get('io');
+  const pin = await Pin.findById(comment.pin);
+  if (pin) {
+    emitToProject(io, pin.project.toString(), 'comment:updated', {
+      comment: populated,
+      pinId: comment.pin.toString(),
+    });
+  }
+
+  res.json({ comment: populated });
 });

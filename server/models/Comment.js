@@ -10,7 +10,7 @@ const commentSchema = new Schema({
   author: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    default: null,
   },
   body: {
     type: String,
@@ -26,6 +26,14 @@ const commentSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'Comment',
     default: null,
+  },
+  mentions: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+  }],
+  authorGuest: {
+    name: { type: String, default: null },
+    email: { type: String, default: null },
   },
 }, { timestamps: true });
 

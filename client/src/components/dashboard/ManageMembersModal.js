@@ -25,7 +25,9 @@ export default function ManageMembersModal({ project, onClose, onProjectUpdate }
     setInviteLoading(true);
     try {
       const res = await inviteMemberApi(project._id, email);
-      onProjectUpdate(res.data.project);
+      if (res.data?.project) {
+        onProjectUpdate(res.data.project);
+      }
       setEmail('');
     } catch (err) {
       setInviteError(err.response?.data?.message || 'Failed to invite');
