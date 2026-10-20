@@ -438,7 +438,10 @@ exports.proxyPage = asyncHandler(async (req, res) => {
         timeout: 15000,
         validateStatus: () => true,
       });
-      if (isPageRequest && isBlockedResponse(workerResp.status, workerResp.headers['content-type'], workerResp.data)) {
+      if (workerResp.status === 429 || workerResp.status >= 500) {
+        // Worker quota exhausted / origin rate-limited the edge IP / relay error — go direct
+        console.log(`Worker returned HTTP ${workerResp.status} for ${url}, trying direct...`);
+      } else if (isPageRequest && isBlockedResponse(workerResp.status, workerResp.headers['content-type'], workerResp.data)) {
         console.log(`Worker response blocked by WAF for ${url} (HTTP ${workerResp.status}), trying direct...`);
         workerBlocked = true;
         // Fall through to direct connection below
