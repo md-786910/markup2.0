@@ -10,30 +10,39 @@ Visual feedback SaaS: a team loads a **live website** (via our proxy, inside an 
 | `client/` | Main web app | CRA, React 19, react-router 7, Tailwind 3, plain JS (no TS) |
 | `admin/` | Superadmin panel (orgs, users, pricing overrides, payment provider) | CRA React 19, Vercel |
 | `website/` | Marketing site (`kommently-website`) | CRA React 19, framer-motion, Vercel |
-| `cloudflare-relay/` | Worker `markup-relay`: fetches assets for proxied sites, strips XFO/CSP | Cloudflare Workers |
-| `plan/` | Todo notes (Sentry, PostHog, mongodump backups) | — |
+| `cloudflare-relay/` | Worker `markup-relay`: fetches assets for proxied sites, strips XFO/CSP; requires a signed `rt` token when `RELAY_SECRET` is set | Cloudflare Workers |
+| `deploy/` | Docker Compose data services: Mongo + Redis on 127.0.0.1 only (admins use an SSH tunnel), least-privilege Mongo app user, weekly AES-256 backup sidecar. See `deploy/README.md` | Docker Compose |
+| `plan/` | Todo notes | — |
 
-Run: `cd server && npm run dev` (port 5000); `cd client && DISABLE_ESLINT_PLUGIN=true npm start` (3000, `setupProxy.js` forwards `/api`, `/uploads`, `/socket.io`; without the env var CRA fails with `Environment key "jest/globals" is unknown`). Needs local MongoDB. No real tests. Verify server edits with `node --check <file>`. Billing cron: `node scripts/runBilling.js`, run from system cron daily. Never print `.env` values.
+Run: `cd server && npm run dev` (port 5000); `cd client && DISABLE_ESLINT_PLUGIN=true npm start` (3000, `setupProxy.js` forwards `/api`, `/uploads`, `/socket.io`; without the env var CRA fails with `Environment key "jest/globals" is unknown`). Needs local MongoDB; Redis is optional. All env vars are documented in `server/.env.example` and `client/.env.example`. Never print `.env` values.
+
+Tests: `cd server && npm test` runs `test/smoke.js` (~90 end-to-end checks: tenancy, guest links, proxy SSRF, billing, trials, limits, GDPR, security) against the real app and a throwaway DB (`TEST_MONGODB_URI`, name must end in `_test`; it is dropped). `TEST_REDIS_URL=redis://… npm test` also exercises the Redis paths. The suite stubs every mailer function. Also verify server edits with `node --check <file>`. Production deps: don't upgrade existing packages without asking.
 
 ## Server (`server/`)
 
-- `app.js` middleware order matters. Payment webhooks (`/api/billing/webhook/{razorpay,paypal}`) and `/api/proxy` use `express.raw` and are mounted **before** the JSON parser. After that: mongoSanitize, hpp, globalLimiter, CSRF (double-submit `markup_csrf` cookie + `X-CSRF-Token`, skipped for Bearer and `/api/auth`), then the routes. Public endpoints: `/api/health` and `/api/plans`.
-- `server.js` sets up socket.io. The JWT comes from `handshake.auth.token`. Rooms are `user:<id>` and `project:<id>` (joined with `join:project`). Controllers emit through `req.app.get('io')` with these events: `pin:*`, `comment:*`, `notification:new`, `presence:*`.
+- `app.js` middleware order matters. Payment webhooks (`/api/billing/webhook/{razorpay,paypal}`) and `/api/proxy` use `express.raw` and are mounted **before** the JSON parser. After that: mongoSanitize, hpp, globalLimiter, CSRF (double-submit `markup_csrf` cookie + `X-CSRF-Token`; skipped for Bearer, the pre-login `/api/auth/*` endpoints in `PUBLIC_AUTH_PATHS`, `/api/guest/*` and `/api/email/*`), then the routes. JSON body limit is 1mb. Public endpoints: `/api/health` (503 if Mongo is down, reports Redis), `/api/plans` (also returns `signupMode`, `trialDays`), `/api/email/unsubscribe`.
+- `server.js` loads `instrument.js` (Sentry, no-op without `SENTRY_DSN`; scrubs tokens/passwords/cookies) before anything else, starts the email worker and billing scheduler, and shuts down gracefully on SIGTERM.
+- **Redis** (`utils/redis.js`, optional `REDIS_URL`): BullMQ email queue (`utils/emailQueue.js`, retries with backoff), BullMQ daily billing job (`utils/scheduler.js`, runs once across instances), shared rate limits (`middleware/rateLimiters.js`, incl. per-email limits on login/reset/OTP), socket.io Redis adapter. Without Redis everything falls back to memory (single instance). Request-path commands use a fail-fast connection so a Redis outage degrades instead of hanging requests.
+- `server.js` sets up socket.io. The JWT comes from `handshake.auth.token` (session token checked; proxy tokens refused). Rooms are `user:<id>` and `project:<id>` (`join:project` checks project access via `resolveAccess`; presence uses `fetchSockets()` so it works across instances). Controllers emit through `req.app.get('io')` with these events: `pin:*`, `comment:*`, `notification:new`, `presence:*`.
 - **Auth** (`middleware/auth.js`): reads the JWT from `?token=`, then the Bearer header, then the `markup_token` cookie. A user has one active session at a time (`sessionToken`); a mismatch returns 401 `SESSION_REPLACED`. Auth sets `req.user` and `req.organization` (with plan limits merged in) and runs the trial-expiry check.
-- **Roles**: a single `User.role` per user, one of `superadmin` > `owner` > `admin` > `member` > `guest` (`middleware/roles.js` → `authorize()`). Each user belongs to one org (`User.organization`). Project access comes from `Project.owner` / `Project.members[]` (`middleware/projectAccess.js`).
-- **Org limits / lock** (`middleware/orgLimits.js`): returns 403 with one of `ORG_LOCKED`, `PROJECT_LIMIT`, `MEMBER_LIMIT`, `GUEST_LIMIT`, `FEATURE_NOT_AVAILABLE`.
+- **Roles**: a single `User.role` per user, one of `superadmin` > `owner` > `admin` > `member` > `guest` (`middleware/roles.js` → `authorize()`). Each user belongs to one org (`User.organization`). Project access (`middleware/projectAccess.js` → `resolveAccess`): `Project.owner`, `Project.members[]`, or admin/owner **of the project's own org** (`req.isOrgAdmin`). `pinAccess` does the same for `:pinId` routes (comments). Lookups by child id are scoped to the authorized project (`Pin.findOne({ _id, project })`).
+- **Org limits / lock** (`middleware/orgLimits.js`): returns 403 with one of `ORG_LOCKED`, `PROJECT_LIMIT`, `MEMBER_LIMIT`, `GUEST_LIMIT`, `STORAGE_LIMIT`, `FEATURE_NOT_AVAILABLE`. Seats count users plus pending invitations (owner included). Effective limits = plan limits + PlanConfig + per-org `limitOverrides` (`getEffectiveLimitsAsync` in `config/plans.js`). Storage quota (`utils/storage.js`): `Organization.storageUsedBytes` counter, reserved after multer on every upload route, released by the delete cascades.
+- **Deletes** go through `utils/cascade.js` (project/pin/comment: child records + files + storage). Uploads keep a mimetype-derived extension; `/uploads` is served with `nosniff`, and non-image/PDF files are sandboxed and downloaded.
+- **Guest share links**: every guest endpoint goes through `loadSharedProject` (enabled, expiry, password via the `X-Guest-Access` token issued by `getGuestProject`; writes also need an unlocked org). Share links need a paid plan or trial.
+- **Comment HTML** is sanitized on write (`utils/sanitizeComment.js`, Quill allowlist) and again with DOMPurify in `client/src/utils/renderCommentBody.js`.
 - **Conventions**: controllers are `exports.fn = asyncHandler(async (req,res)=>…)`. Errors are `res.status(x).json({ message, code? })`. Successes return named objects like `{ project }` or `{ token, user }`, with 201 on create. Routes do `router.use(auth)`, then `projectAccess`, `authorize`, and the limit checks. Activity is logged fire-and-forget with `utils/activityLogger.js`.
 
 ### Models (`server/models/`)
-- **Organization**: plan (`trial|free|starter|pro|enterprise`), `limits{maxMembers,maxGuests,maxProjects,hasIntegrations,hasActivityLogs,hasVersionHistory}`, trialEndsAt, isLocked/lockedReason, `subscription{status,currentPeriodEnd,provider,…}`.
+- **Organization**: plan (`trial|free|starter|pro|enterprise`), `limits{maxMembers,maxGuests,maxProjects,maxStorageMB,hasIntegrations,hasActivityLogs,hasVersionHistory}`, `limitOverrides` (superadmin), trialEndsAt + `trialReminders`, isLocked/lockedReason, `subscription{status,currentPeriodEnd,provider,cancelAtPeriodEnd,…}`, `billingDetails` (buyer info for invoices), `storageUsedBytes`, `deletionScheduledAt`.
 - **Project**: `projectType` is `website` (websiteUrl) or `document` (`documents[]` up to 10, pageCount via pdf-parse). Other fields: members, status (active/archived), projectStatus (workflow), `shareSettings{enabled,token,passwordHash,allowComments,expiresAt}`.
 - **Pin**: pageUrl, xPercent/yPercent (doc %), `selector` + elementOffsetX/Y, viewportX/YPercent, documentWidth/Height, deviceMode (desktop 1440/tablet 768/mobile 375), pinNumber (unique per project), screenshot, status pending/resolved, version, createdBy or createdByGuest.
 - **Comment**: pin, author/authorGuest, body (HTML from Quill), attachments, parentComment, mentions.
-- Also: Version (snapshot; creating one tags un-versioned pins), Invitation (5-day token), Notification, Activity, Integration (slack/jira/discord/teams, org-wide or per project), Invoice (unique per org+billingMonth), PlanConfig (admin price/limit overrides, 5-min cache), PaymentSettings (singleton: activeProvider, allowDowngrades), EmailVerification (OTP, TTL).
+- Also: Version (snapshot; creating one tags un-versioned pins), Invitation (5-day token), Notification, Activity, Integration (slack/jira/discord/teams, org-wide or per project; Jira token masked in responses), Invoice (status `pending|paid|failed|void|refunded`; unique per org+billingMonth; `invoiceNumber`, `seller`/`buyer`/`tax` snapshots), Counter (atomic sequences), PlanConfig (admin price/limit overrides incl. `priceInr`, 5-min cache), PaymentSettings (singleton: activeProvider, allowDowngrades), EmailVerification (OTP, TTL). `User.emailNotificationsEnabled` is the global notification-email opt-out.
 
 ### Website proxy (the core trick)
-- The iframe src is `/api/proxy?url=…&projectId=…&token=…[&guest=true]`. The handlers are `controllers/proxy.controller.js`, `middleware/proxyAuth.js` and `utils/proxyRewriter.js`.
-- The server fetches through the Cloudflare relay (`FALLBACK_RELAY_URL`) first, then directly (with optional `OUTBOUND_PROXY`). It strips XFO/CSP and rewrites cookies.
+- The iframe src is `/api/proxy?url=…&projectId=…&token=…[&guest=true]`. `token` is a 24h **project-scoped proxy token** (`utils/proxyToken.js`, returned by `GET /projects/:id` and the project list), never the session JWT; the normal auth middleware rejects it. The handlers are `controllers/proxy.controller.js`, `middleware/proxyAuth.js` and `utils/proxyRewriter.js`. Unauthenticated (guest) requests must hit a project with an enabled, unexpired share link.
+- SSRF guard (`utils/ssrfGuard.js`): only public http(s) targets; private/loopback/link-local IPs are blocked at DNS lookup and on every redirect (`PROXY_ALLOW_PRIVATE=true` for local dev only). Responses are capped (`PROXY_MAX_BYTES`), caches are bounded.
+- The server fetches through the Cloudflare relay (`FALLBACK_RELAY_URL`, with a signed `rt` token from `utils/relayToken.js`) first, then directly (with optional `OUTBOUND_PROXY`). It strips XFO/CSP and rewrites cookies (never lets the site set `markup_*` cookies).
 - It sets the `__markup_proxy_ctx` cookie. A catch-all in `app.js` 307-redirects stray non-API requests that carry this cookie back into the proxy.
 - `proxyRewriter.js` rewrites the HTML with cheerio (links, srcset, CSS `url()`, strips `integrity`). It then **injects a script** that:
   - patches fetch/XHR/history;
@@ -46,7 +55,7 @@ Run: `cd server && npm run dev` (port 5000); `cd client && DISABLE_ESLINT_PLUGIN
 
 ### Notifications
 `utils/notifier.js` is the hub.
-- **Email**: members get emails, respecting `User.mutedProjectEmails` (the per-project toggle). `utils/emailQueue.js` batches per recipient for `EMAIL_BATCH_DELAY_MS` (default 5 min) and sends a digest when there are several. The queue is in-memory, so it is lost on restart. Templates live in `utils/email/templates.js`: pure functions returning `{subject, html, text}`. They're built from the shared blocks in `utils/email/layout.js` (app green theme, table-based, auto-escaped; `**bold**` markup in text). `utils/mailer.js` only sends them. Preview them all with `npm run preview:emails [outDir]`. Set the optional `EMAIL_LOGO_URL` env var to use an image logo instead of the text "K" mark.
+- **Email**: members get emails, respecting `User.emailNotificationsEnabled` and `User.mutedProjectEmails`. `utils/emailQueue.js` batches per recipient for `EMAIL_BATCH_DELAY_MS` (default 5 min) and sends a digest when there are several (Redis/BullMQ when configured, else in memory). Notification emails get an unsubscribe link and `List-Unsubscribe` headers (`utils/unsubscribe.js`, `routes/email.routes.js`); footers show `COMPANY_POSTAL_ADDRESS`. Templates live in `utils/email/templates.js`: pure functions returning `{subject, html, text}`. They're built from the shared blocks in `utils/email/layout.js` (app green theme, table-based, auto-escaped; `**bold**` markup in text). `utils/mailer.js` only sends them. Preview them all with `npm run preview:emails [outDir]`. Set the optional `EMAIL_LOGO_URL` env var to use an image logo instead of the text "K" mark.
 - **In-app**: `utils/notificationHelper.js` creates the Notification and emits it.
 - **Integrations**: `{slack,discord,teams}Notifier.js` send webhooks. `jiraSync.js` creates an issue on `pin.created`.
 - **Mentions**: written as `@[Name](id)` or Quill `data-id` (`utils/mentionHelper.js`).
@@ -57,11 +66,13 @@ Run: `cd server && npm run dev` (port 5000); `cd client && DISABLE_ESLINT_PLUGIN
   - starter: $12, 15 projects
   - pro: $29
   - enterprise
-  - trial: 30 days with free limits
+  - trial: 30 days, **Pro limits**, no card. New signups land on it; onboarding offers it by default.
 
   Admin overrides come from PlanConfig.
-- **Providers** (`payments/`): Razorpay (INR, `price*84*100` paise) and PayPal (USD). Both use the same interface. `settleInvoice.js` is the single idempotent path that marks an invoice paid and activates the plan.
-- **Cron** (`scripts/runBilling.js`): creates an invoice 24h before `currentPeriodEnd`. Sends reminders on days 4, 7 and 9. After `dueAt` (10 days) it locks the org with "Payment overdue". `clearBillingLock` only lifts billing/trial locks, never manual admin locks.
+- **Providers** (`payments/`): Razorpay (INR, `priceInr` or `price × RAZORPAY_USD_INR_RATE`) and PayPal (USD). Both use the same interface, incl. `refundPayment`. `settleInvoice.js` is the single path that marks an invoice paid: atomic claim, assigns the tax invoice number/GST (`invoiceIssuer.js`), activates the plan, sends the receipt. Renewal invoices (`billingMonth` set) don't extend the period again. `refundInvoice.js` records refunds; a full refund of the current period moves the org to free.
+- `POST /billing/upgrade` never takes payment: only free, or a downgrade from an active paid plan (else 402). `POST /billing/cancel|resume` (cancel at period end), `GET|PUT /billing/details` (buyer details). Admin: set plan, extend trial, limit overrides, refund (`routes/admin.routes.js`).
+- **Daily job** (`scripts/runBilling.js`, scheduled by `BILLING_CRON_ENABLED=true` or `npm run billing`): renewal invoices 24h before `currentPeriodEnd` (skips cancelled), reminders on days 4/7/9, lock after `dueAt` (voids invoices of orgs that left paid plans), ends cancelled subscriptions, trial emails (7/3/1 days) and trial lock, purges orgs past `deletionScheduledAt` (invoices kept), retention (notifications 180d, activity 365d, invitations 30d past expiry). Dates use `utils/billingDates.js` (`addMonthsUTC`). `clearBillingLock` only lifts billing/trial locks, never manual admin locks.
+- **GDPR**: `GET /auth/organization/export` (JSON), `POST /auth/organization/delete` (password + name, 7-day grace, locks the org), `POST /auth/organization/cancel-deletion`.
 
 ## Client (`client/src/`)
 - **Routes** (`App.js`, lazy pages):
@@ -72,14 +83,12 @@ Run: `cd server && npm run dev` (port 5000); `cd client && DISABLE_ESLINT_PLUGIN
 - **Core UX**: `components/project/ProjectView.js` (~780 lines) orchestrates `IframeContainer` (scaled device width) / `DocumentViewer` (react-pdf; pageUrl = `doc:<file>:page:<n>`), `PinListSidebar` (~1150 lines, embeds `CommentSidebar`), `NewPinCommentPopup`, and the Version/Activity sidebars. Real-time comes from `hooks/useSocket.js` (`onEvent` returns an unsubscribe).
 - **Styling**: everything is inline Tailwind. **`tailwind.config.js` remaps `blue/indigo/violet/purple/cyan/gray` to the green "eco-modern" palette**, so `blue-600` renders as #176B57 green. `styles/design-tokens.js` is documentation only. Radii: rounded-lg inputs, rounded-xl cards, rounded-2xl modals.
 
+
 ## Known issues / gotchas (verify before relying on them)
-- `middleware/projectAccess.js`: any `admin`/`owner` passes for **any** project with no org check, so cross-tenant access is possible.
-- Guest pin/comment endpoints (`controllers/guest.controller.js`) don't re-check the share password or expiry; only `getGuestProject` does.
-- Proxy: no SSRF/private-IP guard, `url` isn't restricted to `project.websiteUrl`, and sub-resources trust the proxy cookie without a DB check.
-- `POST /api/billing/upgrade` switches the plan and clears billing locks before payment (and creates no invoice, so month 1 goes unbilled).
-- Monthly invoicing (deferred, not fixed):
-  - `settleInvoice` extends `currentPeriodEnd` by one more month when a cron invoice is paid. `runBilling.js` already moved it forward, so orgs end up billed every other month.
-  - Nothing in the repo schedules `runBilling.js`. It needs an external crontab.
-  - `setMonth(+1)` overflows (Jan 31 → Mar 3) and mixes local time with UTC.
-- The free plan's `features` text says 3 projects, but `maxProjects` is 2. The `app.js` comment says a 1mb body limit, but the actual limit is 10mb.
+- Guest proxy iframe requests check only that sharing is enabled and not expired, not the share password (the iframe URL has no share token).
+- The proxy and `/uploads` are served from the API origin; moving them to a separate sandbox domain is the remaining structural fix.
+- Storage quota only counts files uploaded after quotas were added.
+- Brand name is mixed: app UI, checkout and integrations say "Feedbackly"; website and emails say "Kommently".
+- Deferred (major-version) dependency upgrades: `nodemailer` 8→10 and `geoip-lite`, each with open npm advisories.
+- Invoice numbers can skip a value if a settle fails after the number is assigned (rare).
 - `.claude/` is gitignored, so agents in `.claude/agents/` are local only.

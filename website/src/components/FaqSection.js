@@ -17,7 +17,7 @@ const FAQ_ITEMS = [
   {
     question: 'What file types can I review in Kommently?',
     answer:
-      'Kommently supports live websites, PDFs, images, and video review workflows. Teams can keep comments in one place instead of splitting comments across email threads, chat, and screenshots.',
+      'Kommently supports live websites and uploaded documents (PDFs and images). Teams can keep comments in one place instead of splitting comments across email threads, chat, and screenshots.',
   },
   {
     question: 'Can my team collaborate in real time?',
@@ -27,7 +27,7 @@ const FAQ_ITEMS = [
   {
     question: 'Is guest sharing secure?',
     answer:
-      'You can protect review links with passwords, expiration dates, private access rules, and internal-only visibility. That gives you client-friendly sharing without losing control of sensitive work.',
+      'You can protect review links with a password and an expiration date, turn guest commenting on or off, and disable a link at any time. That gives you client-friendly sharing without losing control of sensitive work.',
   },
   {
     question: 'Does Kommently integrate with the rest of our workflow?',

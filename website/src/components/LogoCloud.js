@@ -1,7 +1,7 @@
 import React from 'react';
 import useScrollReveal from '../hooks/useScrollReveal';
 
-const logos = ['Ampioneers', 'Bright Group', 'Bambuam', 'Grandios', 'Leoprinting', 'CoolAirUSA', 'Strom Galeries', 'Bright Now', 'Wonka', 'Stark'];
+const logos = ['Ampioneers', 'Bright Group', 'Bambuam', 'Grandios', 'Leoprinting', 'CoolAirUSA', 'Strom Galeries', 'Bright Now'];
 
 export default function LogoCloud() {
   const ref = useScrollReveal();

@@ -9,7 +9,7 @@ const COMPARISONS = [
   ['Slack, Discord, Jira', { type: 'icons' }, { type: 'text', value: 'Slack only' }],
   ['Version history', { type: 'check' }, { type: 'x' }],
   ['Device mode preview', { type: 'check' }, { type: 'x' }],
-  ['Free plan', { type: 'badge', value: 'Free forever' }, { type: 'text', value: 'Trial only' }],
+  ['Free trial', { type: 'badge', value: '30 days, no card' }, { type: 'text', value: 'Trial only' }],
   ['Starting price', { type: 'price', value: '$12/mo' }, { type: 'priceGray', value: '$39/mo' }],
 ];
 

@@ -42,7 +42,7 @@ export default function TermsPage() {
               Terms of Service
             </h1>
             <p className="body-large mt-4">
-              Last updated: April 1, 2026
+              Last updated: October 20, 2026
             </p>
           </div>
         </section>
@@ -200,17 +200,17 @@ export default function TermsPage() {
               Kommently offers the following subscription plans:
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
-              <li><strong>Free:</strong> $0 — Includes limited projects, team members, and basic comment tools at no cost, forever.</li>
-              <li><strong>Starter:</strong> $12/month — Includes expanded project limits, guest review links, Slack integration, activity log, and email support.</li>
-              <li><strong>Pro:</strong> $29/month — Includes unlimited projects and members, priority support, all integrations (Slack, Discord, Jira), version history, and advanced sharing.</li>
-              <li><strong>Enterprise:</strong> Custom pricing — Includes everything in Pro plus dedicated support, custom integrations, SLA guarantee, SSO, and custom onboarding.</li>
+              <li><strong>Free:</strong> $0, where offered — Includes a limited number of projects, team members and guests, and the core pin and comment tools.</li>
+              <li><strong>Starter:</strong> $12/month — Includes expanded project, member and guest limits, guest review links, integrations (Slack, Jira, Discord, Microsoft Teams), activity log, and email support.</li>
+              <li><strong>Pro:</strong> $29/month — Includes unlimited projects and members, higher guest limits, all integrations, version history, and priority support.</li>
+              <li><strong>Enterprise:</strong> Custom pricing — Includes everything in Pro plus dedicated support and onboarding, on terms agreed with us in writing.</li>
             </ul>
 
             <h3 className="font-display text-lg font-semibold text-[#10231f] mt-6 mb-2">
               7.2 Billing
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              Paid plans are billed on a monthly recurring basis. Payments are processed through a secure third-party payment processor. You authorize us to charge your designated payment method on each billing date. You are responsible for keeping your payment information current.
+              Paid plans are billed monthly in advance. Your first payment is made at checkout. Before each following monthly period we issue an invoice, which is payable within 10 days through our third-party payment processors (Razorpay or PayPal). We do not store your card details, and we do not charge you without your action. Applicable taxes are shown on your invoice.
             </p>
 
             <h3 className="font-display text-lg font-semibold text-[#10231f] mt-6 mb-2">
@@ -233,7 +233,7 @@ export default function TermsPage() {
               7.5 Failure to Pay
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              If payment fails or is not received, we may downgrade your account to the Free plan after a reasonable grace period and notification. You will retain access to your data, but features exclusive to paid plans will become unavailable.
+              If an invoice is not paid within 10 days, we send reminders during that period and then place your workspace in read-only mode: your team can still sign in and view projects, but cannot add new feedback or make changes. Your data is preserved, and full access is restored as soon as the invoice is paid. You may also move to the Free plan, where offered, instead of paying.
             </p>
 
             {/* 8. Free Trial & Cancellation */}
@@ -241,7 +241,7 @@ export default function TermsPage() {
               8. Free Trial & Cancellation
             </h2>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              Paid plans may include a free trial period. During the trial, you will have access to all features of the selected plan. At the end of the trial period, your payment method will be charged automatically unless you cancel before the trial expires.
+              New workspaces start with a 30-day free trial that includes all Pro plan features. No payment method is required to start a trial, and you will not be charged automatically when it ends. We email the workspace owner before the trial ends. If you have not chosen a paid plan by then, the workspace is placed in read-only mode until you do; your data is preserved.
             </p>
             <p className="text-[#53645f] leading-relaxed mb-4">
               You may cancel your paid subscription at any time through your account settings. Upon cancellation:

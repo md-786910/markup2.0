@@ -37,7 +37,7 @@ export default function PrivacyPage() {
               Privacy Policy
             </h1>
             <p className="body-large mt-4">
-              Last updated: April 1, 2026
+              Last updated: October 20, 2026
             </p>
           </div>
         </section>
@@ -134,7 +134,7 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li><strong>Essential cookies:</strong> Required for authentication, session management, and core functionality. These cannot be disabled.</li>
-              <li><strong>Analytics cookies:</strong> Help us understand how users interact with our Service so we can improve the experience.</li>
+              <li><strong>Analytics cookies:</strong> Only on our marketing website, and only if you accept them in the cookie banner. The Kommently app itself uses essential cookies only.</li>
               <li><strong>Preference cookies:</strong> Remember your settings and preferences across sessions.</li>
             </ul>
             <p className="text-[#53645f] leading-relaxed mb-4">
@@ -171,14 +171,14 @@ export default function PrivacyPage() {
               4.1 Service Providers
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              We work with trusted third-party service providers who assist us in operating the Service, including cloud hosting and infrastructure, email delivery services, payment processing, and analytics platforms. These providers are contractually obligated to protect your data and may only use it to perform services on our behalf.
+              We work with third-party service providers (sub-processors) who help us operate the Service: cloud hosting and infrastructure, email delivery, Cloudflare (used to load the live websites you add for review), Razorpay and PayPal (payment processing — we never see or store your full card details), and error monitoring. These providers may only use your data to perform services on our behalf. A current list of sub-processors is available on request at the contact address below.
             </p>
 
             <h3 className="font-display text-lg font-semibold text-[#10231f] mt-6 mb-2">
               4.2 Third-Party Integrations
             </h3>
             <p className="text-[#53645f] leading-relaxed mb-4">
-              When you choose to connect third-party integrations such as Slack, Discord, or Jira, relevant comment and project data will be transmitted to those platforms to enable the integration functionality. These third-party services are governed by their own privacy policies, and we encourage you to review them before connecting.
+              When you choose to connect third-party integrations such as Slack, Discord, Microsoft Teams, or Jira, relevant comment and project data will be transmitted to those platforms to enable the integration functionality. These third-party services are governed by their own privacy policies, and we encourage you to review them before connecting.
             </p>
 
             <h3 className="font-display text-lg font-semibold text-[#10231f] mt-6 mb-2">
@@ -203,9 +203,10 @@ export default function PrivacyPage() {
               We retain your information for as long as necessary to provide the Service and fulfill the purposes described in this policy:
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
-              <li><strong>Account data:</strong> Retained for as long as your account remains active. Upon account deletion request, your personal data will be removed within 30 days.</li>
-              <li><strong>Project and comment data:</strong> Retained until you delete it or your account is terminated. You may delete individual projects and comments at any time.</li>
-              <li><strong>Usage logs:</strong> Retained for up to 12 months for analytics and security purposes, then automatically purged.</li>
+              <li><strong>Account data:</strong> Retained while your account is active. When you delete your account, your profile is removed immediately; comments you wrote in other people's projects remain, attributed to "Deleted user".</li>
+              <li><strong>Workspace data:</strong> Projects, pins, comments and uploaded files are kept until you delete them. When a workspace owner deletes the workspace, all of its content and members are permanently deleted after a 7-day grace period.</li>
+              <li><strong>Activity logs and notifications:</strong> Activity logs are deleted after 12 months and in-app notifications after 6 months.</li>
+              <li><strong>Invoices:</strong> Kept for as long as tax law requires, even after a workspace is deleted.</li>
               <li><strong>Backup data:</strong> May persist in encrypted backups for up to 90 days after deletion from the active system.</li>
             </ul>
 
@@ -218,7 +219,7 @@ export default function PrivacyPage() {
             </p>
             <ul className="list-disc list-inside text-[#53645f] space-y-2 mb-4 ml-4">
               <li><strong>Encryption in transit:</strong> All data transmitted between your browser and our servers is encrypted using TLS (Transport Layer Security).</li>
-              <li><strong>Encryption at rest:</strong> Sensitive data stored on our servers is encrypted at rest.</li>
+              <li><strong>Encrypted backups:</strong> Database and file backups are encrypted (AES-256).</li>
               <li><strong>Access controls:</strong> Strict role-based access controls limit who within our organization can access user data.</li>
               <li><strong>Password hashing:</strong> Passwords are hashed using industry-standard algorithms and are never stored in plain text.</li>
               <li><strong>Regular security reviews:</strong> We conduct periodic security assessments and infrastructure reviews.</li>
@@ -251,6 +252,9 @@ export default function PrivacyPage() {
               <li><strong>Right to withdraw consent:</strong> Where processing is based on consent, you may withdraw it at any time.</li>
               <li><strong>Right to lodge a complaint:</strong> File a complaint with your local supervisory authority.</li>
             </ul>
+            <p className="text-[#53645f] leading-relaxed mb-4">
+              You can exercise the rights of access and portability yourself: workspace owners and admins can export all workspace data from Settings → Workspace. Owners can delete the workspace there, and any user can delete their own account from their profile. For other requests, contact us.
+            </p>
             <p className="text-[#53645f] leading-relaxed mb-4">
               Our legal bases for processing your data include: performance of our contract with you, our legitimate interests in operating and improving the Service, compliance with legal obligations, and your consent where applicable.
             </p>

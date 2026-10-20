@@ -16,7 +16,7 @@ export const TESTIMONIALS = [
     gradient: 'from-[#6f9f32] to-[#176b57]',
   },
   {
-    quote: 'Every pin captures page URL, viewport, browser, and thread history so bug reports arrive with useful context.',
+    quote: 'Every pin captures the page URL, device size, exact element, and a screenshot, so feedback arrives with useful context.',
     name: 'Developers',
     role: 'Bug reports that help',
     company: '',

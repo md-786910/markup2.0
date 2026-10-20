@@ -44,7 +44,7 @@ export default function Navbar() {
             <span className="inline-flex h-5 w-5 items-center justify-center rounded-lg bg-[#b8e36d] text-[11px] font-bold text-[#10231f]">
               3
             </span>
-            <span className="hidden text-white/80 sm:inline">New: realtime cursors, instant video notes, and controlled guest reviews.</span>
+            <span className="hidden text-white/80 sm:inline">New: live presence, password-protected guest reviews, and Teams notifications.</span>
             <a href="/#features" className="font-semibold text-[#d9ffaf] underline-offset-4 hover:underline">
               See what changed
             </a>

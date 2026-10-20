@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import CtaSection from '../components/CtaSection';
@@ -25,14 +25,13 @@ const FEATURES = [
 ];
 
 const FAQ = [
-  ['Can I try Kommently for free before paying?', 'Yes. Starter and Pro include a free trial so your team can run a real review before choosing a plan.'],
+  ['Can I try Kommently for free before paying?', 'Yes. Every new workspace starts with a 30-day free trial with all Pro features, and no credit card is required. We email you before the trial ends so you can choose a plan.'],
   ['Do client reviewers count as members?', 'Guests are separate from team members. You can invite clients through controlled review links without adding them to your internal workspace.'],
   ['What happens if we outgrow our plan?', 'You can upgrade when your team needs more guests, integrations, or project volume. Enterprise is available for custom onboarding and security requirements.'],
-  ['Can we cancel monthly plans?', 'Yes. Monthly plans can be cancelled any time from billing settings.'],
+  ['Can we cancel monthly plans?', 'Yes. Cancel any time from Settings → Billing. You keep your plan until the end of the period you already paid for, and you are not charged again.'],
 ];
 
 export default function PricingPage() {
-  const [billing, setBilling] = useState('monthly');
   const [plans, setPlans] = useState(STATIC_PLANS);
   const [openFaq, setOpenFaq] = useState(0);
 
@@ -67,15 +66,8 @@ export default function PricingPage() {
     };
   }, []);
 
-  const displayedPlans = useMemo(() => (
-    plans.map((plan) => {
-      if (billing === 'annual' && typeof plan.price === 'number') {
-        const annualPrice = Math.round(plan.price * 0.8);
-        return { ...plan, priceLabel: `$${annualPrice}`, period: '/month' };
-      }
-      return plan;
-    })
-  ), [billing, plans]);
+  // Monthly billing only (no annual plans yet)
+  const displayedPlans = plans;
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-white">
@@ -90,22 +82,6 @@ export default function PricingPage() {
             <p className="body-large mx-auto mt-6 max-w-2xl">
               Start small, bring in guests, and expand into integrations and security controls when your workflow needs them.
             </p>
-            <div className="mx-auto mt-8 grid w-full max-w-xs grid-cols-2 rounded-full border border-emerald-100 bg-[#fffffb] p-1 shadow-sm">
-              {[
-                ['monthly', 'Monthly'],
-                ['annual', 'Annual -20%'],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setBilling(value)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${billing === value ? 'bg-[#176b57] text-white shadow-[0_10px_24px_rgba(23,107,87,0.22)]' : 'text-[#53645f] hover:text-[#10231f]'
-                    }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
           </div>
         </section>
 
@@ -132,11 +108,7 @@ export default function PricingPage() {
                   <span className="font-display text-5xl font-bold tracking-tight">{plan.priceLabel}</span>
                   {plan.period ? <span className={`pb-1 text-sm ${plan.popular ? 'text-white/60' : 'text-[#8a9b94]'}`}>{plan.period}</span> : null}
                 </div>
-                {billing === 'annual' && typeof plan.price === 'number' ? (
-                  <p className={`mt-2 text-xs font-medium ${plan.popular ? 'text-[#b8e36d]' : 'text-emerald-600'}`}>Billed annually, save 20%</p>
-                ) : (
-                  <p className={`mt-2 text-xs font-medium ${plan.popular ? 'text-white/45' : 'text-[#8a9b94]'}`}>Monthly billing available</p>
-                )}
+                <p className={`mt-2 text-xs font-medium ${plan.popular ? 'text-white/45' : 'text-[#8a9b94]'}`}>Billed monthly</p>
                 <a
                   href={plan.id === 'enterprise' ? 'mailto:hello@kommently.app' : `${APP_URL}/onboarding`}
                   className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold transition ${plan.popular ? 'bg-[#176b57] text-white hover:bg-[#0f5f4c]' : 'border border-emerald-100 bg-white text-[#365047] hover:bg-[#f4faf4]'
