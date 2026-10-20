@@ -9,6 +9,7 @@ export default function ProjectPage() {
   const [searchParams] = useSearchParams();
   const initialPinId = searchParams.get('pin') || searchParams.get('comment');
   const [project, setProject] = useState(null);
+  const [proxyToken, setProxyToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -18,7 +19,9 @@ export default function ProjectPage() {
     setError('');
     getProjectApi(projectId, controller.signal)
       .then((res) => {
-        if (!controller.signal.aborted) setProject(res.data.project);
+        if (controller.signal.aborted) return;
+        setProject(res.data.project);
+        setProxyToken(res.data.proxyToken || null);
       })
       .catch((err) => {
         if (controller.signal.aborted) return;
@@ -56,6 +59,7 @@ export default function ProjectPage() {
     <div className="animate-page-enter h-screen">
       <ProjectView
         project={project}
+        proxyToken={proxyToken}
         onProjectUpdate={(updated) => setProject(updated)}
         initialPinId={initialPinId}
       />

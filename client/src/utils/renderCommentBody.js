@@ -1,4 +1,5 @@
 import React from 'react';
+import DOMPurify from 'dompurify';
 
 const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
 const HAS_HTML_TAG = /<[a-z][\s\S]*>/i;
@@ -14,7 +15,12 @@ export default function renderCommentBody(body) {
       MENTION_REGEX,
       '<span class="text-blue-600 font-medium bg-blue-50 rounded px-0.5">@$1</span>',
     );
-    return <span className="comment-rich-content" dangerouslySetInnerHTML={{ __html: processed }} />;
+    // Defense in depth: the server sanitizes on write, but older stored bodies may predate that.
+    const safe = DOMPurify.sanitize(processed, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'code', 'pre', 'blockquote', 'ol', 'ul', 'li', 'a', 'span'],
+      ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'contenteditable', 'data-list', 'data-id', 'data-value', 'data-index', 'data-denotation-char'],
+    });
+    return <span className="comment-rich-content" dangerouslySetInnerHTML={{ __html: safe }} />;
   }
 
   const parts = [];

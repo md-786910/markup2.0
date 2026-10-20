@@ -18,7 +18,6 @@ import {
   deletePinApi,
   uploadPinScreenshotApi,
 } from "../../services/pinService";
-import { TOKEN_KEY } from "../../utils/constants";
 import { useSocket } from "../../hooks/useSocket";
 
 const AVATAR_COLORS = [
@@ -46,7 +45,7 @@ function getAvatarColor(id) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-export default function ProjectView({ project, onProjectUpdate, initialPinId }) {
+export default function ProjectView({ project, proxyToken, onProjectUpdate, initialPinId }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAdmin, canCreate, user } = useAuth();
@@ -107,7 +106,8 @@ export default function ProjectView({ project, onProjectUpdate, initialPinId }) 
 
   const memberPresence = useMemo(() => allMembers.map(getMemberPresence), [allMembers, getMemberPresence]);
 
-  const token = localStorage.getItem(TOKEN_KEY);
+  // Project-scoped proxy token (never the session token: the proxied site can read this URL)
+  const token = encodeURIComponent(proxyToken || '');
   const proxyUrl = !isDocumentProject ? `${process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api'}/proxy?url=${encodeURIComponent(targetUrl)}&projectId=${project._id}&token=${token}` : null;
 
   const currentDoc = isDocumentProject ? (project.documents?.[currentDocIndex] || project.documents?.[0]) : null;

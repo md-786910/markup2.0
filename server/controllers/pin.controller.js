@@ -1,4 +1,5 @@
 const Pin = require('../models/Pin');
+const { deletePinCascade } = require('../utils/cascade');
 const Comment = require('../models/Comment');
 const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
@@ -31,6 +32,7 @@ exports.createPin = asyncHandler(async (req, res) => {
   const screenshot = req.file ? {
     filename: req.file.filename,
     path: `uploads/${req.file.filename}`,
+    size: req.file.size,
   } : null;
 
   // Get next incremental pin number for this project
@@ -193,7 +195,8 @@ exports.updatePin = asyncHandler(async (req, res) => {
   const { pinId } = req.params;
   const { status } = req.body;
 
-  const pin = await Pin.findById(pinId);
+  // Scoped to the project already authorized by projectAccess
+  const pin = await Pin.findOne({ _id: pinId, project: req.project._id });
   if (!pin) {
     return res.status(404).json({ message: 'Pin not found' });
   }
@@ -255,7 +258,8 @@ exports.attachScreenshot = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'No screenshot file' });
   }
 
-  const pin = await Pin.findById(pinId);
+  // Scoped to the project already authorized by projectAccess
+  const pin = await Pin.findOne({ _id: pinId, project: req.project._id });
   if (!pin) {
     return res.status(404).json({ message: 'Pin not found' });
   }
@@ -263,6 +267,7 @@ exports.attachScreenshot = asyncHandler(async (req, res) => {
   pin.screenshot = {
     filename: req.file.filename,
     path: `uploads/${req.file.filename}`,
+    size: req.file.size,
   };
   await pin.save();
 
@@ -273,7 +278,8 @@ exports.attachScreenshot = asyncHandler(async (req, res) => {
 exports.deletePin = asyncHandler(async (req, res) => {
   const { pinId } = req.params;
 
-  const pin = await Pin.findById(pinId);
+  // Scoped to the project already authorized by projectAccess
+  const pin = await Pin.findOne({ _id: pinId, project: req.project._id });
   if (!pin) {
     return res.status(404).json({ message: 'Pin not found' });
   }
@@ -283,8 +289,8 @@ exports.deletePin = asyncHandler(async (req, res) => {
   // Activity log
   logActivity(projectId, req.user._id, 'pin.deleted', { pinNumber: pin.pinNumber });
 
-  await Comment.deleteMany({ pin: pinId });
-  await Pin.findByIdAndDelete(pinId);
+  // Comments, screenshot and attachment files go with the pin
+  await deletePinCascade(pin, req.project.organization);
 
   // Real-time notification
   const io = req.app.get('io');

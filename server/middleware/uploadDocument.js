@@ -2,31 +2,33 @@ const multer = require('multer');
 const path = require('path');
 const { randomUUID } = require('crypto');
 
+// Allowed mimetypes -> stored extension. The extension comes from this map, never
+// from the client-supplied filename, so an upload can't be stored as .html/.svg.
+const EXTENSIONS = {
+  'application/pdf': '.pdf',
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'application/vnd.ms-powerpoint': '.ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+  'text/plain': '.txt',
+  'text/csv': '.csv',
+};
+
 const storage = multer.diskStorage({
   destination: path.join(__dirname, '..', 'uploads', 'documents'),
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${randomUUID()}${ext}`);
+    cb(null, `${randomUUID()}${EXTENSIONS[file.mimetype]}`);
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = [
-    'application/pdf',
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'text/plain',
-    'text/csv',
-  ];
-  if (!allowed.includes(file.mimetype)) {
+  if (!Object.prototype.hasOwnProperty.call(EXTENSIONS, file.mimetype)) {
     const error = new Error('Unsupported file type');
     error.statusCode = 400;
     return cb(error);

@@ -3,7 +3,8 @@ const User = require('../models/User');
 const Organization = require('../models/Organization');
 const asyncHandler = require('../utils/asyncHandler');
 const { checkTrialExpiry } = require('../utils/orgUtils');
-const { getLimitsForPlanAsync } = require('../config/plans');
+const { getEffectiveLimitsAsync } = require('../config/plans');
+const { isProxyToken } = require('../utils/proxyToken');
 
 const auth = asyncHandler(async (req, res, next) => {
   let token = null;
@@ -24,6 +25,10 @@ const auth = asyncHandler(async (req, res, next) => {
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    // Proxy tokens are only valid on /api/proxy
+    if (isProxyToken(decoded)) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
     const user = await User.findById(decoded.id);
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
@@ -44,9 +49,8 @@ const auth = asyncHandler(async (req, res, next) => {
       const org = await Organization.findById(user.organization);
       if (org) {
         await checkTrialExpiry(org);
-        // Dynamically resolve limits based on the current admin plan config
-        const dynamicLimits = await getLimitsForPlanAsync(org.plan);
-        org.limits = { ...org.limits.toObject(), ...dynamicLimits };
+        // Plan limits (with admin plan config) plus per-org superadmin overrides
+        org.limits = { ...org.limits.toObject(), ...(await getEffectiveLimitsAsync(org)) };
         req.organization = org;
       }
     }

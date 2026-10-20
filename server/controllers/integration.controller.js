@@ -1,9 +1,53 @@
 const Integration = require('../models/Integration');
+const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSlackNotification } = require('../utils/slackNotifier');
 const { sendDiscordNotification } = require('../utils/discordNotifier');
 const { sendTeamsNotification } = require('../utils/teamsNotifier');
 const { logOrgActivity } = require('../utils/activityLogger');
+const { isPublicUrl } = require('../utils/ssrfGuard');
+
+// Integration targets are called server-side, so they must be public HTTPS
+// endpoints (no internal hosts). Returns an error message, or null when valid.
+async function validateIntegrationTarget(type, config) {
+  if (!config) return null;
+  if ((type === 'slack' || type === 'discord' || type === 'teams') && config.webhookUrl !== undefined) {
+    const url = String(config.webhookUrl);
+    if (!url.startsWith('https://') || !(await isPublicUrl(url))) {
+      return 'Webhook URL must be a public https:// URL.';
+    }
+  }
+  if (type === 'jira' && config.domain !== undefined) {
+    const domain = String(config.domain);
+    if (!/^[a-z0-9.-]+(:\d+)?$/i.test(domain) || !(await isPublicUrl(`https://${domain}/`))) {
+      return 'Jira domain must be a public hostname, e.g. yourcompany.atlassian.net.';
+    }
+  }
+  return null;
+}
+
+// Jira API tokens are credentials: responses only show the last 4 characters.
+// A masked or empty token sent back on update means "keep the stored token".
+const TOKEN_MASK = '••••';
+
+function maskIntegration(doc) {
+  if (!doc) return doc;
+  const obj = doc.toObject ? doc.toObject() : { ...doc };
+  if (obj.config && obj.config.apiToken) {
+    obj.config = { ...obj.config, apiToken: `${TOKEN_MASK}${String(obj.config.apiToken).slice(-4)}` };
+  }
+  return obj;
+}
+
+function isMaskedOrEmptyToken(value) {
+  return value === '' || (typeof value === 'string' && value.startsWith(TOKEN_MASK));
+}
+
+// A project-scoped integration may only target a project of the same organization.
+async function isOrgProject(projectId, orgId) {
+  if (!projectId) return true;
+  return !!(await Project.exists({ _id: projectId, organization: orgId }));
+}
 
 /**
  * GET /api/integrations
@@ -20,7 +64,7 @@ exports.getIntegrations = asyncHandler(async (req, res) => {
     .populate('createdBy', 'name email')
     .sort({ createdAt: -1 });
 
-  res.json({ integrations });
+  res.json({ integrations: integrations.map(maskIntegration) });
 });
 
 /**
@@ -51,6 +95,14 @@ exports.createIntegration = asyncHandler(async (req, res) => {
     }
   }
 
+  const targetError = await validateIntegrationTarget(type, config);
+  if (targetError) {
+    return res.status(400).json({ message: targetError });
+  }
+  if (!(await isOrgProject(project, orgId))) {
+    return res.status(400).json({ message: 'Project not found in your organization.' });
+  }
+
   const integration = await Integration.create({
     organization: orgId,
     project: project || null,
@@ -70,7 +122,7 @@ exports.createIntegration = asyncHandler(async (req, res) => {
     projectName: populated.project?.name || null,
   });
 
-  res.status(201).json({ integration: populated });
+  res.status(201).json({ integration: maskIntegration(populated) });
 });
 
 /**
@@ -87,7 +139,20 @@ exports.updateIntegration = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Not authorized' });
   }
 
-  const { config, enabled, project } = req.body;
+  const { enabled, project } = req.body;
+  let { config } = req.body;
+  // Keep the stored Jira token when the client sends back the masked value
+  if (config && isMaskedOrEmptyToken(config.apiToken)) {
+    const { apiToken, ...rest } = config;
+    config = rest;
+  }
+  const targetError = await validateIntegrationTarget(integration.type, config);
+  if (targetError) {
+    return res.status(400).json({ message: targetError });
+  }
+  if (project !== undefined && !(await isOrgProject(project, integration.organization))) {
+    return res.status(400).json({ message: 'Project not found in your organization.' });
+  }
   if (config !== undefined) integration.config = { ...integration.config, ...config };
   if (enabled !== undefined) integration.enabled = enabled;
   if (project !== undefined) integration.project = project || null;
@@ -98,7 +163,7 @@ exports.updateIntegration = asyncHandler(async (req, res) => {
     .populate('project', 'name')
     .populate('createdBy', 'name email');
 
-  res.json({ integration: populated });
+  res.json({ integration: maskIntegration(populated) });
 });
 
 /**

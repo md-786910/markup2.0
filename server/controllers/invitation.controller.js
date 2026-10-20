@@ -45,6 +45,7 @@ exports.getProjectInvitations = asyncHandler(async (req, res) => {
     project: projectId,
     status: 'pending',
   })
+    .select('-token') // the token is the invitee's signup credential
     .populate('invitedBy', 'name email')
     .sort({ createdAt: -1 });
 
@@ -55,9 +56,17 @@ exports.getProjectInvitations = asyncHandler(async (req, res) => {
 exports.cancelInvitation = asyncHandler(async (req, res) => {
   const { invitationId } = req.params;
 
-  const invitation = await Invitation.findById(invitationId);
+  const invitation = await Invitation.findById(invitationId).populate('project', 'owner');
   if (!invitation) {
     return res.status(404).json({ message: 'Invitation not found' });
+  }
+
+  // Same rule as resend: project owner or org admin/owner, within the same org
+  const sameOrg = invitation.organization?.toString() === req.user.organization?.toString();
+  const isProjectOwner = invitation.project?.owner?.toString() === req.user._id.toString();
+  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  if (!sameOrg || (!isProjectOwner && !isPlatformAdmin)) {
+    return res.status(403).json({ message: 'Not authorized to cancel this invitation' });
   }
 
   await Invitation.findByIdAndDelete(invitationId);

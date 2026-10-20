@@ -1,10 +1,15 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const Project = require('../models/Project');
 const Pin = require('../models/Pin');
 const Comment = require('../models/Comment');
+const Organization = require('../models/Organization');
 const asyncHandler = require('../utils/asyncHandler');
 const { logGuestActivity } = require('../utils/activityLogger');
 const { createProjectNotifications } = require('../utils/notificationHelper');
+const { sanitizeCommentBody } = require('../utils/sanitizeComment');
+const { reserveStorage, discardUploads } = require('../utils/storage');
 
 // Verify a guest-supplied password against either the bcrypt hash (preferred,
 // new projects + migrated ones) or the legacy plaintext field (pre-migration
@@ -18,6 +23,75 @@ async function verifySharePassword(supplied, shareSettings) {
     return supplied === shareSettings.password;
   }
   return false;
+}
+
+// --- Guest access token ---------------------------------------------------
+// Issued by getGuestProject after a successful password check and sent back by
+// the guest client in the X-Guest-Access header, so password-protected shares
+// stay protected on every endpoint (not just the first load). Bound to the
+// project and to the current password, so changing the password revokes it.
+const GUEST_TOKEN_PURPOSE = 'guest';
+
+function passwordFingerprint(shareSettings) {
+  const secret = shareSettings.passwordHash || shareSettings.password || '';
+  return crypto.createHash('sha256').update(String(secret)).digest('hex').slice(0, 16);
+}
+
+function signGuestAccessToken(project) {
+  return jwt.sign(
+    { purpose: GUEST_TOKEN_PURPOSE, projectId: project._id.toString(), pwf: passwordFingerprint(project.shareSettings) },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h', algorithm: 'HS256' },
+  );
+}
+
+function hasValidGuestAccessToken(req, project) {
+  const token = req.get('X-Guest-Access');
+  if (!token) return false;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    return decoded.purpose === GUEST_TOKEN_PURPOSE
+      && decoded.projectId === project._id.toString()
+      && decoded.pwf === passwordFingerprint(project.shareSettings);
+  } catch {
+    return false;
+  }
+}
+
+// Loads the shared project and enforces enabled + expiry + password on every
+// guest endpoint (and, for writes, that the owning org isn't locked). Sends the
+// error response and returns null when access is denied.
+async function loadSharedProject(req, res, { write = false } = {}) {
+  const project = await Project.findOne({
+    'shareSettings.token': req.params.shareToken,
+    'shareSettings.enabled': true,
+  });
+
+  if (!project) {
+    res.status(404).json({ message: 'Review link not found.' });
+    return null;
+  }
+
+  if (project.shareSettings.expiresAt && new Date(project.shareSettings.expiresAt) < new Date()) {
+    res.status(410).json({ message: 'This review link has expired.' });
+    return null;
+  }
+
+  const hasSharePassword = !!(project.shareSettings.passwordHash || project.shareSettings.password);
+  if (hasSharePassword && !hasValidGuestAccessToken(req, project)) {
+    res.status(401).json({ message: 'This review requires a password.', requiresPassword: true });
+    return null;
+  }
+
+  if (write) {
+    const org = await Organization.findById(project.organization).select('isLocked');
+    if (org && org.isLocked) {
+      res.status(403).json({ message: 'This review is read-only right now. Please contact the team that shared it.', code: 'ORG_LOCKED' });
+      return null;
+    }
+  }
+
+  return project;
 }
 
 /**
@@ -64,6 +138,7 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
 
   // Return limited project data
   res.json({
+    guestAccessToken: hasSharePassword ? signGuestAccessToken(project) : undefined,
     project: {
       _id: project._id,
       name: project.name,
@@ -81,24 +156,17 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
  * Public endpoint — returns pins for guest review.
  */
 exports.getGuestPins = asyncHandler(async (req, res) => {
-  const { shareToken } = req.params;
   const { pageUrl, deviceMode } = req.query;
 
-  const project = await Project.findOne({
-    'shareSettings.token': shareToken,
-    'shareSettings.enabled': true,
-  });
-
-  if (!project) {
-    return res.status(404).json({ message: 'Review link not found.' });
-  }
+  const project = await loadSharedProject(req, res);
+  if (!project) return;
 
   const filter = { project: project._id };
   if (pageUrl) filter.pageUrl = pageUrl;
   if (deviceMode) filter.deviceMode = deviceMode;
 
   const pins = await Pin.find(filter)
-    .populate('createdBy', 'name email')
+    .populate('createdBy', 'name')
     .sort({ createdAt: -1 });
 
   // Get comment counts
@@ -123,19 +191,19 @@ exports.getGuestPins = asyncHandler(async (req, res) => {
  * Public endpoint — returns comments for a pin.
  */
 exports.getGuestComments = asyncHandler(async (req, res) => {
-  const { shareToken, pinId } = req.params;
+  const { pinId } = req.params;
 
-  const project = await Project.findOne({
-    'shareSettings.token': shareToken,
-    'shareSettings.enabled': true,
-  });
+  const project = await loadSharedProject(req, res);
+  if (!project) return;
 
-  if (!project) {
-    return res.status(404).json({ message: 'Review link not found.' });
+  const pin = await Pin.findOne({ _id: pinId, project: project._id }).select('_id');
+  if (!pin) {
+    return res.status(404).json({ message: 'Pin not found.' });
   }
 
-  const comments = await Comment.find({ pin: pinId })
-    .populate('author', 'name email')
+  // Team members' emails are not exposed to guests
+  const comments = await Comment.find({ pin: pin._id })
+    .populate('author', 'name')
     .sort({ createdAt: 1 });
 
   res.json({ comments });
@@ -146,16 +214,8 @@ exports.getGuestComments = asyncHandler(async (req, res) => {
  * Public endpoint — create pin as guest.
  */
 exports.createGuestPin = asyncHandler(async (req, res) => {
-  const { shareToken } = req.params;
-
-  const project = await Project.findOne({
-    'shareSettings.token': shareToken,
-    'shareSettings.enabled': true,
-  });
-
-  if (!project) {
-    return res.status(404).json({ message: 'Review link not found.' });
-  }
+  const project = await loadSharedProject(req, res, { write: true });
+  if (!project) return;
 
   if (!project.shareSettings.allowComments) {
     return res.status(403).json({ message: 'Guest commenting is disabled for this project.' });
@@ -228,22 +288,20 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
  * Public endpoint — create comment as guest.
  */
 exports.createGuestComment = asyncHandler(async (req, res) => {
-  const { shareToken, pinId } = req.params;
+  const { pinId } = req.params;
 
-  const project = await Project.findOne({
-    'shareSettings.token': shareToken,
-    'shareSettings.enabled': true,
-  });
+  const project = await loadSharedProject(req, res, { write: true });
+  if (!project) return discardUploads(req);
 
-  if (!project) {
-    return res.status(404).json({ message: 'Review link not found.' });
-  }
+  const storageError = await reserveStorage(project.organization, req);
+  if (storageError) return res.status(403).json(storageError);
 
   if (!project.shareSettings.allowComments) {
     return res.status(403).json({ message: 'Guest commenting is disabled for this project.' });
   }
 
-  const { guestName, guestEmail, body } = req.body;
+  const { guestName, guestEmail } = req.body;
+  const body = sanitizeCommentBody(req.body.body);
 
   if (!guestName || !guestEmail) {
     return res.status(400).json({ message: 'Guest name and email are required.' });
@@ -262,6 +320,7 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
     filename: file.filename,
     originalName: file.originalname,
     mimetype: file.mimetype,
+    size: file.size,
     path: `uploads/documents/${file.filename}`,
   }));
 

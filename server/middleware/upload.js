@@ -2,17 +2,24 @@ const multer = require('multer');
 const path = require('path');
 const { randomUUID } = require('crypto');
 
+// Allowed mimetypes -> stored extension. The extension comes from this map, never
+// from the client-supplied filename, so an upload can't be stored as .html/.svg.
+const EXTENSIONS = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+};
+
 const storage = multer.diskStorage({
   destination: path.join(__dirname, '..', 'uploads'),
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${randomUUID()}${ext}`);
+    cb(null, `${randomUUID()}${EXTENSIONS[file.mimetype]}`);
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-  cb(null, allowed.includes(file.mimetype));
+  cb(null, Object.prototype.hasOwnProperty.call(EXTENSIONS, file.mimetype));
 };
 
 const upload = multer({

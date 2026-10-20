@@ -13,6 +13,9 @@ const { sendInvitationEmail } = require('../utils/mailer');
 const { canAssignRole } = require('../middleware/roles');
 const { logActivity } = require('../utils/activityLogger');
 const { createProjectNotifications, createSingleNotification } = require('../utils/notificationHelper');
+const { signProxyToken } = require('../utils/proxyToken');
+const { seatLimitError } = require('../middleware/orgLimits');
+const { deleteProjectCascade } = require('../utils/cascade');
 
 // Hash a share-link password with bcrypt. 10 rounds (vs 12 for user passwords)
 // because share passwords are typically shorter / lower-stakes and we want
@@ -104,7 +107,9 @@ exports.createProject = asyncHandler(async (req, res) => {
   // Activity log
   logActivity(project._id, req.user._id, 'project.created', { projectName: name });
 
-  res.status(201).json({ project });
+  res.status(201).json({
+    project: { ...project.toObject(), proxyToken: project.projectType === 'website' ? signProxyToken(req.user, project._id) : undefined },
+  });
 });
 
 exports.getProjects = asyncHandler(async (req, res) => {
@@ -120,38 +125,37 @@ exports.getProjects = asyncHandler(async (req, res) => {
     .populate('owner', 'name email lastSeen')
     .populate('members', 'name email role lastSeen avatar');
 
-  // Compute the comment count per project: Comment -> Pin -> Project.
+  // Per-project open/resolved pin and comment counts for the dashboard cards,
+  // computed in MongoDB instead of loading every pin into memory.
   const projectIds = projects.map((p) => p._id);
-  const pins = await Pin.find({ project: { $in: projectIds } }).select('_id project status');
-  const pinToProject = new Map(pins.map((pin) => [pin._id.toString(), pin.project.toString()]));
-
-  // Open vs resolved threads (pins) per project, for the dashboard card.
-  const pinStatusByProject = {};
-  pins.forEach((pin) => {
-    const key = pin.project.toString();
-    const counts = pinStatusByProject[key] || (pinStatusByProject[key] = { open: 0, resolved: 0 });
-    if (pin.status === 'resolved') counts.resolved += 1;
-    else counts.open += 1;
-  });
-
-  const commentsByPin = await Comment.aggregate([
-    { $match: { pin: { $in: pins.map((pin) => pin._id) } } },
-    { $group: { _id: '$pin', count: { $sum: 1 } } },
+  const stats = await Pin.aggregate([
+    { $match: { project: { $in: projectIds } } },
+    {
+      $lookup: {
+        from: Comment.collection.name,
+        localField: '_id',
+        foreignField: 'pin',
+        pipeline: [{ $project: { _id: 1 } }],
+        as: 'comments',
+      },
+    },
+    {
+      $group: {
+        _id: '$project',
+        resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+        total: { $sum: 1 },
+        comments: { $sum: { $size: '$comments' } },
+      },
+    },
   ]);
-
-  const commentCountByProject = {};
-  commentsByPin.forEach(({ _id, count }) => {
-    const projectId = pinToProject.get(_id.toString());
-    if (projectId) {
-      commentCountByProject[projectId] = (commentCountByProject[projectId] || 0) + count;
-    }
-  });
+  const statsByProject = new Map(stats.map((st) => [st._id.toString(), st]));
 
   const projectsWithCounts = projects.map((project) => ({
     ...project.toObject(),
-    commentCount: commentCountByProject[project._id.toString()] || 0,
-    openPinCount: pinStatusByProject[project._id.toString()]?.open || 0,
-    resolvedPinCount: pinStatusByProject[project._id.toString()]?.resolved || 0,
+    commentCount: statsByProject.get(project._id.toString())?.comments || 0,
+    openPinCount: (statsByProject.get(project._id.toString())?.total || 0) - (statsByProject.get(project._id.toString())?.resolved || 0),
+    resolvedPinCount: statsByProject.get(project._id.toString())?.resolved || 0,
+    proxyToken: project.projectType === 'website' ? signProxyToken(req.user, project._id) : undefined,
   }));
 
   res.json({ projects: projectsWithCounts });
@@ -162,7 +166,7 @@ exports.getProject = asyncHandler(async (req, res) => {
     .populate('owner', 'name email lastSeen')
     .populate('members', 'name email role lastSeen avatar');
 
-  res.json({ project });
+  res.json({ project, proxyToken: signProxyToken(req.user, project._id) });
 });
 
 exports.getWorkspaceMembers = asyncHandler(async (req, res) => {
@@ -193,7 +197,7 @@ exports.updateProject = asyncHandler(async (req, res) => {
   const project = req.project;
 
   const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
   if (!isProjectOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Only the project owner or admin can update' });
   }
@@ -233,32 +237,14 @@ exports.deleteProject = asyncHandler(async (req, res) => {
   const project = req.project;
 
   const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
   if (!isProjectOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Only the project owner or admin can delete' });
   }
 
-  // Cascade delete pins and comments
-  const pins = await Pin.find({ project: project._id });
-  const pinIds = pins.map((p) => p._id);
-  await Comment.deleteMany({ pin: { $in: pinIds } });
-  await Pin.deleteMany({ project: project._id });
-
-  // Clean up uploaded document files
-  if (project.projectType === 'document' && project.documents) {
-    for (const doc of project.documents) {
-      const filePath = path.join(__dirname, '..', doc.path);
-      try { fs.unlinkSync(filePath); } catch {}
-    }
-  }
-
-  // Remove project from any user's mutedProjectEmails
-  await User.updateMany(
-    { mutedProjectEmails: project._id },
-    { $pull: { mutedProjectEmails: project._id } }
-  );
-
-  await Project.findByIdAndDelete(project._id);
+  // Pins, comments, versions, activity, notifications, invitations, project
+  // integrations and every uploaded file go with the project
+  await deleteProjectCascade(project);
 
   res.json({ message: 'Project deleted' });
 });
@@ -270,7 +256,7 @@ exports.inviteMember = asyncHandler(async (req, res) => {
 
   // Authorization: only project owner, platform admin, or platform owner can invite
   const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
   if (!isProjectOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Only the project owner or admin can invite members' });
   }
@@ -293,9 +279,14 @@ exports.inviteMember = asyncHandler(async (req, res) => {
     }
 
     // Keep the selected project role in sync with the user record so the UI
-    // and later member actions reflect the invited permission level.
-    user.role = roleToAssign;
-    await user.save({ validateBeforeSave: false });
+    // and later member actions reflect the invited permission level. Never touch
+    // the role of a user from another organization, or of an owner/superadmin.
+    const inProjectOrg = !user.organization
+      || (project.organization && user.organization.toString() === project.organization.toString());
+    if (inProjectOrg && !['owner', 'superadmin'].includes(user.role)) {
+      user.role = roleToAssign;
+      await user.save({ validateBeforeSave: false });
+    }
 
     project.members.push(user._id);
     await project.save();
@@ -431,7 +422,7 @@ exports.updateMemberRole = asyncHandler(async (req, res) => {
 
   const project = req.project;
   const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
   if (!isProjectOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Only the project owner or admin can change roles' });
   }
@@ -450,13 +441,25 @@ exports.updateMemberRole = asyncHandler(async (req, res) => {
   if (!targetUser) {
     return res.status(404).json({ message: 'User not found' });
   }
-  if (targetUser.role === 'owner') {
+  if (targetUser.role === 'owner' || targetUser.role === 'superadmin') {
     return res.status(403).json({ message: "Cannot change the owner's role" });
+  }
+  // Roles are org-wide: only users of this project's organization can be changed here
+  if (!targetUser.organization || !project.organization
+    || targetUser.organization.toString() !== project.organization.toString()) {
+    return res.status(403).json({ message: 'Cannot change the role of a user from another organization' });
   }
 
   const isMember = project.members.some((m) => m.toString() === userId);
   if (!isMember) {
     return res.status(404).json({ message: 'User is not a member of this project' });
+  }
+
+  // Moving between guest and team roles uses a seat of the other kind
+  const isGuestRole = (r) => r === 'guest';
+  if (isGuestRole(targetUser.role) !== isGuestRole(role)) {
+    const seatError = await seatLimitError(req.organization, role);
+    if (seatError) return res.status(403).json(seatError);
   }
 
   await User.findByIdAndUpdate(userId, { role });
@@ -480,7 +483,7 @@ exports.removeMember = asyncHandler(async (req, res) => {
   const { userId } = req.params;
 
   const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
   if (!isProjectOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Only the project owner or admin can remove members' });
   }
@@ -581,7 +584,7 @@ exports.enableShare = asyncHandler(async (req, res) => {
   const project = req.project;
 
   const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
   if (!isProjectOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
   }
@@ -627,7 +630,7 @@ exports.updateShare = asyncHandler(async (req, res) => {
   const project = req.project;
 
   const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
   if (!isProjectOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
   }
@@ -662,7 +665,7 @@ exports.disableShare = asyncHandler(async (req, res) => {
   const project = req.project;
 
   const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
   if (!isProjectOwner && !isPlatformAdmin) {
     return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
   }

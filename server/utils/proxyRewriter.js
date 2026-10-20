@@ -1,4 +1,5 @@
 const cheerio = require('cheerio');
+const { relayQuery } = require('./relayToken');
 const { URL } = require('url');
 
 // `&guest=true` query suffix when the original request is a guest, so the proxyAuth
@@ -29,7 +30,7 @@ function rewriteAssetUrl(href, baseUrl, projectId, serverBase, workerBase, isGue
   try {
     const absolute = new URL(href, baseUrl).href;
     if (workerBase) {
-      return `${workerBase}/?url=${encodeURIComponent(absolute)}`;
+      return `${workerBase}/?url=${encodeURIComponent(absolute)}${relayQuery()}`;
     }
     return `${serverBase}/api/proxy?url=${encodeURIComponent(absolute)}&projectId=${projectId}${guestQuery(isGuest)}`;
   } catch {
@@ -60,7 +61,7 @@ function rewriteJsUrls(js, pageUrl, projectId, serverBase, workerBase, isGuest) 
   function buildProxy(path) {
     const abs = new URL(path, pageOrigin).href;
     if (workerBase) {
-      return `${workerBase}/?url=${encodeURIComponent(abs)}`;
+      return `${workerBase}/?url=${encodeURIComponent(abs)}${relayQuery()}`;
     }
     return `${serverBase}/api/proxy?url=${encodeURIComponent(abs)}&projectId=${projectId}${guestQuery(isGuest)}`;
   }
@@ -200,6 +201,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   var __markupPageUrl = '${safePageUrl}';
   var __markupServerBase = '${safeServerBase}';
   var __markupWorkerBase = '${safeWorkerBase}';
+  var __markupRelayQuery = '${relayQuery()}';
   var __markupProjectId = '${projectId}';
   var __markupPageOrigin = '${safePageOrigin}';
   var __markupIsGuest = ${isGuest ? 'true' : 'false'};
@@ -237,7 +239,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     if (!__markupWorkerBase) return toProxy(rawUrl);
     try {
       var abs = new URL(rawUrl, __markupPageOrigin).href;
-      return __markupWorkerBase + '/?url=' + encodeURIComponent(abs);
+      return __markupWorkerBase + '/?url=' + encodeURIComponent(abs) + __markupRelayQuery;
     } catch(e) { return rawUrl; }
   }
 
@@ -287,14 +289,14 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   var _lsSetItem = Storage.prototype.setItem;
   Storage.prototype.setItem = function(key, value) {
     _lsSetItem.apply(this, arguments);
-    if (/token|auth|session|jwt|access/i.test(key) && typeof value === 'string' && value.length < 4096) {
+    if (/token|auth|session|jwt|access/i.test(key) && !/^markup_/i.test(key) && typeof value === 'string' && value.length < 4096) {
       try { document.cookie = '__markup_ls_' + encodeURIComponent(key) + '=' + encodeURIComponent(value) + '; path=/; max-age=86400; samesite=lax'; } catch(e) {}
     }
   };
   try {
     for (var i = 0; i < localStorage.length; i++) {
       var lsKey = localStorage.key(i);
-      if (/token|auth|session|jwt|access/i.test(lsKey)) {
+      if (/token|auth|session|jwt|access/i.test(lsKey) && !/^markup_/i.test(lsKey)) {
         var lsVal = localStorage.getItem(lsKey);
         if (lsVal && lsVal.length < 4096) {
           document.cookie = '__markup_ls_' + encodeURIComponent(lsKey) + '=' + encodeURIComponent(lsVal) + '; path=/; max-age=86400; samesite=lax';

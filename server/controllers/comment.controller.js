@@ -1,15 +1,31 @@
 const Comment = require('../models/Comment');
 const Pin = require('../models/Pin');
 const Project = require('../models/Project');
+const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { emitToProject, emailProjectMembers, emailMentionedUsers, notifyIntegrations } = require('../utils/notifier');
 const { logActivity } = require('../utils/activityLogger');
 const { extractMentionedUserIds, stripHtmlAndMentions } = require('../utils/mentionHelper');
 const { createProjectNotifications } = require('../utils/notificationHelper');
+const { sanitizeCommentBody } = require('../utils/sanitizeComment');
+const { deleteCommentCascade } = require('../utils/cascade');
+
+// Keeps only mentions of users who can see the project (owner, members, or same
+// org), so a comment can't trigger emails/notifications to arbitrary user IDs.
+async function filterMentionsToProject(userIds, project) {
+  if (!userIds.length) return userIds;
+  const projectUserIds = new Set([project.owner.toString(), ...project.members.map((m) => m.toString())]);
+  const projectOrg = project.organization ? project.organization.toString() : null;
+  const users = await User.find({ _id: { $in: userIds } }).select('organization');
+  return users
+    .filter((u) => projectUserIds.has(u._id.toString()) || (projectOrg && u.organization && u.organization.toString() === projectOrg))
+    .map((u) => u._id.toString());
+}
 
 exports.createComment = asyncHandler(async (req, res) => {
   const { pinId } = req.params;
-  const { body, parentComment } = req.body;
+  const { parentComment } = req.body;
+  const body = sanitizeCommentBody(req.body.body);
 
   if (!body) {
     return res.status(400).json({ message: 'Comment body is required' });
@@ -21,12 +37,13 @@ exports.createComment = asyncHandler(async (req, res) => {
   }
 
   // Parse mentioned user IDs from body (supports @[Name](userId) and Quill HTML <span class="mention" data-id="...">)
-  const mentionedUserIds = extractMentionedUserIds(body);
+  const mentionedUserIds = await filterMentionsToProject(extractMentionedUserIds(body), req.project);
 
   const attachments = (req.files || []).map((file) => ({
     filename: file.filename,
     originalName: file.originalname,
     mimetype: file.mimetype,
+    size: file.size,
     path: `uploads/documents/${file.filename}`,
   }));
 
@@ -122,16 +139,18 @@ exports.getComments = asyncHandler(async (req, res) => {
 exports.deleteComment = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
 
-  const comment = await Comment.findById(commentId);
+  // Scoped to the pin already authorized by pinAccess
+  const comment = await Comment.findOne({ _id: commentId, pin: req.pin._id });
   if (!comment) {
     return res.status(404).json({ message: 'Comment not found' });
   }
 
-  if (comment.author.toString() !== req.user._id.toString()) {
+  if (!comment.author || comment.author.toString() !== req.user._id.toString()) {
     return res.status(403).json({ message: 'Not authorized to delete this comment' });
   }
 
-  await Comment.findByIdAndDelete(commentId);
+  // Attachment files go with the comment
+  await deleteCommentCascade(comment, req.project.organization);
 
   // Activity log + Real-time notification
   const pin = await Pin.findById(comment.pin);
@@ -152,24 +171,25 @@ exports.deleteComment = asyncHandler(async (req, res) => {
 
 exports.updateComment = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
-  const { body } = req.body;
+  const body = sanitizeCommentBody(req.body.body);
 
   if (!body || !body.trim()) {
     return res.status(400).json({ message: 'Comment body is required' });
   }
 
-  const comment = await Comment.findById(commentId);
+  // Scoped to the pin already authorized by pinAccess
+  const comment = await Comment.findOne({ _id: commentId, pin: req.pin._id });
   if (!comment) {
     return res.status(404).json({ message: 'Comment not found' });
   }
 
   // Only the author can edit their own comment
-  if (comment.author.toString() !== req.user._id.toString()) {
+  if (!comment.author || comment.author.toString() !== req.user._id.toString()) {
     return res.status(403).json({ message: 'Not authorized to edit this comment' });
   }
 
   // Re-parse mentions from updated body
-  const mentionedUserIds = extractMentionedUserIds(body);
+  const mentionedUserIds = await filterMentionsToProject(extractMentionedUserIds(body), req.project);
 
   comment.body = body;
   comment.mentions = mentionedUserIds;

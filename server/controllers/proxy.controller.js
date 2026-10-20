@@ -1,5 +1,6 @@
 const axios = require("axios");
 const dns = require("dns");
+const http = require("http");
 const https = require("https");
 
 // Force IPv4-first DNS resolution (Node.js v22 defaults to IPv6 which causes timeouts with NAT64)
@@ -13,6 +14,8 @@ const {
   injectScript,
 } = require("../utils/proxyRewriter");
 const asyncHandler = require("../utils/asyncHandler");
+const { isPublicUrl, safeLookup, beforeRedirect } = require("../utils/ssrfGuard");
+const { relayQuery } = require("../utils/relayToken");
 
 // --- Outbound proxy for blocked connections ---
 const OUTBOUND_PROXY = process.env.OUTBOUND_PROXY;
@@ -23,22 +26,38 @@ if (proxyAgent) console.log(`Outbound proxy configured: ${OUTBOUND_PROXY}`);
 const FALLBACK_RELAY_URL = process.env.FALLBACK_RELAY_URL;
 if (FALLBACK_RELAY_URL) console.log(`Fallback relay configured: ${FALLBACK_RELAY_URL}`);
 
+// Map that evicts its oldest entry beyond `max`, so per-domain/per-project caches
+// can't grow without bound on a long-running process.
+class BoundedMap extends Map {
+  constructor(max) {
+    super();
+    this.max = max;
+  }
+  set(key, value) {
+    if (!this.has(key) && this.size >= this.max) this.delete(this.keys().next().value);
+    return super.set(key, value);
+  }
+}
+
+// Upstream responses larger than this are refused (protects server memory)
+const PROXY_MAX_BYTES = parseInt(process.env.PROXY_MAX_BYTES || String(50 * 1024 * 1024), 10);
+
 // --- Domain failure cache (reduces console spam and skips known-bad domains) ---
-const failedDomains = new Map();
+const failedDomains = new BoundedMap(5000);
 const DOMAIN_FAIL_TTL = 30000; // 30 seconds
 
 // --- Fallback domain cache (skip direct attempt for domains that need fallback) ---
-const fallbackDomains = new Map();
+const fallbackDomains = new BoundedMap(5000);
 const FALLBACK_DOMAIN_TTL = 300000; // 5 minutes
 
 // --- Blocked domain cache (WAF / CDN blocked sites) ---
-const blockedDomains = new Map();
+const blockedDomains = new BoundedMap(5000);
 const BLOCKED_DOMAIN_TTL = 300000; // 5 minutes
 
 // --- Relay-bypass domain cache (origins that rate-limit the CF Worker, e.g. Hostinger) ---
 // Hostinger's CDN 429s bursts coming from Worker egress IPs but not from our server,
 // so for these origins sub-resources are routed through Express instead of the Worker.
-const relayBypassDomains = new Map();
+const relayBypassDomains = new BoundedMap(5000);
 const RELAY_BYPASS_TTL = 3600000; // 1 hour
 
 function isRelayBypassDomain(urlString) {
@@ -77,7 +96,7 @@ function getBlockedDomain(urlString) {
 }
 
 // --- Project existence cache (avoids DB lookup on every sub-resource) ---
-const projectCache = new Map();
+const projectCache = new BoundedMap(2000);
 const PROJECT_CACHE_TTL = 60000; // 60 seconds
 
 function getCachedProject(projectId) {
@@ -94,6 +113,28 @@ function getCachedProject(projectId) {
 const rewriteCache = new Map();
 const REWRITE_CACHE_TTL = 300000; // 5 minutes
 const REWRITE_CACHE_MAX = 500;
+// Total size budget for cached CSS/JS, and the largest single file worth caching
+const REWRITE_CACHE_MAX_BYTES = parseInt(process.env.PROXY_REWRITE_CACHE_BYTES || String(64 * 1024 * 1024), 10);
+const REWRITE_CACHE_ITEM_MAX_BYTES = 4 * 1024 * 1024;
+let rewriteCacheBytes = 0;
+
+function rewriteCacheSet(key, value) {
+  const size = Buffer.byteLength(value);
+  if (size > REWRITE_CACHE_ITEM_MAX_BYTES) return;
+  const existing = rewriteCache.get(key);
+  if (existing) {
+    rewriteCacheBytes -= existing.size;
+    rewriteCache.delete(key);
+  }
+  // Evict oldest entries until both the count and byte budgets fit
+  while (rewriteCache.size && (rewriteCache.size >= REWRITE_CACHE_MAX || rewriteCacheBytes + size > REWRITE_CACHE_MAX_BYTES)) {
+    const oldestKey = rewriteCache.keys().next().value;
+    rewriteCacheBytes -= rewriteCache.get(oldestKey).size;
+    rewriteCache.delete(oldestKey);
+  }
+  rewriteCache.set(key, { value, size, timestamp: Date.now() });
+  rewriteCacheBytes += size;
+}
 
 const errorMessages = {
   ENOTFOUND: 'Domain not found — the website address may be incorrect or the site no longer exists.',
@@ -255,14 +296,16 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
   // Rewrite upstream Set-Cookie headers so browser stores them for localhost
   const upstreamSetCookies = response.headers['set-cookie'];
   if (upstreamSetCookies) {
-    const setCookies = Array.isArray(upstreamSetCookies) ? upstreamSetCookies : [upstreamSetCookies];
+    const setCookies = (Array.isArray(upstreamSetCookies) ? upstreamSetCookies : [upstreamSetCookies])
+      // Never let the proxied site set or overwrite our own cookies (session, CSRF, proxy ctx)
+      .filter(c => !/^\s*(markup_|__markup_)/i.test(c));
     const rewritten = setCookies.map(c =>
       c.replace(/;\s*Domain=[^;]*/gi, '')
        .replace(/;\s*Secure/gi, '')
        .replace(/;\s*SameSite=[^;]*/gi, '')
       + '; SameSite=Lax'
     );
-    res.setHeader('Set-Cookie', rewritten);
+    if (rewritten.length) res.setHeader('Set-Cookie', rewritten);
   }
 
   const headersToSkip = new Set([
@@ -323,11 +366,7 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
     }
     const css = response.data.toString("utf-8");
     const rewritten = rewriteCssUrls(css, url, projectId, serverBase, workerBase, isGuest);
-    if (rewriteCache.size >= REWRITE_CACHE_MAX) {
-      const firstKey = rewriteCache.keys().next().value;
-      rewriteCache.delete(firstKey);
-    }
-    rewriteCache.set(cacheKey, { value: rewritten, timestamp: Date.now() });
+    rewriteCacheSet(cacheKey, rewritten);
     res.setHeader("Content-Type", "text/css; charset=utf-8");
     return res.send(rewritten);
   }
@@ -342,11 +381,7 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
     }
     const js = response.data.toString("utf-8");
     const rewritten = rewriteJsUrls(js, url, projectId, serverBase, workerBase, isGuest);
-    if (rewriteCache.size >= REWRITE_CACHE_MAX) {
-      const firstKey = rewriteCache.keys().next().value;
-      rewriteCache.delete(firstKey);
-    }
-    rewriteCache.set(cacheKey, { value: rewritten, timestamp: Date.now() });
+    rewriteCacheSet(cacheKey, rewritten);
     res.setHeader("Content-Type", contentType);
     return res.send(rewritten);
   }
@@ -364,6 +399,7 @@ async function tryFallback(url) {
     try {
       const proxyResp = await axios({
         method: 'GET', url, responseType: 'arraybuffer', timeout: 30000,
+        maxContentLength: PROXY_MAX_BYTES,
         httpsAgent: proxyAgent, httpAgent: proxyAgent,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -381,22 +417,6 @@ async function tryFallback(url) {
     }
   }
 
-  // Fallback 2: allorigins.win (last resort, free but slow/unreliable)
-  try {
-    const fallbackResp = await axios({
-      method: 'GET',
-      url: `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-      responseType: 'arraybuffer', timeout: 30000,
-      validateStatus: () => true,
-    });
-    if (!isBlockedResponse(fallbackResp.status, fallbackResp.headers['content-type'], fallbackResp.data)) {
-      fallbackDomains.set(getDomain(url), Date.now());
-      return fallbackResp;
-    }
-    console.log(`allorigins also blocked for ${url} (HTTP ${fallbackResp.status})`);
-  } catch (fallbackErr) {
-    console.error(`allorigins fallback also failed for ${url}: ${fallbackErr.message}`);
-  }
   return null;
 }
 
@@ -418,6 +438,11 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       .json({ message: "url and projectId query params are required" });
   }
 
+  // SSRF guard: only public http(s) destinations may be proxied
+  if (!(await isPublicUrl(url))) {
+    return res.status(403).json({ message: "This address cannot be loaded through the proxy" });
+  }
+
   // Verify project exists (cache-first to avoid DB lookup on every sub-resource)
   let project = getCachedProject(projectId);
   if (!project) {
@@ -428,11 +453,16 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     projectCache.set(projectId, { project, timestamp: Date.now() });
   }
 
-  // Guest proxy requests: verify the project has sharing enabled
-  const isGuestRequest = req.query.guest === 'true';
+  // Unauthenticated (guest) proxy requests: verify the project has an active share link.
+  // Keyed on req.user (set by proxyAuth) rather than the query/cookie flag, so a
+  // forged guest cookie can't skip this check.
+  const isGuestRequest = req.query.guest === 'true' || !req.user;
   if (isGuestRequest) {
     if (!project.shareSettings?.enabled) {
       return res.status(403).json({ message: 'Sharing is not enabled for this project' });
+    }
+    if (project.shareSettings.expiresAt && new Date(project.shareSettings.expiresAt) < new Date()) {
+      return res.status(410).json({ message: 'This review link has expired.' });
     }
   }
 
@@ -468,8 +498,9 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     try {
       const workerResp = await axios({
         method: 'GET',
-        url: `${FALLBACK_RELAY_URL}/?url=${encodeURIComponent(url)}`,
+        url: `${FALLBACK_RELAY_URL}/?url=${encodeURIComponent(url)}${relayQuery()}`,
         responseType: 'arraybuffer',
+        maxContentLength: PROXY_MAX_BYTES,
         timeout: 15000,
         validateStatus: () => true,
       });
@@ -496,6 +527,8 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       method: req.method,
       url: url,
       responseType: "arraybuffer",
+      maxContentLength: PROXY_MAX_BYTES,
+      maxBodyLength: PROXY_MAX_BYTES,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -504,9 +537,11 @@ exports.proxyPage = asyncHandler(async (req, res) => {
         "Accept-Language": "en-US,en;q=0.5",
       },
       maxRedirects: 5,
+      beforeRedirect,
       timeout: 10000,
       validateStatus: () => true,
-      httpsAgent: new https.Agent({ rejectUnauthorized: false, family: 4 }),
+      httpAgent: new http.Agent({ family: 4, lookup: safeLookup }),
+      httpsAgent: new https.Agent({ rejectUnauthorized: false, family: 4, lookup: safeLookup }),
     };
 
     // Forward cookies from client to upstream (exclude our internal cookies)

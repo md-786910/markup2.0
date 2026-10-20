@@ -154,7 +154,7 @@ export default function DashboardPage() {
     try {
       const res = await updateProjectApi(project._id, { projectStatus });
       setProjects((prev) =>
-        prev.map((p) => (p._id === res.data.project._id ? res.data.project : p))
+        prev.map((p) => (p._id === res.data.project._id ? { ...p, ...res.data.project } : p))
       );
     } catch (err) {
       console.error('Failed to update status:', err);
@@ -166,7 +166,7 @@ export default function DashboardPage() {
       const newStatus = project.status === 'active' ? 'archived' : 'active';
       const res = await updateProjectApi(project._id, { status: newStatus });
       setProjects((prev) =>
-        prev.map((p) => (p._id === res.data.project._id ? res.data.project : p))
+        prev.map((p) => (p._id === res.data.project._id ? { ...p, ...res.data.project } : p))
       );
     } catch (err) {
       console.error('Failed to update project:', err);
@@ -187,7 +187,7 @@ export default function DashboardPage() {
     try {
       const res = await updateProjectApi(project._id, data);
       setProjects((prev) =>
-        prev.map((p) => (p._id === res.data.project._id ? res.data.project : p))
+        prev.map((p) => (p._id === res.data.project._id ? { ...p, ...res.data.project } : p))
       );
       setEditingProject(null);
     } catch (err) {

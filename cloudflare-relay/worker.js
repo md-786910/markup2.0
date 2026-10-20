@@ -36,9 +36,24 @@ export default {
       return new Response('Missing ?url= parameter', { status: 400, headers: corsHeaders });
     }
 
+    // --- Access token (issued by the Kommently server, see server/utils/relayToken.js).
+    // Enforced when the RELAY_SECRET secret is set: `npx wrangler secret put RELAY_SECRET`.
+    const relayTokenValue = requestUrl.searchParams.get('rt') || '';
+    if (env.RELAY_SECRET && !(await isValidRelayToken(relayTokenValue, env.RELAY_SECRET))) {
+      return new Response('Forbidden', { status: 403, headers: corsHeaders });
+    }
+    // Only http(s) targets
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      return new Response('Unsupported URL', { status: 400, headers: corsHeaders });
+    }
+    const relaySuffix = relayTokenValue ? `&rt=${encodeURIComponent(relayTokenValue)}` : '';
+
     // --- Edge cache: check if we already have this response cached ---
+    // (keyed without the rotating token so all viewers share the cache)
     const cache = caches.default;
-    const cacheKey = new Request(request.url, { method: 'GET' });
+    const cacheUrl = new URL(request.url);
+    cacheUrl.searchParams.delete('rt');
+    const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
     let cached = await cache.match(cacheKey);
     if (cached) {
       return cached;
@@ -91,7 +106,7 @@ export default {
       const isCssUrl = /\.css(\?|$)/i.test(targetUrl);
       if (contentType.includes('text/css') || (isCssUrl && !contentType.includes('javascript') && !contentType.includes('text/html'))) {
         let css = await response.text();
-        css = rewriteCssUrls(css, targetUrl, workerBase);
+        css = rewriteCssUrls(css, targetUrl, workerBase, relaySuffix);
         body = css;
         headers.set('Content-Type', 'text/css; charset=utf-8');
       }
@@ -99,7 +114,7 @@ export default {
       else if (contentType.includes('javascript') || contentType.includes('text/javascript') ||
                contentType.includes('application/x-javascript')) {
         let js = await response.text();
-        js = rewriteJsUrls(js, targetUrl, workerBase);
+        js = rewriteJsUrls(js, targetUrl, workerBase, relaySuffix);
         body = js;
         headers.set('Content-Type', contentType);
       }
@@ -125,8 +140,22 @@ export default {
   },
 };
 
+// --- Relay token: "<expiry>.<hex HMAC-SHA256(secret, 'relay:<expiry>')>" ---
+async function isValidRelayToken(token, secret) {
+  const [expStr, sig] = token.split('.');
+  const exp = parseInt(expStr, 10);
+  if (!exp || !sig || exp < Math.floor(Date.now() / 1000)) return false;
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`relay:${exp}`));
+  const expected = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  if (expected.length !== sig.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
+  return diff === 0;
+}
+
 // --- CSS @import + url() rewriting ---
-function rewriteCssUrls(css, baseUrl, workerBase) {
+function rewriteCssUrls(css, baseUrl, workerBase, relaySuffix = '') {
   return css
     // @import "file.css" (bare string, without url() wrapper)
     .replace(/@import\s+(['"])([^'"]+)\1/g, (match, quote, importUrl) => {
@@ -134,7 +163,7 @@ function rewriteCssUrls(css, baseUrl, workerBase) {
       if (importUrl.indexOf('?url=') !== -1) return match;
       try {
         const absolute = new URL(importUrl.trim(), baseUrl).href;
-        const proxied = `${workerBase}/?url=${encodeURIComponent(absolute)}`;
+        const proxied = `${workerBase}/?url=${encodeURIComponent(absolute)}${relaySuffix}`;
         return `@import url(${quote}${proxied}${quote})`;
       } catch {
         return match;
@@ -146,7 +175,7 @@ function rewriteCssUrls(css, baseUrl, workerBase) {
       if (rawUrl.indexOf('?url=') !== -1) return match;
       try {
         const absolute = new URL(rawUrl.trim(), baseUrl).href;
-        const proxied = `${workerBase}/?url=${encodeURIComponent(absolute)}`;
+        const proxied = `${workerBase}/?url=${encodeURIComponent(absolute)}${relaySuffix}`;
         return `url(${quote}${proxied}${quote})`;
       } catch {
         return match;
@@ -155,19 +184,19 @@ function rewriteCssUrls(css, baseUrl, workerBase) {
 }
 
 // --- JS asset path rewriting ---
-function rewriteJsUrls(js, pageUrl, workerBase) {
+function rewriteJsUrls(js, pageUrl, workerBase, relaySuffix = '') {
   let pageOrigin;
   try { pageOrigin = new URL(pageUrl).origin; } catch { return js; }
 
   function buildProxy(path) {
     const abs = new URL(path, pageOrigin).href;
-    return `${workerBase}/?url=${encodeURIComponent(abs)}`;
+    return `${workerBase}/?url=${encodeURIComponent(abs)}${relaySuffix}`;
   }
 
   // Resolve relative paths (./file.js) against the JS file's own URL
   function buildRelProxy(relPath) {
     const abs = new URL(relPath, pageUrl).href;
-    return `${workerBase}/?url=${encodeURIComponent(abs)}`;
+    return `${workerBase}/?url=${encodeURIComponent(abs)}${relaySuffix}`;
   }
 
   return js

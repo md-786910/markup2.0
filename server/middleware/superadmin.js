@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
+const { isProxyToken } = require('../utils/proxyToken');
 
 const superadmin = asyncHandler(async (req, res, next) => {
   let token = null;
@@ -20,6 +21,9 @@ const superadmin = asyncHandler(async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    if (isProxyToken(decoded)) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
     const user = await User.findById(decoded.id);
     if (!user) {
       return res.status(401).json({ message: 'User not found' });

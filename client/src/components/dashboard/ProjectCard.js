@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { PROJECT_STATUSES } from "../../utils/projectConstants";
 import { useAuth } from "../../hooks/useAuth";
 import { updateProjectEmailNotificationsApi } from "../../services/projectService";
-import { TOKEN_KEY } from "../../utils/constants";
 
 const API_BASE = (
   process.env.REACT_APP_BASE_URL || "http://localhost:5000/api"
@@ -422,7 +421,7 @@ export default function ProjectCard({
           ) : (
             /* Live iframe preview — use container-query scale to fill width */
             <IframeThumbnail
-              src={`${API_BASE}/api/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}&token=${encodeURIComponent(localStorage.getItem(TOKEN_KEY) || "")}`}
+              src={`${API_BASE}/api/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}&token=${encodeURIComponent(project.proxyToken || "")}`}
               title={project.name}
             />
           )}

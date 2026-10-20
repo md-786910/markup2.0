@@ -1,5 +1,11 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { isProxyToken } = require('../utils/proxyToken');
+
+// A project-scoped proxy token may only be used for its own project.
+function projectMismatch(decoded, req) {
+  return isProxyToken(decoded) && decoded.projectId !== String(req.query.projectId || '');
+}
 
 // Auth for proxy requests. The initial HTML load also performs a User.findById
 // + sessionToken check to catch deleted/disabled users and revoked sessions.
@@ -33,6 +39,7 @@ module.exports = async (req, res, next) => {
       if (!token) return res.status(401).json({ message: 'No token provided' });
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+        if (projectMismatch(decoded, req)) return res.status(401).json({ message: 'Invalid token' });
         req.user = { _id: decoded.id };
         return next();
       } catch {
@@ -55,6 +62,9 @@ module.exports = async (req, res, next) => {
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    if (projectMismatch(decoded, req)) {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
     const user = await User.findById(decoded.id).select('_id sessionToken');
     if (!user) {
       return res.status(401).json({ message: 'User not found' });

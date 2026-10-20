@@ -74,7 +74,8 @@ exports.updateVersion = asyncHandler(async (req, res) => {
   const { versionId } = req.params;
   const { name, notes } = req.body;
 
-  const version = await Version.findById(versionId);
+  // Scoped to the project already authorized by projectAccess
+  const version = await Version.findOne({ _id: versionId, project: req.project._id });
   if (!version) {
     return res.status(404).json({ message: 'Version not found' });
   }
@@ -96,7 +97,8 @@ exports.updateVersion = asyncHandler(async (req, res) => {
 exports.deleteVersion = asyncHandler(async (req, res) => {
   const { versionId } = req.params;
 
-  const version = await Version.findById(versionId);
+  // Scoped to the project already authorized by projectAccess
+  const version = await Version.findOne({ _id: versionId, project: req.project._id });
   if (!version) {
     return res.status(404).json({ message: 'Version not found' });
   }
