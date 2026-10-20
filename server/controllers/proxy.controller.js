@@ -35,6 +35,35 @@ const FALLBACK_DOMAIN_TTL = 300000; // 5 minutes
 const blockedDomains = new Map();
 const BLOCKED_DOMAIN_TTL = 300000; // 5 minutes
 
+// --- Relay-bypass domain cache (origins that rate-limit the CF Worker, e.g. Hostinger) ---
+// Hostinger's CDN 429s bursts coming from Worker egress IPs but not from our server,
+// so for these origins sub-resources are routed through Express instead of the Worker.
+const relayBypassDomains = new Map();
+const RELAY_BYPASS_TTL = 3600000; // 1 hour
+
+function isRelayBypassDomain(urlString) {
+  const domain = getDomain(urlString);
+  if (!domain) return false;
+  const ts = relayBypassDomains.get(domain);
+  if (!ts) return false;
+  if (Date.now() - ts > RELAY_BYPASS_TTL) {
+    relayBypassDomains.delete(domain);
+    return false;
+  }
+  return true;
+}
+
+function markRelayBypass(urlString, reason) {
+  const domain = getDomain(urlString);
+  if (!domain || relayBypassDomains.has(domain)) return;
+  relayBypassDomains.set(domain, Date.now());
+  console.log(`Relay bypass enabled for ${domain} (${reason})`);
+}
+
+function isRelayThrottlingOrigin(headers = {}) {
+  return headers['platform'] === 'hostinger' || !!headers['x-hcdn-request-id'];
+}
+
 function getBlockedDomain(urlString) {
   const domain = getDomain(urlString);
   if (!domain) return null;
@@ -215,6 +244,12 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
   // CORS: allow cross-origin access for fonts/assets loaded from Worker-served CSS
   res.setHeader('Access-Control-Allow-Origin', '*');
 
+  // Origins that throttle the Worker: rewrite this response's sub-resources to Express
+  if (workerBase && (isRelayBypassDomain(url) || isRelayThrottlingOrigin(response.headers))) {
+    markRelayBypass(url, 'origin throttles relay');
+    workerBase = null;
+  }
+
   const contentType = (response.headers["content-type"] || "").toLowerCase();
 
   // Rewrite upstream Set-Cookie headers so browser stores them for localhost
@@ -280,7 +315,7 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
 
   const isCssUrl = /\.css(\?|$)/i.test(url);
   if (isGetRequest && (contentType.includes("text/css") || (isCssUrl && !contentType.includes("javascript") && !contentType.includes("text/html")))) {
-    const cacheKey = `css:${url}:${projectId}:${serverBase}:${isGuest ? 'g' : 'u'}`;
+    const cacheKey = `css:${url}:${projectId}:${serverBase}:${workerBase || ''}:${isGuest ? 'g' : 'u'}`;
     const cached = rewriteCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < REWRITE_CACHE_TTL) {
       res.setHeader("Content-Type", "text/css; charset=utf-8");
@@ -299,7 +334,7 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
 
   if (isGetRequest && (contentType.includes("javascript") || contentType.includes("text/javascript") ||
       contentType.includes("application/x-javascript"))) {
-    const cacheKey = `js:${url}:${projectId}:${serverBase}:${isGuest ? 'g' : 'u'}`;
+    const cacheKey = `js:${url}:${projectId}:${serverBase}:${workerBase || ''}:${isGuest ? 'g' : 'u'}`;
     const cached = rewriteCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < REWRITE_CACHE_TTL) {
       res.setHeader("Content-Type", contentType);
@@ -429,7 +464,7 @@ exports.proxyPage = asyncHandler(async (req, res) => {
 
   // --- Primary path: CF Worker fetch (fast, edge) when available ---
   let workerBlocked = false;
-  if (FALLBACK_RELAY_URL && req.method === 'GET') {
+  if (workerBase && req.method === 'GET' && !isRelayBypassDomain(url)) {
     try {
       const workerResp = await axios({
         method: 'GET',
@@ -441,6 +476,7 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       if (workerResp.status === 429 || workerResp.status >= 500) {
         // Worker quota exhausted / origin rate-limited the edge IP / relay error — go direct
         console.log(`Worker returned HTTP ${workerResp.status} for ${url}, trying direct...`);
+        if (workerResp.status === 429) markRelayBypass(url, 'relay got 429');
       } else if (isPageRequest && isBlockedResponse(workerResp.status, workerResp.headers['content-type'], workerResp.data)) {
         console.log(`Worker response blocked by WAF for ${url} (HTTP ${workerResp.status}), trying direct...`);
         workerBlocked = true;

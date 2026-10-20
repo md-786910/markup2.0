@@ -80,6 +80,10 @@ export default {
       } else {
         headers.set('Cache-Control', 'public, max-age=600');
       }
+      // Never let browsers cache upstream errors (e.g. a transient 429 from the origin)
+      if (response.status >= 400) {
+        headers.set('Cache-Control', 'no-store');
+      }
 
       let body;
 
