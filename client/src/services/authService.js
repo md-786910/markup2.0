@@ -43,5 +43,14 @@ export const updateOrganizationApi = (formData) =>
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
+export const exportOrganizationApi = () =>
+  api.get('/auth/organization/export', { responseType: 'blob' });
+
+export const requestOrganizationDeletionApi = (password, confirmName) =>
+  api.post('/auth/organization/delete', { password, confirmName });
+
+export const cancelOrganizationDeletionApi = () =>
+  api.post('/auth/organization/cancel-deletion');
+
 export const getOrgActivityApi = (page = 1, limit = 30) =>
   api.get('/auth/organization/activity', { params: { page, limit } });

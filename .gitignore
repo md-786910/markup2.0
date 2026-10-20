@@ -12,3 +12,6 @@ coverage/
 .claude
 .env.dev
 .vercel
+
+# Local backup output from deploy/docker-compose.yml
+deploy/backups/

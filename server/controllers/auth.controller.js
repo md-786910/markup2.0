@@ -1,4 +1,8 @@
 const crypto = require("crypto");
+const Notification = require('../models/Notification');
+const { deleteProjectCascade } = require('../utils/cascade');
+const { DELETION_LOCK_REASON } = require('../utils/orgUtils');
+const { deleteStoredFiles } = require('../utils/storage');
 
 const jwt = require("jsonwebtoken");
 const geoip = require("geoip-lite");
@@ -59,6 +63,7 @@ const userResponse = (user, org, dynamicLimits) => ({
   organization: user.organization || null,
   orgLocked: org ? org.isLocked : false,
   orgLockedReason: org ? org.lockedReason : null,
+  orgDeletionScheduledAt: org ? org.deletionScheduledAt || null : null,
   orgPlan: org ? org.plan : null,
   orgName: org ? org.name : null,
   orgLogo: org ? org.logo || null : null,
@@ -70,6 +75,7 @@ const userResponse = (user, org, dynamicLimits) => ({
   // null when the org has no pending invoice.
   orgPendingInvoice: org && org._pendingInvoice ? org._pendingInvoice : null,
   mutedProjectEmails: (user.mutedProjectEmails || []).map((id) => id.toString()),
+  emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
 });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -376,8 +382,12 @@ exports.getMe = asyncHandler(async (req, res) => {
 
 // Update profile (name, email)
 exports.updateProfile = asyncHandler(async (req, res) => {
-  const { name, email } = req.body;
+  const { name, email, currentPassword, emailNotificationsEnabled } = req.body;
   const user = req.user;
+
+  if (typeof emailNotificationsEnabled === "boolean") {
+    user.emailNotificationsEnabled = emailNotificationsEnabled;
+  }
 
   if (name !== undefined) {
     if (!name.trim()) {
@@ -396,6 +406,20 @@ exports.updateProfile = asyncHandler(async (req, res) => {
       if (existing) {
         return res.status(400).json({ message: "Email already in use" });
       }
+      // Changing the login email needs the current password and proof of the
+      // new inbox (OTP from /auth/send-otp + /auth/verify-otp, as at signup)
+      const withHash = await User.findById(user._id).select("+passwordHash");
+      if (!currentPassword || !(await withHash.comparePassword(currentPassword))) {
+        return res.status(401).json({ message: "Enter your current password to change your email.", code: "PASSWORD_REQUIRED" });
+      }
+      const EmailVerification = require("../models/EmailVerification");
+      const verification = await EmailVerification.findOne({ email: normalizedEmail });
+      const fresh = verification && verification.verifiedAt
+        && Date.now() - verification.verifiedAt.getTime() < EmailVerification.TTL_MS;
+      if (!fresh) {
+        return res.status(400).json({ message: "Verify the new email address with the code we sent it.", code: "EMAIL_NOT_VERIFIED" });
+      }
+      await EmailVerification.deleteOne({ email: normalizedEmail });
       user.email = normalizedEmail;
     }
   }
@@ -461,24 +485,25 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
       });
   }
 
-  // Find projects owned by this user
+  // Projects this user owns are deleted with all their records and files
   const ownedProjects = await Project.find({ owner: userId });
-  const ownedProjectIds = ownedProjects.map((p) => p._id);
-
-  // Delete pins and comments for owned projects
-  if (ownedProjectIds.length > 0) {
-    const pins = await Pin.find({ project: { $in: ownedProjectIds } });
-    const pinIds = pins.map((p) => p._id);
-    await Comment.deleteMany({ pin: { $in: pinIds } });
-    await Pin.deleteMany({ project: { $in: ownedProjectIds } });
-    await Project.deleteMany({ owner: userId });
+  for (const project of ownedProjects) {
+    await deleteProjectCascade(project);
   }
 
   // Remove user from member lists of other projects
   await Project.updateMany({ members: userId }, { $pull: { members: userId } });
 
-  // Delete invitations created for this user's email
+  // Delete invitations created for this user's email, and the user's notifications
   await Invitation.deleteMany({ email: req.user.email });
+  await Notification.deleteMany({ recipient: userId });
+
+  // The user's comments elsewhere stay for the team's context but no longer
+  // point at a deleted account (shown as "Deleted user")
+  await Comment.updateMany({ author: userId }, { $set: { author: null, authorGuest: { name: 'Deleted user', email: '' } } });
+
+  // Avatars are stored as a bare filename under uploads/
+  if (req.user.avatar) deleteStoredFiles([`uploads/${req.user.avatar}`]);
 
   // Delete the user
   await User.findByIdAndDelete(userId);
@@ -802,4 +827,108 @@ exports.getOrgActivity = asyncHandler(async (req, res) => {
       pages: Math.max(1, Math.ceil(total / limit)),
     },
   });
+});
+
+// ── Organization data export & deletion (GDPR Art. 17 / 20) ─────────────────
+
+const ORG_DELETION_GRACE_DAYS = 7;
+
+/**
+ * GET /api/auth/organization/export
+ * Everything the workspace stores, as one JSON download (owner/admin).
+ */
+exports.exportOrganization = asyncHandler(async (req, res) => {
+  const org = req.organization;
+  if (!org) return res.status(400).json({ message: "No organization found" });
+  if (req.user.role !== "owner" && req.user.role !== "admin") {
+    return res.status(403).json({ message: "Only the owner or an admin can export workspace data." });
+  }
+  const Version = require("../models/Version");
+  const Activity = require("../models/Activity");
+  const Invoice = require("../models/Invoice");
+
+  const projects = await Project.find({ organization: org._id }).lean();
+  const projectIds = projects.map((p) => p._id);
+  const pins = await Pin.find({ project: { $in: projectIds } }).lean();
+  const [users, comments, versions, activity, invoices] = await Promise.all([
+    User.find({ organization: org._id }).select("name email role createdAt lastSeen").lean(),
+    Comment.find({ pin: { $in: pins.map((p) => p._id) } }).lean(),
+    Version.find({ project: { $in: projectIds } }).lean(),
+    Activity.find({ $or: [{ organization: org._id }, { project: { $in: projectIds } }] }).lean(),
+    Invoice.find({ organization: org._id, status: { $in: ["paid", "refunded"] } })
+      .select("invoiceNumber plan amount currency status paidAt periodStart periodEnd refundAmount").lean(),
+  ]);
+  // Share passwords/tokens are credentials, not customer content
+  for (const p of projects) {
+    if (p.shareSettings) {
+      delete p.shareSettings.passwordHash;
+      delete p.shareSettings.password;
+      delete p.shareSettings.token;
+    }
+  }
+
+  const exportedAt = new Date();
+  const data = {
+    exportedAt,
+    organization: {
+      _id: org._id, name: org.name, plan: org.plan, createdAt: org.createdAt, billingDetails: org.billingDetails,
+    },
+    users, projects, pins, comments, versions, activity, invoices,
+    files: "Uploaded files (documents, screenshots, attachments) are referenced by their path in each record and can be downloaded from the app.",
+  };
+  logOrgActivity(org._id, req.user._id, "org.data_exported", {});
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="workspace-export-${exportedAt.toISOString().slice(0, 10)}.json"`);
+  res.send(JSON.stringify(data, null, 2));
+});
+
+/**
+ * POST /api/auth/organization/delete  { password, confirmName }
+ * Schedules permanent deletion after a grace period; the workspace is locked
+ * meanwhile. The daily job (scripts/runBilling.js) purges it.
+ */
+exports.requestOrganizationDeletion = asyncHandler(async (req, res) => {
+  const org = req.organization;
+  if (!org) return res.status(400).json({ message: "No organization found" });
+  if (req.user.role !== "owner") {
+    return res.status(403).json({ message: "Only the organization owner can delete the workspace." });
+  }
+  const { password, confirmName } = req.body || {};
+  const owner = await User.findById(req.user._id).select("+passwordHash");
+  if (!password || !(await owner.comparePassword(password))) {
+    return res.status(401).json({ message: "Incorrect password." });
+  }
+  if ((confirmName || "").trim() !== org.name) {
+    return res.status(400).json({ message: "Type the workspace name exactly to confirm." });
+  }
+
+  org.deletionScheduledAt = new Date(Date.now() + ORG_DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000);
+  org.isLocked = true;
+  org.lockedAt = new Date();
+  org.lockedReason = DELETION_LOCK_REASON;
+  if (org.subscription) org.subscription.cancelAtPeriodEnd = true;
+  await org.save();
+  logOrgActivity(org._id, req.user._id, "org.deletion_scheduled", { deletionScheduledAt: org.deletionScheduledAt });
+  res.json({ message: "Workspace deletion scheduled", deletionScheduledAt: org.deletionScheduledAt });
+});
+
+/**
+ * POST /api/auth/organization/cancel-deletion
+ */
+exports.cancelOrganizationDeletion = asyncHandler(async (req, res) => {
+  const org = req.organization;
+  if (!org) return res.status(400).json({ message: "No organization found" });
+  if (req.user.role !== "owner") {
+    return res.status(403).json({ message: "Only the organization owner can cancel deletion." });
+  }
+  if (!org.deletionScheduledAt) return res.status(400).json({ message: "Deletion is not scheduled." });
+  org.deletionScheduledAt = null;
+  if (org.lockedReason === DELETION_LOCK_REASON) {
+    org.isLocked = false;
+    org.lockedAt = null;
+    org.lockedReason = null;
+  }
+  await org.save();
+  logOrgActivity(org._id, req.user._id, "org.deletion_cancelled", {});
+  res.json({ message: "Workspace deletion cancelled" });
 });

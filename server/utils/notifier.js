@@ -136,6 +136,12 @@ async function notifyIntegrations(projectId, orgId, eventData) {
   try {
     if (!orgId) return;
 
+    // Integrations stop when the org's plan no longer includes them (e.g. after a downgrade)
+    const Organization = require('../models/Organization');
+    const { getEffectiveLimitsAsync } = require('../config/plans');
+    const org = await Organization.findById(orgId).select('plan limitOverrides');
+    if (!org || (await getEffectiveLimitsAsync(org)).hasIntegrations === false) return;
+
     const integrations = await Integration.find({
       organization: orgId,
       enabled: true,

@@ -20,6 +20,7 @@ const commentSchema = new Schema({
     filename: String,
     originalName: String,
     mimetype: String,
+    size: Number,
     path: String,
   }],
   parentComment: {
@@ -38,5 +39,7 @@ const commentSchema = new Schema({
 }, { timestamps: true });
 
 commentSchema.index({ pin: 1, createdAt: 1 });
+// Account deletion / data export look up a user's comments
+commentSchema.index({ author: 1 });
 
 module.exports = mongoose.model('Comment', commentSchema);

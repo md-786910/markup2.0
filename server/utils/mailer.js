@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const templates = require('./email/templates');
+const { unsubscribeUrl } = require('./unsubscribe');
 
 let transporter = null;
 
@@ -25,14 +26,30 @@ function fromAddress() {
   return raw.includes('<') ? raw : `Kommently <${raw}>`;
 }
 
-async function send(to, { subject, html, text }) {
-  await getTransporter().sendMail({
+// Notification emails (opts.notification) get an unsubscribe link in the footer
+// plus List-Unsubscribe / List-Unsubscribe-Post headers (one-click, RFC 8058),
+// which Gmail and Yahoo require from bulk senders.
+async function send(to, { subject, html, text }, { notification = false } = {}) {
+  const mail = {
     from: fromAddress(),
     to,
     subject: subject.replace(/[\r\n]+/g, ' '),
     html,
     text,
-  });
+  };
+  if (notification) {
+    const url = unsubscribeUrl(to);
+    mail.html = html.replace(
+      '<!--k-unsubscribe-->',
+      `<p style="margin:0 0 8px;font-size:12px;line-height:18px;color:#6b7280;">Don't want these emails? <a href="${url}" style="color:#6b7280;text-decoration:underline;">Unsubscribe from notification emails</a></p>`,
+    );
+    mail.text = `${text}\nUnsubscribe from notification emails: ${url}`;
+    mail.headers = {
+      'List-Unsubscribe': `<${url}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    };
+  }
+  await getTransporter().sendMail(mail);
 }
 
 // ── Collaboration ───────────────────────────────────────────────────────────
@@ -41,24 +58,27 @@ async function sendInvitationEmail(toEmail, inviterName, projectName, signupUrl)
   await send(toEmail, templates.invitation({ inviterName, projectName, signupUrl }));
 }
 
+// Collaboration emails can be turned off by the recipient (unsubscribe link + headers)
+const NOTIFICATION = { notification: true };
+
 async function sendPinNotificationEmail(toEmail, actorName, projectName, pinPageUrl, directLink, { pinNumber } = {}) {
-  await send(toEmail, templates.newPin({ actorName, projectName, pageUrl: pinPageUrl, pinNumber, link: directLink }));
+  await send(toEmail, templates.newPin({ actorName, projectName, pageUrl: pinPageUrl, pinNumber, link: directLink }), NOTIFICATION);
 }
 
 async function sendCommentNotificationEmail(toEmail, actorName, projectName, commentBody, directLink, { pinNumber } = {}) {
-  await send(toEmail, templates.comment({ actorName, projectName, commentBody, pinNumber, link: directLink }));
+  await send(toEmail, templates.comment({ actorName, projectName, commentBody, pinNumber, link: directLink }), NOTIFICATION);
 }
 
 async function sendMentionNotificationEmail(toEmail, actorName, projectName, commentBody, directLink, { pinNumber } = {}) {
-  await send(toEmail, templates.mention({ actorName, projectName, commentBody, pinNumber, link: directLink }));
+  await send(toEmail, templates.mention({ actorName, projectName, commentBody, pinNumber, link: directLink }), NOTIFICATION);
 }
 
 async function sendPinStatusEmail(toEmail, actorName, projectName, newStatus, directLink, { pinNumber } = {}) {
-  await send(toEmail, templates.pinStatus({ actorName, projectName, newStatus, pinNumber, link: directLink }));
+  await send(toEmail, templates.pinStatus({ actorName, projectName, newStatus, pinNumber, link: directLink }), NOTIFICATION);
 }
 
 async function sendDigestEmail(toEmail, projectName, events) {
-  await send(toEmail, templates.digest({ projectName, events }));
+  await send(toEmail, templates.digest({ projectName, events }), NOTIFICATION);
 }
 
 // ── Account ─────────────────────────────────────────────────────────────────
@@ -91,6 +111,26 @@ async function sendOrgLockedEmail(toEmail, orgName, amount, payUrl, currency = '
   await send(toEmail, templates.orgLocked({ orgName, amount, currency, payUrl }));
 }
 
+async function sendTrialEndingEmail(toEmail, orgName, daysLeft, endsAt, planUrl) {
+  await send(toEmail, templates.trialEnding({ orgName, daysLeft, endsAt, planUrl }));
+}
+
+async function sendTrialExpiredEmail(toEmail, orgName, planUrl) {
+  await send(toEmail, templates.trialExpired({ orgName, planUrl }));
+}
+
+async function sendPaymentReceiptEmail(toEmail, data) {
+  await send(toEmail, templates.paymentReceipt(data));
+}
+
+async function sendPaymentFailedEmail(toEmail, orgName, amount, currency, payUrl) {
+  await send(toEmail, templates.paymentFailed({ orgName, amount, currency, payUrl }));
+}
+
+async function sendSubscriptionCanceledEmail(toEmail, orgName, planName, endsAt, planUrl) {
+  await send(toEmail, templates.subscriptionCanceled({ orgName, planName, endsAt, planUrl }));
+}
+
 module.exports = {
   sendInvitationEmail,
   sendPinNotificationEmail,
@@ -103,5 +143,10 @@ module.exports = {
   sendPaymentReminderEmail,
   sendUrgentPaymentReminderEmail,
   sendOrgLockedEmail,
+  sendTrialEndingEmail,
+  sendTrialExpiredEmail,
+  sendPaymentReceiptEmail,
+  sendPaymentFailedEmail,
+  sendSubscriptionCanceledEmail,
   sendEmailVerificationOtp,
 };

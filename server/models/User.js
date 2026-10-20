@@ -67,6 +67,11 @@ const userSchema = new mongoose.Schema({
     type: Date,
     select: false,
   },
+  // false = unsubscribed from all collaboration notification emails
+  emailNotificationsEnabled: {
+    type: Boolean,
+    default: true,
+  },
   mutedProjectEmails: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project',
@@ -89,5 +94,8 @@ userSchema.methods.toJSON = function () {
   delete obj.sessionToken;
   return obj;
 };
+
+// Member/guest counts and org listings filter by organization
+userSchema.index({ organization: 1, role: 1 });
 
 module.exports = mongoose.model('User', userSchema);

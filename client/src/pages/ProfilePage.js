@@ -121,6 +121,21 @@ export default function ProfilePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Global switch for all collaboration notification emails
+  const [globalEmailSaving, setGlobalEmailSaving] = useState(false);
+  const allEmailsEnabled = user?.emailNotificationsEnabled !== false;
+  const handleToggleAllEmails = async () => {
+    setGlobalEmailSaving(true);
+    try {
+      const res = await updateProfileApi({ emailNotificationsEnabled: !allEmailsEnabled });
+      updateUser(res.data.user);
+    } catch (err) {
+      console.error('Failed to update email notifications:', err);
+    } finally {
+      setGlobalEmailSaving(false);
+    }
+  };
+
   const handleNameUpdate = async () => {
     if (!name.trim()) return;
     setNameLoading(true);
@@ -264,7 +279,7 @@ export default function ProfilePage() {
             {pwLoading ? 'Saving...' : 'Update'}
           </button>
         </div>
-        <p className="text-xs text-gray-400 mt-1.5">Must be at least 6 characters</p>
+        <p className="text-xs text-gray-400 mt-1.5">Must be at least 8 characters</p>
         <StatusMessage error={pwError} success={pwSuccess} />
       </FieldRow>
 
@@ -313,6 +328,36 @@ export default function ProfilePage() {
         </div>
         {avatarError && <p className="text-xs text-red-500 mt-1.5">{avatarError}</p>}
       </FieldRow>
+
+      <div className="border-t border-gray-200 my-4" />
+
+      {/* All notification emails */}
+      <div className="py-6 flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Notification Emails</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Pin, comment, mention and status emails for all projects. Account and billing emails are always sent.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleToggleAllEmails}
+          disabled={globalEmailSaving}
+          role="switch"
+          aria-checked={allEmailsEnabled}
+          className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50 ${
+            allEmailsEnabled ? 'bg-blue-600' : 'bg-gray-200'
+          }`}
+          title={allEmailsEnabled ? 'Notification emails on' : 'Notification emails off'}
+        >
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+              allEmailsEnabled ? 'translate-x-5' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
 
       <div className="border-t border-gray-200 my-4" />
 

@@ -68,6 +68,7 @@ const pinSchema = new Schema({
   screenshot: {
     filename: { type: String, default: null },
     path: { type: String, default: null },
+    size: { type: Number, default: null },
   },
   status: {
     type: String,
@@ -87,5 +88,7 @@ const pinSchema = new Schema({
 
 pinSchema.index({ project: 1, pageUrl: 1, deviceMode: 1 });
 pinSchema.index({ project: 1, pinNumber: 1 }, { unique: true, sparse: true });
+// Unfiltered project pin list, sorted newest first
+pinSchema.index({ project: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Pin', pinSchema);

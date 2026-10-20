@@ -1,0 +1,117 @@
+# Data services for Kommently: MongoDB, Redis (cache / queue backend) and a
+# weekly encrypted backup sidecar.
+#
+# Security model:
+#   - Every port is published on 127.0.0.1 only: nothing is reachable from the
+#     internet. Admins connect through an SSH tunnel (see README.md).
+#   - Auth is required on Mongo and Redis; credentials come from deploy/.env.
+#   - The API uses a least-privilege Mongo user (readWrite on one database),
+#     not the root user.
+#   - Services talk to each other over the private "backend" network by service
+#     name (mongo:27017, redis:6379): no hairpin through the host.
+#
+# Usage:  cd deploy && cp .env.example .env && (edit) && docker compose up -d
+
+name: kommently
+
+x-hardening: &hardening
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+services:
+  mongo:
+    <<: *hardening
+    image: mongo:7.0
+    command:
+      - --auth
+      - --bind_ip_all
+      # Cap the WiredTiger cache so Mongo doesn't starve the API/Redis on a shared host
+      - --wiredTigerCacheSizeGB=${MONGO_CACHE_GB:-1}
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:?set MONGO_ROOT_USER in deploy/.env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in deploy/.env}
+      MONGO_APP_DB: ${MONGO_APP_DB:-markup_mvp}
+      MONGO_APP_USER: ${MONGO_APP_USER:?set MONGO_APP_USER in deploy/.env}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?set MONGO_APP_PASSWORD in deploy/.env}
+    volumes:
+      - mongo-data:/data/db
+      # Runs once, on first start with an empty volume: creates the app user
+      - ./mongo-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  redis:
+    <<: *hardening
+    image: redis:7.4-alpine
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD in deploy/.env}
+      # Persist queue data across restarts
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-256mb}
+      # Queues (BullMQ etc.) must never have keys evicted
+      - --maxmemory-policy
+      - noeviction
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  # Weekly encrypted backup of MongoDB + uploaded files. Checks hourly and runs
+  # when the newest backup is older than BACKUP_INTERVAL_DAYS, so restarts
+  # don't skip or duplicate a week.
+  backup:
+    <<: *hardening
+    image: mongo:7.0
+    entrypoint: ["/bin/bash", "/backup/backup-loop.sh"]
+    # Owner of the backup files (mode 0600). Set to the host user that ships
+    # backups off-site, e.g. BACKUP_UID=$(id -u) BACKUP_GID=$(id -g); default root.
+    user: "${BACKUP_UID:-0}:${BACKUP_GID:-0}"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/?authSource=admin
+      BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:?set BACKUP_PASSPHRASE in deploy/.env}
+      BACKUP_INTERVAL_DAYS: ${BACKUP_INTERVAL_DAYS:-7}
+      BACKUP_KEEP: ${BACKUP_KEEP:-8}
+    volumes:
+      - ./backup:/backup:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+      # The API's uploads folder (PDFs, screenshots, attachments), read-only
+      - ${UPLOADS_DIR:-../server/uploads}:/uploads:ro
+    networks: [backend]
+
+volumes:
+  mongo-data:
+  redis-data:
+
+networks:
+  backend:
+    driver: bridge

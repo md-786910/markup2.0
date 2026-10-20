@@ -261,7 +261,9 @@ function renderEmail({ preheader, eyebrow, tone = 'brand', title, blocks: list, 
       </td></tr>
       <tr><td style="padding:24px 8px 0;font-family:${BRAND.font};">
         ${reason ? `<p style="margin:0 0 8px;font-size:12px;line-height:18px;color:${BRAND.muted};">${rich(reason)}${manageHtml}</p>` : ''}
+        <!--k-unsubscribe-->
         <p style="margin:0;font-size:12px;line-height:18px;color:${BRAND.subtle};">&copy; ${year} ${BRAND.name} &middot; ${BRAND.tagline}</p>
+        ${postalAddress() ? `<p style="margin:4px 0 0;font-size:12px;line-height:18px;color:${BRAND.subtle};">${esc(postalAddress())}</p>` : ''}
       </td></tr>
     </table>
   </td></tr>
@@ -278,9 +280,15 @@ function renderEmail({ preheader, eyebrow, tone = 'brand', title, blocks: list, 
     '---',
     reason ? plain(reason) + (manage ? ` ${manage.label}: ${manage.url}` : '') : null,
     `© ${year} ${BRAND.name} · ${BRAND.tagline}`,
+    postalAddress() || null,
   ].filter((line) => line !== null).join('\n');
 
   return { html, text };
+}
+
+// Sender's physical address, required in commercial email (CAN-SPAM)
+function postalAddress() {
+  return process.env.COMPANY_POSTAL_ADDRESS || '';
 }
 
 module.exports = { renderEmail, BRAND, TONES, esc, clientOrigin };

@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { TOKEN_KEY } from '../utils/constants';
 import { loginApi, signupApi, getMeApi } from '../services/authService';
+import { setSentryUser } from '../monitoring/sentry';
 
 export const AuthContext = createContext(null);
 
@@ -8,6 +9,12 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem(TOKEN_KEY));
   const [loading, setLoading] = useState(true);
+
+  // Attach the signed-in user id to error reports (cleared on logout)
+  const userId = user?.id || user?._id || null;
+  useEffect(() => {
+    setSentryUser(userId ? { id: userId } : null);
+  }, [userId]);
 
   useEffect(() => {
     if (token) {

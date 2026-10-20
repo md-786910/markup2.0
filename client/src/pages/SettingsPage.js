@@ -5,6 +5,7 @@ import { updateOrganizationApi } from '../services/authService';
 import BillingTab from '../components/settings/BillingTab';
 import InvoicesTab from '../components/settings/InvoicesTab';
 import ActivityTab from '../components/settings/ActivityTab';
+import DataPrivacySection from '../components/settings/DataPrivacySection';
 
 const ALL_TABS = [
   { id: 'workspace', label: 'Workspace' },
@@ -189,6 +190,7 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+      {activeTab === 'workspace' && <DataPrivacySection />}
 
       {/* Billing tab */}
       {activeTab === 'billing' && <BillingTab />}
