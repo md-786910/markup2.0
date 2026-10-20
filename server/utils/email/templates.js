@@ -369,6 +369,121 @@ function orgLocked({ orgName, amount, currency, payUrl }) {
   };
 }
 
+function paymentReceipt({ orgName, planName, amount, currency, invoiceNumber, periodEnd, invoicesUrl }) {
+  const total = formatAmount(amount, currency);
+  return {
+    subject: `Payment received — ${total} for ${orgName}`,
+    ...renderEmail({
+      preheader: `Thanks! Your ${planName} plan is active until ${formatDate(periodEnd)}.`,
+      eyebrow: 'Receipt',
+      tone: 'success',
+      title: 'Thanks for your payment',
+      blocks: [
+        { type: 'p', text: `We received your payment for **${orgName}**. Your invoice is ready to download.` },
+        {
+          type: 'details',
+          rows: [
+            ['Invoice', invoiceNumber || '—'],
+            ['Plan', `${planName} · Monthly`],
+            ['Paid until', formatDate(periodEnd)],
+            ['Amount paid', total, { strong: true }],
+          ],
+        },
+        { type: 'button', label: 'Download invoice', url: invoicesUrl },
+      ],
+      ...billingFooter(orgName),
+    }),
+  };
+}
+
+function paymentFailed({ orgName, amount, currency, payUrl }) {
+  const total = formatAmount(amount, currency);
+  return {
+    subject: `Payment failed — ${orgName}`,
+    ...renderEmail({
+      preheader: `Your payment of ${total} didn't go through.`,
+      eyebrow: 'Payment failed',
+      tone: 'warning',
+      title: "Your payment didn't go through",
+      blocks: [
+        { type: 'p', text: `We couldn't complete your payment of **${total}** for **${orgName}**. No money was taken. Please try again, or use a different payment method.` },
+        { type: 'button', label: 'Try again', url: payUrl },
+        { type: 'note', text: 'If this keeps happening, your bank may have declined the charge. Contact your bank or reply to this email.' },
+      ],
+      ...billingFooter(orgName),
+    }),
+  };
+}
+
+function subscriptionCanceled({ orgName, planName, endsAt, planUrl }) {
+  const ends = formatDate(endsAt);
+  return {
+    subject: `Your ${planName} plan is cancelled — ${orgName}`,
+    ...renderEmail({
+      preheader: `You keep ${planName} until ${ends}. You won't be charged again.`,
+      eyebrow: 'Subscription cancelled',
+      tone: 'neutral',
+      title: 'Your subscription is cancelled',
+      blocks: [
+        { type: 'p', text: `**${orgName}** keeps the ${planName} plan until **${ends}**. After that it moves to the Free plan and you won't be charged again. Your projects and comments are kept.` },
+        { type: 'button', label: 'Keep my subscription', url: planUrl },
+        { type: 'note', text: 'Changed your mind? You can resume any time before the end date.' },
+      ],
+      ...billingFooter(orgName),
+    }),
+  };
+}
+
+// ── Trial ───────────────────────────────────────────────────────────────────
+
+function trialEnding({ orgName, daysLeft, endsAt, planUrl }) {
+  const days = plural(daysLeft, 'day');
+  const ends = formatDate(endsAt);
+  const urgent = daysLeft <= 1;
+  return {
+    subject: urgent
+      ? `Last day of your Kommently trial — ${orgName}`
+      : `Your Kommently trial ends in ${days} — ${orgName}`,
+    ...renderEmail({
+      preheader: `Choose a plan before ${ends} to keep ${orgName} active.`,
+      eyebrow: 'Free trial',
+      tone: urgent ? 'warning' : 'neutral',
+      title: urgent ? 'Your trial ends tomorrow' : `Your trial ends in ${days}`,
+      blocks: [
+        { type: 'p', text: `Your free trial of **${orgName}** ends on **${ends}**. Add your payment details and choose a plan to keep your projects, pins and comments available to your team.` },
+        {
+          type: 'details',
+          rows: [
+            ['Workspace', orgName],
+            ['Trial ends', ends, { tone: urgent ? 'warning' : undefined, strong: true }],
+          ],
+        },
+        { type: 'button', label: 'Choose a plan', url: planUrl },
+        { type: 'note', text: 'If you don\'t choose a plan, the workspace is locked when the trial ends. Your data is kept and access comes back as soon as you subscribe.' },
+      ],
+      ...billingFooter(orgName),
+    }),
+  };
+}
+
+function trialExpired({ orgName, planUrl }) {
+  return {
+    subject: `Your Kommently trial has ended — ${orgName} is locked`,
+    ...renderEmail({
+      preheader: `Choose a plan to unlock ${orgName}.`,
+      eyebrow: 'Trial ended',
+      tone: 'danger',
+      title: `${orgName} has been locked`,
+      blocks: [
+        { type: 'callout', tone: 'danger', text: 'Your free trial has ended, so the workspace is now read-only.' },
+        { type: 'p', text: 'Your team can still sign in and view projects, but new feedback, comments and changes are paused. Choose a plan and access is restored **instantly** — nothing has been deleted.' },
+        { type: 'button', label: 'Choose a plan & unlock', url: planUrl, tone: 'danger' },
+      ],
+      ...billingFooter(orgName),
+    }),
+  };
+}
+
 module.exports = {
   invitation,
   newPin,
@@ -382,5 +497,10 @@ module.exports = {
   paymentReminder,
   urgentPaymentReminder,
   orgLocked,
+  trialEnding,
+  trialExpired,
+  paymentReceipt,
+  paymentFailed,
+  subscriptionCanceled,
   formatAmount,
 };

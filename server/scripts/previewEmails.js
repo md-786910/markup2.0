@@ -39,6 +39,12 @@ const samples = {
   'payment-reminder': t.paymentReminder({ orgName: 'Acme Inc', daysLeft: 6, amount: 100800, currency: 'INR', payUrl: `${APP}/settings?tab=invoices` }),
   'payment-urgent': t.urgentPaymentReminder({ orgName: 'Acme Inc', daysLeft: 1, amount: 100800, currency: 'INR', payUrl: `${APP}/settings?tab=invoices` }),
   'org-locked': t.orgLocked({ orgName: 'Acme Inc', amount: 100800, currency: 'INR', payUrl: `${APP}/settings?tab=invoices` }),
+  'trial-ending-7': t.trialEnding({ orgName: 'Acme Inc', daysLeft: 7, endsAt: dueAt, planUrl: `${APP}/settings?tab=billing` }),
+  'trial-ending-1': t.trialEnding({ orgName: 'Acme Inc', daysLeft: 1, endsAt: dueAt, planUrl: `${APP}/settings?tab=billing` }),
+  'trial-expired': t.trialExpired({ orgName: 'Acme Inc', planUrl: `${APP}/settings?tab=billing` }),
+  'payment-receipt': t.paymentReceipt({ orgName: 'Acme Inc', planName: 'Pro', amount: 243600, currency: 'INR', invoiceNumber: 'INV-2627-000042', periodEnd: dueAt, invoicesUrl: `${APP}/settings?tab=invoices` }),
+  'payment-failed': t.paymentFailed({ orgName: 'Acme Inc', amount: 2900, currency: 'USD', payUrl: `${APP}/settings?tab=invoices` }),
+  'subscription-canceled': t.subscriptionCanceled({ orgName: 'Acme Inc', planName: 'Pro', endsAt: dueAt, planUrl: `${APP}/settings?tab=billing` }),
 };
 
 fs.mkdirSync(outDir, { recursive: true });

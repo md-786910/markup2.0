@@ -1,12 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getOrganizationDetailApi, lockOrganizationApi, unlockOrganizationApi } from '../services/adminService';
+import {
+  getOrganizationDetailApi,
+  lockOrganizationApi,
+  unlockOrganizationApi,
+  setOrganizationPlanApi,
+  extendTrialApi,
+  setOrganizationLimitsApi,
+  refundInvoiceApi,
+} from '../services/adminService';
 import DataTable from '../components/common/DataTable';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { formatDate, timeAgo } from '../utils/formatters';
 import { PLAN_COLORS, PLAN_LABELS } from '../config/plans';
+
+// Invoice amounts are stored in the smallest unit of their own currency
+function formatMoney(invoice) {
+  const major = (invoice.amount || 0) / 100;
+  return invoice.currency === 'USD'
+    ? '$' + major.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '₹' + major.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 export default function OrganizationDetailPage() {
   const { id } = useParams();
@@ -16,6 +32,10 @@ export default function OrganizationDetailPage() {
   const [lockModal, setLockModal] = useState(false);
   const [lockReason, setLockReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
+  const [planForm, setPlanForm] = useState({ plan: '', periodEnd: '' });
+  const [trialDays, setTrialDays] = useState(14);
+  const [limitsForm, setLimitsForm] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -38,6 +58,50 @@ export default function OrganizationDetailPage() {
     setActionLoading(false);
   };
 
+  // Runs a billing action, shows its result, and reloads the organization
+  const runAction = async (fn, successText) => {
+    setActionLoading(true);
+    setActionMessage('');
+    try {
+      await fn();
+      setActionMessage(successText);
+      setLimitsForm(null);
+      await fetchData();
+    } catch (err) {
+      setActionMessage(err.response?.data?.message || 'Action failed');
+    }
+    setActionLoading(false);
+  };
+
+  const handleSetPlan = () => {
+    if (!planForm.plan) return;
+    runAction(
+      () => setOrganizationPlanApi(id, { plan: planForm.plan, periodEnd: planForm.periodEnd || undefined }),
+      `Plan set to ${planForm.plan}`,
+    );
+  };
+
+  const handleExtendTrial = () => runAction(() => extendTrialApi(id, Number(trialDays)), `Trial extended by ${trialDays} days`);
+
+  const handleSaveLimits = () => {
+    const toNum = (v) => (v === '' || v == null ? null : Number(v));
+    runAction(() => setOrganizationLimitsApi(id, {
+      maxProjects: toNum(limitsForm.maxProjects),
+      maxMembers: toNum(limitsForm.maxMembers),
+      maxGuests: toNum(limitsForm.maxGuests),
+      maxStorageMB: toNum(limitsForm.maxStorageMB),
+      ...(limitsForm.hasIntegrations !== '' && { hasIntegrations: limitsForm.hasIntegrations === 'true' }),
+      ...(limitsForm.hasActivityLogs !== '' && { hasActivityLogs: limitsForm.hasActivityLogs === 'true' }),
+      ...(limitsForm.hasVersionHistory !== '' && { hasVersionHistory: limitsForm.hasVersionHistory === 'true' }),
+    }), 'Limit overrides saved');
+  };
+
+  const handleRefund = (invoice) => {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Refund ${formatMoney(invoice)} to the customer? A refund of the current period also ends the paid plan.`)) return;
+    runAction(() => refundInvoiceApi(invoice._id), 'Refund issued');
+  };
+
   const handleUnlock = async () => {
     setActionLoading(true);
     try {
@@ -52,10 +116,20 @@ export default function OrganizationDetailPage() {
 
   const { organization: org, members, projects, pinStats, invoices = [] } = data;
 
-  const formatInr = (paise) =>
-    '₹' + ((paise || 0) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const statusColor = (s) => (s === 'paid' ? 'green' : s === 'pending' ? 'amber' : s === 'void' ? 'gray' : 'red');
 
-  const statusColor = (s) => (s === 'paid' ? 'green' : s === 'pending' ? 'amber' : 'red');
+  const overrides = org.limitOverrides || {};
+  const currentLimitsForm = limitsForm || {
+    maxProjects: overrides.maxProjects ?? '',
+    maxMembers: overrides.maxMembers ?? '',
+    maxGuests: overrides.maxGuests ?? '',
+    maxStorageMB: overrides.maxStorageMB ?? '',
+    hasIntegrations: overrides.hasIntegrations == null ? '' : String(overrides.hasIntegrations),
+    hasActivityLogs: overrides.hasActivityLogs == null ? '' : String(overrides.hasActivityLogs),
+    hasVersionHistory: overrides.hasVersionHistory == null ? '' : String(overrides.hasVersionHistory),
+  };
+  const updateLimit = (key, value) => setLimitsForm({ ...currentLimitsForm, [key]: value });
+  const inputClass = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
 
   const reminderDots = (r) => {
     const stages = [
@@ -111,8 +185,11 @@ export default function OrganizationDetailPage() {
       }
       return <span className="text-gray-400 text-xs">—</span>;
     } },
+    { key: 'invoiceNumber', label: 'Number', render: (row) => row.invoiceNumber
+      ? <span className="font-mono text-[11px]">{row.invoiceNumber}</span>
+      : <span className="text-gray-400 text-xs">—</span> },
     { key: 'amount', label: 'Amount', render: (row) => (
-      <span className="font-medium">{formatInr(row.amount)}</span>
+      <span className="font-medium">{formatMoney(row)}</span>
     ) },
     { key: 'status', label: 'Status', render: (row) => (
       <Badge label={row.status} color={statusColor(row.status)} />
@@ -125,6 +202,15 @@ export default function OrganizationDetailPage() {
     { key: 'razorpayPaymentId', label: 'Payment', render: (row) => row.razorpayPaymentId ? (
       <span className="font-mono text-[11px] text-gray-700" title={row.razorpayPaymentId}>{shortId(row.razorpayPaymentId)}</span>
     ) : <span className="text-gray-400 text-xs">—</span> },
+    { key: 'actions', label: '', render: (row) => row.status === 'paid' ? (
+      <button
+        onClick={(e) => { e.stopPropagation(); handleRefund(row); }}
+        disabled={actionLoading}
+        className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50"
+      >
+        Refund
+      </button>
+    ) : null },
   ];
 
   const projectColumns = [
@@ -200,9 +286,73 @@ export default function OrganizationDetailPage() {
             <p className="text-sm text-gray-600">
               Subscription: <Badge label={org.subscription.status} color={org.subscription.status === 'active' ? 'green' : 'red'} />
               {org.subscription.currentPeriodEnd && <span className="ml-2">Period ends: {formatDate(org.subscription.currentPeriodEnd)}</span>}
+              {org.subscription.cancelAtPeriodEnd && <span className="ml-2 text-amber-700">Cancels at period end</span>}
+              <span className="ml-2 text-gray-500">Storage used: {((org.storageUsedBytes || 0) / 1048576).toFixed(1)} MB</span>
             </p>
           </div>
         )}
+      </div>
+
+      {/* Billing actions */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+        <h2 className="text-sm font-semibold text-gray-900 mb-4">Billing actions</h2>
+        {actionMessage && <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 mb-4">{actionMessage}</p>}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Set plan (no payment)</p>
+            <select value={planForm.plan} onChange={(e) => setPlanForm({ ...planForm, plan: e.target.value })} className={`${inputClass} mb-2`}>
+              <option value="">Choose plan…</option>
+              {['free', 'trial', 'starter', 'pro', 'enterprise'].map((p) => <option key={p} value={p}>{PLAN_LABELS[p] || p}</option>)}
+            </select>
+            {(planForm.plan === 'starter' || planForm.plan === 'pro') && (
+              <label className="block text-xs text-gray-500 mb-2">
+                Paid until (default: one month)
+                <input type="date" value={planForm.periodEnd} onChange={(e) => setPlanForm({ ...planForm, periodEnd: e.target.value })} className={`${inputClass} mt-1`} />
+              </label>
+            )}
+            <button onClick={handleSetPlan} disabled={actionLoading || !planForm.plan} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              Set plan
+            </button>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Extend trial</p>
+            {org.plan === 'trial' ? (
+              <>
+                <p className="text-xs text-gray-500 mb-2">Ends {formatDate(org.trialEndsAt)}</p>
+                <input type="number" min="1" max="365" value={trialDays} onChange={(e) => setTrialDays(e.target.value)} className={`${inputClass} mb-2`} />
+                <button onClick={handleExtendTrial} disabled={actionLoading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                  Extend by {trialDays} days
+                </button>
+              </>
+            ) : <p className="text-xs text-gray-400">Not on a trial.</p>}
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Limit overrides (blank = plan default)</p>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {[['maxProjects', 'Projects'], ['maxMembers', 'Members'], ['maxGuests', 'Guests'], ['maxStorageMB', 'Storage MB']].map(([key, label]) => (
+                <label key={key} className="text-xs text-gray-500">
+                  {label}
+                  <input type="number" min="0" value={currentLimitsForm[key]} onChange={(e) => updateLimit(key, e.target.value)} className={`${inputClass} mt-1`} />
+                </label>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {[['hasIntegrations', 'Integrations'], ['hasActivityLogs', 'Activity'], ['hasVersionHistory', 'Versions']].map(([key, label]) => (
+                <label key={key} className="text-xs text-gray-500">
+                  {label}
+                  <select value={currentLimitsForm[key]} onChange={(e) => updateLimit(key, e.target.value)} className={`${inputClass} mt-1`}>
+                    <option value="">Plan</option>
+                    <option value="true">On</option>
+                    <option value="false">Off</option>
+                  </select>
+                </label>
+              ))}
+            </div>
+            <button onClick={handleSaveLimits} disabled={actionLoading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              Save overrides
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Members */}

@@ -26,3 +26,15 @@ export const createPortalSessionApi = () =>
 
 export const getBillingConfigApi = () =>
   api.get('/billing/config');
+
+export const cancelSubscriptionApi = () =>
+  api.post('/billing/cancel');
+
+export const resumeSubscriptionApi = () =>
+  api.post('/billing/resume');
+
+export const getBillingDetailsApi = () =>
+  api.get('/billing/details');
+
+export const updateBillingDetailsApi = (data) =>
+  api.put('/billing/details', data);

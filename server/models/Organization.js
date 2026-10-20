@@ -43,6 +43,13 @@ const organizationSchema = new mongoose.Schema({
     type: Date,
     default: () => new Date(Date.now() + DEFAULT_TRIAL_DAYS * 24 * 60 * 60 * 1000),
   },
+  // Trial reminder emails already sent by the billing cron (idempotency flags)
+  trialReminders: {
+    day7Sent: { type: Boolean, default: false },
+    day3Sent: { type: Boolean, default: false },
+    day1Sent: { type: Boolean, default: false },
+    expiredSent: { type: Boolean, default: false },
+  },
   isLocked: {
     type: Boolean,
     default: false,
@@ -72,6 +79,31 @@ const organizationSchema = new mongoose.Schema({
     razorpayPlanId: { type: String, default: null },
     razorpaySubscriptionId: { type: String, default: null },
     paypalSubscriptionId: { type: String, default: null },
+    // Owner cancelled: keeps the paid plan until currentPeriodEnd, then moves to free
+    cancelAtPeriodEnd: { type: Boolean, default: false },
+  },
+  // Per-org limits set by a superadmin (enterprise deals). Merged over the plan's
+  // limits on every request; unset keys use the plan default.
+  limitOverrides: {
+    maxProjects: { type: Number },
+    maxMembers: { type: Number },
+    maxGuests: { type: Number },
+    maxStorageMB: { type: Number },
+    hasIntegrations: { type: Boolean },
+    hasActivityLogs: { type: Boolean },
+    hasVersionHistory: { type: Boolean },
+  },
+  // Owner requested deletion: the org is locked and purged by the daily job at this time
+  deletionScheduledAt: { type: Date, default: null },
+  // Bytes of uploaded files counted against the plan's maxStorageMB (utils/storage.js)
+  storageUsedBytes: { type: Number, default: 0 },
+  // Buyer details printed on tax invoices (editable by the owner)
+  billingDetails: {
+    legalName: { type: String, trim: true, default: '' },
+    address: { type: String, trim: true, default: '' },
+    country: { type: String, trim: true, default: '' },
+    state: { type: String, trim: true, default: '' }, // Indian state, decides CGST+SGST vs IGST
+    taxId: { type: String, trim: true, default: '' }, // GSTIN / VAT number
   },
 }, { timestamps: true });
 
@@ -87,7 +119,6 @@ organizationSchema.pre('save', function () {
   }
 });
 
-organizationSchema.index({ slug: 1 });
 organizationSchema.index({ owner: 1 });
 
 module.exports = mongoose.model('Organization', organizationSchema);

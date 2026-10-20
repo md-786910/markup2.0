@@ -1,8 +1,10 @@
 /**
- * Daily billing worker — run via system cron / systemd timer.
- *
- * Suggested crontab (server-local):
- *   0 2 * * *  cd /app/server && node scripts/runBilling.js >> logs/billing.log 2>&1
+ * Daily billing worker. Scheduled one of two ways (pick ONE):
+ *   - In-process: BILLING_CRON_ENABLED=true (utils/scheduler.js). With REDIS_URL
+ *     it runs once a day across all instances; without Redis, enable it on
+ *     exactly one instance.
+ *   - System cron / systemd timer:
+ *       0 2 * * *  cd /app/server && npm run billing >> logs/billing.log 2>&1
  *
  * Two phases (both run every day):
  *   1. phaseGenerateAnniversary — finds paid orgs whose
@@ -28,17 +30,21 @@ const Invoice = require('../models/Invoice');
 const User = require('../models/User');
 const PlanConfig = require('../models/PlanConfig');
 const { getActiveProvider } = require('../payments');
-const { getPlansWithOverrides } = require('../config/plans');
+const { getPlansWithOverrides, getLimitsForPlanAsync } = require('../config/plans');
 const {
   sendInvoiceCreatedEmail,
   sendPaymentReminderEmail,
   sendUrgentPaymentReminderEmail,
   sendOrgLockedEmail,
+  sendTrialEndingEmail,
+  sendTrialExpiredEmail,
 } = require('../utils/mailer');
-const { BILLING_LOCK_REASONS } = require('../utils/orgUtils');
+const { BILLING_LOCK_REASONS, clearBillingLock } = require('../utils/orgUtils');
+const { addMonthsUTC } = require('../utils/billingDates');
 
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 const PAY_URL = `${CLIENT_ORIGIN}/settings?tab=invoices`;
+const PLAN_URL = `${CLIENT_ORIGIN}/settings?tab=billing`;
 
 const PAID_PLANS = ['starter', 'pro']; // mirrors UPGRADEABLE_PLANS
 
@@ -93,6 +99,8 @@ async function phaseGenerateAnniversary() {
   const orgs = await Organization.find({
     plan: { $in: PAID_PLANS },
     'subscription.currentPeriodEnd': { $ne: null, $lte: cutoff },
+    // Cancelled subscriptions are not renewed (phaseCancellations ends them)
+    'subscription.cancelAtPeriodEnd': { $ne: true },
   });
   console.log(
     `[billing] generate-anniversary: ${orgs.length} paid org(s) at/past anniversary (provider: ${provider.id})`
@@ -158,9 +166,8 @@ async function phaseGenerateAnniversary() {
     const invoice = await Invoice.create(invoiceDoc);
 
     // Advance the anniversary by one month so this org isn't re-billed tomorrow.
-    // setMonth handles month-overflow correctly (Jan 31 → Feb 28/29).
-    const nextAnniversary = new Date(cycleAnchor);
-    nextAnniversary.setMonth(nextAnniversary.getMonth() + 1);
+    // addMonthsUTC clamps month-end dates (Jan 31 → Feb 28/29).
+    const nextAnniversary = addMonthsUTC(cycleAnchor, 1);
     org.subscription.currentPeriodEnd = nextAnniversary;
     await org.save({ validateBeforeSave: false });
 
@@ -197,6 +204,15 @@ async function phaseProcessPending() {
 
     const org = await Organization.findById(inv.organization);
     if (!org) continue;
+
+    // The org has left paid billing (e.g. moved to free) since this invoice was
+    // created: it no longer applies and must not trigger reminders or a lock.
+    if (!PAID_PLANS.includes(org.plan)) {
+      inv.status = 'void';
+      await inv.save();
+      console.log(`[billing] voided invoice ${inv._id} — org ${org._id} is now on ${org.plan}`);
+      continue;
+    }
 
     const owner = await ownerEmail(org._id);
     const email = owner?.email;
@@ -252,6 +268,167 @@ async function phaseProcessPending() {
   }
 }
 
+/**
+ * Daily — trial orgs: "choose a plan" emails 7, 3 and 1 day(s) before the trial
+ * ends, then lock at expiry with an email. Each email is sent once (flags on
+ * org.trialReminders). The lock itself mirrors checkTrialExpiry, which also
+ * locks lazily on the next request.
+ */
+async function phaseTrials() {
+  const now = new Date();
+  const horizon = new Date(now.getTime() + 8 * DAY_MS);
+  const orgs = await Organization.find({
+    plan: 'trial',
+    trialEndsAt: { $ne: null, $lte: horizon },
+    'trialReminders.expiredSent': { $ne: true },
+  });
+  console.log(`[billing] trials: ${orgs.length} trial org(s) ending within 8 days or expired`);
+
+  for (const org of orgs) {
+    // Manual admin locks are left alone
+    if (org.isLocked && org.lockedReason && !BILLING_LOCK_REASONS.has(org.lockedReason)) continue;
+
+    const endsAt = new Date(org.trialEndsAt);
+    const daysLeft = Math.ceil((endsAt.getTime() - now.getTime()) / DAY_MS);
+    const owner = await ownerEmail(org._id);
+    const email = owner?.email;
+    if (!org.trialReminders) org.trialReminders = {};
+    let touched = false;
+
+    if (daysLeft <= 0) {
+      if (!org.isLocked) {
+        org.isLocked = true;
+        org.lockedAt = now;
+        org.lockedReason = 'Trial expired';
+        console.log(`[billing] LOCKED org ${org._id} — trial expired`);
+      }
+      if (email) await safeSend(`trial-expired→${email}`, () => sendTrialExpiredEmail(email, org.name, PLAN_URL));
+      org.trialReminders.expiredSent = true;
+      touched = true;
+    } else {
+      // Send only the most urgent reminder that is due, once
+      const due = [[1, 'day1Sent'], [3, 'day3Sent'], [7, 'day7Sent']].find(([d]) => daysLeft <= d);
+      if (due && !org.trialReminders[due[1]]) {
+        if (email) await safeSend(`trial-ending-${due[0]}→${email}`, () => sendTrialEndingEmail(email, org.name, daysLeft, endsAt, PLAN_URL));
+        // Mark this and any less urgent reminders as sent so they don't follow later
+        for (const [d, flag] of [[1, 'day1Sent'], [3, 'day3Sent'], [7, 'day7Sent']]) {
+          if (d >= due[0]) org.trialReminders[flag] = true;
+        }
+        touched = true;
+      }
+    }
+
+    if (touched) await org.save({ validateBeforeSave: false });
+  }
+}
+
+/**
+ * Daily — cancelled subscriptions whose paid period has ended move to free.
+ */
+async function phaseCancellations() {
+  const orgs = await Organization.find({
+    plan: { $in: PAID_PLANS },
+    'subscription.cancelAtPeriodEnd': true,
+    'subscription.currentPeriodEnd': { $lte: new Date() },
+  });
+  for (const org of orgs) {
+    const previousPlan = org.plan;
+    org.plan = 'free';
+    org.limits = await getLimitsForPlanAsync('free');
+    org.subscription.status = 'canceled';
+    org.subscription.currentPeriodEnd = null;
+    org.subscription.cancelAtPeriodEnd = false;
+    clearBillingLock(org);
+    await org.save({ validateBeforeSave: false });
+    await Invoice.updateMany({ organization: org._id, status: 'pending' }, { $set: { status: 'void' } });
+    console.log(`[billing] org ${org._id} moved ${previousPlan} → free (cancelled, period ended)`);
+  }
+}
+
+/**
+ * Daily — permanently delete organizations whose deletion grace period is over.
+ * Invoices are kept: they are the seller's tax records (with the buyer details
+ * frozen on them), not workspace content.
+ */
+async function phaseOrgDeletion() {
+  const Project = require('../models/Project');
+  const Invitation = require('../models/Invitation');
+  const Integration = require('../models/Integration');
+  const Activity = require('../models/Activity');
+  const Notification = require('../models/Notification');
+  const { deleteProjectCascade } = require('../utils/cascade');
+  const { deleteStoredFiles } = require('../utils/storage');
+
+  const orgs = await Organization.find({ deletionScheduledAt: { $ne: null, $lte: new Date() } });
+  for (const org of orgs) {
+    const projects = await Project.find({ organization: org._id });
+    for (const project of projects) await deleteProjectCascade(project);
+
+    const users = await User.find({ organization: org._id }).select('_id avatar');
+    const userIds = users.map((u) => u._id);
+    deleteStoredFiles(users.filter((u) => u.avatar).map((u) => `uploads/${u.avatar}`));
+    if (org.logo) deleteStoredFiles([`uploads/${org.logo}`]);
+
+    await Promise.all([
+      Notification.deleteMany({ recipient: { $in: userIds } }),
+      Invitation.deleteMany({ organization: org._id }),
+      Integration.deleteMany({ organization: org._id }),
+      Activity.deleteMany({ organization: org._id }),
+      Project.updateMany({ members: { $in: userIds } }, { $pull: { members: { $in: userIds } } }),
+    ]);
+    await User.deleteMany({ _id: { $in: userIds } });
+    await Organization.deleteOne({ _id: org._id });
+    console.log(`[billing] deleted organization ${org._id} (${projects.length} projects, ${userIds.length} users)`);
+  }
+}
+
+// Retention: notifications 180 days, activity 365 days, invitations 30 days past expiry
+const RETENTION = { notificationsDays: 180, activityDays: 365, expiredInvitationDays: 30 };
+
+async function phaseRetention() {
+  const Activity = require('../models/Activity');
+  const Notification = require('../models/Notification');
+  const Invitation = require('../models/Invitation');
+  const ago = (days) => new Date(Date.now() - days * DAY_MS);
+  const [n, a, i] = await Promise.all([
+    Notification.deleteMany({ createdAt: { $lt: ago(RETENTION.notificationsDays) } }),
+    Activity.deleteMany({ createdAt: { $lt: ago(RETENTION.activityDays) } }),
+    Invitation.deleteMany({ expiresAt: { $lt: ago(RETENTION.expiredInvitationDays) } }),
+  ]);
+  console.log(`[billing] retention: removed ${n.deletedCount} notifications, ${a.deletedCount} activity entries, ${i.deletedCount} invitations`);
+}
+
+// Guards against overlapping runs in the same process (in-process scheduler).
+let running = false;
+
+// Runs both phases against the current mongoose connection.
+async function runBilling() {
+  if (running) {
+    console.log('[billing] previous run still in progress — skipping');
+    return;
+  }
+  running = true;
+  try {
+    // No calendar gate — every paid org has its own anniversary anchored to
+    // subscription.currentPeriodEnd. The phase below skips orgs whose anniversary
+    // hasn't arrived yet via its query filter.
+    await phaseGenerateAnniversary();
+
+    await phaseCancellations();
+
+    await phaseProcessPending();
+
+    await phaseTrials();
+
+    await phaseOrgDeletion();
+
+    await phaseRetention();
+    console.log('[billing] done');
+  } finally {
+    running = false;
+  }
+}
+
 async function main() {
   if (!process.env.MONGODB_URI) {
     console.error('[billing] MONGODB_URI not set');
@@ -260,18 +437,16 @@ async function main() {
   await mongoose.connect(process.env.MONGODB_URI);
   console.log('[billing] connected to MongoDB');
 
-  // No calendar gate — every paid org has its own anniversary anchored to
-  // subscription.currentPeriodEnd. The phase below skips orgs whose anniversary
-  // hasn't arrived yet via its query filter.
-  await phaseGenerateAnniversary();
-
-  await phaseProcessPending();
+  await runBilling();
 
   await mongoose.disconnect();
-  console.log('[billing] done');
 }
 
-main().catch((err) => {
-  console.error('[billing] fatal:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('[billing] fatal:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = { runBilling };

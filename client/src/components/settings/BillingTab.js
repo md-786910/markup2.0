@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useTrialStatus } from "../../hooks/useTrialStatus";
-import { getPlanApi, getPublicPlansApi } from "../../services/billingService";
+import { getPlanApi, getPublicPlansApi, cancelSubscriptionApi, resumeSubscriptionApi } from "../../services/billingService";
+import BillingDetailsForm from "./BillingDetailsForm";
 import {
   PLANS as STATIC_PLANS,
   PLAN_LIST as STATIC_PLAN_LIST,
@@ -55,7 +56,8 @@ function UsageBar({ label, used, max, color = "blue" }) {
 }
 
 export default function BillingTab() {
-  const { user, isOwner, updateUser } = useAuth();
+  const { user, isOwner, isAdmin, updateUser } = useAuth();
+  const [subscriptionBusy, setSubscriptionBusy] = useState(false);
   const { daysLeft, trialDays, progressPercent, isTrialActive, urgency } =
     useTrialStatus();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -125,6 +127,45 @@ export default function BillingTab() {
       </div>
     );
   }
+
+  // Paid plan period and cancellation state
+  const subscription = planData?.subscription || {};
+  const cancelAtPeriodEnd = !!subscription.cancelAtPeriodEnd;
+  const periodEnd = ["starter", "pro"].includes(currentPlanId) && subscription.currentPeriodEnd
+    ? new Date(subscription.currentPeriodEnd).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+    : null;
+
+  const refreshPlan = async (user) => {
+    if (user) updateUser(user);
+    const res = await getPlanApi();
+    setPlanData(res.data);
+  };
+
+  const handleCancel = async () => {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Cancel your subscription? You keep your plan until ${periodEnd} and won't be charged again.`)) return;
+    setSubscriptionBusy(true);
+    try {
+      const res = await cancelSubscriptionApi();
+      await refreshPlan(res.data.user);
+      setStatusMessage(`Subscription cancelled. You keep your plan until ${periodEnd}.`);
+    } catch (err) {
+      setStatusMessage(err.response?.data?.message || "Could not cancel the subscription.");
+    }
+    setSubscriptionBusy(false);
+  };
+
+  const handleResume = async () => {
+    setSubscriptionBusy(true);
+    try {
+      const res = await resumeSubscriptionApi();
+      await refreshPlan(res.data.user);
+      setStatusMessage("Subscription resumed.");
+    } catch (err) {
+      setStatusMessage(err.response?.data?.message || "Could not resume the subscription.");
+    }
+    setSubscriptionBusy(false);
+  };
 
   const usage = planData?.usage || { projects: 0, members: 0, guests: 0 };
   const limits = planData?.limits ||
@@ -264,6 +305,24 @@ export default function BillingTab() {
                 </span>
               </p>
             )}
+            {periodEnd && (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <span className={`text-sm font-medium ${cancelAtPeriodEnd ? "text-amber-700" : "text-gray-600"}`}>
+                  {cancelAtPeriodEnd
+                    ? `Cancelled. You keep this plan until ${periodEnd}.`
+                    : `Renews on ${periodEnd}. We email an invoice before then.`}
+                </span>
+                {isOwner && (
+                  <button
+                    onClick={cancelAtPeriodEnd ? handleResume : handleCancel}
+                    disabled={subscriptionBusy}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {cancelAtPeriodEnd ? "Resume subscription" : "Cancel subscription"}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {isTrialActive && (
@@ -340,9 +399,19 @@ export default function BillingTab() {
               max={limits.maxGuests}
               color="emerald"
             />
+            {limits.maxStorageMB != null && (
+              <UsageBar
+                label="Storage (GB)"
+                used={Math.round(((usage.storageMB || 0) / 1024) * 100) / 100}
+                max={Math.round((limits.maxStorageMB / 1024) * 10) / 10}
+                color="purple"
+              />
+            )}
           </div>
         </section>
       </div>
+
+      <BillingDetailsForm canEdit={isOwner || isAdmin} />
 
       {/* Available Plans Section */}
       <section className="pt-4">

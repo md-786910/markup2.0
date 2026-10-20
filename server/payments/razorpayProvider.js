@@ -2,6 +2,25 @@ const crypto = require('crypto');
 const { settleInvoice } = require('./settleInvoice');
 const Invoice = require('../models/Invoice');
 const { PaymentVerificationError } = require('./errors');
+const { applyRefund } = require('./refundInvoice');
+
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+
+// Tell the org owner a payment attempt failed (fire-and-forget).
+async function notifyPaymentFailed(invoice) {
+  try {
+    const Organization = require('../models/Organization');
+    const User = require('../models/User');
+    const org = await Organization.findById(invoice.organization).select('name');
+    const owner = await User.findOne({ organization: invoice.organization, role: 'owner' }).select('email');
+    if (!org || !owner?.email) return;
+    await require('../utils/mailer').sendPaymentFailedEmail(
+      owner.email, org.name, invoice.amount, invoice.currency, `${CLIENT_ORIGIN}/settings?tab=billing`,
+    );
+  } catch (err) {
+    console.error(`[billing] payment-failed email for invoice ${invoice._id} failed: ${err.message}`);
+  }
+}
 
 const ID = 'razorpay';
 let razorpayClient;
@@ -32,8 +51,9 @@ function getRazorpayClient() {
  */
 async function createOrder({ org, plan, planConfig, invoiceMeta = {} }) {
   const razorpay = getRazorpayClient();
-  // USD display price → INR paise (existing Razorpay India pricing math)
-  const amount = Math.round(planConfig.price * 84 * 100);
+  // Explicit INR price (admin-set, or USD × RAZORPAY_USD_INR_RATE) → paise
+  const rupees = planConfig.priceInr != null ? planConfig.priceInr : planConfig.price * 84;
+  const amount = Math.round(rupees * 100);
   const receipt = (invoiceMeta.receipt || `rcpt_${Date.now()}`).slice(0, 40);
 
   const order = await razorpay.orders.create({
@@ -58,6 +78,12 @@ async function createOrder({ org, plan, planConfig, invoiceMeta = {} }) {
   };
 }
 
+// Constant-time comparison for hex signatures
+function safeEqualHex(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
 /**
  * Verify a Razorpay client-side payment via HMAC signature.
  * @param {Object} ctx
@@ -73,7 +99,7 @@ async function verifyPayment({ invoice, body }) {
     .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
     .update(`${razorpay_order_id}|${razorpay_payment_id}`)
     .digest('hex');
-  if (expected !== razorpay_signature) {
+  if (!safeEqualHex(expected, razorpay_signature)) {
     throw new PaymentVerificationError('Payment verification failed: invalid signature.');
   }
   return {
@@ -91,14 +117,19 @@ async function verifyWebhook(req) {
   const signature = req.headers['x-razorpay-signature'];
   if (!signature) return { ok: false, reason: 'missing_signature' };
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error('[razorpay] RAZORPAY_WEBHOOK_SECRET is not set — webhooks cannot be verified');
+    return { ok: false, reason: 'not_configured' };
+  }
   const expected = crypto.createHmac('sha256', secret).update(req.body).digest('hex');
-  if (expected !== signature) return { ok: false, reason: 'bad_signature' };
+  if (!safeEqualHex(expected, signature)) return { ok: false, reason: 'bad_signature' };
   const event = JSON.parse(req.body.toString('utf8'));
   return { ok: true, event, raw: req.body };
 }
 
 /**
- * Apply a Razorpay webhook event. Currently only `order.paid` is handled.
+ * Apply a Razorpay webhook event: order.paid (settle), payment.failed (email
+ * the owner), refund.processed (record refund; full refund ends the plan).
  */
 async function handleWebhookEvent(event) {
   switch (event.event) {
@@ -116,13 +147,39 @@ async function handleWebhookEvent(event) {
       console.log(`[razorpay] order.paid settled for invoice ${invoice._id}`);
       return;
     }
+    case 'payment.failed': {
+      const payment = event.payload.payment?.entity;
+      const invoice = payment?.order_id && await Invoice.findOne({ razorpayOrderId: payment.order_id });
+      if (invoice && invoice.status !== 'paid') await notifyPaymentFailed(invoice);
+      return;
+    }
+    case 'refund.processed': {
+      const refund = event.payload.refund?.entity;
+      const payment = event.payload.payment?.entity;
+      const invoice = refund?.payment_id && await Invoice.findOne({ razorpayPaymentId: refund.payment_id });
+      if (!invoice) {
+        console.warn(`[razorpay] refund for unknown payment ${refund?.payment_id}`);
+        return;
+      }
+      // amount_refunded on the payment is cumulative; fall back to this refund's amount
+      const refundedTotal = payment?.amount_refunded ?? ((invoice.refundAmount || 0) + (refund.amount || 0));
+      await applyRefund(invoice, refundedTotal);
+      return;
+    }
     default:
       console.log(`[razorpay] unhandled event: ${event.event}`);
   }
 }
 
+/** Full refund of an invoice's payment (admin action). The refund webhook follows. */
+async function refundPayment(invoice) {
+  if (!invoice.razorpayPaymentId) throw new Error('Invoice has no Razorpay payment id.');
+  await getRazorpayClient().payments.refund(invoice.razorpayPaymentId, { amount: invoice.amount });
+}
+
 module.exports = {
   id: ID,
+  refundPayment,
   isConfigured,
   createOrder,
   verifyPayment,

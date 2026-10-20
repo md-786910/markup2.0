@@ -9,6 +9,10 @@ const {
   verifyPayment,
   getInvoices,
   downloadInvoicePdf,
+  cancelSubscription,
+  resumeSubscription,
+  getBillingDetails,
+  updateBillingDetails,
 } = require('../controllers/billing.controller');
 
 router.use(auth);
@@ -20,5 +24,9 @@ router.post('/portal-session', createPortalSession);
 router.post('/verify-payment', verifyPayment);
 router.get('/invoices', getInvoices);
 router.get('/invoices/:id/pdf', downloadInvoicePdf);
+router.post('/cancel', cancelSubscription);
+router.post('/resume', resumeSubscription);
+router.get('/details', getBillingDetails);
+router.put('/details', updateBillingDetails);
 
 module.exports = router;

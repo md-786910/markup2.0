@@ -5,9 +5,9 @@ const PLANS = {
     price: 0,
     priceLabel: '$0',
     period: 'forever',
-    limits: { maxProjects: 2, maxMembers: 5, maxGuests: 2, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false },
+    limits: { maxProjects: 2, maxMembers: 5, maxGuests: 2, maxStorageMB: 200, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false },
     features: [
-      '3 projects',
+      '2 projects',
       '5 team members',
       '2 guests',
       'Basic feedback tools',
@@ -21,13 +21,13 @@ const PLANS = {
     price: 12,
     priceLabel: '$12',
     period: '/month',
-    limits: { maxProjects: 15, maxMembers: 25, maxGuests: 10, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: false },
+    limits: { maxProjects: 15, maxMembers: 25, maxGuests: 10, maxStorageMB: 5120, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: false },
     features: [
       '15 projects',
       '25 team members',
       '10 guests',
       'Guest review links',
-      'Slack integration',
+      'Slack, Jira, Discord & Teams integrations',
       'Activity log',
     ],
     badgeColor: 'blue',
@@ -42,13 +42,13 @@ const PLANS = {
     period: '/month',
     popular: true,
     razorpayPlanId: process.env.RAZORPAY_PRO_PLAN_ID || null,
-    limits: { maxProjects: 999, maxMembers: 999, maxGuests: 50, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
+    limits: { maxProjects: 999, maxMembers: 999, maxGuests: 50, maxStorageMB: 25600, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
     features: [
       'Unlimited projects',
       'Unlimited members',
       '50 guests',
       'Priority support',
-      'Slack, Jira & Discord integrations',
+      'Slack, Jira, Discord & Teams integrations',
       'Activity log & version history',
       'Guest review links',
     ],
@@ -61,12 +61,12 @@ const PLANS = {
     price: null,
     priceLabel: 'Custom',
     period: '',
-    limits: { maxProjects: 9999, maxMembers: 9999, maxGuests: 9999, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
+    limits: { maxProjects: 9999, maxMembers: 9999, maxGuests: 9999, maxStorageMB: 102400, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
     features: [
       'Everything in Pro',
       'Dedicated support',
       'Custom integrations',
-      'SLA guarantee',
+      'Custom terms & onboarding',
     ],
     badgeColor: 'amber',
     order: 3,
@@ -74,6 +74,8 @@ const PLANS = {
 };
 
 const DEFAULT_TRIAL_DAYS = 30;
+// Fallback USD→INR conversion when a plan has no explicit INR price (admin → Pricing)
+const USD_INR_RATE = parseFloat(process.env.RAZORPAY_USD_INR_RATE || '84');
 
 const PLAN_LIST = Object.values(PLANS).sort((a, b) => a.order - b.order);
 
@@ -108,7 +110,8 @@ function clearPlanCache() {
 }
 
 function getLimitsForPlan(planId) {
-  if (planId === 'trial') return { ...PLANS.free.limits };
+  // Trials get Pro features so teams experience everything before choosing a plan
+  if (planId === 'trial') return { ...PLANS.pro.limits };
   const plan = PLANS[planId];
   return plan ? { ...plan.limits } : { ...PLANS.free.limits };
 }
@@ -116,12 +119,13 @@ function getLimitsForPlan(planId) {
 async function getLimitsForPlanAsync(planId) {
   const base = getLimitsForPlan(planId);
   const overrides = await _getOverrides();
-  const effectiveId = planId === 'trial' ? 'free' : planId;
+  const effectiveId = planId === 'trial' ? 'pro' : planId;
   const override = overrides[effectiveId];
   if (override && override.limits) {
     if (override.limits.maxProjects != null) base.maxProjects = override.limits.maxProjects;
     if (override.limits.maxMembers != null) base.maxMembers = override.limits.maxMembers;
     if (override.limits.maxGuests != null) base.maxGuests = override.limits.maxGuests;
+    if (override.limits.maxStorageMB != null) base.maxStorageMB = override.limits.maxStorageMB;
     if (override.limits.hasIntegrations != null) base.hasIntegrations = override.limits.hasIntegrations;
     if (override.limits.hasActivityLogs != null) base.hasActivityLogs = override.limits.hasActivityLogs;
     if (override.limits.hasVersionHistory != null) base.hasVersionHistory = override.limits.hasVersionHistory;
@@ -141,6 +145,7 @@ async function getPlansWithOverrides() {
         if (override.limits.maxProjects != null) merged.limits.maxProjects = override.limits.maxProjects;
         if (override.limits.maxMembers != null) merged.limits.maxMembers = override.limits.maxMembers;
         if (override.limits.maxGuests != null) merged.limits.maxGuests = override.limits.maxGuests;
+        if (override.limits.maxStorageMB != null) merged.limits.maxStorageMB = override.limits.maxStorageMB;
         if (override.limits.hasIntegrations != null) merged.limits.hasIntegrations = override.limits.hasIntegrations;
         if (override.limits.hasActivityLogs != null) merged.limits.hasActivityLogs = override.limits.hasActivityLogs;
         if (override.limits.hasVersionHistory != null) merged.limits.hasVersionHistory = override.limits.hasVersionHistory;
@@ -158,6 +163,10 @@ async function getPlansWithOverrides() {
       if (override.razorpayPlanId != null) merged.razorpayPlanId = override.razorpayPlanId;
       if (override.assignToNewSignups != null) merged.assignToNewSignups = override.assignToNewSignups;
     }
+    // INR price for Razorpay: an explicit admin price, else the USD price converted at a fixed rate
+    merged.priceInr = override && override.priceInr != null
+      ? override.priceInr
+      : (typeof merged.price === 'number' ? Math.round(merged.price * USD_INR_RATE) : null);
     result[key] = merged;
   }
   return result;
@@ -174,4 +183,13 @@ async function getNewSignupPlanMode() {
   return 'trial';
 }
 
-module.exports = { PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache };
+// Limits an org actually has: its plan's limits (with admin plan overrides),
+// then the org's own superadmin overrides (unset keys keep the plan value).
+async function getEffectiveLimitsAsync(org) {
+  const base = await getLimitsForPlanAsync(org.plan);
+  const raw = org.limitOverrides ? (org.limitOverrides.toObject ? org.limitOverrides.toObject() : org.limitOverrides) : {};
+  const overrides = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined && v !== null));
+  return { ...base, ...overrides };
+}
+
+module.exports = { getEffectiveLimitsAsync, PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache };

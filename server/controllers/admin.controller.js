@@ -7,13 +7,23 @@ const PlanConfig = require('../models/PlanConfig');
 const Invoice = require('../models/Invoice');
 const PaymentSettings = require('../models/PaymentSettings');
 const asyncHandler = require('../utils/asyncHandler');
-const { PLANS, getPlansWithOverrides, clearPlanCache } = require('../config/plans');
+const { PLANS, getPlansWithOverrides, clearPlanCache, getLimitsForPlanAsync } = require('../config/plans');
 const {
   getProvider,
   getProviderStatus,
   clearPaymentSettingsCache,
 } = require('../payments');
 const { logOrgActivity } = require('../utils/activityLogger');
+const { clearBillingLock } = require('../utils/orgUtils');
+const { addMonthsUTC } = require('../utils/billingDates');
+const { applyRefund } = require('../payments/refundInvoice');
+
+// Page/limit from the query string, clamped so a request can't pull a whole collection
+function parsePaging(query) {
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
+  return { page, limit };
+}
 
 // ── Dashboard Stats ──────────────────────────────────────────────
 
@@ -87,8 +97,9 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
 // ── Organizations ────────────────────────────────────────────────
 
 exports.getOrganizations = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, plan, status, search } = req.query;
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const { plan, status, search } = req.query;
+  const { page, limit } = parsePaging(req.query);
+  const skip = (page - 1) * limit;
 
   const filter = {};
   if (plan) filter.plan = plan;
@@ -105,7 +116,7 @@ exports.getOrganizations = asyncHandler(async (req, res) => {
     Organization.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limit)
       .populate('owner', 'name email'),
     Organization.countDocuments(filter),
   ]);
@@ -137,8 +148,8 @@ exports.getOrganizations = asyncHandler(async (req, res) => {
   res.json({
     organizations: data,
     total,
-    page: parseInt(page),
-    totalPages: Math.ceil(total / parseInt(limit)),
+    page: page,
+    totalPages: Math.ceil(total / limit),
   });
 });
 
@@ -204,8 +215,9 @@ exports.unlockOrganization = asyncHandler(async (req, res) => {
 // ── Users ────────────────────────────────────────────────────────
 
 exports.getUsers = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, role, search, orgId } = req.query;
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const { role, search, orgId } = req.query;
+  const { page, limit } = parsePaging(req.query);
+  const skip = (page - 1) * limit;
 
   const filter = { role: { $ne: 'superadmin' } };
   if (role) filter.role = role;
@@ -221,7 +233,7 @@ exports.getUsers = asyncHandler(async (req, res) => {
     User.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limit)
       .select('name email role organization lastSeen lastLoginIp lastLoginLocation signupIp signupLocation avatar createdAt')
       .populate('organization', 'name plan'),
     User.countDocuments(filter),
@@ -230,8 +242,8 @@ exports.getUsers = asyncHandler(async (req, res) => {
   res.json({
     users,
     total,
-    page: parseInt(page),
-    totalPages: Math.ceil(total / parseInt(limit)),
+    page: page,
+    totalPages: Math.ceil(total / limit),
   });
 });
 
@@ -251,8 +263,9 @@ exports.getUserDetail = asyncHandler(async (req, res) => {
 // ── Projects ─────────────────────────────────────────────────────
 
 exports.getProjects = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, orgId, status, projectStatus, type } = req.query;
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const { orgId, status, projectStatus, type } = req.query;
+  const { page, limit } = parsePaging(req.query);
+  const skip = (page - 1) * limit;
 
   const filter = {};
   if (orgId) filter.organization = orgId;
@@ -264,7 +277,7 @@ exports.getProjects = asyncHandler(async (req, res) => {
     Project.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit))
+      .limit(limit)
       .select('name projectType websiteUrl status projectStatus members organization createdAt')
       .populate('organization', 'name plan'),
     Project.countDocuments(filter),
@@ -295,8 +308,8 @@ exports.getProjects = asyncHandler(async (req, res) => {
   res.json({
     projects: data,
     total,
-    page: parseInt(page),
-    totalPages: Math.ceil(total / parseInt(limit)),
+    page: page,
+    totalPages: Math.ceil(total / limit),
   });
 });
 
@@ -341,6 +354,10 @@ exports.updatePlan = asyncHandler(async (req, res) => {
     const n = numOrSkip(b.maxGuests);
     if (n !== undefined) $set['limits.maxGuests'] = n;
   }
+  if (b.maxStorageMB !== undefined) {
+    const n = numOrSkip(b.maxStorageMB);
+    if (n !== undefined) $set['limits.maxStorageMB'] = n;
+  }
   if (b.hasIntegrations !== undefined) {
     $set['limits.hasIntegrations'] = !!b.hasIntegrations;
   }
@@ -355,6 +372,8 @@ exports.updatePlan = asyncHandler(async (req, res) => {
   if (b.name !== undefined) $set.name = String(b.name).slice(0, 60);
   // price: accept null (= "Custom"); otherwise number
   if (b.price !== undefined) $set.price = numOrNull(b.price);
+  // INR price for Razorpay; null = derive from the USD price
+  if (b.priceInr !== undefined) $set.priceInr = numOrNull(b.priceInr);
   if (b.priceLabel !== undefined) $set.priceLabel = String(b.priceLabel).slice(0, 40);
   if (b.period !== undefined) $set.period = String(b.period).slice(0, 40);
   if (b.popular !== undefined) $set.popular = !!b.popular;
@@ -465,4 +484,126 @@ exports.updatePaymentSettings = asyncHandler(async (req, res) => {
   clearPaymentSettingsCache();
   const status = await getProviderStatus();
   res.json(status);
+});
+
+// ── Billing administration ─────────────────────────────────────
+
+const ADMIN_PLANS = ['free', 'trial', 'starter', 'pro', 'enterprise'];
+
+/**
+ * PATCH /api/admin/organizations/:id/plan  { plan, periodEnd? }
+ * Set an org's plan without payment (enterprise deals, comps, corrections).
+ * Starter/Pro set this way are invoiced normally from periodEnd onwards.
+ */
+exports.setOrganizationPlan = asyncHandler(async (req, res) => {
+  const { plan, periodEnd } = req.body || {};
+  if (!ADMIN_PLANS.includes(plan)) {
+    return res.status(400).json({ message: `Plan must be one of: ${ADMIN_PLANS.join(', ')}` });
+  }
+  const org = await Organization.findById(req.params.id);
+  if (!org) return res.status(404).json({ message: 'Organization not found' });
+
+  const previousPlan = org.plan;
+  org.plan = plan;
+  org.limits = await getLimitsForPlanAsync(plan);
+  if (!org.subscription) org.subscription = {};
+  org.subscription.cancelAtPeriodEnd = false;
+  if (plan === 'trial') {
+    org.trialEndsAt = org.trialEndsAt && org.trialEndsAt > new Date() ? org.trialEndsAt : addMonthsUTC(new Date(), 1);
+    org.subscription.status = 'none';
+    org.subscription.currentPeriodEnd = null;
+  } else {
+    org.trialEndsAt = null;
+    org.subscription.status = 'active';
+    if (plan === 'free' || plan === 'enterprise') {
+      org.subscription.currentPeriodEnd = null;
+    } else {
+      const end = periodEnd ? new Date(periodEnd) : addMonthsUTC(new Date(), 1);
+      if (Number.isNaN(end.getTime())) return res.status(400).json({ message: 'Invalid periodEnd date' });
+      org.subscription.currentPeriodEnd = end;
+    }
+  }
+  clearBillingLock(org);
+  await org.save();
+  if (plan === 'free' || plan === 'enterprise' || plan === 'trial') {
+    await Invoice.updateMany({ organization: org._id, status: 'pending' }, { $set: { status: 'void' } });
+  }
+
+  logOrgActivity(org._id, req.user._id, 'org.plan_set_by_admin', { from: previousPlan, to: plan, actorRole: 'superadmin' });
+  res.json({ organization: org });
+});
+
+/**
+ * POST /api/admin/organizations/:id/extend-trial  { days }
+ */
+exports.extendTrial = asyncHandler(async (req, res) => {
+  const days = parseInt(req.body?.days, 10);
+  if (!Number.isFinite(days) || days < 1 || days > 365) {
+    return res.status(400).json({ message: 'days must be between 1 and 365' });
+  }
+  const org = await Organization.findById(req.params.id);
+  if (!org) return res.status(404).json({ message: 'Organization not found' });
+  if (org.plan !== 'trial') return res.status(400).json({ message: 'Organization is not on a trial' });
+
+  const from = org.trialEndsAt && org.trialEndsAt > new Date() ? org.trialEndsAt : new Date();
+  org.trialEndsAt = new Date(from.getTime() + days * 24 * 60 * 60 * 1000);
+  // Re-arm reminder emails for the new end date and lift a trial-expiry lock
+  org.trialReminders = { day7Sent: false, day3Sent: false, day1Sent: false, expiredSent: false };
+  clearBillingLock(org);
+  await org.save();
+
+  logOrgActivity(org._id, req.user._id, 'org.trial_extended', { days, trialEndsAt: org.trialEndsAt, actorRole: 'superadmin' });
+  res.json({ organization: org });
+});
+
+/**
+ * PATCH /api/admin/organizations/:id/limits  { maxProjects?, maxMembers?, ... }
+ * Per-org overrides on top of the plan; null/'' clears a key back to the plan value.
+ */
+exports.setOrganizationLimits = asyncHandler(async (req, res) => {
+  const org = await Organization.findById(req.params.id);
+  if (!org) return res.status(404).json({ message: 'Organization not found' });
+  const b = req.body || {};
+  const overrides = {};
+  for (const key of ['maxProjects', 'maxMembers', 'maxGuests', 'maxStorageMB']) {
+    if (b[key] === null || b[key] === '' || b[key] === undefined) continue;
+    const n = Number(b[key]);
+    if (!Number.isInteger(n) || n < 0) return res.status(400).json({ message: `${key} must be a whole number` });
+    overrides[key] = n;
+  }
+  for (const key of ['hasIntegrations', 'hasActivityLogs', 'hasVersionHistory']) {
+    if (typeof b[key] === 'boolean') overrides[key] = b[key];
+  }
+  org.limitOverrides = overrides;
+  await org.save();
+  logOrgActivity(org._id, req.user._id, 'org.limits_overridden', { overrides, actorRole: 'superadmin' });
+  res.json({ organization: org });
+});
+
+/**
+ * POST /api/admin/invoices/:id/refund
+ * Full refund through the invoice's payment provider; the plan is revoked if
+ * the invoice pays for the current period. The provider's webhook that follows
+ * is a no-op.
+ */
+exports.refundInvoice = asyncHandler(async (req, res) => {
+  const invoice = await Invoice.findById(req.params.id);
+  if (!invoice) return res.status(404).json({ message: 'Invoice not found' });
+  if (invoice.status !== 'paid') return res.status(400).json({ message: 'Only paid invoices can be refunded' });
+
+  const provider = getProvider(invoice.provider);
+  if (!provider || typeof provider.refundPayment !== 'function') {
+    return res.status(400).json({ message: `Refunds are not supported for ${invoice.provider}` });
+  }
+  try {
+    await provider.refundPayment(invoice);
+  } catch (err) {
+    console.error(`[admin] refund of invoice ${invoice._id} failed:`, err.message);
+    return res.status(502).json({ message: `The payment provider rejected the refund: ${err.message}` });
+  }
+  const result = await applyRefund(invoice, invoice.amount);
+  logOrgActivity(invoice.organization, req.user._id, 'org.invoice_refunded', {
+    invoiceId: String(invoice._id), amount: invoice.amount, currency: invoice.currency, actorRole: 'superadmin',
+  });
+  res.json({ invoice, downgraded: !!result.downgraded });
 });

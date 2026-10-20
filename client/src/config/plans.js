@@ -27,7 +27,7 @@ export const PLANS = {
       '25 team members',
       '10 guests',
       'Guest review links',
-      'Slack integration',
+      'Slack, Jira, Discord & Teams integrations',
       'Activity log',
     ],
     badgeColor: 'blue',
@@ -46,7 +46,7 @@ export const PLANS = {
       'Unlimited members',
       '50 guests',
       'Priority support',
-      'Slack, Jira & Discord integrations',
+      'Slack, Jira, Discord & Teams integrations',
       'Activity log & version history',
       'Guest review links',
     ],
@@ -64,7 +64,7 @@ export const PLANS = {
       'Everything in Pro',
       'Dedicated support',
       'Custom integrations',
-      'SLA guarantee',
+      'Custom terms & onboarding',
     ],
     badgeColor: 'amber',
     order: 3,
@@ -78,7 +78,8 @@ export const PLAN_LIST = Object.values(PLANS).sort((a, b) => a.order - b.order);
 export const UPGRADEABLE_PLANS = ['starter', 'pro'];
 
 export function getLimitsForPlan(planId) {
-  if (planId === 'trial') return { ...PLANS.free.limits };
+  // Mirrors server/config/plans.js: trials get Pro features
+  if (planId === 'trial') return { ...PLANS.pro.limits };
   const plan = PLANS[planId];
   return plan ? { ...plan.limits } : { ...PLANS.free.limits };
 }

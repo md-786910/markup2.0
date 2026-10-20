@@ -5,7 +5,9 @@ const invoiceSchema = new mongoose.Schema({
   plan: { type: String, required: true },
   amount: { type: Number, required: true }, // smallest unit (paise for INR, cents for USD)
   currency: { type: String, default: 'INR' },
-  status: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
+  // void: superseded by a newer checkout or a plan change; can still be settled if paid late
+  // refunded: payment returned (fully or partly, see refundAmount)
+  status: { type: String, enum: ['pending', 'paid', 'failed', 'void', 'refunded'], default: 'pending' },
   provider: {
     type: String,
     enum: ['razorpay', 'paypal'],
@@ -21,6 +23,15 @@ const invoiceSchema = new mongoose.Schema({
   // Monthly auto-billing — only set on auto-generated cycle invoices.
   billingMonth: { type: String, default: null, index: true }, // YYYY-MM
   dueAt: { type: Date, default: null },                       // = createdAt + 10 days
+  paidAt: { type: Date, default: null },
+  // Sequential tax-invoice number (e.g. KOM-2026-000042), assigned when paid
+  invoiceNumber: { type: String, default: null },
+  // Seller/buyer details and tax split, frozen at payment time for the PDF
+  seller: { type: mongoose.Schema.Types.Mixed, default: null },
+  buyer: { type: mongoose.Schema.Types.Mixed, default: null },
+  tax: { type: mongoose.Schema.Types.Mixed, default: null },
+  refundedAt: { type: Date, default: null },
+  refundAmount: { type: Number, default: null }, // smallest unit
   // Idempotency flags for the daily cron worker.
   reminders: {
     day0Sent: { type: Boolean, default: false },
@@ -30,6 +41,11 @@ const invoiceSchema = new mongoose.Schema({
     lockSent: { type: Boolean, default: false },
   },
 }, { timestamps: true });
+
+invoiceSchema.index({ invoiceNumber: 1 }, { unique: true, partialFilterExpression: { invoiceNumber: { $type: 'string' } } });
+// Refund webhooks look invoices up by provider payment id
+invoiceSchema.index({ razorpayPaymentId: 1 }, { sparse: true });
+invoiceSchema.index({ paypalCaptureId: 1 }, { sparse: true });
 
 // One auto-generated invoice per org per billing month. Partial filter excludes
 // existing one-off upgrade invoices that have billingMonth = null.

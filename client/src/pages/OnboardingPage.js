@@ -9,10 +9,12 @@ const STEPS = [
   { id: 'organization', label: 'Organization' },
   { id: 'account', label: 'Account' },
   { id: 'review', label: 'Review' },
-  { id: 'payment', label: 'Payment' },
+  { id: 'payment', label: 'Plan' },
 ];
 
-// Free trial is no longer offered on the Payment step — users must pick a paid plan.
+// New workspaces start on a no-card free trial by default. Paying up front is
+// optional; trial reminder emails ask the owner to add payment before it ends.
+const TRIAL_PLAN_ID = 'trial';
 
 function loadRazorpayScript() {
   return new Promise((resolve) => {
@@ -109,7 +111,7 @@ export default function OnboardingPage() {
       .then((res) => {
         if (!alive) return;
         const list = (res.data?.planList || [])
-          .filter((p) => p.enabled !== false && p.id !== 'enterprise')
+          .filter((p) => p.enabled !== false && p.id !== 'enterprise' && p.id !== TRIAL_PLAN_ID)
           .map((p) => ({
             id: p.id,
             name: p.name,
@@ -119,9 +121,21 @@ export default function OnboardingPage() {
             features: p.features || [],
             popular: !!p.popular,
           }));
+        if (res.data?.signupMode === TRIAL_PLAN_ID) {
+          const days = res.data?.trialDays || 30;
+          list.unshift({
+            id: TRIAL_PLAN_ID,
+            name: 'Free trial',
+            price: 0,
+            priceLabel: `${days} days free`,
+            period: '',
+            features: ['All Pro features', 'No credit card required', 'Choose a plan any time before the trial ends'],
+            popular: false,
+          });
+        }
         setLivePlans(list);
-        // Default-select the popular plan, else the first in order
-        const def = list.find((p) => p.popular) || list[0];
+        // Default to the no-card trial when offered, else the popular plan, else the first
+        const def = list.find((p) => p.id === TRIAL_PLAN_ID) || list.find((p) => p.popular) || list[0];
         if (def) setSelectedPlan((curr) => curr || def.id);
       })
       .catch(() => {
@@ -153,7 +167,7 @@ export default function OnboardingPage() {
   const handleAccountNext = (e) => {
     e.preventDefault();
     if (!emailVerified) return;
-    if (!name.trim() || !password || password.length < 6) return;
+    if (!name.trim() || !password || password.length < 8) return;
     if (password !== confirmPassword) {
       setPasswordError('Passwords do not match');
       return;
@@ -349,6 +363,13 @@ export default function OnboardingPage() {
     const ok = await runSetup();
     if (!ok) {
       setPhase('idle');
+      return;
+    }
+
+    // Trial: the workspace is already on its trial from signup — no payment now.
+    if (selectedPlan === TRIAL_PLAN_ID) {
+      await wait(400);
+      navigate('/dashboard');
       return;
     }
 
@@ -589,9 +610,9 @@ export default function OnboardingPage() {
                   <div className="relative">
                     <input type={showPassword ? 'text' : 'password'} value={password}
                       onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
-                      required minLength={6}
+                      required minLength={8}
                       className="w-full px-3.5 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
-                      placeholder="Min 6 characters" />
+                      placeholder="Min 8 characters" />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
@@ -615,7 +636,7 @@ export default function OnboardingPage() {
                   <div className="relative">
                     <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword}
                       onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); }}
-                      required minLength={6}
+                      required minLength={8}
                       className="w-full px-3.5 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
                       placeholder="Re-enter password" />
                     <button
@@ -671,7 +692,7 @@ export default function OnboardingPage() {
                 Back
               </button>
               <button type="submit"
-                disabled={!emailVerified || !name.trim() || password.length < 6 || password !== confirmPassword}
+                disabled={!emailVerified || !name.trim() || password.length < 8 || password !== confirmPassword}
                 title={!emailVerified ? 'Verify your email to continue' : undefined}
                 className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
                 Continue
@@ -742,7 +763,7 @@ export default function OnboardingPage() {
       {currentStep === 'payment' && (
         <>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose your plan</h2>
-          <p className="text-sm text-gray-500 mb-6">Pick a plan to activate your workspace.</p>
+          <p className="text-sm text-gray-500 mb-6">Start free without a card, or subscribe now.</p>
 
           <div className="space-y-3 mb-8">
             {livePlans === null ? (
@@ -813,6 +834,7 @@ export default function OnboardingPage() {
               {loading
                 ? 'Setting up your workspace...'
                 : (() => {
+                    if (selectedPlan === TRIAL_PLAN_ID) return 'Start free trial';
                     const p = (livePlans || []).find((x) => x.id === selectedPlan);
                     const isFree = p && (p.price === 0 || p.price == null);
                     return isFree ? 'Start with Free' : 'Continue to payment';
@@ -822,6 +844,9 @@ export default function OnboardingPage() {
 
           <p className="text-center mt-4 text-xs text-gray-400">
             {(() => {
+              if (selectedPlan === TRIAL_PLAN_ID) {
+                return "No credit card required. We'll email you before the trial ends so you can pick a plan in Settings → Billing.";
+              }
               const p = (livePlans || []).find((x) => x.id === selectedPlan);
               const isFree = p && (p.price === 0 || p.price == null);
               return isFree

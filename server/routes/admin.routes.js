@@ -12,6 +12,10 @@ router.get('/organizations', ctrl.getOrganizations);
 router.get('/organizations/:id', ctrl.getOrganizationDetail);
 router.patch('/organizations/:id/lock', ctrl.lockOrganization);
 router.patch('/organizations/:id/unlock', ctrl.unlockOrganization);
+router.patch('/organizations/:id/plan', ctrl.setOrganizationPlan);
+router.post('/organizations/:id/extend-trial', ctrl.extendTrial);
+router.patch('/organizations/:id/limits', ctrl.setOrganizationLimits);
+router.post('/invoices/:id/refund', ctrl.refundInvoice);
 
 // Users
 router.get('/users', ctrl.getUsers);

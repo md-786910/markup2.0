@@ -41,4 +41,6 @@ async function checkTrialExpiry(org) {
   return false;
 }
 
-module.exports = { checkTrialExpiry, clearBillingLock, BILLING_LOCK_REASONS };
+const DELETION_LOCK_REASON = 'Deletion scheduled';
+
+module.exports = { checkTrialExpiry, clearBillingLock, BILLING_LOCK_REASONS, DELETION_LOCK_REASON };

@@ -119,7 +119,7 @@ export default function InvoicesTab() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `invoice-${invoice._id.slice(-8).toUpperCase()}.pdf`;
+      a.download = `invoice-${invoice.invoiceNumber || invoice._id.slice(-8).toUpperCase()}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -257,7 +257,7 @@ export default function InvoicesTab() {
                     <div className="text-sm font-semibold text-gray-900">
                       {new Date(inv.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                     </div>
-                    <div className="text-[11px] text-gray-400 font-mono mt-0.5 uppercase">{inv._id.slice(-8)}</div>
+                    <div className="text-[11px] text-gray-400 font-mono mt-0.5 uppercase">{inv.invoiceNumber || inv._id.slice(-8)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
@@ -277,6 +277,7 @@ export default function InvoicesTab() {
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border ${
                       inv.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                       inv.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                      inv.status === 'refunded' ? 'bg-gray-50 text-gray-600 border-gray-200' :
                       'bg-red-50 text-red-700 border-red-100'
                     }`}>
                       {inv.status === 'paid' && <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>}

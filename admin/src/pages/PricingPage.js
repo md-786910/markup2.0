@@ -11,6 +11,7 @@ function emptyForm() {
   return {
     name: '',
     price: '',
+    priceInr: '',
     priceLabel: '',
     period: '',
     order: 0,
@@ -65,6 +66,7 @@ export default function PricingPage() {
     setForm({
       name: plan.name || '',
       price: plan.price == null ? '' : String(plan.price),
+      priceInr: plan.priceInr == null ? '' : String(plan.priceInr),
       priceLabel: plan.priceLabel || '',
       period: plan.period || '',
       order: plan.order ?? 0,
@@ -106,6 +108,7 @@ export default function PricingPage() {
       const payload = {
         name: form.name,
         price: form.price === '' ? null : Number(form.price),
+        priceInr: form.priceInr === '' ? null : Number(form.priceInr),
         priceLabel: form.priceLabel,
         period: form.period,
         order: Number(form.order),
@@ -259,6 +262,19 @@ export default function PricingPage() {
                     value={form.price}
                     onChange={(e) => updateField('price', e.target.value)}
                     placeholder="Custom"
+                    className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">INR price (Razorpay)</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 text-sm">₹</span>
+                  <input
+                    type="number"
+                    value={form.priceInr}
+                    onChange={(e) => updateField('priceInr', e.target.value)}
+                    placeholder="Auto from USD"
                     className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   />
                 </div>

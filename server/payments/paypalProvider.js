@@ -13,6 +13,25 @@
 const Invoice = require('../models/Invoice');
 const { settleInvoice } = require('./settleInvoice');
 const { PaymentVerificationError } = require('./errors');
+const { applyRefund } = require('./refundInvoice');
+
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+
+// Tell the org owner a payment attempt failed (fire-and-forget).
+async function notifyPaymentFailed(invoice) {
+  try {
+    const Organization = require('../models/Organization');
+    const User = require('../models/User');
+    const org = await Organization.findById(invoice.organization).select('name');
+    const owner = await User.findOne({ organization: invoice.organization, role: 'owner' }).select('email');
+    if (!org || !owner?.email) return;
+    await require('../utils/mailer').sendPaymentFailedEmail(
+      owner.email, org.name, invoice.amount, invoice.currency, `${CLIENT_ORIGIN}/settings?tab=billing`,
+    );
+  } catch (err) {
+    console.error(`[billing] payment-failed email for invoice ${invoice._id} failed: ${err.message}`);
+  }
+}
 
 const ID = 'paypal';
 
@@ -238,19 +257,23 @@ async function handleWebhookEvent(event) {
         invoice.status = 'failed';
         await invoice.save();
         console.log(`[paypal] capture.denied marked invoice ${invoice._id} failed`);
+        await notifyPaymentFailed(invoice);
       }
       return;
     }
     case 'PAYMENT.CAPTURE.REFUNDED': {
-      // v1: log + flag for admin only. Do NOT auto-revoke plan or extend lock.
-      // Refund handling (revocation, prorated lock) is a future workflow.
-      const capture = event.resource;
-      const orderId =
-        capture?.supplementary_data?.related_ids?.order_id ||
-        capture?.supplementaryData?.relatedIds?.orderId;
-      console.warn(
-        `[paypal] CAPTURE.REFUNDED for order ${orderId} — flagged for admin review (no auto-revoke).`
-      );
+      // resource is the refund; its "up" link points at the refunded capture
+      const refund = event.resource;
+      const upLink = (refund?.links || []).find((l) => l.rel === 'up');
+      const captureId = upLink?.href?.split('/').pop();
+      const invoice = captureId && await Invoice.findOne({ paypalCaptureId: captureId });
+      if (!invoice) {
+        console.warn(`[paypal] refund for unknown capture ${captureId}`);
+        return;
+      }
+      const value = parseFloat(refund?.amount?.value || '0');
+      const refundedTotal = (invoice.refundAmount || 0) + Math.round(value * 100);
+      await applyRefund(invoice, refundedTotal);
       return;
     }
     default:
@@ -258,8 +281,19 @@ async function handleWebhookEvent(event) {
   }
 }
 
+/** Full refund of an invoice's capture (admin action). The refund webhook follows. */
+async function refundPayment(invoice) {
+  const handles = loadSdk();
+  if (!handles) throw new Error('PayPal SDK is not installed/configured.');
+  if (!invoice.paypalCaptureId) throw new Error('Invoice has no PayPal capture id.');
+  const { PaymentsController } = require('@paypal/paypal-server-sdk');
+  const payments = new PaymentsController(handles.client);
+  await payments.refundCapturedPayment({ captureId: invoice.paypalCaptureId, body: {} });
+}
+
 module.exports = {
   id: ID,
+  refundPayment,
   isConfigured,
   createOrder,
   verifyPayment,

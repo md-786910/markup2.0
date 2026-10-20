@@ -46,6 +46,10 @@ export default function UpgradeModal({ selectedPlan, currentPlanId, currentPlanN
   }, []);
 
   const activeProvider = config?.activeProvider;
+  // Razorpay charges in INR: show the exact amount the customer will pay
+  const chargeLabel = activeProvider === 'razorpay' && selectedPlan.priceInr != null
+    ? `₹${Number(selectedPlan.priceInr).toLocaleString('en-IN')}`
+    : selectedPlan.priceLabel;
   const providerLabel =
     activeProvider === 'razorpay' ? 'Razorpay' :
     activeProvider === 'paypal'   ? 'PayPal'   : null;
@@ -221,12 +225,15 @@ export default function UpgradeModal({ selectedPlan, currentPlanId, currentPlanN
 
           <div className="text-center py-2">
             <div className="flex items-baseline justify-center gap-1">
-              <span className="text-4xl font-extrabold text-gray-900 tracking-tight">{selectedPlan.priceLabel}</span>
+              <span className="text-4xl font-extrabold text-gray-900 tracking-tight">{chargeLabel}</span>
               {selectedPlan.period && (
                 <span className="text-base font-medium text-gray-500">{selectedPlan.period}</span>
               )}
             </div>
-            <p className="text-xs text-gray-400 mt-2">Billed automatically. Cancel anytime.</p>
+            {chargeLabel !== selectedPlan.priceLabel && (
+              <p className="text-xs text-gray-500 mt-1">Charged in INR ({selectedPlan.priceLabel} list price)</p>
+            )}
+            <p className="text-xs text-gray-400 mt-2">Billed monthly. We email an invoice before each renewal. Cancel anytime.</p>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
