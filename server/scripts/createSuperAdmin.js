@@ -10,14 +10,9 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 const connectDB = require("../config/db");
 
-const superAdmin = {
-  email: "admin@leanport.com",
-  password: "BUBPVStGHultOKAD",
-};
 
 async function main() {
-  // const [,, email, password] = process.argv;
-  const { email, password } = superAdmin;
+  const [,, email, password] = process.argv;
   if (!email || !password) {
     console.error("Usage: node scripts/createSuperAdmin.js <email> <password>");
     process.exit(1);
