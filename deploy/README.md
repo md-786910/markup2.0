@@ -42,11 +42,13 @@ nginx), `docker/` (image recipes),
    is publishing the files. Each update copies new files first and
    `index.html` last, so people with the app open never load half an update.
 
-3. nginx: install `deploy/nginx/kommently.conf` and run certbot; the
-   commands are at the top of that file. The file assumes the repo is at
-   `/root/markup2.0`; nginx needs to pass through the folders above
-   the build folders once: `sudo chmod o+x /root /root/markup2.0`
-   (enter only, nothing becomes listable). Certificates renew automatically.
+3. nginx: install `deploy/nginx/kommently.conf`, run
+   `sudo sh deploy/nginx/apply-env.sh`, then certbot; the commands are at the
+   top of `kommently.conf`. `apply-env.sh` reads `API_PORT` from `.env` and
+   the repo location, writes `/etc/nginx/conf.d/kommently-env.conf` and
+   reloads nginx, so the site file itself never needs editing. Run it again
+   after changing `API_PORT` or moving the repo. nginx must be able to enter
+   the repo folder once: `sudo chmod o+x /root /root/markup2.0`. Certificates renew automatically.
 
 4. Create the admin account:
 
