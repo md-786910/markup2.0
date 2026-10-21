@@ -58,6 +58,13 @@ export function NotificationProvider({ children }) {
 
     socketRef.current = socket;
 
+    // After a reconnect, catch up on notifications sent while disconnected
+    let connectedBefore = false;
+    socket.on('connect', () => {
+      if (connectedBefore) fetchNotifications();
+      connectedBefore = true;
+    });
+
     socket.on('notification:new', (newNotif) => {
       setNotifications((prev) => {
         // Prevent duplicate
@@ -73,7 +80,7 @@ export function NotificationProvider({ children }) {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [token, user]);
+  }, [token, user, fetchNotifications]);
 
   const markAsRead = useCallback(async (id) => {
     // Optimistic update

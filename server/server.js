@@ -1,4 +1,8 @@
 require("./config/env");
+
+// Multi-core: the primary process only supervises the workers (utils/cluster.js)
+if (require("./utils/cluster").startClusterIfEnabled()) return;
+
 // Sentry must load before everything else so it can instrument Express/HTTP/MongoDB
 const { Sentry } = require("./instrument");
 const http = require("http");
@@ -40,6 +44,9 @@ connectDB()
         methods: ["GET", "POST"],
         credentials: true,
       },
+      // Long-polling needs every request of a client on the same process, which
+      // multiple workers can't guarantee: WebSocket only when clustered.
+      ...(process.env.CLUSTER_WORKERS ? { transports: ["websocket"] } : {}),
     });
 
     // Multi-instance: fan socket.io events out through Redis so users connected

@@ -40,6 +40,15 @@ class BoundedMap extends Map {
   }
 }
 
+// Shared keep-alive connections. Pages pull dozens of assets from the same
+// hosts; reusing open TCP/TLS connections avoids a new handshake per asset.
+// The SSRF lookup still runs for every new connection.
+const KEEP_ALIVE = { keepAlive: true, maxSockets: 64, maxFreeSockets: 16 };
+const directHttpAgent = new http.Agent({ ...KEEP_ALIVE, family: 4, lookup: safeLookup });
+const directHttpsAgent = new https.Agent({ ...KEEP_ALIVE, rejectUnauthorized: false, family: 4, lookup: safeLookup });
+const relayHttpAgent = new http.Agent(KEEP_ALIVE);
+const relayHttpsAgent = new https.Agent(KEEP_ALIVE);
+
 // Upstream responses larger than this are refused (protects server memory)
 const PROXY_MAX_BYTES = parseInt(process.env.PROXY_MAX_BYTES || String(50 * 1024 * 1024), 10);
 
@@ -121,6 +130,8 @@ async function fetchViaRelay(url, isPageRequest) {
       maxContentLength: PROXY_MAX_BYTES,
       timeout: 15000,
       validateStatus: () => true,
+      httpAgent: relayHttpAgent,
+      httpsAgent: relayHttpsAgent,
     });
     if (resp.status === 429 || resp.status >= 500) {
       // Relay quota exhausted / origin rate-limits the edge IPs / relay error
@@ -586,8 +597,8 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       beforeRedirect,
       timeout: 10000,
       validateStatus: () => true,
-      httpAgent: new http.Agent({ family: 4, lookup: safeLookup }),
-      httpsAgent: new https.Agent({ rejectUnauthorized: false, family: 4, lookup: safeLookup }),
+      httpAgent: directHttpAgent,
+      httpsAgent: directHttpsAgent,
     };
 
     // Forward cookies from client to upstream (exclude our internal cookies)
@@ -622,7 +633,14 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       }
     }
 
-    const response = await axios(axiosConfig);
+    let response;
+    try {
+      response = await axios(axiosConfig);
+    } catch (err) {
+      // A kept-alive connection the site had just closed: retry a GET once on a new one
+      if (err.code !== 'ECONNRESET' || req.method !== 'GET') throw err;
+      response = await axios(axiosConfig);
+    }
 
     const pageBlocked = isPageRequest && isBlockedResponse(response.status, response.headers['content-type'], response.data);
     const assetRefused = !isPageRequest && ASSET_RETRY_STATUSES.has(response.status);

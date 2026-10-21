@@ -116,6 +116,7 @@ export default function PinListSidebar({
   onNavigatePin,
   onStatusChange,
   onEvent,
+  resyncKey,
   members = [],
   projectId,
   sidebarTab = 'pins',
@@ -404,6 +405,7 @@ export default function PinListSidebar({
             onDelete={onDeletePin}
             onNavigate={onNavigatePin}
             onEvent={onEvent}
+            resyncKey={resyncKey}
             members={members}
           />
         )}

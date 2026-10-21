@@ -74,7 +74,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const [sidebarTab, setSidebarTab] = useState('pins');
   const [selectedVersionId, setSelectedVersionId] = useState(null);
   const iframeState = useIframeMessages();
-  const { onEvent, onlineUsers, lastSeenMap } = useSocket(project._id);
+  const { onEvent, onlineUsers, lastSeenMap, resyncKey } = useSocket(project._id);
   const initialPinHandled = useRef(false);
 
   const isDocumentProject = project.projectType === 'document';
@@ -137,7 +137,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     }
   }, [project._id, deviceMode]);
 
-  // Auto-fetch pins with cancellation when deps change
+  // Auto-fetch pins with cancellation when deps change (and after a socket
+  // reconnect, to pick up pins created while disconnected)
   useEffect(() => {
     const controller = new AbortController();
     getPinsApi(project._id, currentPageUrl, controller.signal, deviceMode)
@@ -146,7 +147,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         if (err.name !== 'CanceledError') console.error("Failed to load pins:", err);
       });
     return () => controller.abort();
-  }, [project._id, currentPageUrl, deviceMode]);
+  }, [project._id, currentPageUrl, deviceMode, resyncKey]);
 
   // Auto-fetch all pins with cancellation (filtered by device mode)
   useEffect(() => {
@@ -157,7 +158,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         if (err.name !== 'CanceledError') console.error("Failed to load all pins:", err);
       });
     return () => controller.abort();
-  }, [project._id, deviceMode]);
+  }, [project._id, deviceMode, resyncKey]);
 
   // Fetch pin counts per device mode (all devices, for indicator dots)
   useEffect(() => {
@@ -665,6 +666,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             onStatusChange={handleStatusChange}
             onCommentAdded={() => { loadAllPins(); loadPins(); }}
             onEvent={onEvent}
+            resyncKey={resyncKey}
             members={allMembers}
             projectId={project._id}
             sidebarTab={sidebarTab}

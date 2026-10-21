@@ -46,6 +46,7 @@ export default function CommentSidebar({
   onDelete,
   onNavigate,
   onEvent,
+  resyncKey = 0,
   members = [],
 }) {
   const [comments, setComments] = useState([]);
@@ -102,7 +103,8 @@ export default function CommentSidebar({
     return () => {
       cancelled = true;
     };
-  }, [pin?._id]);
+    // resyncKey: reload the thread after a socket reconnect (comments may have been missed)
+  }, [pin?._id, resyncKey]);
 
   useEffect(() => {
     if (!onEvent || !pin?._id) return;

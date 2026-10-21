@@ -14,6 +14,9 @@ export function useSocket(projectId) {
   const [socketVersion, setSocketVersion] = useState(0);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [lastSeenMap, setLastSeenMap] = useState({});
+  // Goes up after each reconnect (e.g. a server worker restarted): events sent
+  // while disconnected were missed, so screens re-fetch their data.
+  const [resyncKey, setResyncKey] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY);
@@ -24,8 +27,12 @@ export function useSocket(projectId) {
       transports: ['websocket', 'polling'],
     });
 
+    let connectedBefore = false;
     socket.on('connect', () => {
+      // Re-join on every connect, including reconnects
       socket.emit('join:project', projectId);
+      if (connectedBefore) setResyncKey((k) => k + 1);
+      connectedBefore = true;
     });
 
     socket.on('connect_error', (err) => {
@@ -71,5 +78,5 @@ export function useSocket(projectId) {
     return () => socket.off(event, handler);
   }, [socketVersion]);
 
-  return { onEvent, onlineUsers, lastSeenMap };
+  return { onEvent, onlineUsers, lastSeenMap, resyncKey };
 }
