@@ -46,6 +46,20 @@ services:
       PROXY_ALLOW_PRIVATE: "false"
     volumes: !override
       - uploads:/app/uploads
+    depends_on:
+      uploads-perms:
+        condition: service_completed_successfully
+
+  # The API runs as the non-root "node" user; make sure the uploads volume
+  # belongs to it (a volume first created by dev mode or an older setup is
+  # owned by root, and uploads then fail). Runs before every server start.
+  uploads-perms:
+    image: node:22-bookworm-slim
+    user: root
+    restart: "no"
+    command: ["sh", "-c", "mkdir -p /app/uploads/documents && chown -R node:node /app/uploads"]
+    volumes:
+      - uploads:/app/uploads
 
   client:
     <<: *publish

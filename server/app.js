@@ -152,6 +152,9 @@ const INLINE_UPLOAD_EXT = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".p
 app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   setHeaders: (res, filePath) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
+    // The app (app.<domain>) shows these from the API host (api.<domain>):
+    // allow the same site, not just the same origin (helmet's default).
+    res.setHeader("Cross-Origin-Resource-Policy", "same-site");
     if (!INLINE_UPLOAD_EXT.has(path.extname(filePath).toLowerCase())) {
       res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
       res.setHeader("Content-Disposition", "attachment");
