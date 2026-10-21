@@ -52,7 +52,7 @@ exports.markAsRead = asyncHandler(async (req, res) => {
   const notification = await Notification.findOneAndUpdate(
     { _id: id, recipient: userId },
     { read: true },
-    { new: true }
+    { returnDocument: 'after' }
   )
     .populate('actor', 'name email avatar')
     .populate('project', 'name projectType')

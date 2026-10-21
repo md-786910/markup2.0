@@ -738,7 +738,7 @@ exports.sendOtp = asyncHandler(async (req, res) => {
       },
       $inc: { resendCount: 1 },
     },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: "after" },
   );
 
   try {

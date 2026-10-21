@@ -701,13 +701,13 @@ exports.updateProjectEmailNotifications = asyncHandler(async (req, res) => {
     user = await User.findByIdAndUpdate(
       userId,
       { $addToSet: { mutedProjectEmails: projectId } },
-      { new: true }
+      { returnDocument: 'after' }
     );
   } else {
     user = await User.findByIdAndUpdate(
       userId,
       { $pull: { mutedProjectEmails: projectId } },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 

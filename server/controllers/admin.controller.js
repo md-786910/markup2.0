@@ -189,7 +189,7 @@ exports.lockOrganization = asyncHandler(async (req, res) => {
   const org = await Organization.findByIdAndUpdate(
     req.params.id,
     { isLocked: true, lockedAt: new Date(), lockedReason: reason || 'Locked by admin' },
-    { new: true },
+    { returnDocument: 'after' },
   );
   if (!org) return res.status(404).json({ message: 'Organization not found' });
   logOrgActivity(org._id, req.user._id, 'org.locked', {
@@ -203,7 +203,7 @@ exports.unlockOrganization = asyncHandler(async (req, res) => {
   const org = await Organization.findByIdAndUpdate(
     req.params.id,
     { isLocked: false, lockedAt: null, lockedReason: null },
-    { new: true },
+    { returnDocument: 'after' },
   );
   if (!org) return res.status(404).json({ message: 'Organization not found' });
   logOrgActivity(org._id, req.user._id, 'org.unlocked', {
@@ -398,7 +398,7 @@ exports.updatePlan = asyncHandler(async (req, res) => {
   await PlanConfig.findOneAndUpdate(
     { planId },
     { $set },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: 'after' },
   );
 
   clearPlanCache();
@@ -478,7 +478,7 @@ exports.updatePaymentSettings = asyncHandler(async (req, res) => {
   await PaymentSettings.findOneAndUpdate(
     { key: 'default' },
     { $set },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 
   clearPaymentSettingsCache();
