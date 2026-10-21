@@ -210,7 +210,7 @@ exports.testIntegration = asyncHandler(async (req, res) => {
     projectName: 'Test Project',
     pinNumber: 1,
     projectId: 'test',
-    comment: 'This is a test notification from Feedbackly.',
+    comment: 'This is a test notification from Kommently.',
   };
 
   try {

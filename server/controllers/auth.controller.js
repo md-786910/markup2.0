@@ -21,6 +21,7 @@ const { generateCsrfToken, CSRF_COOKIE } = require("../middleware/csrf");
 const { validatePassword } = require("../utils/passwordPolicy");
 const { logOrgActivity, logActivity } = require("../utils/activityLogger");
 const { createProjectNotifications, createSingleNotification } = require("../utils/notificationHelper");
+const { URLS, SECURE_COOKIES } = require('../config/env');
 
 // Build the plan-related fields for a freshly-created Organization.
 // When admin has flipped Free as the default for new signups, skip the trial
@@ -129,7 +130,7 @@ const setCookieAndRespond = async (res, user, org, statusCode = 200, extra = {})
   res.cookie("markup_token", token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: SECURE_COOKIES,
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   });
@@ -140,7 +141,7 @@ const setCookieAndRespond = async (res, user, org, statusCode = 200, extra = {})
   res.cookie(CSRF_COOKIE, csrfToken, {
     httpOnly: false,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: SECURE_COOKIES,
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   });
@@ -534,7 +535,7 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
     user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
     await user.save({ validateBeforeSave: false });
 
-    const resetUrl = `${process.env.CLIENT_ORIGIN || "http://localhost:3000"}/reset-password/${rawToken}`;
+    const resetUrl = `${URLS.app}/reset-password/${rawToken}`;
 
     try {
       await sendPasswordResetEmail(user.email, resetUrl);

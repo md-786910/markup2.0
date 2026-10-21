@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Organization = require('../models/Organization');
 const { getLimitsForPlanAsync } = require('../config/plans');
-require('dotenv').config({ path: '.env' });
+require('../config/env');
 
 async function run() {
   await mongoose.connect(process.env.MONGODB_URI);

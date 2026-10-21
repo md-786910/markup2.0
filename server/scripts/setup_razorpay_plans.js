@@ -1,5 +1,5 @@
 const Razorpay = require('razorpay');
-require('dotenv').config({ path: './.env' });
+require('../config/env');
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -32,12 +32,13 @@ async function run() {
     });
     console.log("RAZORPAY_PRO_PLAN_ID=" + proPlan.id);
 
-    // Update .env file
+    // Update the repo-root .env
     const fs = require('fs');
-    let env = fs.readFileSync('./.env', 'utf8');
+    const envPath = require('path').join(__dirname, '..', '..', '.env');
+    let env = fs.readFileSync(envPath, 'utf8');
     env = env.replace(/RAZORPAY_STARTER_PLAN_ID=.*/, 'RAZORPAY_STARTER_PLAN_ID=' + starterPlan.id);
     env = env.replace(/RAZORPAY_PRO_PLAN_ID=.*/, 'RAZORPAY_PRO_PLAN_ID=' + proPlan.id);
-    fs.writeFileSync('./.env', env);
+    fs.writeFileSync(envPath, env);
 
     // Also update MongoDB PlanConfig
     const mongoose = require('mongoose');

@@ -312,7 +312,7 @@ export default function OnboardingPage() {
       amount: session.amount,
       currency: session.currency,
       order_id: session.orderId,
-      name: 'Feedbackly',
+      name: 'Kommently',
       description: `${(livePlans || []).find((p) => p.id === selectedPlan)?.name || ''} subscription`,
       prefill: { name, email },
       theme: { color: '#176b57' },

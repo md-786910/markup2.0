@@ -11,7 +11,7 @@
  * field + the read-time fallback in guest.controller.js can be removed.
  */
 
-require('dotenv').config({ path: __dirname + '/../.env' });
+require('../config/env');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const Project = require('../models/Project');

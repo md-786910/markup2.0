@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { URLS } = require('../config/env');
 
 // Signed, non-expiring links that turn off notification emails for one address.
 // Billing and account emails (invitations, password resets, invoices) are
@@ -20,7 +21,7 @@ function verifyUnsubscribeToken(token) {
 
 // Public URL of the API (the unsubscribe endpoint lives there)
 function unsubscribeUrl(email) {
-  const base = (process.env.API_PUBLIC_URL || process.env.CLIENT_ORIGIN || 'http://localhost:5000').replace(/\/+$/, '');
+  const base = URLS.api;
   return `${base}/api/email/unsubscribe?token=${encodeURIComponent(signUnsubscribeToken(email))}`;
 }
 

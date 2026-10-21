@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("./config/env");
 // Sentry must load before everything else so it can instrument Express/HTTP/MongoDB
 const { Sentry } = require("./instrument");
 const http = require("http");
@@ -14,6 +14,7 @@ const { isProxyToken } = require("./utils/proxyToken");
 const { flushAll, startEmailWorker } = require("./utils/emailQueue");
 const { redisEnabled, createConnection, closeRedis } = require("./utils/redis");
 const { startBillingScheduler, stopBillingScheduler } = require("./utils/scheduler");
+const { ALLOWED_ORIGINS } = require("./config/env");
 
 // Log instead of dying silently; a crash after an uncaught exception is intended
 // (state may be corrupt) so the process manager restarts it.
@@ -35,9 +36,7 @@ connectDB()
 
     const io = new Server(server, {
       cors: {
-        origin: (process.env.CORS_ORIGIN || "http://localhost:3000")
-          .split(",")
-          .map((o) => o.trim()),
+        origin: ALLOWED_ORIGINS,
         methods: ["GET", "POST"],
         credentials: true,
       },

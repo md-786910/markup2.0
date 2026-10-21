@@ -1,6 +1,7 @@
 const axios = require('axios');
+const { URLS } = require('../config/env');
 
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+const CLIENT_ORIGIN = URLS.app;
 
 /**
  * Create a Jira issue from a pin.
@@ -20,7 +21,7 @@ async function createJiraIssue(config, data) {
     {
       fields: {
         project: { key: projectKey },
-        summary: `[Feedbackly] Pin #${data.pinNumber} — ${data.projectName}`,
+        summary: `[Kommently] Pin #${data.pinNumber} — ${data.projectName}`,
         description: {
           type: 'doc',
           version: 1,
@@ -40,7 +41,7 @@ async function createJiraIssue(config, data) {
             {
               type: 'paragraph',
               content: [
-                { type: 'text', text: `View in Feedbackly: ${link}` },
+                { type: 'text', text: `View in Kommently: ${link}` },
               ],
             },
           ],

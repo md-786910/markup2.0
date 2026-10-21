@@ -1,6 +1,7 @@
 const axios = require('axios');
+const { URLS } = require('../config/env');
 
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+const CLIENT_ORIGIN = URLS.app;
 
 function stripHtml(html) {
   if (!html) return '';
@@ -38,7 +39,7 @@ async function sendDiscordNotification(webhookUrl, data) {
       url: link,
       color: ACTION_COLORS[data.action] || 0x3b82f6,
       timestamp: new Date().toISOString(),
-      footer: { text: 'Feedbackly' },
+      footer: { text: 'Kommently' },
     }],
   });
 }

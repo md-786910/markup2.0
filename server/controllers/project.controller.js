@@ -16,6 +16,7 @@ const { createProjectNotifications, createSingleNotification } = require('../uti
 const { signProxyToken } = require('../utils/proxyToken');
 const { seatLimitError } = require('../middleware/orgLimits');
 const { deleteProjectCascade } = require('../utils/cascade');
+const { URLS } = require('../config/env');
 
 // Hash a share-link password with bcrypt. 10 rounds (vs 12 for user passwords)
 // because share passwords are typically shorter / lower-stakes and we want
@@ -382,7 +383,7 @@ exports.inviteMember = asyncHandler(async (req, res) => {
   });
 
   // Send email
-  const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+  const clientOrigin = URLS.app;
   const signupUrl = `${clientOrigin}/signup?token=${token}`;
   let emailSent = true;
   let emailError = '';
@@ -615,7 +616,7 @@ exports.enableShare = asyncHandler(async (req, res) => {
   // Activity log
   logActivity(project._id, req.user._id, 'share.enabled');
 
-  const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+  const clientOrigin = URLS.app;
   res.json({
     shareSettings: sanitizeShareSettings(project.shareSettings),
     shareUrl: `${clientOrigin}/review/${project.shareSettings.token}`,
@@ -650,7 +651,7 @@ exports.updateShare = asyncHandler(async (req, res) => {
 
   await project.save();
 
-  const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+  const clientOrigin = URLS.app;
   res.json({
     shareSettings: sanitizeShareSettings(project.shareSettings),
     shareUrl: `${clientOrigin}/review/${project.shareSettings.token}`,

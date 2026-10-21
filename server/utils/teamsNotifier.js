@@ -1,6 +1,7 @@
 const axios = require('axios');
+const { URLS } = require('../config/env');
 
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+const CLIENT_ORIGIN = URLS.app;
 
 function stripHtml(html) {
   if (!html) return '';
@@ -62,7 +63,7 @@ async function sendTeamsNotification(webhookUrl, data) {
           actions: [
             {
               type: 'Action.OpenUrl',
-              title: 'View in Feedbackly',
+              title: 'View in Kommently',
               url: link,
             },
           ],

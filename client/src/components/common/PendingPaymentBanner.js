@@ -123,7 +123,7 @@ export default function PendingPaymentBanner() {
       amount: inv.amount,
       currency: inv.currency || 'INR',
       order_id: inv.razorpayOrderId,
-      name: 'Feedbackly',
+      name: 'Kommently',
       description: `${(inv.plan || '').charAt(0).toUpperCase() + (inv.plan || '').slice(1)} plan invoice`,
       prefill: { name: user?.name, email: user?.email },
       theme: { color: '#176b57' },

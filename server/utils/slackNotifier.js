@@ -1,6 +1,7 @@
 const axios = require('axios');
+const { URLS } = require('../config/env');
 
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+const CLIENT_ORIGIN = URLS.app;
 
 function stripHtml(html) {
   if (!html) return '';
@@ -42,7 +43,7 @@ async function sendSlackNotification(webhookUrl, data) {
     type: 'actions',
     elements: [{
       type: 'button',
-      text: { type: 'plain_text', text: 'View in Feedbackly' },
+      text: { type: 'plain_text', text: 'View in Kommently' },
       url: link,
     }],
   });

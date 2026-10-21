@@ -9,6 +9,8 @@
  * asterisks** to bold them (e.g. `**${actor}** commented`).
  */
 
+const { URLS } = require('../../config/env');
+
 const BRAND = {
   name: 'Kommently',
   tagline: 'Visual feedback for websites and documents',
@@ -61,7 +63,7 @@ function initials(name) {
 }
 
 function clientOrigin() {
-  return (process.env.CLIENT_ORIGIN || 'http://localhost:3000').replace(/\/$/, '');
+  return URLS.app;
 }
 
 // ── Blocks ──────────────────────────────────────────────────────────────────

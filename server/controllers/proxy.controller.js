@@ -16,6 +16,7 @@ const {
 const asyncHandler = require("../utils/asyncHandler");
 const { isPublicUrl, safeLookup, beforeRedirect } = require("../utils/ssrfGuard");
 const { relayQuery } = require("../utils/relayToken");
+const { SECURE_COOKIES } = require("../config/env");
 
 // --- Outbound proxy for blocked connections ---
 const OUTBOUND_PROXY = process.env.OUTBOUND_PROXY;
@@ -347,7 +348,7 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
       const pageOrigin = new URL(url).origin;
       const ctxPayload = { origin: pageOrigin, projectId, token: req.query.token || '' };
       if (isGuest) ctxPayload.guest = true;
-      res.cookie('__markup_proxy_ctx', JSON.stringify(ctxPayload), { httpOnly: false, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', maxAge: 24 * 60 * 60 * 1000 });
+      res.cookie('__markup_proxy_ctx', JSON.stringify(ctxPayload), { httpOnly: false, sameSite: 'lax', secure: SECURE_COOKIES, maxAge: 24 * 60 * 60 * 1000 });
     } catch {}
     const html = response.data.toString("utf-8");
     let rewritten = rewriteHtml(html, url, projectId, serverBase, workerBase, isGuest);

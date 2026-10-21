@@ -1,5 +1,5 @@
 /**
- * Feedbackly Design Palette -- Source of Truth
+ * Kommently Design Palette -- Source of Truth
  *
  * This file documents the current eco-modern visual system. It is not imported
  * at runtime; Tailwind utility classes and theme configuration apply styling.

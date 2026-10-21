@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const Invitation = require('../models/Invitation');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendInvitationEmail } = require('../utils/mailer');
+const { URLS } = require('../config/env');
 
 // GET /api/invitations/:token — public, no auth required
 exports.getInvitation = asyncHandler(async (req, res) => {
@@ -97,7 +98,7 @@ exports.resendInvitation = asyncHandler(async (req, res) => {
   invitation.expiresAt = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
   await invitation.save();
 
-  const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+  const clientOrigin = URLS.app;
   const signupUrl = `${clientOrigin}/signup?token=${invitation.token}`;
 
   try {

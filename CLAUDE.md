@@ -1,4 +1,4 @@
-# Markup MVP (Kommently / feedbackly.online)
+# Markup MVP (Kommently)
 
 Visual feedback SaaS: a team loads a **live website** (via our proxy, inside an iframe) or **uploaded documents** (PDF/images), drops **pins** on it, and discusses each pin in a **comment thread**. Guests review via a public share link. Multi-tenant (organizations), paid plans with trial.
 
@@ -11,12 +11,14 @@ Visual feedback SaaS: a team loads a **live website** (via our proxy, inside an 
 | `admin/` | Superadmin panel (orgs, users, pricing overrides, payment provider) | CRA React 19, Vercel |
 | `website/` | Marketing site (`kommently-website`) | CRA React 19, framer-motion, Vercel |
 | `cloudflare-relay/` | Worker `markup-relay`: fetches assets for proxied sites, strips XFO/CSP; requires a signed `rt` token when `RELAY_SECRET` is set | Cloudflare Workers |
-| `deploy/` | Docker Compose data services: Mongo + Redis on 127.0.0.1 only (admins use an SSH tunnel), least-privilege Mongo app user, weekly AES-256 backup sidecar. See `deploy/README.md` | Docker Compose |
+| `deploy/` | Docker files used by the root `docker-compose.yml` (caddy, server, client/admin/website as nginx static builds, mongo, redis, weekly backup): `Caddyfile`, `docker/{server,spa}.Dockerfile` (build context = repo root), `mongo-init/`, `backup/`. See `deploy/README.md` | Docker Compose |
 | `plan/` | Todo notes | — |
 
-Run: `cd server && npm run dev` (port 5000); `cd client && DISABLE_ESLINT_PLUGIN=true npm start` (3000, `setupProxy.js` forwards `/api`, `/uploads`, `/socket.io`; without the env var CRA fails with `Environment key "jest/globals" is unknown`). Needs local MongoDB; Redis is optional. All env vars are documented in `server/.env.example` and `client/.env.example`. Never print `.env` values.
+**One `.env` at the repo root** (template: `.env.example`) configures everything: Docker Compose, the server (`server/config/env.js` loads it and exports `URLS` and `ALLOWED_ORIGINS`; use those, not `process.env.*_URL`), scripts and frontend image builds. Live/testing deployment: `kommently.info` (HTTPS). Local machine: `http://*.kommently.localhost` through the same stack. Cookies are `Secure` only when `API_URL` is HTTPS (`SECURE_COOKIES`). Deploy: `docker compose up -d --build` from the repo root.
 
-Tests: `cd server && npm test` runs `test/smoke.js` (~90 end-to-end checks: tenancy, guest links, proxy SSRF, billing, trials, limits, GDPR, security) against the real app and a throwaway DB (`TEST_MONGODB_URI`, name must end in `_test`; it is dropped). `TEST_REDIS_URL=redis://… npm test` also exercises the Redis paths. The suite stubs every mailer function. Also verify server edits with `node --check <file>`. Production deps: don't upgrade existing packages without asking.
+Run locally: `docker compose up -d mongo redis`, then `cd server && npm run dev` (port 5000); `cd client && DISABLE_ESLINT_PLUGIN=true npm start` (3000, `setupProxy.js` forwards `/api`, `/uploads`, `/socket.io`; without the env var CRA fails with `Environment key "jest/globals" is unknown`). Redis is optional. Frontends fall back to localhost URLs when run with `npm start`. Never print `.env` values.
+
+Tests: `cd server && npm test` runs `test/smoke.js` (~90 end-to-end checks: tenancy, guest links, proxy SSRF, billing, trials, limits, GDPR, security) against the real app and a throwaway DB (`TEST_MONGODB_URI`, name must end in `_test`; it is dropped). `TEST_REDIS_URL=redis://… npm test` also exercises the Redis paths. The suite stubs every mailer function. `test/emailLinks.js live|local` (also in `npm test`) runs forgot-password, invitation, notification, trial and receipt flows with real templates and checks every email link targets the configured `APP_URL`/`API_URL` and an existing client route. Also verify server edits with `node --check <file>`. Production deps: don't upgrade existing packages without asking.
 
 ## Server (`server/`)
 
@@ -88,7 +90,8 @@ Tests: `cd server && npm test` runs `test/smoke.js` (~90 end-to-end checks: tena
 - Guest proxy iframe requests check only that sharing is enabled and not expired, not the share password (the iframe URL has no share token).
 - The proxy and `/uploads` are served from the API origin; moving them to a separate sandbox domain is the remaining structural fix.
 - Storage quota only counts files uploaded after quotas were added.
-- Brand name is mixed: app UI, checkout and integrations say "Feedbackly"; website and emails say "Kommently".
 - Deferred (major-version) dependency upgrades: `nodemailer` 8→10 and `geoip-lite`, each with open npm advisories.
 - Invoice numbers can skip a value if a settle fails after the number is assigned (rare).
+- Frontend images bake in `REACT_APP_*` at build time: changing a public URL means rebuilding them.
+- The API must be on its own host (`API_URL`): proxied review sites run on it and their stray requests rely on the Express catch-all.
 - `.claude/` is gitignored, so agents in `.claude/agents/` are local only.

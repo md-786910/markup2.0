@@ -3,8 +3,9 @@ const { settleInvoice } = require('./settleInvoice');
 const Invoice = require('../models/Invoice');
 const { PaymentVerificationError } = require('./errors');
 const { applyRefund } = require('./refundInvoice');
+const { URLS } = require('../config/env');
 
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+const CLIENT_ORIGIN = URLS.app;
 
 // Tell the org owner a payment attempt failed (fire-and-forget).
 async function notifyPaymentFailed(invoice) {

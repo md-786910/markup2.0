@@ -28,6 +28,7 @@ const {
   globalLimiter,
 } = require("./middleware/rateLimiters");
 const { verifyCsrf } = require("./middleware/csrf");
+const { ALLOWED_ORIGINS } = require("./config/env");
 
 // Fail fast if JWT_SECRET is missing or weak — refuse to boot rather than
 // silently issue forgeable tokens with a default fallback.
@@ -51,30 +52,8 @@ app.use(
     frameguard: false,
   }),
 );
-// CORS allowlist: env-driven (ALLOWED_ORIGINS=comma,separated,list) with a
-// hardcoded fallback for the known prod hosts. Localhost matches in dev only.
-const FALLBACK_ORIGINS = [
-  ...(process.env.CORS_ORIGIN || "http://localhost:3000")
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean),
-  process.env.ADMIN_ORIGIN || "http://localhost:3001",
-  process.env.WEBSITE_ORIGIN || "http://localhost:3002",
-  "https://app.feedbackly.online",
-  "https://markupadmin.vercel.app",
-  "https://admin.feedbackly.online",
-  "https://feedbackly.online",
-  "https://www.feedbackly.online",
-  "https://markupadmin1.vercel.app",
-];
-const ENV_ORIGINS = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-  : [];
-const ALLOWED_ORIGINS = Array.from(
-  new Set([...FALLBACK_ORIGINS, ...ENV_ORIGINS]),
-);
+// CORS allowlist: the app, admin and website URLs from .env (+ EXTRA_CORS_ORIGINS).
+// Localhost matches in dev only.
 const LOCALHOST_RE = /^https?:\/\/localhost(:\d+)?$/;
 
 app.use(

@@ -8,9 +8,10 @@
 const fs = require('fs');
 const path = require('path');
 const t = require('../utils/email/templates');
+const { URLS } = require('../config/env');
 
 const outDir = path.resolve(process.argv[2] || path.join(__dirname, '..', 'email-previews'));
-const APP = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+const APP = URLS.app;
 const link = `${APP}/project/6650c0ffee/?pin=665abc`;
 const commentBody = '<p>Hey <span class="mention" data-id="6ad602c47513f58c26b355f3" data-value="Frederik">@Frederik</span>, the hero headline wraps awkwardly on tablet. Can we tighten the copy to <strong>"Ship feedback faster"</strong>?</p>';
 const dueAt = new Date(Date.now() + 10 * 86400000);

@@ -68,7 +68,7 @@ export default function UpgradeModal({ selectedPlan, currentPlanId, currentPlanN
       const options = {
         key: res.data.key_id,
         order_id: res.data.orderId,
-        name: 'Feedbackly',
+        name: 'Kommently',
         description: `Upgrade to ${selectedPlan.name}`,
         handler: async function (response) {
           try {

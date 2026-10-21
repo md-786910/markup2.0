@@ -5,7 +5,7 @@
  *   - If not, creates a new superadmin user (no organization).
  */
 
-require("dotenv").config();
+require('../config/env');
 const mongoose = require("mongoose");
 const User = require("../models/User");
 const connectDB = require("../config/db");

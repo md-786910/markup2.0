@@ -10,7 +10,7 @@
  * Safe to re-run: matches only documents missing the field.
  */
 
-require('dotenv').config({ path: __dirname + '/../.env' });
+require('../config/env');
 const mongoose = require('mongoose');
 const Invoice = require('../models/Invoice');
 

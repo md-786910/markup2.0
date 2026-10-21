@@ -22,7 +22,7 @@
  * runs until the *next* anniversary.
  */
 
-require('dotenv').config({ path: __dirname + '/../.env' });
+require('../config/env');
 const mongoose = require('mongoose');
 
 const Organization = require('../models/Organization');
@@ -31,6 +31,7 @@ const User = require('../models/User');
 const PlanConfig = require('../models/PlanConfig');
 const { getActiveProvider } = require('../payments');
 const { getPlansWithOverrides, getLimitsForPlanAsync } = require('../config/plans');
+const { URLS } = require('../config/env');
 const {
   sendInvoiceCreatedEmail,
   sendPaymentReminderEmail,
@@ -42,7 +43,7 @@ const {
 const { BILLING_LOCK_REASONS, clearBillingLock } = require('../utils/orgUtils');
 const { addMonthsUTC } = require('../utils/billingDates');
 
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+const CLIENT_ORIGIN = URLS.app;
 const PAY_URL = `${CLIENT_ORIGIN}/settings?tab=invoices`;
 const PLAN_URL = `${CLIENT_ORIGIN}/settings?tab=billing`;
 

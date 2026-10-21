@@ -1,0 +1,13 @@
+# Build context is the repo root (deploy/docker/*.Dockerfile). Keep secrets,
+# dependencies, build output and user data out of every image.
+**/node_modules
+**/build
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+.git
+.claude
+server/uploads
+deploy/backups
+cloudflare-relay

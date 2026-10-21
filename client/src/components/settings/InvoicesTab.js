@@ -165,7 +165,7 @@ export default function InvoicesTab() {
       amount: invoice.amount,
       currency: invoice.currency,
       order_id: invoice.razorpayOrderId,
-      name: 'Feedbackly',
+      name: 'Kommently',
       description: `Payment for ${invoice.plan} plan`,
       handler: async function (response) {
         try {
