@@ -8,7 +8,7 @@ const SERVER = path.join(__dirname, '..');
 const MODE = process.argv[2] || 'live';
 const ENVS = {
   live: { API_URL: 'https://api.kommently.info', APP_URL: 'https://app.kommently.info', ADMIN_URL: 'https://admin.kommently.info', SITE_URL: 'https://kommently.info' },
-  local: { API_URL: 'http://api.kommently.localhost', APP_URL: 'http://app.kommently.localhost', ADMIN_URL: 'http://admin.kommently.localhost', SITE_URL: 'http://kommently.localhost' },
+  local: { API_URL: 'http://localhost:5000', APP_URL: 'http://localhost:8081', ADMIN_URL: 'http://localhost:8082', SITE_URL: 'http://localhost:8083' },
 };
 Object.assign(process.env, ENVS[MODE], {
   MONGODB_URI: process.env.TEST_MONGODB_URI_LINKS || 'mongodb://localhost:27017/kommently_links_test',

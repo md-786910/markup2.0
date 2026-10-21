@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../hooks/useAuth';
 import { updateProjectEmailNotificationsApi } from '../../services/projectService';
+import { uploadUrl } from '../../utils/uploadUrl';
 
 const AVATAR_COLORS = [
   { bg: 'bg-blue-100', text: 'text-blue-700' },
@@ -467,7 +468,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
                     <div className="relative shrink-0 mt-0.5">
                       {notif.actor?.avatar ? (
                         <img
-                          src={`/uploads/${notif.actor.avatar}`}
+                          src={uploadUrl(notif.actor.avatar)}
                           alt=""
                           className="w-9 h-9 rounded-full object-cover border border-gray-200"
                         />

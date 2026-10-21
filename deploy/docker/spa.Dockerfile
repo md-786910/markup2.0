@@ -1,5 +1,7 @@
-# Static build of a React (CRA) app served by unprivileged nginx.
-# Used for client/, admin/ and website/ (APP_DIR). Build context: repo root.
+# Production build of a React (CRA) app: the static files end up in /app/build.
+# docker-compose.override.yml copies them to <app>/build in the repo, where the
+# host's nginx serves them. Used for client/, admin/ and website/ (APP_DIR).
+# Build context: repo root.
 # REACT_APP_* values are compiled into the JS at build time, so an image is
 # specific to the URLs it was built with.
 FROM node:22-bookworm-slim AS build
@@ -20,10 +22,3 @@ ENV GENERATE_SOURCEMAP=false \
     DISABLE_ESLINT_PLUGIN=true \
     CI=false
 RUN npm run build
-
-FROM nginxinc/nginx-unprivileged:1.27-alpine
-COPY deploy/docker/spa-nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/build /usr/share/nginx/html
-EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1

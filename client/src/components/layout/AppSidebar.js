@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import TrialBadge from '../common/TrialBadge';
+import { uploadUrl } from '../../utils/uploadUrl';
 
 const navItems = [
   {
@@ -121,7 +122,7 @@ export default function AppSidebar({ collapsed, onToggle }) {
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-800/60 hover:bg-gray-800 transition-colors cursor-default">
             {user?.orgLogo ? (
               <img
-                src={`/uploads/${user.orgLogo}`}
+                src={uploadUrl(user.orgLogo)}
                 alt=""
                 className="w-8 h-8 rounded-lg object-cover shrink-0"
               />
@@ -212,7 +213,7 @@ export default function AppSidebar({ collapsed, onToggle }) {
           >
             {user?.avatar ? (
               <img
-                src={`/uploads/${user.avatar}`}
+                src={uploadUrl(user.avatar)}
                 alt=""
                 className="w-9 h-9 rounded-full object-cover shrink-0"
               />

@@ -6,6 +6,7 @@ import BillingTab from '../components/settings/BillingTab';
 import InvoicesTab from '../components/settings/InvoicesTab';
 import ActivityTab from '../components/settings/ActivityTab';
 import DataPrivacySection from '../components/settings/DataPrivacySection';
+import { uploadUrl } from '../utils/uploadUrl';
 
 const ALL_TABS = [
   { id: 'workspace', label: 'Workspace' },
@@ -156,7 +157,7 @@ export default function SettingsPage() {
             <div className="flex items-center gap-4">
               {user?.orgLogo ? (
                 <img
-                  src={`/uploads/${user.orgLogo}`}
+                  src={uploadUrl(user.orgLogo)}
                   alt="Workspace icon"
                   className="w-12 h-12 rounded-xl object-cover border border-gray-200"
                 />

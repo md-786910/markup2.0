@@ -11,6 +11,7 @@ import {
   getProjectsApi,
   updateProjectEmailNotificationsApi,
 } from '../services/projectService';
+import { uploadUrl } from '../utils/uploadUrl';
 
 function FieldRow({ label, children }) {
   return (
@@ -299,7 +300,7 @@ export default function ProfilePage() {
         <div className="flex items-center gap-4">
           {user?.avatar ? (
             <img
-              src={`/uploads/${user.avatar}`}
+              src={uploadUrl(user.avatar)}
               alt="Avatar"
               className="w-10 h-10 rounded-full object-cover border border-gray-200"
             />
