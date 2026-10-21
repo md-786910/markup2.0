@@ -370,6 +370,10 @@ function proxyTokenFor(req, projectId) {
 async function processResponse(req, res, response, url, projectId, serverBase, workerBase) {
   // CORS: allow cross-origin access for fonts/assets loaded from Worker-served CSS
   res.setHeader('Access-Control-Allow-Origin', '*');
+  // Behave like the site: our global nosniff (helmet) would block scripts a site
+  // serves as text/plain, which browsers run on the real site. The site's own
+  // nosniff header, if any, is copied back below with its other headers.
+  res.removeHeader('X-Content-Type-Options');
 
   // Origins that throttle the Worker: rewrite this response's sub-resources to Express
   if (workerBase && (isRelayBypassDomain(url) || isRelayThrottlingOrigin(response.headers))) {
