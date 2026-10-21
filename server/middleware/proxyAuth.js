@@ -35,6 +35,10 @@ module.exports = async (req, res, next) => {
       let token = null;
       if (req.query && req.query.token) token = req.query.token;
       else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) token = req.headers.authorization.split(' ')[1];
+      // Assets the server rewrote into the page carry no token in their URL; the
+      // page's proxy token is kept in this cookie (signature and project are
+      // still verified below).
+      else if (ctx.token) token = ctx.token;
       else if (req.cookies && req.cookies.markup_token) token = req.cookies.markup_token;
       if (!token) return res.status(401).json({ message: 'No token provided' });
       try {

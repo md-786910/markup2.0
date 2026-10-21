@@ -30,8 +30,11 @@ function withWww(url) {
 // plain-HTTP local domains, where browsers would otherwise drop them.
 const SECURE_COOKIES = URLS.api.startsWith('https://');
 
-// Browser origins allowed to call the API (CORS + socket.io)
+// Browser origins allowed to call the API (CORS + socket.io). The API's own
+// origin is included: reviewed sites are served from it by the website proxy,
+// and their module scripts, fonts and form posts send it as Origin.
 const ALLOWED_ORIGINS = [
+  URLS.api,
   URLS.app,
   URLS.admin,
   URLS.site,

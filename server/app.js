@@ -63,7 +63,8 @@ app.use(
       if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
       if (process.env.NODE_ENV !== "production" && LOCALHOST_RE.test(origin))
         return cb(null, true);
-      return cb(new Error(`CORS: origin ${origin} not allowed`));
+      // Not allowed: answer without CORS headers so the browser blocks it
+      return cb(null, false);
     },
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-Guest-Access"],
