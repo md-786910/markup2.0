@@ -12,6 +12,7 @@ import { stripHtmlForEdit } from "../../utils/htmlUtils";
 import renderCommentBody from "../../utils/renderCommentBody";
 import AttachmentChip from "./AttachmentChip";
 import AttachmentItem from "./AttachmentItem";
+import { fileUrl } from "../../utils/uploadUrl";
 import { ACCEPTED_ATTACHMENT_TYPES } from "../../utils/attachmentHelpers";
 import { formatFullTimestamp } from "../../utils/formatTimestamp";
 
@@ -523,11 +524,11 @@ export default function CommentSidebar({
           </p>
           <button
             className="w-full flex items-center gap-1.5 rounded border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors overflow-hidden h-7 px-1.5"
-            onClick={() => setLightbox({ src: `/${pin.screenshot.path}`, pin })}
+            onClick={() => setLightbox({ src: fileUrl(pin.screenshot.path), pin })}
           >
             <div className="w-5 h-5 rounded shrink-0 overflow-hidden">
               <img
-                src={`/${pin.screenshot.path}`}
+                src={fileUrl(pin.screenshot.path)}
                 alt=""
                 className="w-full h-full object-cover blur-sm scale-110"
               />

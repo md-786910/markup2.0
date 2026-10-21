@@ -1,7 +1,8 @@
 import { getFileExtensionLabel, isImageAttachment } from "../../utils/attachmentHelpers";
+import { fileUrl } from "../../utils/uploadUrl";
 
 export default function AttachmentItem({ attachment, src, onImageClick }) {
-  const url = src || `/${attachment.path}`;
+  const url = src || fileUrl(attachment.path);
 
   if (isImageAttachment(attachment.mimetype)) {
     return (
