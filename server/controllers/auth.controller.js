@@ -539,7 +539,8 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
 
     try {
       await sendPasswordResetEmail(user.email, resetUrl);
-    } catch {
+    } catch (err) {
+      req.log.error({ err, smtpCode: err.code }, "password reset email failed to send");
       user.resetPasswordToken = undefined;
       user.resetPasswordExpires = undefined;
       await user.save({ validateBeforeSave: false });
@@ -743,7 +744,7 @@ exports.sendOtp = asyncHandler(async (req, res) => {
   try {
     await sendEmailVerificationOtp(emailNorm, otp);
   } catch (err) {
-    console.error("[otp] failed to send:", err.message);
+    req.log.error({ err, smtpCode: err.code }, "verification email failed to send");
     return res.status(500).json({ message: "Failed to send verification email." });
   }
 

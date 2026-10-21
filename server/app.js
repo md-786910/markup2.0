@@ -29,6 +29,7 @@ const {
 } = require("./middleware/rateLimiters");
 const { verifyCsrf } = require("./middleware/csrf");
 const { ALLOWED_ORIGINS } = require("./config/env");
+const { httpLogger, captureErrorMessage } = require("./utils/logger");
 
 // Fail fast if JWT_SECRET is missing or weak — refuse to boot rather than
 // silently issue forgeable tokens with a default fallback.
@@ -42,6 +43,10 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
+
+// Request log (first, so every request is captured, incl. webhooks and proxy)
+app.use(httpLogger);
+app.use(captureErrorMessage);
 
 // Middleware
 app.use(compression());
@@ -231,9 +236,10 @@ if (sentryEnabled) Sentry.setupExpressErrorHandler(app);
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
   // Upload validation errors (file too large, too many files) are client errors
   const status = err.name === "MulterError" ? 400 : (err.statusCode || err.status || 500);
+  // The request log then includes the error with its stack
+  if (status >= 500) res.err = err;
   // Only expose messages for client errors; 5xx details stay in the server log
   res.status(status).json({
     message: status < 500 ? (err.message || "Request failed") : "Internal server error",

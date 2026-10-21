@@ -12,7 +12,8 @@
     "start": "node server.js",
     "clear:pending-invitations": "node scripts/clearPendingInvitations.js",
     "preview:emails": "node scripts/previewEmails.js",
-    "billing": "node scripts/runBilling.js"
+    "billing": "node scripts/runBilling.js",
+    "check:smtp": "node scripts/checkSmtp.js"
   },
   "keywords": [],
   "author": "",
@@ -43,6 +44,8 @@
     "nodemailer": "^8.0.2",
     "pdf-parse": "^2.4.5",
     "pdfkit": "^0.15.2",
+    "pino": "10.4.0",
+    "pino-http": "11.0.0",
     "rate-limit-redis": "6.0.1",
     "razorpay": "^2.9.6",
     "sanitize-html": "^2.18.1",
@@ -50,6 +53,7 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "pino-pretty": "13.2.0"
   }
 }

@@ -15,6 +15,11 @@ function getTransporter() {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    // Fail in seconds, not minutes (nodemailer defaults to 2 min to connect):
+    // OTP and password-reset requests wait for the send.
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 30000,
   });
 
   return transporter;
@@ -132,6 +137,7 @@ async function sendSubscriptionCanceledEmail(toEmail, orgName, planName, endsAt,
 }
 
 module.exports = {
+  getTransporter,
   sendInvitationEmail,
   sendPinNotificationEmail,
   sendCommentNotificationEmail,
