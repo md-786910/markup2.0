@@ -162,7 +162,13 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   },
 }));
 
-// Serve html2canvas for iframe screenshot capture (under /api/ so Nginx forwards to Express)
+// Screenshot libraries for the review iframe (under /api/ so Nginx forwards to
+// Express): html2canvas, and html2canvas-pro as the fallback for pages it can't
+// parse (modern CSS colors such as oklch/oklab).
+app.use(
+  "/api/vendor/pro",
+  express.static(path.join(__dirname, "node_modules", "html2canvas-pro", "dist"), { maxAge: "7d" }),
+);
 app.use(
   "/api/vendor",
   express.static(path.join(__dirname, "node_modules", "html2canvas", "dist"), { maxAge: "7d" }),

@@ -209,22 +209,184 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     __markupToken = new URLSearchParams(window.location.search).get('token') || '';
   } catch(e) {}
   var pinMode = false;
+  // Each pin-mode click gets an id; its screenshot carries the same id so the
+  // app never attaches a late screenshot to a different pin.
+  var __markupClickSeq = 0;
 
-  // Screenshot library: loaded on demand (preloaded when pin mode turns on),
-  // so normal page views don't pay for it.
-  var __h2cPromise = null;
-  function loadHtml2canvas() {
-    if (typeof html2canvas === 'function') return Promise.resolve();
-    if (!__h2cPromise) {
-      __h2cPromise = new Promise(function(resolve, reject) {
+  // Screenshot libraries, loaded on demand (the classic one is preloaded when
+  // pin mode turns on, so normal page views don't pay for it):
+  //   classic: html2canvas 1.4.1, used first
+  //   pro:     html2canvas-pro, fallback when classic fails (e.g. oklch colors)
+  // Kept on window.__markupH2c, not the html2canvas global the site may own.
+  var H2C_URLS = {
+    classic: '/api/vendor/html2canvas.min.js?v=1.4.1',
+    pro: '/api/vendor/pro/html2canvas-pro.min.js?v=2.5.1'
+  };
+  window.__markupH2c = window.__markupH2c || {};
+  var __h2cLoading = {};
+  function loadHtml2canvas(kind) {
+    kind = kind || 'classic';
+    if (typeof window.__markupH2c[kind] === 'function') return Promise.resolve(window.__markupH2c[kind]);
+    if (!__h2cLoading[kind]) {
+      __h2cLoading[kind] = new Promise(function(resolve, reject) {
+        var previous = window.html2canvas;
         var s = document.createElement('script');
-        s.src = __markupServerBase + '/api/vendor/html2canvas.min.js?v=1.4.1';
-        s.onload = function() { typeof html2canvas === 'function' ? resolve() : reject(new Error('html2canvas unavailable')); };
-        s.onerror = function() { __h2cPromise = null; reject(new Error('html2canvas failed to load')); };
+        s.src = __markupServerBase + H2C_URLS[kind];
+        // Sites with an AMD loader (RequireJS, Magento) would capture the UMD
+        // bundle through define() instead of a global: hide it while loading.
+        var amdDefine = window.define;
+        var hideAmd = typeof amdDefine === 'function' && amdDefine.amd;
+        if (hideAmd) window.define = undefined;
+        var restoreAmd = function() { if (hideAmd) window.define = amdDefine; };
+        s.onload = function() {
+          restoreAmd();
+          var fn = window.html2canvas;
+          if (previous !== undefined) window.html2canvas = previous;
+          if (typeof fn === 'function' && fn !== previous) { window.__markupH2c[kind] = fn; resolve(fn); }
+          else { __h2cLoading[kind] = null; reject(new Error('html2canvas unavailable')); }
+        };
+        s.onerror = function() { restoreAmd(); __h2cLoading[kind] = null; reject(new Error('html2canvas failed to load')); };
         (document.head || document.documentElement).appendChild(s);
       });
     }
-    return __h2cPromise;
+    return __h2cLoading[kind];
+  }
+
+  // Screenshot of the visible viewport, as the user sees it.
+  //  - html2canvas renders a copy of the page in which CSS animations restart;
+  //    jump them to their end state so faded-in content isn't captured faded.
+  //  - Images outside the viewport or not loaded on the page become blank
+  //    placeholders of the same size (no download, no layout shift); fetching
+  //    every image on a long page made captures time out.
+  //  - Device pixel ratio (max 2) keeps text sharp on HiDPI screens.
+  //  - The pin overlay is left out; the app draws the marker itself.
+  //  - If the full capture fails or is too slow, a fast one with short image
+  //    waits is tried; under the 5 MB upload limit via lower JPEG quality.
+  var SCREENSHOT_MAX_CHARS = 6000000; // ~4.4 MB as JPEG
+  var BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  var SKIP_ATTR = 'data-markup-skip';
+
+  // Marks images to blank in the copy (offscreen or not loaded). Images not
+  // loaded on the page (lazy, pending) also lose src/srcset on the page until
+  // the copy exists: otherwise the copy loads them and the extra height shifts
+  // everything below (wrong region). They show nothing on screen either way.
+  function markHiddenImages() {
+    var marked = [];
+    var margin = 200;
+    var imgs = document.images;
+    for (var i = 0; i < imgs.length; i++) {
+      var img = imgs[i];
+      var r = img.getBoundingClientRect();
+      var offscreen = r.bottom < -margin || r.top > window.innerHeight + margin || r.right < -margin || r.left > window.innerWidth + margin;
+      var notLoaded = !img.complete || !img.naturalWidth;
+      if (!offscreen && !notLoaded) continue;
+      var entry = { img: img, held: false };
+      if (notLoaded) {
+        entry.held = true;
+        entry.src = img.getAttribute('src');
+        entry.srcset = img.getAttribute('srcset');
+        img.removeAttribute('srcset');
+        img.removeAttribute('src');
+      }
+      img.setAttribute(SKIP_ATTR, Math.round(r.width) + 'x' + Math.round(r.height));
+      marked.push(entry);
+    }
+    return marked;
+  }
+  function unmark(marked) {
+    for (var i = 0; i < marked.length; i++) {
+      var e = marked[i];
+      e.img.removeAttribute(SKIP_ATTR);
+      if (e.held) {
+        e.held = false;
+        // Don't overwrite a source the site set in the meantime
+        if (e.srcset != null && !e.img.hasAttribute('srcset')) e.img.setAttribute('srcset', e.srcset);
+        if (e.src != null && !e.img.hasAttribute('src')) e.img.setAttribute('src', e.src);
+      }
+    }
+  }
+  function blankSkippedImages(doc) {
+    var imgs = doc.querySelectorAll('img[' + SKIP_ATTR + ']');
+    for (var i = 0; i < imgs.length; i++) {
+      var img = imgs[i];
+      var size = img.getAttribute(SKIP_ATTR).split('x');
+      var pic = img.parentNode && img.parentNode.tagName === 'PICTURE' ? img.parentNode : null;
+      if (pic) { var srcs = pic.querySelectorAll('source'); for (var k = 0; k < srcs.length; k++) srcs[k].parentNode.removeChild(srcs[k]); }
+      img.removeAttribute('srcset');
+      img.removeAttribute('sizes');
+      img.style.width = size[0] + 'px';
+      img.style.height = size[1] + 'px';
+      img.src = BLANK_GIF;
+    }
+  }
+
+  function renderViewport(kind, fast) {
+    var marked = markHiddenImages();
+    var capture;
+    try {
+      capture = window.__markupH2c[kind](document.documentElement, {
+        x: window.scrollX || window.pageXOffset,
+        y: window.scrollY || window.pageYOffset,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        scale: Math.min(window.devicePixelRatio || 1, 2),
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        imageTimeout: fast ? 500 : 2500,
+        ignoreElements: function(el) {
+          return el.id === '__markup_pin_container' || (el.classList && el.classList.contains('__markup_pin'));
+        },
+        onclone: function(doc) {
+          unmark(marked);
+          blankSkippedImages(doc);
+          var st = doc.createElement('style');
+          st.textContent = '*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition:none!important;caret-color:transparent!important}';
+          (doc.head || doc.documentElement).appendChild(st);
+        }
+      });
+    } catch (err) {
+      unmark(marked);
+      return Promise.reject(err);
+    }
+    var limit = new Promise(function(_, reject) {
+      setTimeout(function() { reject(new Error('Screenshot timeout')); }, fast ? 6000 : 9000);
+    });
+    return Promise.race([capture, limit]).then(function(canvas) {
+      unmark(marked);
+      return canvas;
+    }, function(err) {
+      unmark(marked);
+      throw err;
+    });
+  }
+
+  function captureViewport() {
+    var attempt = function(kind, fast) {
+      return loadHtml2canvas(kind).then(function() { return renderViewport(kind, fast); });
+    };
+    var isTimeout = function(err) { return !!err && /timeout/i.test(err.message || ''); };
+    // Too slow (heavy images): retry fast. Can't parse the page (e.g. oklch
+    // colors): html2canvas-pro. Each step only runs if the previous one failed.
+    return attempt('classic', false).catch(function(err) {
+      console.warn('Screenshot: capture failed (' + (err && err.message) + '), retrying');
+      if (isTimeout(err)) {
+        return attempt('classic', true).catch(function() { return attempt('pro', true); });
+      }
+      return attempt('pro', false).catch(function(err2) {
+        if (!isTimeout(err2)) throw err2;
+        return attempt('pro', true);
+      });
+    }).then(function(canvas) {
+      var qualities = [0.85, 0.7, 0.55];
+      for (var i = 0; i < qualities.length; i++) {
+        var dataUrl = canvas.toDataURL('image/jpeg', qualities[i]);
+        if (dataUrl.length <= SCREENSHOT_MAX_CHARS) return dataUrl;
+      }
+      return null;
+    });
   }
   var pins = [];
   var pinContainer = null;
@@ -456,8 +618,10 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
 
       var viewportXPercent = (e.clientX / window.innerWidth) * 100;
       var viewportYPercent = (e.clientY / window.innerHeight) * 100;
+      var clickId = (++__markupClickSeq) + '-' + Date.now();
 
       sendMessage('MARKUP_CLICK', {
+        clickId: clickId,
         xPercent: xPercent,
         yPercent: yPercent,
         viewportXPercent: viewportXPercent,
@@ -470,38 +634,12 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         documentHeight: doc.scrollHeight
       });
 
-      // Capture viewport screenshot asynchronously (don't block pin creation)
-      loadHtml2canvas().then(function() {
-        if (pinContainer) pinContainer.style.display = 'none';
-        var capture = html2canvas(document.documentElement, {
-          x: window.scrollX || window.pageXOffset,
-          y: window.scrollY || window.pageYOffset,
-          width: window.innerWidth,
-          height: window.innerHeight,
-          windowWidth: window.innerWidth,
-          windowHeight: window.innerHeight,
-          scale: 1,
-          useCORS: true,
-          allowTaint: false,
-          logging: false,
-          imageTimeout: 3000,
-        });
-        // Show pins back immediately — html2canvas already read/cloned the DOM
-        setTimeout(function() {
-          if (pinContainer) pinContainer.style.display = '';
-        }, 0);
-        var screenshotTimeout = new Promise(function(_, reject) {
-          setTimeout(function() { reject(new Error('Screenshot timeout')); }, 8000);
-        });
-        Promise.race([capture, screenshotTimeout]).then(function(canvas) {
-          var dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          sendMessage('MARKUP_SCREENSHOT', { screenshot: dataUrl });
-        }).catch(function(err) {
-          console.warn('Screenshot capture failed:', err);
-          sendMessage('MARKUP_SCREENSHOT', { screenshot: null });
-        });
-      }).catch(function() {
-        sendMessage('MARKUP_SCREENSHOT', { screenshot: null });
+      // Capture exactly what is on screen, asynchronously (don't block pin creation)
+      captureViewport().then(function(dataUrl) {
+        sendMessage('MARKUP_SCREENSHOT', { clickId: clickId, screenshot: dataUrl });
+      }).catch(function(err) {
+        console.warn('Screenshot capture failed:', err);
+        sendMessage('MARKUP_SCREENSHOT', { clickId: clickId, screenshot: null });
       });
     }, true);
 
@@ -568,7 +706,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       switch (e.data.type) {
         case 'MARKUP_PIN_MODE':
           pinMode = e.data.enabled;
-          if (pinMode) loadHtml2canvas().catch(function() {});
+          if (pinMode) loadHtml2canvas('classic').catch(function() {});
           var cursorStyleId = '__markup_cursor_style';
           var existing = document.getElementById(cursorStyleId);
           if (pinMode) {

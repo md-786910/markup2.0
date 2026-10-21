@@ -28,6 +28,8 @@ export function useIframeMessages() {
     lastClick: null,
     currentPageUrl: null,
     screenshot: null,
+    // The pin-mode click the screenshot belongs to (frame's clickId)
+    screenshotClickId: null,
   });
 
   useEffect(() => {
@@ -74,7 +76,9 @@ export function useIframeMessages() {
           setState((prev) => ({
             ...prev,
             screenshot: null,
+            screenshotClickId: null,
             lastClick: {
+              clickId: data.clickId || null,
               xPercent: data.xPercent,
               yPercent: data.yPercent,
               viewportXPercent: data.viewportXPercent != null ? data.viewportXPercent : null,
@@ -92,6 +96,7 @@ export function useIframeMessages() {
           setState((prev) => ({
             ...prev,
             screenshot: data.screenshot,
+            screenshotClickId: data.clickId || null,
           }));
           break;
         default:
@@ -112,7 +117,7 @@ export function useIframeMessages() {
   }, []);
 
   const clearScreenshot = useCallback(() => {
-    setState((prev) => ({ ...prev, screenshot: null }));
+    setState((prev) => ({ ...prev, screenshot: null, screenshotClickId: null }));
   }, []);
 
   return { ...state, scroll: scrollRef, clearLastClick, resetReady, clearScreenshot };

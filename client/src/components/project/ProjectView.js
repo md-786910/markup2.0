@@ -63,6 +63,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const [showShare, setShowShare] = useState(false);
   const [pendingPinData, setPendingPinData] = useState(null);
   const [lastCreatedPinId, setLastCreatedPinId] = useState(null);
+  // Click that produced lastCreatedPinId: its screenshot may arrive after the pin is saved
+  const lastCreatedClickIdRef = useRef(null);
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [modeSwitching, setModeSwitching] = useState(false);
@@ -178,9 +180,10 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   // Handle clicks from iframe — store click data for pending pin (don't create yet)
   useEffect(() => {
     if (iframeState.lastClick && pinMode && !pendingPinData) {
-      const { xPercent, yPercent, viewportXPercent, viewportYPercent, selector, elementOffsetX, elementOffsetY, documentWidth, documentHeight } = iframeState.lastClick;
+      const { clickId, xPercent, yPercent, viewportXPercent, viewportYPercent, selector, elementOffsetX, elementOffsetY, documentWidth, documentHeight } = iframeState.lastClick;
       setLastCreatedPinId(null);
       setPendingPinData({
+        clickId,
         xPercent,
         yPercent,
         viewportXPercent,
@@ -197,16 +200,28 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     }
   }, [iframeState.lastClick, iframeState.clearLastClick, pinMode, pendingPinData, currentPageUrl, deviceMode]);
 
-  // Attach screenshot to pending pin data when it arrives asynchronously
+  // Attach screenshot to pending pin data when it arrives asynchronously.
+  // A screenshot only goes to the pin made from the same click: a late one from
+  // a cancelled or earlier click is dropped rather than shown on the wrong pin.
   useEffect(() => {
+    if (!iframeState.screenshot) return;
+    const shotClickId = iframeState.screenshotClickId;
+    // Frames without click ids (older injected script) keep the previous behaviour
+    const sameClick = (clickId) => !shotClickId || !clickId || shotClickId === clickId;
     // Path 1: popup still open — attach screenshot to pending pin data
-    if (iframeState.screenshot && pendingPinData && !pendingPinData.screenshot) {
-      setPendingPinData((prev) => prev ? { ...prev, screenshot: iframeState.screenshot } : prev);
+    if (pendingPinData && !pendingPinData.screenshot) {
+      if (sameClick(pendingPinData.clickId)) {
+        setPendingPinData((prev) => prev ? { ...prev, screenshot: iframeState.screenshot } : prev);
+      }
       iframeState.clearScreenshot();
       return;
     }
     // Path 2: pin already created (fast user) — upload screenshot retroactively
-    if (iframeState.screenshot && lastCreatedPinId && !pendingPinData) {
+    if (lastCreatedPinId && !pendingPinData && !sameClick(lastCreatedClickIdRef.current)) {
+      iframeState.clearScreenshot();
+      return;
+    }
+    if (lastCreatedPinId && !pendingPinData) {
       const pinId = lastCreatedPinId;
       const dataUrl = iframeState.screenshot;
       setLastCreatedPinId(null);
@@ -225,7 +240,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         }
       })();
     }
-  }, [iframeState.screenshot, iframeState.clearScreenshot, pendingPinData, lastCreatedPinId]);
+  }, [iframeState.screenshot, iframeState.screenshotClickId, iframeState.clearScreenshot, pendingPinData, lastCreatedPinId]);
 
   const DEVICE_WIDTHS = { desktop: 1440, tablet: 768, mobile: 375 };
 
@@ -750,7 +765,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           projectId={project._id}
           members={allMembers}
           onClose={() => { setPendingPinData(null); if (!isDocumentProject) iframeState.clearScreenshot(); setLastCreatedPinId(null); }}
-          onPinCreated={(pinId) => { loadPins(); loadAllPins(); setPendingPinData(null); setLastCreatedPinId(pinId); }}
+          onPinCreated={(pinId) => { lastCreatedClickIdRef.current = pendingPinData?.clickId || null; loadPins(); loadAllPins(); setPendingPinData(null); setLastCreatedPinId(pinId); }}
         />
       )}
 
