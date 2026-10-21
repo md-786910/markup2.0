@@ -80,6 +80,63 @@ function markRelayBypass(urlString, reason) {
   console.log(`Relay bypass enabled for ${domain} (${reason})`);
 }
 
+// --- Relay-first domain cache (origins that block or throttle our server's IP) ---
+// Requests go direct first (fastest). When an origin blocks the server, the
+// request is retried through the Cloudflare relay and the domain is remembered,
+// so its next requests (and the page's assets) use the relay first.
+const relayFirstDomains = new BoundedMap(5000);
+const RELAY_FIRST_TTL = 3600000; // 1 hour
+
+function needsRelay(urlString) {
+  const domain = getDomain(urlString);
+  if (!domain) return false;
+  const ts = relayFirstDomains.get(domain);
+  if (!ts) return false;
+  if (Date.now() - ts > RELAY_FIRST_TTL) {
+    relayFirstDomains.delete(domain);
+    return false;
+  }
+  return true;
+}
+
+function markNeedsRelay(urlString, reason) {
+  const domain = getDomain(urlString);
+  if (!domain || relayFirstDomains.has(domain)) return;
+  relayFirstDomains.set(domain, Date.now());
+  console.log(`Relay first for ${domain} (${reason})`);
+}
+
+// Upstream answers on assets that mean "this server is being refused", worth a relay retry
+const ASSET_RETRY_STATUSES = new Set([403, 429, 503]);
+// Network errors the relay can't fix (the site doesn't exist, or we refused it)
+const NO_RELAY_ERRORS = new Set(['ENOTFOUND', 'ECONNREFUSED', 'EBLOCKEDADDRESS', 'ERR_FR_REDIRECTION_FAILURE', 'ERR_FR_TOO_MANY_REDIRECTS']);
+
+// Fetch through the Cloudflare relay. ok: usable response; blocked: relay got a bot wall.
+async function fetchViaRelay(url, isPageRequest) {
+  try {
+    const resp = await axios({
+      method: 'GET',
+      url: `${FALLBACK_RELAY_URL}/?url=${encodeURIComponent(url)}${relayQuery()}`,
+      responseType: 'arraybuffer',
+      maxContentLength: PROXY_MAX_BYTES,
+      timeout: 15000,
+      validateStatus: () => true,
+    });
+    if (resp.status === 429 || resp.status >= 500) {
+      // Relay quota exhausted / origin rate-limits the edge IPs / relay error
+      if (resp.status === 429) markRelayBypass(url, 'relay got 429');
+      return { ok: false, blocked: false };
+    }
+    if (isPageRequest && isBlockedResponse(resp.status, resp.headers['content-type'], resp.data)) {
+      return { ok: false, blocked: true };
+    }
+    return { ok: true, resp };
+  } catch (err) {
+    console.log(`Relay fetch failed for ${url}: ${err.message}`);
+    return { ok: false, blocked: false };
+  }
+}
+
 function isRelayThrottlingOrigin(headers = {}) {
   return headers['platform'] === 'hostinger' || !!headers['x-hcdn-request-id'];
 }
@@ -493,36 +550,24 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     /\/$/.test(new URL(url, 'http://localhost').pathname) ||
     !/\.\w{1,5}(\?|$)/.test(url);
 
-  // --- Primary path: CF Worker fetch (fast, edge) when available ---
+  // The relay can be used for GETs when configured and the origin doesn't throttle it
+  const relayAvailable = !!workerBase && req.method === 'GET' && !isRelayBypassDomain(url);
+  let relayTried = false;
   let workerBlocked = false;
-  if (workerBase && req.method === 'GET' && !isRelayBypassDomain(url)) {
-    try {
-      const workerResp = await axios({
-        method: 'GET',
-        url: `${FALLBACK_RELAY_URL}/?url=${encodeURIComponent(url)}${relayQuery()}`,
-        responseType: 'arraybuffer',
-        maxContentLength: PROXY_MAX_BYTES,
-        timeout: 15000,
-        validateStatus: () => true,
-      });
-      if (workerResp.status === 429 || workerResp.status >= 500) {
-        // Worker quota exhausted / origin rate-limited the edge IP / relay error — go direct
-        console.log(`Worker returned HTTP ${workerResp.status} for ${url}, trying direct...`);
-        if (workerResp.status === 429) markRelayBypass(url, 'relay got 429');
-      } else if (isPageRequest && isBlockedResponse(workerResp.status, workerResp.headers['content-type'], workerResp.data)) {
-        console.log(`Worker response blocked by WAF for ${url} (HTTP ${workerResp.status}), trying direct...`);
-        workerBlocked = true;
-        // Fall through to direct connection below
-      } else {
-        return processResponse(req, res, workerResp, url, projectId, serverBase, workerBase);
-      }
-    } catch (workerErr) {
-      console.log(`Worker-first fetch failed for ${url}: ${workerErr.message}, falling back to direct...`);
-      // Fall through to direct connection below
-    }
+
+  // Origins known to block our server go through the relay first
+  if (relayAvailable && needsRelay(url)) {
+    const relayed = await fetchViaRelay(url, isPageRequest);
+    if (relayed.ok) return processResponse(req, res, relayed.resp, url, projectId, serverBase, workerBase);
+    relayTried = true;
+    workerBlocked = relayed.blocked;
   }
 
-  // --- Direct connection (used when Worker is unavailable, blocked, or for non-GET) ---
+  // Assets of a page fetched directly are proxied through this server too;
+  // pages that needed the relay keep their assets on the relay.
+  const assetBase = () => (needsRelay(url) ? workerBase : null);
+
+  // --- Direct connection (primary path) ---
   try {
     const axiosConfig = {
       method: req.method,
@@ -579,8 +624,22 @@ exports.proxyPage = asyncHandler(async (req, res) => {
 
     const response = await axios(axiosConfig);
 
+    const pageBlocked = isPageRequest && isBlockedResponse(response.status, response.headers['content-type'], response.data);
+    const assetRefused = !isPageRequest && ASSET_RETRY_STATUSES.has(response.status);
+
+    // The origin refuses this server: retry through the relay and remember the domain
+    if ((pageBlocked || assetRefused) && relayAvailable && !relayTried) {
+      const relayed = await fetchViaRelay(url, isPageRequest);
+      relayTried = true;
+      if (relayed.ok) {
+        markNeedsRelay(url, pageBlocked ? 'direct blocked' : `direct HTTP ${response.status}`);
+        return processResponse(req, res, relayed.resp, url, projectId, serverBase, workerBase);
+      }
+      workerBlocked = relayed.blocked;
+    }
+
     // Check if the direct response is also WAF-blocked
-    if (isPageRequest && isBlockedResponse(response.status, response.headers['content-type'], response.data)) {
+    if (pageBlocked) {
       console.log(`Direct response also blocked by WAF for ${url} (HTTP ${response.status}), trying fallbacks...`);
       const fallbackResp = await tryFallback(url);
       if (fallbackResp) {
@@ -592,9 +651,20 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       return sendBlockedError(req, res, url, domain);
     }
 
-    return processResponse(req, res, response, url, projectId, serverBase, workerBase);
+    return processResponse(req, res, response, url, projectId, serverBase, assetBase());
   } catch (err) {
     console.log(`Direct proxy failed: code=${err.code} msg=${err.message} url=${url}`);
+
+    // Timeouts / resets can be an IP block: retry through the relay
+    if (relayAvailable && !relayTried && !NO_RELAY_ERRORS.has(err.code)) {
+      const relayed = await fetchViaRelay(url, isPageRequest);
+      relayTried = true;
+      if (relayed.ok) {
+        markNeedsRelay(url, `direct ${err.code || 'error'}`);
+        return processResponse(req, res, relayed.resp, url, projectId, serverBase, workerBase);
+      }
+      workerBlocked = relayed.blocked;
+    }
 
     // If worker was also blocked and direct threw a network error, try remaining fallbacks
     if (workerBlocked) {

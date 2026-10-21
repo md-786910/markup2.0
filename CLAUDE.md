@@ -44,7 +44,7 @@ Tests: `cd server && npm test` runs `test/smoke.js` (~90 end-to-end checks: tena
 ### Website proxy (the core trick)
 - The iframe src is `/api/proxy?url=…&projectId=…&token=…[&guest=true]`. `token` is a 24h **project-scoped proxy token** (`utils/proxyToken.js`, returned by `GET /projects/:id` and the project list), never the session JWT; the normal auth middleware rejects it. The handlers are `controllers/proxy.controller.js`, `middleware/proxyAuth.js` and `utils/proxyRewriter.js`. Unauthenticated (guest) requests must hit a project with an enabled, unexpired share link.
 - SSRF guard (`utils/ssrfGuard.js`): only public http(s) targets; private/loopback/link-local IPs are blocked at DNS lookup and on every redirect (`PROXY_ALLOW_PRIVATE=true` for local dev only). Responses are capped (`PROXY_MAX_BYTES`), caches are bounded.
-- The server fetches through the Cloudflare relay (`FALLBACK_RELAY_URL`, with a signed `rt` token from `utils/relayToken.js`) first, then directly (with optional `OUTBOUND_PROXY`). It strips XFO/CSP and rewrites cookies (never lets the site set `markup_*` cookies).
+- The server fetches **directly first** (assets of directly-fetched pages are proxied through Express too). When an origin blocks or throttles the server (bot wall on a page, 403/429/503 on an asset, timeout/reset), it retries through the Cloudflare relay (`FALLBACK_RELAY_URL`, signed `rt` token from `utils/relayToken.js`) and remembers the domain for 1h (`relayFirstDomains`), so that page's assets go via the relay. Last resort: optional `OUTBOUND_PROXY`, then the blocked/error page. Sub-resource auth reads the project proxy token from the `__markup_proxy_ctx` cookie. It strips XFO/CSP and rewrites cookies (never lets the site set `markup_*` cookies).
 - It sets the `__markup_proxy_ctx` cookie. A catch-all in `app.js` 307-redirects stray non-API requests that carry this cookie back into the proxy.
 - `proxyRewriter.js` rewrites the HTML with cheerio (links, srcset, CSS `url()`, strips `integrity`). It then **injects a script** that:
   - patches fetch/XHR/history;
@@ -89,6 +89,7 @@ Tests: `cd server && npm test` runs `test/smoke.js` (~90 end-to-end checks: tena
 ## Known issues / gotchas (verify before relying on them)
 - Guest proxy iframe requests check only that sharing is enabled and not expired, not the share password (the iframe URL has no share token).
 - The proxy and `/uploads` are served from the API origin; moving them to a separate sandbox domain is the remaining structural fix.
+- Proxy asset URLs are query-string based (`/api/proxy?url=…`), so bundles that resolve chunks relative to their own script URL (e.g. Webflow's webpack `auto` publicPath) request `/api/<chunk>.js` and 404.
 - Storage quota only counts files uploaded after quotas were added.
 - Deferred (major-version) dependency upgrades: `nodemailer` 8→10 and `geoip-lite`, each with open npm advisories.
 - Invoice numbers can skip a value if a settle fails after the number is assigned (rare).
