@@ -326,6 +326,19 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   //  - gradient text as solid text in the gradient's first color
   var FIT_ATTR = 'data-markup-fit';
   var TEXTCLIP_ATTR = 'data-markup-textclip';
+  // html2canvas turns ::before/::after into real child elements in its copy, so
+  // :first-child / :last-child / "> * + *" margin rules (WordPress block
+  // layouts…) hit different children and shift everything below. Pin the live
+  // margins of the first/last child of elements that have such content.
+  var MARGIN_ATTR = 'data-markup-margin';
+  var MARGIN_PROPS = ['margin-top', 'margin-bottom', 'margin-left', 'margin-right'];
+  function hasPseudoContent(el) {
+    for (var i = 0; i < 2; i++) {
+      var c = getComputedStyle(el, i ? '::after' : '::before').content;
+      if (c && c !== 'none' && c !== 'normal') return true;
+    }
+    return false;
+  }
   function objectPosition(value, free, scale) {
     if (/%$/.test(value)) return free * parseFloat(value) / 100;
     if (/px$/.test(value)) return parseFloat(value) * scale;
@@ -367,6 +380,19 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     var all = document.body ? document.body.getElementsByTagName('*') : [];
     for (var j = 0; j < all.length; j++) {
       var el = all[j];
+      if (el.firstElementChild && hasPseudoContent(el)) {
+        var ends = [el.firstElementChild, el.lastElementChild];
+        for (var e = 0; e < ends.length; e++) {
+          var child = ends[e];
+          if (e === 1 && child === ends[0]) continue;
+          if (child.hasAttribute(MARGIN_ATTR)) continue;
+          var ccs = getComputedStyle(child);
+          var margins = {};
+          for (var mp = 0; mp < MARGIN_PROPS.length; mp++) margins[MARGIN_PROPS[mp]] = ccs.getPropertyValue(MARGIN_PROPS[mp]);
+          child.setAttribute(MARGIN_ATTR, String(prepared.length));
+          prepared.push({ el: child, attr: MARGIN_ATTR, margins: margins });
+        }
+      }
       var st = getComputedStyle(el);
       if ((st.webkitBackgroundClip || st.backgroundClip) !== 'text') continue;
       var m = /rgba?\\([^)]*\\)/.exec(st.backgroundImage || '');
@@ -388,6 +414,12 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       img.src = p.url;
       img.style.objectFit = 'fill';
     }
+    var pinned = doc.querySelectorAll('[' + MARGIN_ATTR + ']');
+    for (var m = 0; m < pinned.length; m++) {
+      var pm = prepared[+pinned[m].getAttribute(MARGIN_ATTR)];
+      if (!pm) continue;
+      for (var mk in pm.margins) pinned[m].style.setProperty(mk, pm.margins[mk], 'important');
+    }
     var clipped = doc.querySelectorAll('[' + TEXTCLIP_ATTR + ']');
     for (var j = 0; j < clipped.length; j++) {
       var q = prepared[+clipped[j].getAttribute(TEXTCLIP_ATTR)];
@@ -405,9 +437,40 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     for (var i = 0; i < prepared.length; i++) prepared[i].el.removeAttribute(prepared[i].attr);
   }
 
+  // html2canvas scrolls its copy of the page to the current position; with
+  // scroll-behavior:smooth that scroll animates and the capture shows the top
+  // of the page. Switch it off on the page while the copy is made.
+  function disableSmoothScroll() {
+    var els = [document.documentElement, document.body].filter(Boolean);
+    var saved = els.map(function(el) {
+      return { el: el, value: el.style.getPropertyValue('scroll-behavior'), priority: el.style.getPropertyPriority('scroll-behavior') };
+    });
+    els.forEach(function(el) { el.style.setProperty('scroll-behavior', 'auto', 'important'); });
+    return function restore() {
+      saved.forEach(function(s) {
+        if (s.value) s.el.style.setProperty('scroll-behavior', s.value, s.priority);
+        else s.el.style.removeProperty('scroll-behavior');
+      });
+    };
+  }
+
+  // Elements hidden on the page (display:none) are left out of the copy: some
+  // render there anyway (widgets hidden by script-set state) and push the
+  // content down. Not for <style>/<link>/<script>… or SVG parts (<symbol> etc.
+  // are hidden but used elsewhere).
+  var KEEP_HIDDEN_TAGS = { STYLE: 1, LINK: 1, SCRIPT: 1, NOSCRIPT: 1, TEMPLATE: 1, META: 1, HEAD: 1, TITLE: 1, BASE: 1 };
+  function isHiddenOnPage(el) {
+    if (!el || el.nodeType !== 1 || KEEP_HIDDEN_TAGS[el.tagName]) return false;
+    if (window.SVGElement && el instanceof SVGElement) return false;
+    if (!document.body || !document.body.contains(el) || el === document.body) return false;
+    try { return getComputedStyle(el).display === 'none'; } catch (e) { return false; }
+  }
+
   function renderViewport(kind, fast) {
     var marked = markHiddenImages();
-    var scale = Math.min(window.devicePixelRatio || 1, 2);
+    var restoreScroll = disableSmoothScroll();
+    // CSS pixels: what the page shows, at a normal file size
+    var scale = 1;
     var prepared = [];
     try { prepared = prepareFidelity(scale); } catch (e) { unprepare(prepared); prepared = []; }
     var capture;
@@ -425,7 +488,8 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         logging: false,
         imageTimeout: fast ? 500 : 2500,
         ignoreElements: function(el) {
-          return el.id === '__markup_pin_container' || (el.classList && el.classList.contains('__markup_pin'));
+          if (el.id === '__markup_pin_container' || (el.classList && el.classList.contains('__markup_pin'))) return true;
+          return isHiddenOnPage(el);
         },
         onclone: function(doc) {
           unmark(marked);
@@ -433,13 +497,14 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
           blankSkippedImages(doc);
           applyFidelity(doc, prepared);
           var st = doc.createElement('style');
-          st.textContent = '*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition:none!important;caret-color:transparent!important}';
+          st.textContent = 'html,body{scroll-behavior:auto!important}*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition:none!important;caret-color:transparent!important}';
           (doc.head || doc.documentElement).appendChild(st);
         }
       });
     } catch (err) {
       unmark(marked);
       unprepare(prepared);
+      restoreScroll();
       return Promise.reject(err);
     }
     var limit = new Promise(function(_, reject) {
@@ -448,10 +513,12 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     return Promise.race([capture, limit]).then(function(canvas) {
       unmark(marked);
       unprepare(prepared);
+      restoreScroll();
       return canvas;
     }, function(err) {
       unmark(marked);
       unprepare(prepared);
+      restoreScroll();
       throw err;
     });
   }
