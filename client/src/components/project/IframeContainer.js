@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 
 const DESKTOP_WIDTH = 1440;
+const SLOW_LOAD_MS = 20000;
 
 export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, selectedPinId, loading, hidePins, onLoad, viewportWidth = DESKTOP_WIDTH }) {
   const isDesktop = viewportWidth >= DESKTOP_WIDTH;
@@ -9,6 +10,20 @@ export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, se
   const [scaleFactor, setScaleFactor] = useState(1);
   const [containerSize, setContainerSize] = useState({ width: viewportWidth, height: 900 });
   const prevTargetUrl = useRef(targetUrl);
+  // Sites that take too long get a retry option instead of an endless spinner
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!loading) {
+      setSlow(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setSlow(true), SLOW_LOAD_MS);
+    return () => clearTimeout(timer);
+  }, [loading]);
+  const handleRetry = () => {
+    setSlow(false);
+    if (iframeRef.current) iframeRef.current.src = proxyUrl;
+  };
 
   // Track container size and compute scale factor
   useEffect(() => {
@@ -130,7 +145,26 @@ export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, se
         style={{ opacity: loading ? 1 : 0, pointerEvents: loading ? 'auto' : 'none' }}
       >
         <div className="w-10 h-10 border-[3px] border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
-        <p className="mt-4 text-sm font-medium text-gray-500">Loading site...</p>
+        <p className="mt-4 text-sm font-medium text-gray-500">{slow ? 'This site is taking longer than usual.' : 'Loading site...'}</p>
+        {slow && (
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleRetry}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+            <a
+              href={targetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Open original site
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

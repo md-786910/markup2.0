@@ -4,8 +4,8 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import html2canvas from 'html2canvas';
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Served from our own build (same pdfjs-dist version react-pdf uses), not a third-party CDN
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
 const BASE_URL = process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api';
 // Strip /api suffix to get the server origin for static file serving
@@ -15,11 +15,7 @@ function getDocPageUrl(doc, pageNum) {
   return `doc:${doc.filename}:page:${pageNum}`;
 }
 
-export function parseDocPageUrl(pageUrl) {
-  if (!pageUrl || !pageUrl.startsWith('doc:')) return null;
-  const parts = pageUrl.split(':');
-  return { filename: parts[1], page: parseInt(parts[3], 10) };
-}
+export { parseDocPageUrl } from '../../utils/docPageUrl';
 
 export default function DocumentViewer({
   documents,

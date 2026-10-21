@@ -10,6 +10,7 @@ const { logGuestActivity } = require('../utils/activityLogger');
 const { createProjectNotifications } = require('../utils/notificationHelper');
 const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { reserveStorage, discardUploads } = require('../utils/storage');
+const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
 
 // Verify a guest-supplied password against either the bcrypt hash (preferred,
 // new projects + migrated ones) or the legacy plaintext field (pre-migration
@@ -162,7 +163,7 @@ exports.getGuestPins = asyncHandler(async (req, res) => {
   if (!project) return;
 
   const filter = { project: project._id };
-  if (pageUrl) filter.pageUrl = pageUrl;
+  if (pageUrl) filter.pageUrl = pageUrlFilter(pageUrl);
   if (deviceMode) filter.deviceMode = deviceMode;
 
   const pins = await Pin.find(filter)
@@ -245,7 +246,7 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
 
   const pin = await Pin.create({
     project: project._id,
-    pageUrl,
+    pageUrl: normalizePageUrl(pageUrl),
     createdBy: null,
     createdByGuest: { name: guestName, email: guestEmail },
     xPercent: parseFloat(xPercent),

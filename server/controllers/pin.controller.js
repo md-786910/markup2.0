@@ -7,12 +7,13 @@ const { emitToProject, emailProjectMembers, notifyIntegrations } = require('../u
 const { logActivity } = require('../utils/activityLogger');
 const { extractMentionedUserIds } = require('../utils/mentionHelper');
 const { createProjectNotifications } = require('../utils/notificationHelper');
+const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
 
 exports.createPin = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
 
   // When using multer (multipart/form-data), all body fields are strings
-  const pageUrl = req.body.pageUrl;
+  const pageUrl = normalizePageUrl(req.body.pageUrl);
   const xPercent = req.body.xPercent != null ? parseFloat(req.body.xPercent) : null;
   const yPercent = req.body.yPercent != null ? parseFloat(req.body.yPercent) : null;
   const selector = req.body.selector || null;
@@ -105,7 +106,7 @@ exports.getPins = asyncHandler(async (req, res) => {
 
   const filter = { project: projectId };
   if (pageUrl) {
-    filter.pageUrl = pageUrl;
+    filter.pageUrl = pageUrlFilter(pageUrl);
   }
   if (deviceMode) {
     filter.deviceMode = deviceMode;

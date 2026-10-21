@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import IframeContainer from "./IframeContainer";
-import DocumentViewer, { parseDocPageUrl } from "./DocumentViewer";
+import { parseDocPageUrl } from "../../utils/docPageUrl";
+import { normalizePageUrl } from "../../utils/pageUrl";
 import PinListSidebar from "./PinListSidebar";
 import ActivitySidebar from "./ActivitySidebar";
 import VersionSidebar from "./VersionSidebar";
@@ -19,6 +20,9 @@ import {
   uploadPinScreenshotApi,
 } from "../../services/pinService";
 import { useSocket } from "../../hooks/useSocket";
+
+// PDF viewer (react-pdf + pdf.js) is only downloaded for document projects
+const DocumentViewer = React.lazy(() => import("./DocumentViewer"));
 
 const AVATAR_COLORS = [
   { bg: 'bg-blue-100', text: 'text-blue-700' },
@@ -113,7 +117,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const currentDoc = isDocumentProject ? (project.documents?.[currentDocIndex] || project.documents?.[0]) : null;
   const currentPageUrl = isDocumentProject
     ? `doc:${currentDoc?.filename}:page:${currentDocPage}`
-    : (iframeState.currentPageUrl || project.websiteUrl);
+    : normalizePageUrl(iframeState.currentPageUrl || project.websiteUrl);
 
   const loadPins = useCallback(async () => {
     try {
@@ -262,7 +266,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       if (fullPin.deviceMode && fullPin.deviceMode !== deviceMode) {
         handleDeviceChange(fullPin.deviceMode);
       }
-      if (fullPin.pageUrl && fullPin.pageUrl !== targetUrl) {
+      if (fullPin.pageUrl && normalizePageUrl(fullPin.pageUrl) !== normalizePageUrl(targetUrl)) {
         setTargetUrl(fullPin.pageUrl);
       }
     }
@@ -703,6 +707,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         {/* Content area */}
         <div className="flex-1 relative">
           {isDocumentProject ? (
+            <React.Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-10 h-10 border-[3px] border-gray-200 border-t-blue-500 rounded-full animate-spin"></div></div>}>
             <DocumentViewer
               documents={project.documents}
               currentDocIndex={currentDocIndex}
@@ -718,6 +723,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               onScreenshot={handleDocScreenshot}
               viewportWidth={viewportWidth}
             />
+            </React.Suspense>
           ) : (
             <IframeContainer
               key={(() => { try { return new URL(targetUrl).origin; } catch { return targetUrl; } })()}

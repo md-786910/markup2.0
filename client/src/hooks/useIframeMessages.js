@@ -1,5 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
+// The review iframe is served by the API (website proxy); messages from any
+// other window are ignored. If the API address isn't absolute, no check is made.
+const PROXY_ORIGIN = (() => {
+  try {
+    return new URL(process.env.REACT_APP_BASE_URL || "http://localhost:5000/api").origin;
+  } catch {
+    return null;
+  }
+})();
+
 export function useIframeMessages() {
   // Scroll data stored in ref — updates do NOT trigger re-renders
   const scrollRef = useRef({
@@ -22,6 +32,7 @@ export function useIframeMessages() {
 
   useEffect(() => {
     const handler = (event) => {
+      if (PROXY_ORIGIN && event.origin !== PROXY_ORIGIN) return;
       const data = event.data;
       if (
         !data ||

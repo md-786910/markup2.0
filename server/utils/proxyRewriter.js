@@ -195,7 +195,6 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   const safePageOrigin = pageOrigin.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
   const injectionScript = `
-<script src="${safeServerBase}/api/vendor/html2canvas.min.js"></script>
 <script>
 (function() {
   var __markupPageUrl = '${safePageUrl}';
@@ -210,6 +209,23 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     __markupToken = new URLSearchParams(window.location.search).get('token') || '';
   } catch(e) {}
   var pinMode = false;
+
+  // Screenshot library: loaded on demand (preloaded when pin mode turns on),
+  // so normal page views don't pay for it.
+  var __h2cPromise = null;
+  function loadHtml2canvas() {
+    if (typeof html2canvas === 'function') return Promise.resolve();
+    if (!__h2cPromise) {
+      __h2cPromise = new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = __markupServerBase + '/api/vendor/html2canvas.min.js?v=1.4.1';
+        s.onload = function() { typeof html2canvas === 'function' ? resolve() : reject(new Error('html2canvas unavailable')); };
+        s.onerror = function() { __h2cPromise = null; reject(new Error('html2canvas failed to load')); };
+        (document.head || document.documentElement).appendChild(s);
+      });
+    }
+    return __h2cPromise;
+  }
   var pins = [];
   var pinContainer = null;
   var prevSelectedId = null;
@@ -455,7 +471,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       });
 
       // Capture viewport screenshot asynchronously (don't block pin creation)
-      if (typeof html2canvas === 'function') {
+      loadHtml2canvas().then(function() {
         if (pinContainer) pinContainer.style.display = 'none';
         var capture = html2canvas(document.documentElement, {
           x: window.scrollX || window.pageXOffset,
@@ -484,9 +500,9 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
           console.warn('Screenshot capture failed:', err);
           sendMessage('MARKUP_SCREENSHOT', { screenshot: null });
         });
-      } else {
+      }).catch(function() {
         sendMessage('MARKUP_SCREENSHOT', { screenshot: null });
-      }
+      });
     }, true);
 
     // --- Intercept <a> clicks for SPA-style navigation ---
@@ -546,10 +562,13 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
 
     // Listen for messages from parent
     window.addEventListener('message', function(e) {
+      // Only the app window that embeds this page may control it
+      if (e.source !== window.parent) return;
       if (!e.data || !e.data.type) return;
       switch (e.data.type) {
         case 'MARKUP_PIN_MODE':
           pinMode = e.data.enabled;
+          if (pinMode) loadHtml2canvas().catch(function() {});
           var cursorStyleId = '__markup_cursor_style';
           var existing = document.getElementById(cursorStyleId);
           if (pinMode) {
