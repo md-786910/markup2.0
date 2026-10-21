@@ -53,7 +53,7 @@ Tests: `cd server && npm test` runs `test/smoke.js` (~90 end-to-end checks: tena
 - `proxyRewriter.js` rewrites the HTML with cheerio (links, srcset, CSS `url()`, strips `integrity`). It then **injects a script** that:
   - patches fetch/XHR/history;
   - draws the pin overlay;
-  - takes screenshots with html2canvas (served from `/api/vendor`).
+  - takes viewport screenshots (`captureViewport`): html2canvas 1.4.1 first, html2canvas-pro (`/api/vendor/pro`, parses oklch/oklab) when it fails, a fast retry on timeout. Before cloning it pre-renders `object-fit` images at their on-screen crop, flattens `background-clip:text`, holds back unloaded/lazy image sources (they shifted the layout) and blanks offscreen images; the clone gets animations jumped to their end state; scale = devicePixelRatio (max 2); pin overlay excluded. Each `MARKUP_CLICK`/`MARKUP_SCREENSHOT` pair shares a `clickId`; `ProjectView` routes a screenshot only to the popup or saved pin of that click (Post never waits; late ones are uploaded via `PATCH …/screenshot`).
 - Pin rendering uses `querySelector(selector)` plus the element offset, and falls back to the document percentages. It re-renders on scroll/animation and at 0.5/1.5/3/6s after load.
 - **postMessage protocol** (all `MARKUP_*`). Client side is `client/src/hooks/useIframeMessages.js`.
   - iframe → parent: `READY`, `NAVIGATING`, `SCROLL`, `CLICK`, `SCREENSHOT`, `PIN_CLICK`

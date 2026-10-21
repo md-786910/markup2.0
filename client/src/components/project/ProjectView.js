@@ -62,9 +62,9 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const [showInvite, setShowInvite] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [pendingPinData, setPendingPinData] = useState(null);
-  const [lastCreatedPinId, setLastCreatedPinId] = useState(null);
-  // Click that produced lastCreatedPinId: its screenshot may arrive after the pin is saved
-  const lastCreatedClickIdRef = useRef(null);
+  // Saved pins still waiting for their screenshot: clickId -> pinId
+  const pinsAwaitingShotRef = useRef(new Map());
+  const pendingPinRef = useRef(null);
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [modeSwitching, setModeSwitching] = useState(false);
@@ -181,7 +181,6 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   useEffect(() => {
     if (iframeState.lastClick && pinMode && !pendingPinData) {
       const { clickId, xPercent, yPercent, viewportXPercent, viewportYPercent, selector, elementOffsetX, elementOffsetY, documentWidth, documentHeight } = iframeState.lastClick;
-      setLastCreatedPinId(null);
       setPendingPinData({
         clickId,
         xPercent,
@@ -200,47 +199,51 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     }
   }, [iframeState.lastClick, iframeState.clearLastClick, pinMode, pendingPinData, currentPageUrl, deviceMode]);
 
-  // Attach screenshot to pending pin data when it arrives asynchronously.
-  // A screenshot only goes to the pin made from the same click: a late one from
-  // a cancelled or earlier click is dropped rather than shown on the wrong pin.
-  useEffect(() => {
-    if (!iframeState.screenshot) return;
-    const shotClickId = iframeState.screenshotClickId;
-    // Frames without click ids (older injected script) keep the previous behaviour
-    const sameClick = (clickId) => !shotClickId || !clickId || shotClickId === clickId;
-    // Path 1: popup still open — attach screenshot to pending pin data
-    if (pendingPinData && !pendingPinData.screenshot) {
-      if (sameClick(pendingPinData.clickId)) {
-        setPendingPinData((prev) => prev ? { ...prev, screenshot: iframeState.screenshot } : prev);
-      }
-      iframeState.clearScreenshot();
+  useEffect(() => { pendingPinRef.current = pendingPinData; }, [pendingPinData]);
+
+  const uploadScreenshot = useCallback(async (pinId, dataUrl) => {
+    try {
+      const blob = await (await fetch(dataUrl)).blob();
+      const formData = new FormData();
+      formData.append('screenshot', blob, 'screenshot.jpg');
+      await uploadPinScreenshotApi(project._id, pinId, formData);
+      loadAllPins();
+      loadPins();
+    } catch (err) {
+      console.warn('Screenshot upload failed:', err);
+    }
+  }, [project._id, loadAllPins, loadPins]);
+  const uploadScreenshotRef = useRef(uploadScreenshot);
+  uploadScreenshotRef.current = uploadScreenshot;
+
+  // Screenshots arrive after the click (capture is async) and are routed by
+  // the click they belong to: to its saved pin (posting never waits for the
+  // capture), else to the open popup for that click. Others are dropped, so a
+  // late screenshot never lands on a different pin.
+  useEffect(() => iframeState.onScreenshot(({ clickId, screenshot }) => {
+    const awaiting = pinsAwaitingShotRef.current;
+    if (clickId && awaiting.has(clickId)) {
+      const pinId = awaiting.get(clickId);
+      awaiting.delete(clickId);
+      if (screenshot) uploadScreenshotRef.current(pinId, screenshot);
       return;
     }
-    // Path 2: pin already created (fast user) — upload screenshot retroactively
-    if (lastCreatedPinId && !pendingPinData && !sameClick(lastCreatedClickIdRef.current)) {
-      iframeState.clearScreenshot();
-      return;
+    const pending = pendingPinRef.current;
+    // Frames without click ids (older injected script) attach to the open popup
+    if (pending && !pending.screenshot && (!clickId || !pending.clickId || pending.clickId === clickId)) {
+      setPendingPinData((prev) => (prev && prev.clickId === pending.clickId
+        ? { ...prev, screenshot, captureFailed: !screenshot }
+        : prev));
     }
-    if (lastCreatedPinId && !pendingPinData) {
-      const pinId = lastCreatedPinId;
-      const dataUrl = iframeState.screenshot;
-      setLastCreatedPinId(null);
-      iframeState.clearScreenshot();
-      (async () => {
-        try {
-          const res = await fetch(dataUrl);
-          const blob = await res.blob();
-          const formData = new FormData();
-          formData.append('screenshot', blob, 'screenshot.jpg');
-          await uploadPinScreenshotApi(project._id, pinId, formData);
-          loadAllPins();
-          loadPins();
-        } catch (err) {
-          console.warn('Late screenshot upload failed:', err);
-        }
-      })();
-    }
-  }, [iframeState.screenshot, iframeState.screenshotClickId, iframeState.clearScreenshot, pendingPinData, lastCreatedPinId]);
+  }), [iframeState.onScreenshot]);
+
+  // The popup saved the pin: upload its screenshot now, or when it arrives
+  const handlePinSaved = useCallback((pinId, sentScreenshot) => {
+    const pending = pendingPinRef.current;
+    if (!pending || sentScreenshot) return;
+    if (pending.screenshot) uploadScreenshot(pinId, pending.screenshot);
+    else if (pending.clickId && !pending.captureFailed) pinsAwaitingShotRef.current.set(pending.clickId, pinId);
+  }, [uploadScreenshot]);
 
   const DEVICE_WIDTHS = { desktop: 1440, tablet: 768, mobile: 375 };
 
@@ -489,7 +492,6 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
   const handleDocumentClick = useCallback((clickData) => {
     if (pendingPinData) return;
-    setLastCreatedPinId(null);
     setPendingPinData(clickData);
   }, [pendingPinData]);
 
@@ -764,8 +766,9 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           pinData={pendingPinData}
           projectId={project._id}
           members={allMembers}
-          onClose={() => { setPendingPinData(null); if (!isDocumentProject) iframeState.clearScreenshot(); setLastCreatedPinId(null); }}
-          onPinCreated={(pinId) => { lastCreatedClickIdRef.current = pendingPinData?.clickId || null; loadPins(); loadAllPins(); setPendingPinData(null); setLastCreatedPinId(pinId); }}
+          onClose={() => { setPendingPinData(null); if (!isDocumentProject) iframeState.clearScreenshot(); }}
+          onPinSaved={handlePinSaved}
+          onPinCreated={() => { loadPins(); loadAllPins(); setPendingPinData(null); }}
         />
       )}
 

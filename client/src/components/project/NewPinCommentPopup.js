@@ -11,7 +11,7 @@ import { ACCEPTED_ATTACHMENT_TYPES } from '../../utils/attachmentHelpers';
 // Register mention module and blot with Quill
 Quill.register({ 'blots/mention': MentionBlot, 'modules/mention': Mention });
 
-export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinCreated, members = [] }) {
+export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinSaved, onPinCreated, members = [] }) {
   const [body, setBody] = useState('');
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -85,11 +85,15 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
       if (pinData.viewportYPercent != null) pinFormData.append('viewportYPercent', pinData.viewportYPercent);
       pinFormData.append('initialComment', 'true');
 
+      // Posting never waits for the capture: without a screenshot yet, the
+      // parent uploads it to the pin when it arrives (onPinSaved)
+      let sentScreenshot = false;
       if (pinData.screenshot) {
         try {
           const res = await fetch(pinData.screenshot);
           const blob = await res.blob();
           pinFormData.append('screenshot', blob, 'screenshot.jpg');
+          sentScreenshot = true;
         } catch (screenshotErr) {
           console.warn('Failed to attach screenshot:', screenshotErr);
         }
@@ -97,6 +101,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
 
       const pinRes = await createPinApi(projectId, pinFormData);
       const newPin = pinRes.data.pin;
+      if (onPinSaved) onPinSaved(newPin._id, sentScreenshot);
 
       const commentFormData = new FormData();
       commentFormData.append('body', body);
@@ -201,7 +206,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinC
                   onChange={(e) => setFiles((prev) => [...prev, ...Array.from(e.target.files)])}
                 />
               </label>
-              {!pinData.screenshot && (
+              {!pinData.screenshot && !pinData.captureFailed && (
                 <div className="flex items-center gap-1.5 text-[11px] text-gray-400 ml-1">
                   <div className="w-2.5 h-2.5 border border-gray-300 border-t-blue-500 rounded-full animate-spin" />
                   Capturing...

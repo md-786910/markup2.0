@@ -320,8 +320,96 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     }
   }
 
+  // html2canvas ignores object-fit (images come out stretched) and draws
+  // background-clip:text as a filled box. Prepare the page so the copy gets:
+  //  - object-fit images pre-rendered at their on-screen size and crop
+  //  - gradient text as solid text in the gradient's first color
+  var FIT_ATTR = 'data-markup-fit';
+  var TEXTCLIP_ATTR = 'data-markup-textclip';
+  function objectPosition(value, free, scale) {
+    if (/%$/.test(value)) return free * parseFloat(value) / 100;
+    if (/px$/.test(value)) return parseFloat(value) * scale;
+    if (value === 'left' || value === 'top') return 0;
+    if (value === 'right' || value === 'bottom') return free;
+    return free / 2;
+  }
+  function renderFitted(img, cs, r, scale) {
+    var nw = img.naturalWidth, nh = img.naturalHeight;
+    if (!nw || !nh) return null;
+    var w = Math.max(1, Math.round(r.width * scale)), h = Math.max(1, Math.round(r.height * scale));
+    var fit = cs.objectFit, f;
+    if (fit === 'none') f = scale;
+    else if (fit === 'contain') f = Math.min(w / nw, h / nh);
+    else if (fit === 'scale-down') f = Math.min(w / nw, h / nh, scale);
+    else f = Math.max(w / nw, h / nh); // cover
+    var dw = nw * f, dh = nh * f;
+    var pos = (cs.objectPosition || '50% 50%').split(' ');
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, objectPosition(pos[0], w - dw, scale), objectPosition(pos[1] || '50%', h - dh, scale), dw, dh);
+    return c.toDataURL('image/webp', 0.92); // throws for cross-origin images: left as they are
+  }
+  function prepareFidelity(scale) {
+    var prepared = [];
+    var imgs = document.images;
+    for (var i = 0; i < imgs.length; i++) {
+      var img = imgs[i];
+      if (img.hasAttribute(SKIP_ATTR)) continue;
+      var cs = getComputedStyle(img);
+      if (!cs.objectFit || cs.objectFit === 'fill') continue;
+      var r = img.getBoundingClientRect();
+      if (!r.width || !r.height || r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth) continue;
+      try {
+        var url = renderFitted(img, cs, r, scale);
+        if (url) { img.setAttribute(FIT_ATTR, String(prepared.length)); prepared.push({ el: img, attr: FIT_ATTR, url: url }); }
+      } catch (e) { /* tainted canvas: keep the image as is */ }
+    }
+    var all = document.body ? document.body.getElementsByTagName('*') : [];
+    for (var j = 0; j < all.length; j++) {
+      var el = all[j];
+      var st = getComputedStyle(el);
+      if ((st.webkitBackgroundClip || st.backgroundClip) !== 'text') continue;
+      var m = /rgba?\\([^)]*\\)/.exec(st.backgroundImage || '');
+      el.setAttribute(TEXTCLIP_ATTR, String(prepared.length));
+      prepared.push({ el: el, attr: TEXTCLIP_ATTR, color: m ? m[0] : st.color });
+    }
+    return prepared;
+  }
+  function applyFidelity(doc, prepared) {
+    var fitted = doc.querySelectorAll('[' + FIT_ATTR + ']');
+    for (var i = 0; i < fitted.length; i++) {
+      var p = prepared[+fitted[i].getAttribute(FIT_ATTR)];
+      if (!p) continue;
+      var img = fitted[i];
+      var pic = img.parentNode && img.parentNode.tagName === 'PICTURE' ? img.parentNode : null;
+      if (pic) { var srcs = pic.querySelectorAll('source'); for (var k = 0; k < srcs.length; k++) srcs[k].parentNode.removeChild(srcs[k]); }
+      img.removeAttribute('srcset');
+      img.removeAttribute('sizes');
+      img.src = p.url;
+      img.style.objectFit = 'fill';
+    }
+    var clipped = doc.querySelectorAll('[' + TEXTCLIP_ATTR + ']');
+    for (var j = 0; j < clipped.length; j++) {
+      var q = prepared[+clipped[j].getAttribute(TEXTCLIP_ATTR)];
+      if (!q) continue;
+      var st = clipped[j].style;
+      st.backgroundImage = 'none';
+      st.backgroundColor = 'transparent';
+      st.webkitBackgroundClip = 'border-box';
+      st.backgroundClip = 'border-box';
+      st.color = q.color;
+      st.webkitTextFillColor = q.color;
+    }
+  }
+  function unprepare(prepared) {
+    for (var i = 0; i < prepared.length; i++) prepared[i].el.removeAttribute(prepared[i].attr);
+  }
+
   function renderViewport(kind, fast) {
     var marked = markHiddenImages();
+    var scale = Math.min(window.devicePixelRatio || 1, 2);
+    var prepared = [];
+    try { prepared = prepareFidelity(scale); } catch (e) { unprepare(prepared); prepared = []; }
     var capture;
     try {
       capture = window.__markupH2c[kind](document.documentElement, {
@@ -331,7 +419,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         height: window.innerHeight,
         windowWidth: window.innerWidth,
         windowHeight: window.innerHeight,
-        scale: Math.min(window.devicePixelRatio || 1, 2),
+        scale: scale,
         useCORS: true,
         allowTaint: false,
         logging: false,
@@ -341,7 +429,9 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         },
         onclone: function(doc) {
           unmark(marked);
+          unprepare(prepared);
           blankSkippedImages(doc);
+          applyFidelity(doc, prepared);
           var st = doc.createElement('style');
           st.textContent = '*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition:none!important;caret-color:transparent!important}';
           (doc.head || doc.documentElement).appendChild(st);
@@ -349,6 +439,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       });
     } catch (err) {
       unmark(marked);
+      unprepare(prepared);
       return Promise.reject(err);
     }
     var limit = new Promise(function(_, reject) {
@@ -356,9 +447,11 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     });
     return Promise.race([capture, limit]).then(function(canvas) {
       unmark(marked);
+      unprepare(prepared);
       return canvas;
     }, function(err) {
       unmark(marked);
+      unprepare(prepared);
       throw err;
     });
   }

@@ -32,6 +32,14 @@ export function useIframeMessages() {
     screenshotClickId: null,
   });
 
+  // Screenshot messages go to subscribers one by one (state would merge two
+  // that arrive together into the last one)
+  const screenshotListeners = useRef(new Set());
+  const onScreenshot = useCallback((fn) => {
+    screenshotListeners.current.add(fn);
+    return () => screenshotListeners.current.delete(fn);
+  }, []);
+
   useEffect(() => {
     const handler = (event) => {
       if (PROXY_ORIGIN && event.origin !== PROXY_ORIGIN) return;
@@ -93,6 +101,10 @@ export function useIframeMessages() {
           }));
           break;
         case "MARKUP_SCREENSHOT":
+          screenshotListeners.current.forEach((fn) => fn({
+            clickId: data.clickId || null,
+            screenshot: data.screenshot || null,
+          }));
           setState((prev) => ({
             ...prev,
             screenshot: data.screenshot,
@@ -120,5 +132,5 @@ export function useIframeMessages() {
     setState((prev) => ({ ...prev, screenshot: null, screenshotClickId: null }));
   }, []);
 
-  return { ...state, scroll: scrollRef, clearLastClick, resetReady, clearScreenshot };
+  return { ...state, scroll: scrollRef, clearLastClick, resetReady, clearScreenshot, onScreenshot };
 }
