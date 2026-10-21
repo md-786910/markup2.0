@@ -350,6 +350,23 @@ function sendBlockedError(req, res, url, domain) {
 }
 
 // Shared response processing: rewrite HTML/CSS/JS and forward headers
+// The __markup_proxy_ctx cookie set with the last proxied page (or {}).
+function proxyContext(req) {
+  try {
+    return (req.cookies && req.cookies.__markup_proxy_ctx && JSON.parse(req.cookies.__markup_proxy_ctx)) || {};
+  } catch {
+    return {};
+  }
+}
+
+// The project proxy token for this request: from the URL, else the one kept in
+// the context cookie for the same project (links inside a page carry none).
+function proxyTokenFor(req, projectId) {
+  if (req.query.token) return req.query.token;
+  const ctx = proxyContext(req);
+  return ctx.projectId === projectId && ctx.token ? ctx.token : '';
+}
+
 async function processResponse(req, res, response, url, projectId, serverBase, workerBase) {
   // CORS: allow cross-origin access for fonts/assets loaded from Worker-served CSS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -368,13 +385,34 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
     const setCookies = (Array.isArray(upstreamSetCookies) ? upstreamSetCookies : [upstreamSetCookies])
       // Never let the proxied site set or overwrite our own cookies (session, CSRF, proxy ctx)
       .filter(c => !/^\s*(markup_|__markup_)/i.test(c));
+    // Served under /api/proxy on our host: drop Domain/Secure/SameSite and widen
+    // Path so the cookie is sent back with every proxied request
     const rewritten = setCookies.map(c =>
       c.replace(/;\s*Domain=[^;]*/gi, '')
        .replace(/;\s*Secure/gi, '')
        .replace(/;\s*SameSite=[^;]*/gi, '')
-      + '; SameSite=Lax'
+       .replace(/;\s*Path=[^;]*/gi, '')
+      + '; Path=/; SameSite=Lax'
     );
     if (rewritten.length) res.setHeader('Set-Cookie', rewritten);
+  }
+
+  // Page and form redirects (e.g. login: POST /login -> 302 /dashboard) go back
+  // to the browser, rewritten into the proxy, so the cookies set above are
+  // stored and the page loads at its real address. The target is checked by
+  // the SSRF guard when the browser requests it.
+  const location = response.headers.location;
+  if (response.status >= 300 && response.status < 400 && location) {
+    let target = null;
+    try { target = new URL(location, url); } catch {}
+    if (target && (target.protocol === 'http:' || target.protocol === 'https:')) {
+      let proxied = `/api/proxy?url=${encodeURIComponent(target.href)}&projectId=${encodeURIComponent(projectId)}`;
+      const token = proxyTokenFor(req, projectId);
+      if (token) proxied += `&token=${encodeURIComponent(token)}`;
+      if (req.query.guest === 'true' || proxyContext(req).guest === true) proxied += '&guest=true';
+      res.setHeader('Cache-Control', 'no-store');
+      return res.redirect(response.status, proxied);
+    }
   }
 
   const headersToSkip = new Set([
@@ -414,7 +452,7 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
   if (isGetRequest && contentType.includes("text/html")) {
     try {
       const pageOrigin = new URL(url).origin;
-      const ctxPayload = { origin: pageOrigin, projectId, token: req.query.token || '' };
+      const ctxPayload = { origin: pageOrigin, projectId, token: proxyTokenFor(req, projectId) };
       if (isGuest) ctxPayload.guest = true;
       res.cookie('__markup_proxy_ctx', JSON.stringify(ctxPayload), { httpOnly: false, sameSite: 'lax', secure: SECURE_COOKIES, maxAge: 24 * 60 * 60 * 1000 });
     } catch {}
@@ -593,7 +631,8 @@ exports.proxyPage = asyncHandler(async (req, res) => {
           "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
       },
-      maxRedirects: 5,
+      // Pages and form posts: redirects go back to the browser (processResponse)
+      maxRedirects: isPageRequest || req.method !== 'GET' ? 0 : 5,
       beforeRedirect,
       timeout: 10000,
       validateStatus: () => true,
