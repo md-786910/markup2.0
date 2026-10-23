@@ -1,108 +1,113 @@
-# # PRODUCTION: replaces the development services of docker-compose.yml: the API
-# # runs its production image; the frontends are built and published as static
-# # files to {client,admin,website}/build for the host's nginx (deploy/nginx/kommently.conf). Compose loads this file automatically, so on the server
-# # `docker compose up -d --build` builds and runs production.
-# #
-# # On a local machine, comment out a service here to keep it in development
-# # mode (source mounted, reloads on save).
-# #
-# # The URLs from .env are compiled into the frontend builds: after changing
-# # one, run `docker compose up -d --build client admin website`.
+# PRODUCTION: replaces the development services of docker-compose.yml: the API
+# runs its production image; the frontends are built and published as static
+# files to {client,admin,website}/build for the host's nginx (deploy/nginx/kommently.conf). Compose loads this file automatically, so on the server
+# `docker compose up -d --build` builds and runs production.
+#
+# On a local machine, comment out a service here to keep it in development
+# mode (source mounted, reloads on save).
+#
+# The URLs from .env are compiled into the frontend builds: after changing
+# one, run `docker compose up -d --build client admin website`.
 
-# # Frontends: build, copy the static files to <app>/build in the repo, then exit.
-# # New files are copied first and index.html last, so open browsers never load
-# # a half-updated app; hashed files older than 7 days are pruned.
-# x-publish: &publish
-#   restart: "no"
-#   init: !reset null
-#   environment: !reset {}
-#   ports: !reset []
-#   working_dir: /app/build
-#   command:
-#     - sh
-#     - -c
-#     - >-
-#       tar cf - --exclude=index.html . | tar xmf - -C /out &&
-#       find . -name index.html | tar cf - -T - | tar xmf - -C /out &&
-#       { find /out/static -type f -mtime +7 -delete || true; } &&
-#       echo published
+# Frontends: build, copy the static files to <app>/build in the repo, then exit.
+# New files are copied first and index.html last, so open browsers never load
+# a half-updated app; hashed files older than 7 days are pruned.
+x-publish: &publish
+  restart: "no"
+  init: !reset null
+  environment: !reset {}
+  ports: !reset []
+  working_dir: /app/build
+  command:
+    - sh
+    - -c
+    - >-
+      tar cf - --exclude=index.html . | tar xmf - -C /out &&
+      find . -name index.html | tar cf - -T - | tar xmf - -C /out &&
+      { find /out/static -type f -mtime +7 -delete || true; } &&
+      echo published
 
-# services:
-#   # No-op entry: keeps this section valid when every service below is commented out
-#   mongo: {}
+services:
+  # No-op entry: keeps this section valid when every service below is commented out
+  mongo: {}
 
-#   server:
-#     image: kommently/server:${IMAGE_TAG:-latest}
-#     build:
-#       context: .
-#       dockerfile: deploy/docker/server.Dockerfile
-#     command: !reset null
-#     working_dir: !reset null
-#     environment:
-#       INSTALL: ""
-#       NODE_ENV: production
-#       BILLING_CRON_ENABLED: "true"
-#       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-}
-#       PROXY_ALLOW_PRIVATE: "false"
-#     volumes: !override
-#       - uploads:/app/uploads
-#     depends_on:
-#       uploads-perms:
-#         condition: service_completed_successfully
+  server:
+    image: kommently/server:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: deploy/docker/server.Dockerfile
+    command: !reset null
+    working_dir: !reset null
+    environment:
+      INSTALL: ""
+      NODE_ENV: production
+      BILLING_CRON_ENABLED: "true"
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-}
+      PROXY_ALLOW_PRIVATE: "false"
+    volumes: !override
+      - uploads:/app/uploads
+    depends_on:
+      uploads-perms:
+        condition: service_completed_successfully
 
-#   # The API runs as the non-root "node" user; make sure the uploads volume
-#   # belongs to it (a volume first created by dev mode or an older setup is
-#   # owned by root, and uploads then fail). Runs before every server start.
-#   uploads-perms:
-#     image: node:22-bookworm-slim
-#     user: root
-#     restart: "no"
-#     command: ["sh", "-c", "mkdir -p /app/uploads/documents && chown -R node:node /app/uploads"]
-#     volumes:
-#       - uploads:/app/uploads
+  # The API runs as the non-root "node" user; make sure the uploads volume
+  # belongs to it (a volume first created by dev mode or an older setup is
+  # owned by root, and uploads then fail). Runs before every server start.
+  uploads-perms:
+    image: node:22-bookworm-slim
+    user: root
+    restart: "no"
+    command:
+      [
+        "sh",
+        "-c",
+        "mkdir -p /app/uploads/documents && chown -R node:node /app/uploads",
+      ]
+    volumes:
+      - uploads:/app/uploads
 
-#   client:
-#     <<: *publish
-#     image: kommently/client-build:${IMAGE_TAG:-latest}
-#     volumes: !override
-#       - ./client/build:/out
-#     build:
-#       context: .
-#       dockerfile: deploy/docker/spa.Dockerfile
-#       args:
-#         APP_DIR: client
-#         REACT_APP_BASE_URL: ${API_URL}/api
-#         REACT_APP_SERVER_URL: ${API_URL}
-#         REACT_APP_SENTRY_DSN: ${CLIENT_SENTRY_DSN:-}
-#         REACT_APP_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
-#         REACT_APP_SENTRY_RELEASE: ${SENTRY_RELEASE:-}
-#         REACT_APP_POSTHOG_KEY: ${POSTHOG_KEY:-}
-#         REACT_APP_POSTHOG_HOST: ${POSTHOG_HOST:-}
+  client:
+    <<: *publish
+    image: kommently/client-build:${IMAGE_TAG:-latest}
+    volumes: !override
+      - ./client/build:/out
+    build:
+      context: .
+      dockerfile: deploy/docker/spa.Dockerfile
+      args:
+        APP_DIR: client
+        REACT_APP_BASE_URL: ${API_URL}/api
+        REACT_APP_SERVER_URL: ${API_URL}
+        REACT_APP_SENTRY_DSN: ${CLIENT_SENTRY_DSN:-}
+        REACT_APP_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
+        REACT_APP_SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+        REACT_APP_POSTHOG_KEY: ${POSTHOG_KEY:-}
+        REACT_APP_POSTHOG_HOST: ${POSTHOG_HOST:-}
 
-#   admin:
-#     <<: *publish
-#     image: kommently/admin-build:${IMAGE_TAG:-latest}
-#     volumes: !override
-#       - ./admin/build:/out
-#     build:
-#       context: .
-#       dockerfile: deploy/docker/spa.Dockerfile
-#       args:
-#         APP_DIR: admin
-#         REACT_APP_BASE_URL: ${API_URL}/api
-#         REACT_APP_SERVER_URL: ${API_URL}
+  admin:
+    <<: *publish
+    image: kommently/admin-build:${IMAGE_TAG:-latest}
+    volumes: !override
+      - ./admin/build:/out
+    build:
+      context: .
+      dockerfile: deploy/docker/spa.Dockerfile
+      args:
+        APP_DIR: admin
+        REACT_APP_BASE_URL: ${API_URL}/api
+        REACT_APP_SERVER_URL: ${API_URL}
 
-#   website:
-#     <<: *publish
-#     image: kommently/website-build:${IMAGE_TAG:-latest}
-#     volumes: !override
-#       - ./website/build:/out
-#     build:
-#       context: .
-#       dockerfile: deploy/docker/spa.Dockerfile
-#       args:
-#         APP_DIR: website
-#         REACT_APP_API_URL: ${API_URL}
-#         REACT_APP_APP_URL: ${APP_URL}
-#         REACT_APP_SITE_URL: ${SITE_URL}
-#         REACT_APP_GA_MEASUREMENT_ID: ${GA_MEASUREMENT_ID:-}
+  website:
+    <<: *publish
+    image: kommently/website-build:${IMAGE_TAG:-latest}
+    volumes: !override
+      - ./website/build:/out
+    build:
+      context: .
+      dockerfile: deploy/docker/spa.Dockerfile
+      args:
+        APP_DIR: website
+        REACT_APP_API_URL: ${API_URL}
+        REACT_APP_APP_URL: ${APP_URL}
+        REACT_APP_SITE_URL: ${SITE_URL}
+        REACT_APP_GA_MEASUREMENT_ID: ${GA_MEASUREMENT_ID:-}
