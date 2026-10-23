@@ -398,6 +398,16 @@ function check(name, cond, extra = '') {
   check('expired trial is locked', (await Organization.findOne({ name: 'TrialGone' })).isLocked === true);
   check('trial far from expiry untouched', !(await Organization.findOne({ name: 'TrialFar' })).trialReminders.day7Sent);
 
+  // --- website contact form
+  process.env.SUPPORT_EMAIL = 'support@e2e.test';
+  const supportMail = () => sentMail.filter((m) => m.startsWith('sendSupportRequest:'));
+  const goodMsg = { name: 'Visitor', email: 'visitor@e2e.test', topic: 'Billing', message: 'Can I pay yearly for the Pro plan?' };
+  const sentOk = await call('POST', '/api/support/contact', { body: goodMsg });
+  check('contact form sends the message to the support inbox', sentOk.status === 201 && supportMail().length === 1, `${sentOk.status}`);
+  const badMsg = await call('POST', '/api/support/contact', { body: { ...goodMsg, email: 'nope' } });
+  const botMsg = await call('POST', '/api/support/contact', { body: { ...goodMsg, website: 'http://spam' } });
+  check('contact form rejects invalid input and silently drops bots', badMsg.status === 400 && botMsg.status === 200 && supportMail().length === 1);
+
   // --- health
   const health = await call('GET', '/api/health');
   check('health reports db up', health.status === 200 && health.data.db === 'up');

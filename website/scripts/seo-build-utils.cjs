@@ -34,11 +34,6 @@ function buildWebSiteSchema() {
     '@type': 'WebSite',
     name: metadata.site.name,
     url: getSiteUrl(),
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: `${getSiteUrl()}/blog?query={search_term_string}`,
-      'query-input': 'required name=search_term_string',
-    },
   };
 }
 

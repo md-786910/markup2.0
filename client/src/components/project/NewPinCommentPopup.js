@@ -5,8 +5,10 @@ import { Mention, MentionBlot } from 'quill-mention';
 import 'quill-mention/dist/quill.mention.css';
 import { createCommentApi } from '../../services/commentService';
 import { createPinApi } from '../../services/pinService';
+import useEscape from '../../hooks/useEscape';
 import AttachmentChip from './AttachmentChip';
 import { ACCEPTED_ATTACHMENT_TYPES } from '../../utils/attachmentHelpers';
+import { toastError } from '../../utils/toast';
 
 // Register mention module and blot with Quill
 Quill.register({ 'blots/mention': MentionBlot, 'modules/mention': Mention });
@@ -16,6 +18,8 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const quillRef = useRef(null);
+  const savedPinRef = useRef(null);
+  useEscape(() => { if (!loading) onClose(); });
   const membersRef = useRef(members);
   membersRef.current = members;
 
@@ -46,7 +50,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
         var div = document.createElement('div');
         div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:2px 0';
         var avatar = document.createElement('span');
-        avatar.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#d9f0df;color:#0f5f4c;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0';
+        avatar.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#dbe5ff;color:#0031d1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0';
         avatar.textContent = (item.value || '?')[0].toUpperCase();
         var name = document.createElement('span');
         name.style.cssText = 'font-size:13px;color:#111827';
@@ -71,37 +75,42 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
     if (isBodyEmpty()) return;
     setLoading(true);
     try {
-      const pinFormData = new FormData();
-      pinFormData.append('xPercent', pinData.xPercent);
-      pinFormData.append('yPercent', pinData.yPercent);
-      pinFormData.append('pageUrl', pinData.pageUrl);
-      if (pinData.selector) pinFormData.append('selector', pinData.selector);
-      if (pinData.elementOffsetX != null) pinFormData.append('elementOffsetX', pinData.elementOffsetX);
-      if (pinData.elementOffsetY != null) pinFormData.append('elementOffsetY', pinData.elementOffsetY);
-      if (pinData.documentWidth != null) pinFormData.append('documentWidth', pinData.documentWidth);
-      if (pinData.documentHeight != null) pinFormData.append('documentHeight', pinData.documentHeight);
-      if (pinData.deviceMode) pinFormData.append('deviceMode', pinData.deviceMode);
-      if (pinData.viewportXPercent != null) pinFormData.append('viewportXPercent', pinData.viewportXPercent);
-      if (pinData.viewportYPercent != null) pinFormData.append('viewportYPercent', pinData.viewportYPercent);
-      pinFormData.append('initialComment', 'true');
+      // A retry after a failed comment reuses the pin that was already saved
+      let newPin = savedPinRef.current;
+      if (!newPin) {
+        const pinFormData = new FormData();
+        pinFormData.append('xPercent', pinData.xPercent);
+        pinFormData.append('yPercent', pinData.yPercent);
+        pinFormData.append('pageUrl', pinData.pageUrl);
+        if (pinData.selector) pinFormData.append('selector', pinData.selector);
+        if (pinData.elementOffsetX != null) pinFormData.append('elementOffsetX', pinData.elementOffsetX);
+        if (pinData.elementOffsetY != null) pinFormData.append('elementOffsetY', pinData.elementOffsetY);
+        if (pinData.documentWidth != null) pinFormData.append('documentWidth', pinData.documentWidth);
+        if (pinData.documentHeight != null) pinFormData.append('documentHeight', pinData.documentHeight);
+        if (pinData.deviceMode) pinFormData.append('deviceMode', pinData.deviceMode);
+        if (pinData.viewportXPercent != null) pinFormData.append('viewportXPercent', pinData.viewportXPercent);
+        if (pinData.viewportYPercent != null) pinFormData.append('viewportYPercent', pinData.viewportYPercent);
+        pinFormData.append('initialComment', 'true');
 
-      // Posting never waits for the capture: without a screenshot yet, the
-      // parent uploads it to the pin when it arrives (onPinSaved)
-      let sentScreenshot = false;
-      if (pinData.screenshot) {
-        try {
-          const res = await fetch(pinData.screenshot);
-          const blob = await res.blob();
-          pinFormData.append('screenshot', blob, 'screenshot.jpg');
-          sentScreenshot = true;
-        } catch (screenshotErr) {
-          console.warn('Failed to attach screenshot:', screenshotErr);
+        // Posting never waits for the capture: without a screenshot yet, the
+        // parent uploads it to the pin when it arrives (onPinSaved)
+        let sentScreenshot = false;
+        if (pinData.screenshot) {
+          try {
+            const res = await fetch(pinData.screenshot);
+            const blob = await res.blob();
+            pinFormData.append('screenshot', blob, 'screenshot.jpg');
+            sentScreenshot = true;
+          } catch (screenshotErr) {
+            console.warn('Failed to attach screenshot:', screenshotErr);
+          }
         }
-      }
 
-      const pinRes = await createPinApi(projectId, pinFormData);
-      const newPin = pinRes.data.pin;
-      if (onPinSaved) onPinSaved(newPin._id, sentScreenshot);
+        const pinRes = await createPinApi(projectId, pinFormData);
+        newPin = pinRes.data.pin;
+        savedPinRef.current = newPin;
+        if (onPinSaved) onPinSaved(newPin._id, sentScreenshot);
+      }
 
       const commentFormData = new FormData();
       commentFormData.append('body', body);
@@ -109,7 +118,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
       await createCommentApi(newPin._id, commentFormData);
       if (onPinCreated) onPinCreated(newPin._id);
     } catch (err) {
-      console.error('Failed to create pin/comment:', err);
+      toastError(err, 'Could not post your comment. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -117,6 +126,9 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="New comment"
       className="fixed inset-0 z-50"
       onClick={onClose}
     >
@@ -217,7 +229,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
               type="button"
               onClick={handleSubmit}
               disabled={loading || isBodyEmpty()}
-              className="px-5 py-2 bg-[#7fbf63] text-[#10231f] text-[13px] font-semibold rounded-full hover:bg-[#7fbf63ea] disabled:opacity-40 shadow-sm shadow-blue-600/20 transition-all hover:shadow-md"
+              className="px-5 py-2 bg-blue-600 text-white text-[13px] font-semibold rounded-full hover:bg-blue-700 disabled:opacity-40 shadow-sm shadow-blue-600/20 transition-all hover:shadow-md"
             >
               {loading ? (
                 <div className="flex items-center gap-1.5">

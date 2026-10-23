@@ -6,6 +6,7 @@ import {
   getBillingConfigApi,
 } from '../../services/billingService';
 import { useAuth } from '../../hooks/useAuth';
+import useEscape from '../../hooks/useEscape';
 
 function loadScript(src, id) {
   return new Promise((resolve) => {
@@ -20,6 +21,7 @@ function loadScript(src, id) {
 }
 
 export default function UpgradeModal({ selectedPlan, currentPlanId, currentPlanName, onClose, onUpgradeComplete }) {
+  useEscape(onClose);
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -85,7 +87,7 @@ export default function UpgradeModal({ selectedPlan, currentPlanId, currentPlanN
           }
         },
         prefill: { name: user?.name, email: user?.email },
-        theme: { color: '#176b57' },
+        theme: { color: '#003dff' },
         modal: { ondismiss: () => setLoading(false) },
       };
       const rzp = new window.Razorpay(options);
@@ -181,7 +183,7 @@ export default function UpgradeModal({ selectedPlan, currentPlanId, currentPlanN
   const noProvider = !configLoading && !activeProvider;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto overflow-hidden animate-scale-in flex flex-col max-h-[90vh]">

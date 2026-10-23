@@ -4,8 +4,8 @@ export default function AuthLayout({ children }) {
   return (
     <div className="min-h-screen flex animate-page-enter">
       {/* Left branded panel — hidden on mobile */}
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[540px] bg-[#10231f] relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(127,191,99,0.22),transparent_32%),radial-gradient(circle_at_82%_78%,rgba(56,189,248,0.16),transparent_34%),linear-gradient(90deg,rgba(16,35,31,0.46),rgba(24,43,38,0.16))]" />
+      <div className="hidden lg:flex lg:w-[480px] xl:w-[540px] bg-[#0f172a] relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(90,133,255,0.22),transparent_32%),radial-gradient(circle_at_82%_78%,rgba(56,189,248,0.16),transparent_34%),linear-gradient(90deg,rgba(15,23,42,0.46),rgba(15,23,42,0.16))]" />
         <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] [background-size:60px_60px]" />
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           {/* Logo */}
@@ -37,8 +37,8 @@ export default function AuthLayout({ children }) {
                 <span className="text-sm text-gray-300">Pin annotations</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>

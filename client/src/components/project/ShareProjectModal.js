@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { enableShareApi, updateShareApi } from '../../services/projectService';
+import useEscape from '../../hooks/useEscape';
 
 export default function ShareProjectModal({ isOpen, onClose, project, onProjectUpdate }) {
+  useEscape(onClose, isOpen);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -79,7 +81,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">

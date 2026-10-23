@@ -1,38 +1,28 @@
 import React from 'react';
 import Navbar from '../components/Navbar';
 import HeroSection from '../components/HeroSection';
-import LogoCloud from '../components/LogoCloud';
-import FeaturesGrid from '../components/FeaturesGrid';
-import FeatureShowcase from '../components/FeatureShowcase';
 import HowItWorks from '../components/HowItWorks';
-import StatsSection from '../components/StatsSection';
-import ComparisonTable from '../components/ComparisonTable';
+import ProductTour from '../components/ProductTour';
+import IntegrationsStrip from '../components/IntegrationsStrip';
 import PricingSection from '../components/PricingSection';
-import TestimonialsSection from '../components/TestimonialsSection';
 import FaqSection from '../components/FaqSection';
+import CtaSection from '../components/CtaSection';
 import Footer from '../components/Footer';
-import { Testimonial } from '../components/Testimonials';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden bg-white">
       <Navbar />
       <main id="main-content" className="relative">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[720px] bg-[radial-gradient(circle_at_top,rgba(127,191,99,0.12),transparent_46%)]" />
         <HeroSection />
-        <LogoCloud />
-        <FeaturesGrid />
-        <FeatureShowcase />
         <HowItWorks />
-        <StatsSection />
-        <ComparisonTable />
+        <ProductTour />
+        <IntegrationsStrip />
         <PricingSection />
-        <Testimonial />
-        <TestimonialsSection />
         <FaqSection />
-        <Footer />
+        <CtaSection />
       </main>
+      <Footer />
     </div>
   );
 }
-

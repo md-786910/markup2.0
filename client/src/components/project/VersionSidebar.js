@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getVersionsApi, createVersionApi, deleteVersionApi } from '../../services/projectService';
+import { toastError } from '../../utils/toast';
+import { confirmDialog } from '../../utils/confirm';
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -26,7 +28,7 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
       const res = await getVersionsApi(projectId);
       setVersions(res.data.versions);
     } catch (err) {
-      console.error('Failed to load versions:', err);
+      toastError(err, 'Could not load versions.');
     } finally {
       setLoading(false);
     }
@@ -49,20 +51,26 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
       setNewNotes('');
       await loadVersions();
     } catch (err) {
-      console.error('Failed to create version:', err);
+      toastError(err, 'Could not save the version.');
     } finally {
       setCreating(false);
     }
   };
 
   const handleDelete = async (versionId) => {
-    if (!window.confirm('Delete this version? Pins will not be deleted.')) return;
+    const ok = await confirmDialog({
+      title: 'Delete this version?',
+      message: 'Its pins are kept and move back to the current round.',
+      confirmLabel: 'Delete version',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await deleteVersionApi(projectId, versionId);
       if (selectedVersionId === versionId) onVersionSelect(null);
       await loadVersions();
     } catch (err) {
-      console.error('Failed to delete version:', err);
+      toastError(err, 'Could not delete the version.');
     }
   };
 
@@ -86,7 +94,7 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            Create Version
+            Save version
           </button>
         ) : (
           <div className="space-y-2">
@@ -117,7 +125,7 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
                 disabled={creating}
                 className="flex-1 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {creating ? 'Creating...' : 'Create'}
+                {creating ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
@@ -132,12 +140,12 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
         }`}
       >
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">All Versions</span>
+          <span className="text-sm font-medium text-gray-700">All feedback</span>
           {!selectedVersionId && (
             <span className="w-2 h-2 bg-blue-500 rounded-full" />
           )}
         </div>
-        <p className="text-xs text-gray-400 mt-0.5">Show all feedback across versions</p>
+        <p className="text-xs text-gray-400 mt-0.5">Every pin, including the current round</p>
       </button>
 
       {/* Version list */}
@@ -148,7 +156,7 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
             <p className="text-sm">No versions yet</p>
-            <p className="text-xs mt-1">Create a version to track feedback rounds</p>
+            <p className="text-xs mt-1">Save a version when a review round ends. Its pins are grouped under it, and new pins start the next round.</p>
           </div>
         ) : (
           versions.map((version) => (
@@ -157,11 +165,11 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
               className={`px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${
                 selectedVersionId === version._id ? 'bg-blue-50' : ''
               }`}
-              onClick={() => onVersionSelect(version._id)}
+              onClick={() => onVersionSelect(version)}
             >
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-md bg-purple-100 text-purple-700 text-[10px] font-bold flex items-center justify-center">
+                  <span className="w-6 h-6 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold flex items-center justify-center">
                     v{version.versionNumber}
                   </span>
                   <span className="text-sm font-medium text-gray-700">{version.name}</span>

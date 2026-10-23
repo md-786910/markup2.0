@@ -87,3 +87,10 @@ export const JiraIcon = ({ className = 'w-6 h-6', ...props }) => (
   </svg>
 );
 
+
+export const TeamsIcon = ({ className = 'w-6 h-6', ...props }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor" {...props}>
+    <path d="M19.5 7.5a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5zM21 8.25h-3.75a.75.75 0 00-.75.75v6a3 3 0 006 0V9.75A1.5 1.5 0 0021 8.25zM12.75 6.75a3 3 0 100-6 3 3 0 000 6z" opacity=".75" />
+    <path d="M15 8.25H3.75A1.5 1.5 0 002.25 9.75v6.75a6 6 0 0012 0V9a.75.75 0 00-.75-.75zM11.25 12H9v6H7.5v-6H5.25v-1.5h6V12z" />
+  </svg>
+);

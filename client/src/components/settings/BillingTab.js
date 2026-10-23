@@ -9,7 +9,9 @@ import {
   PLAN_LIST as STATIC_PLAN_LIST,
 } from "../../config/plans";
 import UpgradeModal from "./UpgradeModal";
+import { confirmDialog } from "../../utils/confirm";
 import DowngradeModal from "./DowngradeModal";
+import { toastError } from '../../utils/toast';
 
 const badgeColors = {
   gray: "bg-gray-100 text-gray-600 border border-gray-200",
@@ -89,7 +91,7 @@ export default function BillingTab() {
   useEffect(() => {
     getPlanApi()
       .then((res) => setPlanData(res.data))
-      .catch((err) => console.error("Failed to load plan:", err))
+      .catch((err) => toastError(err, 'Could not load your plan details.'))
       .finally(() => setLoading(false));
 
     getPublicPlansApi()
@@ -142,8 +144,14 @@ export default function BillingTab() {
   };
 
   const handleCancel = async () => {
-    // eslint-disable-next-line no-alert
-    if (!window.confirm(`Cancel your subscription? You keep your plan until ${periodEnd} and won't be charged again.`)) return;
+    const ok = await confirmDialog({
+      title: 'Cancel your subscription?',
+      message: `You keep your plan until ${periodEnd} and won't be charged again. You can resume before then.`,
+      confirmLabel: 'Cancel subscription',
+      cancelLabel: 'Keep plan',
+      danger: true,
+    });
+    if (!ok) return;
     setSubscriptionBusy(true);
     try {
       const res = await cancelSubscriptionApi();

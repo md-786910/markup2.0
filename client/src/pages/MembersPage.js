@@ -7,6 +7,7 @@ import {
   removeMemberApi,
   updateMemberRoleApi,
 } from '../services/projectService';
+import { toastError } from '../utils/toast';
 
 export default function MembersPage() {
   const { projectId } = useParams();
@@ -29,7 +30,7 @@ export default function MembersPage() {
       const res = await getProjectApi(projectId);
       setProject(res.data.project);
     } catch (err) {
-      console.error('Failed to load project:', err);
+      toastError(err, 'Could not load the project.');
     } finally {
       setLoading(false);
     }
@@ -93,7 +94,7 @@ export default function MembersPage() {
       const res = await updateMemberRoleApi(projectId, memberId, newRole);
       setProject(res.data.project);
     } catch (err) {
-      console.error('Failed to update role:', err);
+      toastError(err, 'Could not change the role.');
     } finally {
       setRoleLoading(null);
     }
@@ -106,7 +107,7 @@ export default function MembersPage() {
       setProject(res.data.project);
       setConfirmRemove(null);
     } catch (err) {
-      console.error('Failed to remove member:', err);
+      toastError(err, 'Could not remove the member.');
     } finally {
       setRemoveLoading(null);
     }

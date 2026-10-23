@@ -9,22 +9,25 @@
       'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
       sans-serif;
     min-height: 100vh;
-    background:
-      radial-gradient(circle at 8% 6%, rgba(199, 229, 214, 0.72), transparent 30%),
-      radial-gradient(circle at 90% 0%, rgba(218, 239, 226, 0.62), transparent 28%),
-      linear-gradient(180deg, #fbfdf9 0%, #f4f9f4 52%, #ffffff 100%);
+    background: #f8fafc;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-optical-sizing: auto;
+    text-rendering: optimizeLegibility;
     @apply text-gray-900;
   }
 
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
+  }
+
   *::selection {
-    background: rgba(23, 107, 87, 0.18);
-    color: #0d2a23;
+    background: rgba(0, 61, 255, 0.18);
+    color: #0f172a;
   }
 
   :focus-visible {
-    outline: 2px solid rgba(23, 107, 87, 0.45);
+    outline: 2px solid rgba(0, 61, 255, 0.45);
     outline-offset: 2px;
   }
 }
@@ -47,10 +50,10 @@
   max-height: 180px;
   overflow-y: auto;
   line-height: 1.6;
-  color: #17382f;
+  color: #1e293b;
 }
 .markup-quill-wrapper .ql-editor.ql-blank::before {
-  color: #8ca39a;
+  color: #94a3b8;
   font-style: normal;
   left: 16px;
   right: 16px;
@@ -59,20 +62,20 @@
   margin-bottom: 4px;
 }
 .markup-quill-wrapper .ql-editor blockquote {
-  border-left: 3px solid #bed5c7;
+  border-left: 3px solid #cbd5e1;
   padding-left: 12px;
-  color: #637a71;
+  color: #64748b;
   margin: 4px 0;
 }
 .markup-quill-wrapper .ql-editor code {
-  background: #eaf4ed;
+  background: #f1f5f9;
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 12px;
   color: #dc2626;
 }
 .markup-quill-wrapper .ql-editor a {
-  color: #176b57;
+  color: #003dff;
   text-decoration: underline;
 }
 
@@ -90,16 +93,16 @@
   height: 28px !important;
   padding: 4px !important;
   border-radius: 6px !important;
-  color: #8ca39a !important;
+  color: #94a3b8 !important;
   transition: all 0.15s !important;
 }
 #markup-comment-toolbar button:hover {
-  color: #2d443b !important;
-  background: #f4f9f4 !important;
+  color: #334155 !important;
+  background: #f8fafc !important;
 }
 #markup-comment-toolbar button.ql-active {
-  color: #176b57 !important;
-  background: #edf8f0 !important;
+  color: #003dff !important;
+  background: #eef3ff !important;
 }
 #markup-comment-toolbar .ql-stroke {
   stroke: currentColor !important;
@@ -111,8 +114,8 @@
 /* Quill mention overrides */
 .markup-quill-wrapper .ql-mention-list-container {
   border-radius: 10px !important;
-  border: 1px solid #d7e7dc !important;
-  box-shadow: 0 18px 45px rgba(25,54,43,0.12) !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 18px 45px rgba(15,23,42,0.12) !important;
   overflow: hidden !important;
   z-index: 99999 !important;
 }
@@ -122,18 +125,18 @@
   transition: background 0.1s !important;
 }
 .markup-quill-wrapper .ql-mention-list-item.selected {
-  background: #edf8f0 !important;
+  background: #eef3ff !important;
 }
 .markup-quill-wrapper .mention {
-  background: #edf8f0;
-  color: #176b57;
+  background: #eef3ff;
+  color: #003dff;
   font-weight: 500;
   padding: 1px 4px;
   border-radius: 4px;
 }
 .comment-rich-content .mention {
-  background: #edf8f0;
-  color: #176b57;
+  background: #eef3ff;
+  color: #003dff;
   font-weight: 500;
   padding: 1px 4px;
   border-radius: 4px;
@@ -144,16 +147,16 @@
 .comment-rich-content strong { font-weight: 600; }
 .comment-rich-content em { font-style: italic; }
 .comment-rich-content u { text-decoration: underline; }
-.comment-rich-content code { background: #eaf4ed; padding: 1px 4px; border-radius: 3px; font-size: 12px; color: #dc2626; }
-.comment-rich-content blockquote { border-left: 3px solid #bed5c7; padding-left: 10px; color: #637a71; margin: 4px 0; }
+.comment-rich-content code { background: #f1f5f9; padding: 1px 4px; border-radius: 3px; font-size: 12px; color: #dc2626; }
+.comment-rich-content blockquote { border-left: 3px solid #cbd5e1; padding-left: 10px; color: #64748b; margin: 4px 0; }
 .comment-rich-content ul { list-style: disc; padding-left: 20px; }
 .comment-rich-content ol { list-style: decimal; padding-left: 20px; }
-.comment-rich-content a { color: #176b57; text-decoration: underline; }
+.comment-rich-content a { color: #003dff; text-decoration: underline; }
 
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #bed5c7 transparent;
+    scrollbar-color: #cbd5e1 transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
@@ -162,10 +165,10 @@
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: #bed5c7;
+    background-color: #cbd5e1;
     border-radius: 3px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: #8ca39a;
+    background-color: #94a3b8;
   }
 }

@@ -876,7 +876,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
           var cursorStyleId = '__markup_cursor_style';
           var existing = document.getElementById(cursorStyleId);
           if (pinMode) {
-            var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="32" viewBox="0 0 28 32"><path d="M2 3a2 2 0 012-2h20a2 2 0 012 2v16a2 2 0 01-2 2H10l-6 7V21H4a2 2 0 01-2-2V3z" fill="#3b82f6"/><circle cx="9" cy="11" r="1.5" fill="#fff"/><circle cx="14" cy="11" r="1.5" fill="#fff"/><circle cx="19" cy="11" r="1.5" fill="#fff"/></svg>';
+            var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="32" viewBox="0 0 28 32"><path d="M2 3a2 2 0 012-2h20a2 2 0 012 2v16a2 2 0 01-2 2H10l-6 7V21H4a2 2 0 01-2-2V3z" fill="#003dff"/><circle cx="9" cy="11" r="1.5" fill="#fff"/><circle cx="14" cy="11" r="1.5" fill="#fff"/><circle cx="19" cy="11" r="1.5" fill="#fff"/></svg>';
             var cursorUrl = 'url(data:image/svg+xml;base64,' + btoa(svg) + ') 4 28, crosshair';
             if (!existing) {
               existing = document.createElement('style');
@@ -1024,8 +1024,9 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     pins.forEach(function(pin, index) {
       seen[pin.id] = true;
       var pos = getPinPosition(pin);
-      var color = pin.status === 'resolved' ? '#22c55e' : '#ef4444';
-      var borderColor = pin.selected ? '#3b82f6' : color;
+      // Brand blue (open) / green (resolved, emerald-500 as in the app) with a white ring: visible on any site
+      var color = pin.status === 'resolved' ? '#10b981' : '#003dff';
+      var borderColor = pin.selected ? '#001452' : '#ffffff';
       var scale = pin.selected ? 'scale(1.3)' : 'scale(1)';
       var el = _pinElements[pin.id];
 

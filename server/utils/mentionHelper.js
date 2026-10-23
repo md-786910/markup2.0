@@ -131,7 +131,7 @@ function formatCommentForEmail(body) {
 
   let text = body.replace(/[\uFEFF\u200B]/g, '');
 
-  const mentionStyle = 'color: #176b57; font-weight: 600; background: #edf8f0; padding: 1px 4px; border-radius: 4px;';
+  const mentionStyle = 'color: #003dff; font-weight: 600; background: #eef3ff; padding: 1px 4px; border-radius: 4px;';
 
   // 1. Convert Quill mention spans
   text = replaceQuillMentions(text, (name) => `<span style="${mentionStyle}">@${name}</span>`);

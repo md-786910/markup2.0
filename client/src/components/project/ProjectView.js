@@ -4,6 +4,8 @@ import IframeContainer from "./IframeContainer";
 import { parseDocPageUrl } from "../../utils/docPageUrl";
 import { normalizePageUrl } from "../../utils/pageUrl";
 import PinListSidebar from "./PinListSidebar";
+import SidebarTabs, { isTabLocked } from "./SidebarTabs";
+import LockedFeature from "../common/LockedFeature";
 import ActivitySidebar from "./ActivitySidebar";
 import VersionSidebar from "./VersionSidebar";
 import InviteMemberModal from "./InviteMemberModal";
@@ -20,6 +22,7 @@ import {
   uploadPinScreenshotApi,
 } from "../../services/pinService";
 import { useSocket } from "../../hooks/useSocket";
+import { toastError } from '../../utils/toast';
 
 // PDF viewer (react-pdf + pdf.js) is only downloaded for document projects
 const DocumentViewer = React.lazy(() => import("./DocumentViewer"));
@@ -67,14 +70,14 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const pendingPinRef = useRef(null);
   const [targetUrl, setTargetUrl] = useState(project.websiteUrl);
   const [iframeLoading, setIframeLoading] = useState(true);
-  const [modeSwitching, setModeSwitching] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [deviceMode, setDeviceMode] = useState('desktop');
   const [devicePinCounts, setDevicePinCounts] = useState({ desktop: 0, tablet: 0, mobile: 0 });
   const [currentDocPage, setCurrentDocPage] = useState(1);
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
   const [sidebarTab, setSidebarTab] = useState('pins');
-  const [selectedVersionId, setSelectedVersionId] = useState(null);
+  const [selectedVersion, setSelectedVersion] = useState(null);
+  const [smallScreenNoticeDismissed, setSmallScreenNoticeDismissed] = useState(false);
   const iframeState = useIframeMessages();
   const { onEvent, onlineUsers, lastSeenMap, resyncKey } = useSocket(project._id);
   const initialPinHandled = useRef(false);
@@ -126,7 +129,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       const res = await getPinsApi(project._id, currentPageUrl, undefined, deviceMode);
       setPins(res.data.pins);
     } catch (err) {
-      console.error("Failed to load pins:", err);
+      toastError(err, 'Could not load comments for this page.');
     }
   }, [project._id, currentPageUrl, deviceMode]);
 
@@ -135,9 +138,22 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       const res = await getPinsApi(project._id, undefined, undefined, deviceMode);
       setAllPins(res.data.pins);
     } catch (err) {
-      console.error("Failed to load all pins:", err);
+      toastError(err, 'Could not load comments.');
     }
   }, [project._id, deviceMode]);
+
+  // Viewing one review round (Versions tab): only that version's pins
+  const inVersion = useCallback(
+    (list) => (selectedVersion ? list.filter((p) => String(p.version?._id || p.version || '') === selectedVersion._id) : list),
+    [selectedVersion]
+  );
+  const shownPins = useMemo(() => inVersion(pins), [inVersion, pins]);
+  const shownAllPins = useMemo(() => inVersion(allPins), [inVersion, allPins]);
+
+  // New pins have no version yet: commenting shows the current round again
+  useEffect(() => {
+    if (pinMode) setSelectedVersion(null);
+  }, [pinMode]);
 
   // Auto-fetch pins with cancellation when deps change (and after a socket
   // reconnect, to pick up pins created while disconnected)
@@ -146,7 +162,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     getPinsApi(project._id, currentPageUrl, controller.signal, deviceMode)
       .then((res) => setPins(res.data.pins))
       .catch((err) => {
-        if (err.name !== 'CanceledError') console.error("Failed to load pins:", err);
+        toastError(err, 'Could not load comments for this page.');
       });
     return () => controller.abort();
   }, [project._id, currentPageUrl, deviceMode, resyncKey]);
@@ -157,7 +173,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     getPinsApi(project._id, undefined, controller.signal, deviceMode)
       .then((res) => setAllPins(res.data.pins))
       .catch((err) => {
-        if (err.name !== 'CanceledError') console.error("Failed to load all pins:", err);
+        toastError(err, 'Could not load comments.');
       });
     return () => controller.abort();
   }, [project._id, deviceMode, resyncKey]);
@@ -330,7 +346,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       await loadPins();
       await loadAllPins();
     } catch (err) {
-      console.error("Failed to delete pin:", err);
+      toastError(err, 'Could not delete the pin.');
     }
   };
 
@@ -350,7 +366,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         setSelectedPin((prev) => ({ ...prev, status: newStatus }));
       }
     } catch (err) {
-      console.error("Failed to update pin:", err);
+      toastError(err, 'Could not update the pin.');
     }
   };
 
@@ -367,6 +383,12 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       setIframeLoading(false);
     }
   }, [iframeState.ready]);
+
+  // The site could not be loaded (firewall / unreachable): no commenting on the error page
+  const siteBlocked = !isDocumentProject && iframeState.blocked;
+  useEffect(() => {
+    if (siteBlocked) setPinMode(false);
+  }, [siteBlocked]);
 
   // Fallback: also clear spinner when iframe's native load event fires
   const handleIframeLoad = useCallback(() => {
@@ -598,7 +620,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               }}
             />
             <button
-              onClick={() => { setModeSwitching(true); setPinMode(false); setTimeout(() => setModeSwitching(false), 400); }}
+              onClick={() => setPinMode(false)}
               className={`relative z-10 flex-1 text-center py-1 px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
                 !pinMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -606,7 +628,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               View
             </button>
             <button
-              onClick={() => { setModeSwitching(true); setPinMode(true); setTimeout(() => setModeSwitching(false), 400); }}
+              onClick={() => setPinMode(true)}
               className={`relative z-10 flex-1 text-center py-1 px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
                 pinMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -668,12 +690,21 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         </div>
       </div>
 
+      {!smallScreenNoticeDismissed && (
+        <div className="md:hidden flex items-center gap-3 border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-[13px] text-blue-900">
+          <span className="flex-1">Reviewing works best on a tablet or computer. You can still read and reply to feedback here.</span>
+          <button type="button" onClick={() => setSmallScreenNoticeDismissed(true)} className="font-medium text-blue-700">
+            Got it
+          </button>
+        </div>
+      )}
+
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
         {sidebarTab === 'pins' ? (
           <PinListSidebar
-            pins={allPins}
+            pins={shownAllPins}
             selectedPinId={selectedPin?._id}
             selectedPin={selectedPin}
             onPinClick={handlePinNavigate}
@@ -690,41 +721,34 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             onTabChange={setSidebarTab}
           />
         ) : (
-          <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden">
-            {/* Tab header */}
-            <div className="flex border-b border-gray-200/80 shrink-0">
-              {['pins', 'activity', 'versions'].filter(tab => {
-                if (tab === 'activity' && !limits.hasActivityLogs) return false;
-                if (tab === 'versions' && !limits.hasVersionHistory) return false;
-                return true;
-              }).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setSidebarTab(tab)}
-                  className={`flex-1 py-2.5 text-[13px] font-medium text-center transition-colors relative ${
-                    sidebarTab === tab ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {tab === 'pins' ? 'Feedback' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  {sidebarTab === tab && (
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
-                  )}
-                </button>
-              ))}
-            </div>
-            {sidebarTab === 'activity' && <ActivitySidebar projectId={project._id} />}
-            {sidebarTab === 'versions' && (
+          <div className="w-80 shrink-0 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden">
+            <SidebarTabs active={sidebarTab} onChange={setSidebarTab} />
+            {sidebarTab === 'activity' && (isTabLocked('activity', limits) ? (
+              <LockedFeature
+                title="Activity log"
+                plan="Starter"
+                description="See who added, resolved, and changed feedback in this project, and when."
+              />
+            ) : <ActivitySidebar projectId={project._id} />)}
+            {sidebarTab === 'versions' && isTabLocked('versions', limits) && (
+              <LockedFeature
+                title="Version history"
+                plan="Pro"
+                description="Save a version at the end of each review round and look back at the feedback from any round."
+              />
+            )}
+            {sidebarTab === 'versions' && !isTabLocked('versions', limits) && (
               <VersionSidebar
                 projectId={project._id}
-                selectedVersionId={selectedVersionId}
-                onVersionSelect={setSelectedVersionId}
+                selectedVersionId={selectedVersion?._id}
+                onVersionSelect={setSelectedVersion}
               />
             )}
           </div>
         )}
 
         {/* Content area */}
-        <div className="flex-1 relative">
+        <div className="flex-1 min-w-0 relative">
           {isDocumentProject ? (
             <React.Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-10 h-10 border-[3px] border-gray-200 border-t-blue-500 rounded-full animate-spin"></div></div>}>
             <DocumentViewer
@@ -734,9 +758,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               onPageChange={setCurrentDocPage}
               onDocIndexChange={setCurrentDocIndex}
               pinMode={pinMode}
-              pins={pins}
+              pins={shownPins}
               selectedPinId={selectedPin?._id}
-              hidePins={!pinMode}
               onDocumentClick={handleDocumentClick}
               onPinClick={(pin) => { setPendingPinData(null); setSelectedPin(pin); }}
               onScreenshot={handleDocScreenshot}
@@ -749,13 +772,71 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               proxyUrl={proxyUrl}
               targetUrl={targetUrl}
               pinMode={pinMode}
-              pins={pins}
+              pins={shownPins}
               selectedPinId={selectedPin?._id}
-              loading={iframeLoading || modeSwitching}
-              hidePins={!pinMode}
+              loading={iframeLoading}
               onLoad={handleIframeLoad}
               viewportWidth={viewportWidth}
             />
+          )}
+          {selectedVersion && (
+            <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white py-1.5 pl-4 pr-1.5 text-sm shadow-md">
+              <span className="text-gray-600">
+                Showing <span className="font-medium text-gray-900">{selectedVersion.name}</span> ({shownAllPins.length} {shownAllPins.length === 1 ? 'pin' : 'pins'})
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedVersion(null)}
+                className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200"
+              >
+                Show all
+              </button>
+            </div>
+          )}
+          {siteBlocked && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-gray-50/95 p-6">
+              <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-lg">
+                <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-amber-50">
+                  <svg className="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-base font-semibold text-gray-900">
+                  {iframeState.blocked.kind === 'blocked' ? 'This site blocks review tools' : "This site couldn't be reached"}
+                </h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  {iframeState.blocked.kind === 'blocked'
+                    ? `${iframeState.blocked.domain || 'The site'} uses firewall protection that stops it from loading here. You can still collect feedback on screenshots or a PDF of the pages.`
+                    : `${iframeState.blocked.domain || 'The site'} didn't respond. Check the address, or try again in a moment.`}
+                </p>
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Try again
+                  </button>
+                  <a
+                    href={targetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Open the site
+                  </a>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/dashboard?create=document')}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      Upload screenshots or a PDF
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

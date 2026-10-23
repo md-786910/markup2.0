@@ -3,7 +3,7 @@
  * { subject, html, text } — no sending, so templates can be previewed with
  * `node scripts/previewEmails.js`.
  */
-const { renderEmail, clientOrigin } = require('./layout');
+const { renderEmail, clientOrigin, esc } = require('./layout');
 const { formatCommentForEmail, stripHtmlAndMentions } = require('../mentionHelper');
 
 // ── Formatting helpers ──────────────────────────────────────────────────────
@@ -251,6 +251,24 @@ function verificationOtp({ otp }) {
   };
 }
 
+// Website contact form → support inbox (reply goes to the sender)
+function supportRequest({ name, email, topic, message }) {
+  return {
+    subject: `[Support] ${topic} from ${name}`,
+    ...renderEmail({
+      preheader: `${name} (${email}) wrote about ${topic}.`,
+      eyebrow: 'Website contact form',
+      tone: 'neutral',
+      title: topic,
+      blocks: [
+        { type: 'details', rows: [['From', name], ['Email', email], ['Topic', topic]] },
+        { type: 'quote', author: name, meta: email, html: esc(message).replace(/\n/g, '<br>'), text: message },
+        { type: 'note', text: 'Reply to this email to answer the sender directly.' },
+      ],
+    }),
+  };
+}
+
 // ── Billing ─────────────────────────────────────────────────────────────────
 
 const billingFooter = (orgName) => ({
@@ -485,6 +503,7 @@ function trialExpired({ orgName, planUrl }) {
 }
 
 module.exports = {
+  supportRequest,
   invitation,
   newPin,
   comment,

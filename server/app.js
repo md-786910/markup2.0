@@ -142,6 +142,8 @@ app.use((req, res, next) => {
   if (req.path.startsWith("/api/guest/")) return next();
   // Unsubscribe links are opened from email clients (signed token, no cookie auth)
   if (req.path.startsWith("/api/email/")) return next();
+  // Website contact form: public, no session (rate-limited, honeypot)
+  if (req.path === "/api/support/contact") return next();
   return verifyCsrf(req, res, next);
 });
 
@@ -183,6 +185,7 @@ app.use("/api/invitations", invitationRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/guest", guestRoutes);
 app.use("/api/email", require("./routes/email.routes"));
+app.use("/api/support", require("./routes/support.routes"));
 app.use("/api/projects", versionRoutes);
 app.use("/api/integrations", integrationRoutes);
 app.use("/api/admin", adminLimiter, adminRoutes);

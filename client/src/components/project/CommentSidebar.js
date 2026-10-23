@@ -15,6 +15,7 @@ import AttachmentItem from "./AttachmentItem";
 import { fileUrl } from "../../utils/uploadUrl";
 import { ACCEPTED_ATTACHMENT_TYPES } from "../../utils/attachmentHelpers";
 import { formatFullTimestamp } from "../../utils/formatTimestamp";
+import { toastError } from '../../utils/toast';
 
 function formatDateTime(dateStr) {
   const d = new Date(dateStr);
@@ -83,7 +84,7 @@ export default function CommentSidebar({
       setCopyToast(true);
       setTimeout(() => setCopyToast(false), 2000);
     } catch (err) {
-      console.error("Failed to copy screenshot:", err);
+      toastError(err, 'Could not copy the screenshot.');
     }
   };
   const mentionRef = useRef(null);
@@ -97,7 +98,7 @@ export default function CommentSidebar({
       .then((res) => {
         if (!cancelled) setComments(res.data.comments);
       })
-      .catch((err) => console.error("Failed to load comments:", err))
+      .catch((err) => toastError(err, 'Could not load comments.'))
       .finally(() => {
         if (!cancelled) setCommentsLoading(false);
       });
@@ -141,7 +142,7 @@ export default function CommentSidebar({
       const res = await getCommentsApi(pin._id);
       setComments(res.data.comments);
     } catch (err) {
-      console.error("Failed to load comments:", err);
+      toastError(err, 'Could not load comments.');
     }
   };
 
@@ -159,7 +160,7 @@ export default function CommentSidebar({
       setFiles([]);
       loadComments();
     } catch (err) {
-      console.error("Failed to create comment:", err);
+      toastError(err, 'Could not post your comment.');
     } finally {
       setLoading(false);
     }
@@ -170,7 +171,7 @@ export default function CommentSidebar({
       await deleteCommentApi(pin._id, commentId);
       loadComments();
     } catch (err) {
-      console.error("Failed to delete comment:", err);
+      toastError(err, 'Could not delete the comment.');
     }
   };
 
@@ -183,7 +184,7 @@ export default function CommentSidebar({
       setEditBody("");
       loadComments();
     } catch (err) {
-      console.error("Failed to edit comment:", err);
+      toastError(err, 'Could not save your edit.');
     }
   };
 
@@ -231,7 +232,7 @@ export default function CommentSidebar({
             </span>
             <span
               className={`w-1.5 h-1.5 rounded-full ${
-                pin.status === "resolved" ? "bg-green-500" : "bg-amber-500"
+                pin.status === "resolved" ? "bg-emerald-500" : "bg-amber-500"
               }`}
             ></span>
             <span className="text-[12px] text-gray-400" title={formatFullTimestamp(pin.createdAt)}>
@@ -717,7 +718,7 @@ export default function CommentSidebar({
               {lightbox.pin?.viewportXPercent != null &&
                 lightbox.pin?.viewportYPercent != null && (
                   <div
-                    className="absolute w-5 h-5 rounded-full bg-red-500 border-[3px] border-white shadow-lg"
+                    className="absolute w-5 h-5 rounded-full bg-blue-600 border-[3px] border-white shadow-lg"
                     style={{
                       left: `${lightbox.pin.viewportXPercent}%`,
                       top: `${lightbox.pin.viewportYPercent}%`,

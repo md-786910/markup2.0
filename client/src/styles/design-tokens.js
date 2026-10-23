@@ -5,25 +5,25 @@
  * at runtime; Tailwind utility classes and theme configuration apply styling.
  *
  * Colors
- * Primary:        blue-600 (#176B57) -- buttons, links, focus rings
- * Primary Hover:  blue-700 (#0F5F4C) -- button hover states
- * Primary Light:  blue-50  (#EDF8F0) -- active nav bg, badges
+ * Primary:        blue-600 (#003DFF) -- buttons, links, focus rings
+ * Primary Hover:  blue-700 (#0031D1) -- button hover states
+ * Primary Light:  blue-50  (#EEF3FF) -- active nav bg, badges
  *
- * Sidebar:        gray-900 (#0D2A23) -- dark botanical sidebar/background
- * Sidebar Active: gray-800 (#17382F) -- active nav item bg
- * Sidebar Text:   gray-400 (#8CA39A) -- inactive nav text
- * Sidebar Border: gray-800 (#17382F) -- sidebar dividers
+ * Sidebar:        gray-900 (#0F172A) -- dark botanical sidebar/background
+ * Sidebar Active: gray-800 (#1E293B) -- active nav item bg
+ * Sidebar Text:   gray-400 (#94A3B8) -- inactive nav text
+ * Sidebar Border: gray-800 (#1E293B) -- sidebar dividers
  *
- * Background:     gray-50  (#F4F9F4) -- muted app/page background
+ * Background:     gray-50  (#F8FAFC) -- muted app/page background
  * Card:           white    (#FFFFFF) -- card backgrounds
- * Card Border:    gray-200 (#D7E7DC) -- soft green borders
- * Card Hover Bdr: gray-300 (#BED5C7) -- hover border
+ * Card Border:    gray-200 (#E2E8F0) -- soft green borders
+ * Card Hover Bdr: gray-300 (#CBD5E1) -- hover border
  *
- * Text Primary:   gray-900 (#0D2A23) -- headings, titles
- * Text Secondary: gray-500 (#637A71) -- descriptions, subtitles
- * Text Muted:     gray-400 (#8CA39A) -- timestamps, metadata
+ * Text Primary:   gray-900 (#0F172A) -- headings, titles
+ * Text Secondary: gray-500 (#64748B) -- descriptions, subtitles
+ * Text Muted:     gray-400 (#94A3B8) -- timestamps, metadata
  *
- * Accent:         violet/purple remap to muted lime (#6F9F32)
+ * Accent:         violet/purple remap to muted lime (#2B5CFF)
  * Secondary:      cyan/indigo remap to soft teal greens
  * Danger:         red remains red for destructive/error states
  * Warning:        amber remains amber for warnings/pending states

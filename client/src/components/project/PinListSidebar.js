@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import CommentSidebar from './CommentSidebar';
 import { useAuth } from '../../hooks/useAuth';
+import SidebarTabs from './SidebarTabs';
 import renderCommentBody from '../../utils/renderCommentBody';
 import { formatTimestamp, formatFullTimestamp } from '../../utils/formatTimestamp';
 
@@ -123,7 +124,6 @@ export default function PinListSidebar({
   onTabChange,
 }) {
   const { user } = useAuth();
-  const limits = user?.orgLimits || {};
   const [readPins, setReadPins] = useState(() => getReadPins(user?.id));
   const [readComments, setReadComments] = useState(() => getReadComments(user?.id));
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -364,29 +364,9 @@ export default function PinListSidebar({
   const isSelected = (pinId) => selectedPinId === pinId;
 
   return (
-    <div className="w-80 bg-white border-r pb-10 border-gray-200 flex flex-col h-full overflow-hidden relative">
+    <div className="w-80 shrink-0 bg-white border-r pb-10 border-gray-200 flex flex-col h-full overflow-hidden relative">
       {/* Sidebar tab switcher */}
-      {onTabChange && (
-        <div className="flex border-b border-gray-200/80 shrink-0">
-          {['pins', 'activity', 'versions'].filter(tab => {
-            if (tab === 'activity' && !limits.hasActivityLogs) return false;
-            if (tab === 'versions' && !limits.hasVersionHistory) return false;
-            return true;
-          }).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => onTabChange(tab)}
-              className={`flex-1 py-2.5 text-[13px] font-medium text-center transition-colors relative ${sidebarTab === tab ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              {tab === 'pins' ? 'Feedback' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-              {sidebarTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
-              )}
-            </button>
-          ))}
-        </div>
-      )}
+      {onTabChange && <SidebarTabs active={sidebarTab} onChange={onTabChange} />}
       {/* Detail view — slides in from right */}
       <div
         className="absolute inset-0 z-10 transition-transform duration-300 ease-in-out"
@@ -686,8 +666,8 @@ export default function PinListSidebar({
                         </span>
                         <span className={`text-[13px] flex-1 truncate ${filterOption === 'assignee' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
                           {selectedAssigneeUsers.length > 0
-                            ? `Assignee (${selectedAssigneeUsers.length})`
-                            : 'Assignee'}
+                            ? `Author (${selectedAssigneeUsers.length})`
+                            : 'Author'}
                         </span>
                         <svg className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${assigneeModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -973,7 +953,7 @@ export default function PinListSidebar({
                   : filterOption === 'mentions'
                     ? (selectedMentionUser ? `No pins mentioning @${selectedMentionUser.name}` : 'No mentions found')
                     : filterOption === 'assignee'
-                      ? (selectedAssigneeUsers.length > 0 ? `No comments created by ${selectedAssigneeUsers.map((u) => u.name).join(', ')}` : 'No assignee comments found')
+                      ? (selectedAssigneeUsers.length > 0 ? `No comments created by ${selectedAssigneeUsers.map((u) => u.name).join(', ')}` : 'No comments by these people')
                     : filterOption === 'on_this_page'
                       ? 'No pins on this page'
                       : filterStatus === 'resolved'
@@ -996,7 +976,7 @@ export default function PinListSidebar({
                 </button>
               )}
               {!searchQuery && filterStatus === 'open' && pins.length === 0 && (
-                <p className="text-xs text-gray-300 mt-1">Click Pin Mode to start</p>
+                <p className="text-xs text-gray-500 mt-1">Switch to <span className="font-semibold text-blue-600">Comment</span> and click anywhere on the page.</p>
               )}
             </div>
           )}

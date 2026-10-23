@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import PasswordInput from '../components/common/PasswordInput';
 import { useParams } from 'react-router-dom';
 import {
@@ -12,6 +12,15 @@ import renderCommentBody from '../utils/renderCommentBody';
 import AttachmentChip from '../components/project/AttachmentChip';
 import AttachmentItem from '../components/project/AttachmentItem';
 import { ACCEPTED_ATTACHMENT_TYPES } from '../utils/attachmentHelpers';
+import { toast, toastError } from '../utils/toast';
+import IframeContainer from '../components/project/IframeContainer';
+import { useIframeMessages } from '../hooks/useIframeMessages';
+import { normalizePageUrl } from '../utils/pageUrl';
+import useEscape from '../hooks/useEscape';
+
+const DocumentViewer = React.lazy(() => import('../components/project/DocumentViewer'));
+const API_BASE = process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api';
+const docPageUrl = (doc, page) => (doc ? `doc:${doc.filename}:page:${page}` : null);
 
 const UPLOADS_BASE_URL = (process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
 
@@ -79,6 +88,7 @@ export default function GuestProjectPage() {
     () => !!(sessionStorage.getItem('guest_name') && sessionStorage.getItem('guest_email')),
   );
   const [showIdentityForm, setShowIdentityForm] = useState(false);
+  useEscape(() => setShowIdentityForm(false), showIdentityForm);
   const [commentBody, setCommentBody] = useState('');
   const [commentFiles, setCommentFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -86,6 +96,17 @@ export default function GuestProjectPage() {
   // New state for redesign
   const [filterStatus, setFilterStatus] = useState('open');
   const [detailView, setDetailView] = useState(false);
+  // Comment mode: clicks on the page start a new pin (draft) instead of navigating
+  const [commentMode, setCommentMode] = useState(false);
+  // Phones show one pane at a time (bottom tab bar)
+  const [mobilePane, setMobilePane] = useState('page');
+  const [draft, setDraft] = useState(null);
+  const [draftBody, setDraftBody] = useState('');
+  const [postingPin, setPostingPin] = useState(false);
+  const [iframeLoading, setIframeLoading] = useState(true);
+  const [currentDocIndex, setCurrentDocIndex] = useState(0);
+  const [currentDocPage, setCurrentDocPage] = useState(1);
+  const iframeState = useIframeMessages();
 
   // Derived data
   const filteredPins = useMemo(() => {
@@ -153,6 +174,8 @@ export default function GuestProjectPage() {
     sessionStorage.setItem('guest_email', guestEmail);
     setIdentityConfirmed(true);
     setShowIdentityForm(false);
+    // A comment was waiting for the guest's name: post it now
+    if (draft && draftBody.trim()) handlePostPin();
   };
 
   const handleAddComment = async () => {
@@ -174,15 +197,91 @@ export default function GuestProjectPage() {
       setCommentBody('');
       setCommentFiles([]);
     } catch (err) {
-      console.error('Failed to add comment:', err);
+      toastError(err, 'Could not post your comment.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handlePinClick = (pin) => {
+  const handlePinClick = useCallback((pin) => {
+    setDraft(null);
     setSelectedPin(pin);
     setDetailView(true);
+    setMobilePane('comments');
+  }, []);
+
+  // Pins drawn on the page: the current page (and desktop size) only
+  const isDocument = project?.projectType === 'document';
+  const currentDoc = isDocument ? (project.documents || [])[currentDocIndex] : null;
+  const pagePins = useMemo(() => {
+    if (!project) return [];
+    if (isDocument) {
+      const key = docPageUrl(currentDoc, currentDocPage);
+      return pins.filter((p) => p.pageUrl === key);
+    }
+    const here = normalizePageUrl(iframeState.currentPageUrl || project.websiteUrl);
+    return pins.filter((p) => normalizePageUrl(p.pageUrl) === here && (p.deviceMode || 'desktop') === 'desktop');
+  }, [pins, project, isDocument, currentDoc, currentDocPage, iframeState.currentPageUrl]);
+
+  // Clicking a pin marker inside the page opens its thread
+  useEffect(() => {
+    const handler = (event) => {
+      if (event.data?.type !== 'MARKUP_PIN_CLICK') return;
+      const pin = pins.find((p) => p._id === event.data.pinId);
+      if (pin) handlePinClick(pin);
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [pins, handlePinClick]);
+
+  // A click in comment mode starts a draft pin at that spot
+  const { lastClick, clearLastClick } = iframeState;
+  useEffect(() => {
+    if (!lastClick) return;
+    if (commentMode && !draft) {
+      setDraft({ ...lastClick, deviceMode: 'desktop' });
+      setDraftBody('');
+    }
+    clearLastClick();
+  }, [lastClick, clearLastClick, commentMode, draft]);
+
+  const handleDocumentClick = useCallback((clickData) => {
+    if (!draft) { setDraft(clickData); setDraftBody(''); }
+  }, [draft]);
+
+  const savedPinRef = useRef(null);
+  const handlePostPin = async () => {
+    if (!draft || !draftBody.trim()) return;
+    if (!guestName || !guestEmail) {
+      setShowIdentityForm(true);
+      return;
+    }
+    setPostingPin(true);
+    try {
+      // A retry after a failed comment reuses the pin already saved for this draft
+      let pin = savedPinRef.current?.draft === draft ? savedPinRef.current.pin : null;
+      if (!pin) {
+        const { clickId, screenshot, ...pinFields } = draft;
+        const pinRes = await createGuestPinApi(shareToken, { ...pinFields, guestName, guestEmail });
+        pin = pinRes.data.pin;
+        savedPinRef.current = { draft, pin };
+      }
+      const formData = new FormData();
+      formData.append('guestName', guestName);
+      formData.append('guestEmail', guestEmail);
+      formData.append('body', draftBody);
+      const commentRes = await createGuestCommentApi(shareToken, pin._id, formData);
+      const saved = { ...pin, firstComment: commentRes.data.comment, commentsCount: 1 };
+      setPins((prev) => [saved, ...prev.filter((p) => p._id !== pin._id)]);
+      setDraft(null);
+      setDraftBody('');
+      setFilterStatus('open');
+      toast.success('Comment posted.');
+    } catch (err) {
+      toastError(err, 'Could not post your comment.');
+    } finally {
+      setPostingPin(false);
+    }
   };
 
   const handleBackToList = () => {
@@ -270,7 +369,7 @@ export default function GuestProjectPage() {
 
   // Guest identity modal
   const identityModal = showIdentityForm && (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Details</h3>
         <p className="text-sm text-gray-500 mb-4">Enter your name and email to leave feedback.</p>
@@ -322,9 +421,9 @@ export default function GuestProjectPage() {
             </svg>
           </div>
           <div className="w-px h-6 bg-gray-200/80 shrink-0" />
-          <h2 className="font-semibold text-gray-900 shrink-0 text-[14px] tracking-tight">{project.name}</h2>
+          <h2 className="font-semibold text-gray-900 truncate text-[14px] tracking-tight">{project.name}</h2>
           {project.projectType === 'website' && project.websiteUrl && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 cursor-default" title={project.websiteUrl}>
+            <div className="hidden lg:flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 cursor-default" title={project.websiteUrl}>
               <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
               </svg>
@@ -334,18 +433,36 @@ export default function GuestProjectPage() {
         </div>
 
         {/* Right: Guest badge + identity */}
-        <div className="flex items-center gap-3 z-10">
-          <span className="text-[11px] font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100/50">
+        <div className="flex items-center gap-3 z-10 shrink-0">
+          {project.allowComments && (
+            <div className="flex items-center bg-gray-100 rounded-lg p-0.5" role="group" aria-label="Mode">
+              <button
+                type="button"
+                onClick={() => { setCommentMode(false); setDraft(null); }}
+                className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ${!commentMode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                View
+              </button>
+              <button
+                type="button"
+                onClick={() => setCommentMode(true)}
+                className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ${commentMode ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                Comment
+              </button>
+            </div>
+          )}
+          <span className="hidden md:inline text-[11px] font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100/50">
             Guest Review
           </span>
           {hasIdentity && (
             <>
-              <div className="w-px h-6 bg-gray-200/80" />
+              <div className="hidden md:block w-px h-6 bg-gray-200/80" />
               <div className="flex items-center gap-2">
                 <div className={`w-7 h-7 rounded-full ${guestColor.bg} ${guestColor.text} flex items-center justify-center text-[10px] font-bold`}>
                   {getInitials(guestName)}
                 </div>
-                <span className="text-[13px] font-medium text-gray-700">{guestName}</span>
+                <span className="hidden md:inline text-[13px] font-medium text-gray-700">{guestName}</span>
               </div>
             </>
           )}
@@ -354,7 +471,7 @@ export default function GuestProjectPage() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* ─── Sidebar ─── */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden relative shrink-0">
+        <div className={`${mobilePane === 'comments' ? 'flex' : 'hidden'} md:flex w-full md:w-80 bg-white border-r border-gray-200 flex-col h-full overflow-hidden relative shrink-0`}>
           {/* Detail view — slides in from right */}
           <div
             className="absolute inset-0 z-10 bg-white transition-transform duration-300 ease-in-out"
@@ -598,7 +715,11 @@ export default function GuestProjectPage() {
                       : 'No feedback yet'}
                   </p>
                   {filterStatus === 'open' && pins.length === 0 && (
-                    <p className="text-xs text-gray-300 mt-1">Feedback will appear here</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {project.allowComments
+                        ? <>Switch to <span className="font-semibold text-blue-600">Comment</span> and click anywhere on the page.</>
+                        : 'Feedback will appear here.'}
+                    </p>
                   )}
                 </div>
               )}
@@ -644,7 +765,7 @@ export default function GuestProjectPage() {
 
                         {/* Comment preview */}
                         {pin.firstComment ? (
-                          <p className="text-[13px] text-gray-700 leading-snug line-clamp-2">{pin.firstComment.body}</p>
+                          <div className="text-[13px] text-gray-700 leading-snug line-clamp-2">{renderCommentBody(pin.firstComment.body)}</div>
                         ) : (
                           <p className="text-[12px] text-gray-300 italic">No comments</p>
                         )}
@@ -666,16 +787,82 @@ export default function GuestProjectPage() {
         </div>
 
         {/* ─── Main content area ─── */}
-        <div className="flex-1 relative bg-gray-50">
-          {project.projectType === 'website' && (
-            <iframe
-              src={`${process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api'}/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}&guest=true`}
-              className="w-full h-full border-0"
-              title="Guest Review"
+        <div className={`${mobilePane === 'page' ? 'block' : 'hidden'} md:block flex-1 min-w-0 relative bg-gray-50`}>
+          {isDocument ? (
+            <React.Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" /></div>}>
+              <DocumentViewer
+                documents={project.documents || []}
+                currentDocIndex={currentDocIndex}
+                currentPage={currentDocPage}
+                onPageChange={setCurrentDocPage}
+                onDocIndexChange={(i) => { setCurrentDocIndex(i); setCurrentDocPage(1); }}
+                pinMode={commentMode}
+                pins={pagePins}
+                selectedPinId={selectedPin?._id}
+                onDocumentClick={handleDocumentClick}
+                onPinClick={handlePinClick}
+                onScreenshot={() => {}}
+                viewportWidth={1440}
+              />
+            </React.Suspense>
+          ) : project.websiteUrl ? (
+            <IframeContainer
+              proxyUrl={`${API_BASE}/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}&guest=true`}
+              targetUrl={project.websiteUrl}
+              pinMode={commentMode}
+              pins={pagePins}
+              selectedPinId={selectedPin?._id}
+              loading={iframeLoading && !iframeState.ready}
+              onLoad={() => setTimeout(() => setIframeLoading(false), 500)}
             />
+          ) : null}
+
+          {/* New comment on the clicked spot */}
+          {draft && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-[min(420px,calc(100%-2rem))] rounded-2xl border border-gray-200 bg-white p-4 shadow-xl">
+              <p className="text-[13px] font-semibold text-gray-900 mb-2">New comment</p>
+              <textarea
+                autoFocus
+                rows={3}
+                value={draftBody}
+                onChange={(e) => setDraftBody(e.target.value)}
+                placeholder="What should change here?"
+                className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
+              />
+              {!hasIdentity && (
+                <p className="mt-2 text-[12px] text-gray-500">You'll be asked for your name and email before posting.</p>
+              )}
+              <div className="mt-3 flex justify-end gap-2">
+                <button type="button" onClick={() => setDraft(null)} className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePostPin}
+                  disabled={!draftBody.trim() || postingPin}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {postingPin ? 'Posting…' : 'Post'}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
+
+      {/* Phones: switch between the page and the comments */}
+      <nav className="md:hidden grid grid-cols-2 border-t border-gray-200 bg-white shrink-0" aria-label="View">
+        {[['page', 'Page'], ['comments', `Comments (${openCount})`]].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setMobilePane(id)}
+            className={`py-3 text-sm font-medium ${mobilePane === id ? 'text-blue-600' : 'text-gray-500'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
 
       {identityModal}
     </div>

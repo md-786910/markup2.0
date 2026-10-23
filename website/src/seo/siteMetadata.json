@@ -27,11 +27,11 @@
   "routes": [
     {
       "path": "/",
-      "title": "Kommently | Visual Comment Tool for Website Reviews",
-      "description": "Pin comments on live websites, PDFs, and launch assets with real-time collaboration, guest review links, and faster approvals for agencies and product teams.",
-      "keywords": "visual comment tool, website annotation, client feedback tool, design review, website review software",
-      "h1": "Visual comment that turns reviews into releases.",
-      "summary": "Kommently helps teams replace screenshot threads with precise pinned comments, threaded collaboration, and controlled guest reviews.",
+      "title": "Kommently | Feedback on Any Website, No Install Needed",
+      "description": "Paste a link and pin comments on live websites, staging and logged-in pages, PDFs, and images. Clients review through a link, no account needed. Free 30-day Pro trial.",
+      "keywords": "website feedback tool, visual feedback, website annotation, client review tool, pdf review, design review software",
+      "h1": "Feedback on any website. No install needed.",
+      "summary": "Kommently lets teams and clients pin comments on live websites, PDFs, and images, with a screenshot, page, and device size on every comment, and integrations for Slack, Jira, Discord, and Teams.",
       "changefreq": "weekly",
       "priority": 1,
       "schema": [
@@ -50,25 +50,33 @@
       "faq": [
         {
           "question": "How does Kommently work?",
-          "answer": "Paste a live URL or upload a file, then click anywhere to leave precise visual comments. Comments stay anchored to the page context for designers, developers, and stakeholders."
+          "answer": "Paste a website link or upload PDFs and images. Switch to Comment, click anywhere, and write your note. Each comment is pinned to that spot, with the page URL, device size, and a screenshot, and opens a thread for the discussion."
         },
         {
-          "question": "Do guests need an account to review?",
-          "answer": "No. You can share controlled review links with clients or external collaborators so they can comment without creating an account."
+          "question": "Do I need to install anything on my website?",
+          "answer": "No. There is no script to add and no browser extension. Kommently loads the page for you, including staging sites and pages behind a login, and you review it in the browser."
         },
         {
-          "question": "What file types can I review in Kommently?",
-          "answer": "Kommently supports live websites, PDFs, images, and launch assets so teams can keep feedback in one workflow."
+          "question": "What if a website can’t be loaded?",
+          "answer": "A few sites use firewall protection that blocks review tools. Kommently tells you when that happens, and you can still collect feedback by uploading screenshots or a PDF of the pages to a document project."
         },
         {
-          "question": "Can my team collaborate in real time?",
-          "answer": "Yes. Comments, replies, presence, and status changes update in real time so teams avoid duplicate notes and slow handoffs."
+          "question": "Do clients need an account to review?",
+          "answer": "No. Share a review link and clients can view the site and pin their own comments with just a name and email. You can protect links with a password and an expiry date, make them view-only, or turn them off at any time."
+        },
+        {
+          "question": "Which tools does Kommently connect to?",
+          "answer": "Slack, Microsoft Teams, and Discord get notifications for new pins, comments, and status changes. Jira gets a new issue for every new pin. Integrations are included from the Starter plan and can be set for the whole workspace or per project."
+        },
+        {
+          "question": "How is our data handled?",
+          "answer": "Everything is sent over HTTPS, access is limited to your workspace members and the guests you invite, and you can export your data or delete your workspace from settings at any time. Payments are processed by Razorpay or PayPal; we never see card details."
         }
       ]
     },
     {
-      "path": "/customers",
-      "title": "Customer Review Workflows for Agencies and Product Teams | Kommently",
+      "path": "/use-cases",
+      "title": "Kommently Use Cases | Visual Review for Agencies, Product, and Web Teams",
       "description": "See how agencies, product teams, and web operations teams use Kommently to collect clearer feedback, reduce revision loops, and speed up approval cycles.",
       "keywords": "customer review workflow, agency feedback software, product team review, client approval tool",
       "h1": "Review workflows that feel clear to every stakeholder.",
@@ -85,8 +93,8 @@
           "path": "/"
         },
         {
-          "name": "Customers",
-          "path": "/customers"
+          "name": "Use cases",
+          "path": "/use-cases"
         }
       ]
     },
@@ -117,38 +125,19 @@
       "faq": [
         {
           "question": "Can I try Kommently for free before paying?",
-          "answer": "Yes. Starter and Pro include a free trial so your team can run a real review before choosing a plan."
+          "answer": "Yes. Every new workspace starts with a 30-day free trial with all Pro features, and no credit card is required. We email you before the trial ends so you can choose a plan."
         },
         {
           "question": "Do client reviewers count as members?",
-          "answer": "Guests are separate from team members. You can invite clients through controlled review links without adding them to your internal workspace."
+          "answer": "No. Guests have their own allowance (2 on Free, 10 on Starter, 50 on Pro) and review through a share link without joining your workspace."
+        },
+        {
+          "question": "What happens if we outgrow our plan?",
+          "answer": "Upgrade any time from Settings → Billing when you need more projects, guests, or storage. Enterprise covers custom limits, terms, and onboarding."
         },
         {
           "question": "Can we cancel monthly plans?",
-          "answer": "Yes. Monthly plans can be cancelled any time from billing settings."
-        }
-      ]
-    },
-    {
-      "path": "/blog",
-      "title": "Kommently Blog | Visual Review, QA, and Client Feedback Guides",
-      "description": "Read practical guides for better visual comments, client approvals, QA handoff, website review workflows, and collaborative delivery.",
-      "keywords": "visual review blog, QA handoff, client feedback tips, website review workflow",
-      "h1": "Better review systems for teams that ship web work.",
-      "summary": "Guides and playbooks for turning scattered review notes into precise, developer-ready feedback.",
-      "changefreq": "weekly",
-      "priority": 0.7,
-      "schema": [
-        "BreadcrumbList"
-      ],
-      "breadcrumbs": [
-        {
-          "name": "Home",
-          "path": "/"
-        },
-        {
-          "name": "Blog",
-          "path": "/blog"
+          "answer": "Yes. Cancel any time from Settings → Billing. You keep your plan until the end of the period you already paid for, and you are not charged again."
         }
       ]
     },

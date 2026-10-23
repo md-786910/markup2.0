@@ -14,28 +14,28 @@ const { URLS } = require('../../config/env');
 const BRAND = {
   name: 'Kommently',
   tagline: 'Visual feedback for websites and documents',
-  primary: '#176b57',
-  primaryDark: '#0f5f4c',
-  primarySoft: '#edf8f0',
-  primaryTint: '#d9f0df',
-  ink: '#0d2a23',
-  body: '#2d443b',
-  muted: '#637a71',
-  subtle: '#8ca39a',
-  border: '#d7e7dc',
-  divider: '#eaf4ed',
-  canvas: '#f4f9f4',
+  primary: '#003dff',
+  primaryDark: '#0031d1',
+  primarySoft: '#eef3ff',
+  primaryTint: '#dbe5ff',
+  ink: '#0f172a',
+  body: '#334155',
+  muted: '#64748b',
+  subtle: '#94a3b8',
+  border: '#e2e8f0',
+  divider: '#f1f5f9',
+  canvas: '#f8fafc',
   surface: '#ffffff',
   font: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
   mono: "'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace",
 };
 
 const TONES = {
-  brand: { fg: '#176b57', bg: '#edf8f0', border: '#bfe4ca' },
+  brand: { fg: '#003dff', bg: '#eef3ff', border: '#bccfff' },
   success: { fg: '#15803d', bg: '#dcfce7', border: '#bbf7d0' },
   warning: { fg: '#b45309', bg: '#fef3c7', border: '#fde68a' },
   danger: { fg: '#b91c1c', bg: '#fee2e2', border: '#fecaca' },
-  neutral: { fg: '#435b52', bg: '#eaf4ed', border: '#d7e7dc' },
+  neutral: { fg: '#475569', bg: '#f1f5f9', border: '#e2e8f0' },
 };
 
 function esc(value) {
@@ -122,7 +122,7 @@ const blocks = {
     return {
       html: `
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 24px;">
-          <tr><td align="center" style="padding:22px 16px;background:${BRAND.primarySoft};border:1px dashed #9ad3ae;border-radius:12px;">
+          <tr><td align="center" style="padding:22px 16px;background:${BRAND.primarySoft};border:1px dashed #8eaeff;border-radius:12px;">
             <div style="font-family:${BRAND.mono};font-size:32px;line-height:40px;font-weight:700;letter-spacing:10px;color:${BRAND.ink};padding-left:10px;">${esc(value)}</div>
             ${caption ? `<div style="margin-top:6px;font-size:12px;color:${BRAND.muted};">${esc(caption)}</div>` : ''}
           </td></tr>

@@ -3,6 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import html2canvas from 'html2canvas';
+import { toastError } from '../../utils/toast';
 
 // Served from our own build (same pdfjs-dist version react-pdf uses), not a third-party CDN
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
@@ -124,7 +125,7 @@ export default function DocumentViewer({
             <Document
               file={fileUrl}
               onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={(err) => { console.error('PDF load error:', err); setLoading(false); }}
+              onLoadError={(err) => { toastError(err, 'Could not load this document.'); setLoading(false); }}
               loading={
                 <div className="flex items-center justify-center" style={{ width: pageWidth, height: 600 }}>
                   <div className="w-8 h-8 border-[3px] border-gray-200 border-t-blue-500 rounded-full animate-spin" />
@@ -171,11 +172,9 @@ export default function DocumentViewer({
                   e.stopPropagation();
                   onPinClick(pin);
                 }}
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 transition-all ${pin._id === selectedPinId
-                  ? 'bg-blue-600 text-white border-blue-700 scale-125 shadow-lg'
-                  : pin.status === 'resolved'
-                    ? 'bg-green-500 text-white border-green-600 hover:scale-110'
-                    : 'bg-[#7fbf63] text-[#10231f] border-[#7fbf63fd] hover:scale-110'
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white border-2 transition-all ${pin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'} ${pin._id === selectedPinId
+                  ? 'border-blue-950 scale-125 shadow-lg'
+                  : 'border-white shadow hover:scale-110'
                   }`}
               >
                 {pin.pinNumber}

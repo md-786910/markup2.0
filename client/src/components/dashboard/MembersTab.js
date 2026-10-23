@@ -10,6 +10,8 @@ import {
   cancelInvitationApi,
   resendInvitationApi,
 } from '../../services/invitationService';
+import { toastError } from '../../utils/toast';
+import useEscape from '../../hooks/useEscape';
 
 const ROLE_STYLES = {
   owner: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -69,6 +71,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
   const [inviteSuccess, setInviteSuccess] = useState('');
   const [roleLoading, setRoleLoading] = useState(null);
   const [confirmRemove, setConfirmRemove] = useState(null);
+  useEscape(() => { setConfirmRemove(null); setRemoveProjectId(''); setRemoveError(''); }, !!confirmRemove);
   const [removeProjectId, setRemoveProjectId] = useState('');
   const [removeLoading, setRemoveLoading] = useState(null);
   const [removeError, setRemoveError] = useState('');
@@ -164,7 +167,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
       );
       setPendingInvitations(results.flat());
     } catch (err) {
-      console.error('Failed to fetch invitations:', err);
+      toastError(err, 'Could not load invitations.');
       setPendingInvitations([]);
       setInvitationsError('Failed to load pending invitations');
     } finally {
@@ -184,7 +187,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
       setInvitationSuccess('Invitation revoked');
       setTimeout(() => setInvitationSuccess(''), 3000);
     } catch (err) {
-      console.error('Failed to cancel invitation:', err);
+      toastError(err, 'Could not cancel the invitation.');
       setInvitationsError(err.response?.data?.message || 'Failed to revoke invitation');
     } finally {
       setCancellingId(null);
@@ -207,7 +210,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
       );
       setTimeout(() => setInvitationSuccess(''), 3000);
     } catch (err) {
-      console.error('Failed to resend invitation:', err);
+      toastError(err, 'Could not resend the invitation.');
       setInvitationsError(err.response?.data?.message || 'Failed to resend invitation');
     } finally {
       setResendingId(null);
@@ -292,7 +295,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
       await updateMemberRoleApi(project._id, member._id, newRole);
       onProjectsChanged();
     } catch (err) {
-      console.error('Failed to update role:', err);
+      toastError(err, 'Could not change the role.');
     } finally {
       setRoleLoading(null);
     }
@@ -308,7 +311,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
       setConfirmRemove(null);
       setRemoveProjectId('');
     } catch (err) {
-      console.error('Failed to remove member:', err);
+      toastError(err, 'Could not remove the member.');
       setRemoveError(err.response?.data?.message || 'Failed to remove member');
     } finally {
       setRemoveLoading(null);
@@ -777,7 +780,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
 
       {/* ===== REMOVE CONFIRMATION MODAL ===== */}
       {confirmRemove && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm mx-4 w-full animate-scale-in">
             <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">

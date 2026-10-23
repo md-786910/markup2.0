@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import LockedFeature from "../components/common/LockedFeature";
+import { confirmDialog } from "../utils/confirm";
 import PasswordInput from "../components/common/PasswordInput";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -8,6 +10,7 @@ import {
   deleteIntegrationApi,
   testIntegrationApi,
 } from "../services/integrationService";
+import { toastError } from '../utils/toast';
 
 const EVENT_OPTIONS = [
   { key: "pin.created", label: "New pin created" },
@@ -450,16 +453,18 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
 }
 
 export default function IntegrationsPage() {
-  const { canManage } = useAuth();
+  const { canManage, user } = useAuth();
+  const included = !!user?.orgLimits?.hasIntegrations;
   const [integrations, setIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!included) return;
     getIntegrationsApi()
       .then((res) => setIntegrations(res.data.integrations))
-      .catch((err) => console.error("Failed to load integrations:", err))
+      .catch((err) => toastError(err, 'Could not load integrations.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [included]);
 
   const handleSave = async (type, config, existingId) => {
     if (existingId) {
@@ -474,9 +479,19 @@ export default function IntegrationsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Remove this integration?")) return;
-    await deleteIntegrationApi(id);
-    setIntegrations((prev) => prev.filter((i) => i._id !== id));
+    const ok = await confirmDialog({
+      title: "Remove this integration?",
+      message: "Kommently stops sending notifications to it. You can connect it again at any time.",
+      confirmLabel: "Remove",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteIntegrationApi(id);
+      setIntegrations((prev) => prev.filter((i) => i._id !== id));
+    } catch (err) {
+      toastError(err, "Could not remove the integration.");
+    }
   };
 
   const handleTest = (id) => testIntegrationApi(id);
@@ -507,6 +522,20 @@ export default function IntegrationsPage() {
             Only workspace owners and admins can manage integrations.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (!included) {
+    return (
+      <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-3xl animate-page-enter">
+        <h2 className="text-2xl font-bold text-gray-900">Integrations</h2>
+        <LockedFeature
+          className="mt-8 rounded-xl border border-gray-200 bg-white"
+          title="Slack, Jira, Discord, and Microsoft Teams"
+          plan="Starter"
+          description="Send new pins and comments to your team's channels, and create a Jira issue for every new pin."
+        />
       </div>
     );
   }

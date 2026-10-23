@@ -18,7 +18,7 @@ const ACTION_MESSAGES = {
 const ACTION_COLORS = {
   'pin.created': 0x3b82f6,
   'comment.created': 0x3b82f6,
-  'pin.resolved': 0x22c55e,
+  'pin.resolved': 0x10b981,
   'pin.reopened': 0xf59e0b,
 };
 

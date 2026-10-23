@@ -100,12 +100,24 @@ function emailLimiter(name, windowMs, max, { skipSuccessfulRequests = false } = 
   });
 }
 
+// Website contact form: a few messages per visitor per hour
+const supportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many messages. Please wait a while or email us directly.' },
+  store: store('support'),
+  ...shared,
+});
+
 const loginEmailLimiter = emailLimiter('login', FIFTEEN_MIN, 10, { skipSuccessfulRequests: true });
 const passwordResetEmailLimiter = emailLimiter('reset', 60 * 60 * 1000, 3);
 const otpEmailLimiter = emailLimiter('otp', 60 * 60 * 1000, 6);
 
 module.exports = {
   authLimiter,
+  supportLimiter,
   adminLimiter,
   globalLimiter,
   loginEmailLimiter,

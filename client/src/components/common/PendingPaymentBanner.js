@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { verifyPaymentApi } from '../../services/billingService';
+import useEscape from '../../hooks/useEscape';
 
 function formatAmount(amount, currency) {
   const major = (amount || 0) / 100;
@@ -23,6 +24,7 @@ function loadScript(src, id) {
 }
 
 function PaypalQuickPay({ inv, onClose, onPaid }) {
+  useEscape(onClose);
   const containerRef = useRef(null);
   const renderedRef = useRef(false);
   const [error, setError] = useState('');
@@ -64,7 +66,7 @@ function PaypalQuickPay({ inv, onClose, onPaid }) {
   }, [inv, onPaid]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
         <div className="px-6 pt-6 pb-3 border-b border-gray-100 flex items-center justify-between">
@@ -126,7 +128,7 @@ export default function PendingPaymentBanner() {
       name: 'Kommently',
       description: `${(inv.plan || '').charAt(0).toUpperCase() + (inv.plan || '').slice(1)} plan invoice`,
       prefill: { name: user?.name, email: user?.email },
-      theme: { color: '#176b57' },
+      theme: { color: '#003dff' },
       handler: async (resp) => {
         try {
           const verifyRes = await verifyPaymentApi({

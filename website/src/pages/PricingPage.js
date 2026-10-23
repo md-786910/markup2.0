@@ -2,72 +2,42 @@ import React, { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import CtaSection from '../components/CtaSection';
-import { PLANS as STATIC_PLANS } from '../data/pricing';
-import { ArrowRightIcon, CheckIcon, ClockIcon, ShieldIcon, UsersIcon, XIcon, ZapIcon } from '../components/icons';
+import { TRIAL_NOTE } from '../data/pricing';
+import PlanCards from '../components/PlanCards';
+import { CheckIcon, ClockIcon, ShieldIcon, UsersIcon, XIcon, ZapIcon } from '../components/icons';
 
-const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
-const PLAN_COPY = {
-  starter: 'For lean teams moving client and internal review out of email.',
-  pro: 'For teams that need unlimited projects, integrations, and faster handoff.',
-  enterprise: 'For organizations with security, onboarding, and procurement needs.',
-};
-
+// Same limits as server/config/plans.js
+const COMPARE_PLANS = ['Free', 'Starter', 'Pro', 'Enterprise'];
 const FEATURES = [
-  ['Unlimited pinned comments', true, true, true],
-  ['Guest review links', true, true, true],
-  ['Version history', false, true, true],
-  ['Slack, Jira, and Discord integrations', false, true, true],
-  ['Advanced access controls', false, true, true],
-  ['Dedicated onboarding', false, false, true],
-  ['SLA and priority routing', false, false, true],
+  ['Pinned comments and threads', true, true, true, true],
+  ['Website, PDF, and image review', true, true, true, true],
+  ['Desktop, tablet, and mobile pins', true, true, true, true],
+  ['Projects', '2', '15', 'Unlimited', 'Unlimited'],
+  ['Team members', '5', '25', 'Unlimited', 'Unlimited'],
+  ['Guests', '2', '10', '50', 'Custom'],
+  ['Storage', '200 MB', '5 GB', '25 GB', '100 GB'],
+  ['Guest review links', false, true, true, true],
+  ['Slack, Jira, Discord, and Teams', false, true, true, true],
+  ['Activity log', false, true, true, true],
+  ['Version history', false, false, true, true],
+  ['Custom terms and onboarding', false, false, false, true],
 ];
 
 const FAQ = [
   ['Can I try Kommently for free before paying?', 'Yes. Every new workspace starts with a 30-day free trial with all Pro features, and no credit card is required. We email you before the trial ends so you can choose a plan.'],
-  ['Do client reviewers count as members?', 'Guests are separate from team members. You can invite clients through controlled review links without adding them to your internal workspace.'],
-  ['What happens if we outgrow our plan?', 'You can upgrade when your team needs more guests, integrations, or project volume. Enterprise is available for custom onboarding and security requirements.'],
+  ['Do client reviewers count as members?', 'No. Guests have their own allowance (2 on Free, 10 on Starter, 50 on Pro) and review through a share link without joining your workspace.'],
+  ['What happens if we outgrow our plan?', 'Upgrade any time from Settings → Billing when you need more projects, guests, or storage. Enterprise covers custom limits, terms, and onboarding.'],
   ['Can we cancel monthly plans?', 'Yes. Cancel any time from Settings → Billing. You keep your plan until the end of the period you already paid for, and you are not charged again.'],
 ];
 
 export default function PricingPage() {
-  const [plans, setPlans] = useState(STATIC_PLANS);
   const [openFaq, setOpenFaq] = useState(0);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  useEffect(() => {
-    let alive = true;
-    fetch(`${API_URL}/api/plans`)
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data) => {
-        if (!alive || !data?.planList) return;
-        const livePlans = data.planList
-          .filter((plan) => plan.enabled !== false)
-          .map((plan) => ({
-            id: plan.id,
-            name: plan.name,
-            price: plan.price,
-            priceLabel: plan.priceLabel,
-            period: plan.period,
-            features: plan.features || [],
-            popular: !!plan.popular,
-            cta: plan.id === 'enterprise' ? 'Contact Sales' : 'Start Free Trial',
-          }));
-        if (livePlans.length) setPlans(livePlans);
-      })
-      .catch(() => { });
-
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  // Monthly billing only (no annual plans yet)
-  const displayedPlans = plans;
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-white">
@@ -77,56 +47,18 @@ export default function PricingPage() {
           <div className="relative z-10 mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
             <span className="eyebrow">Pricing</span>
             <h1 className="display-heading mt-6">
-              Plans that scale with review volume, not confusion.
+              Simple pricing that grows with your reviews.
             </h1>
             <p className="body-large mx-auto mt-6 max-w-2xl">
-              Start small, bring in guests, and expand into integrations and security controls when your workflow needs them.
+              Every workspace starts with a 30-day Pro trial. No credit card, no setup fee, cancel any time.
             </p>
           </div>
         </section>
 
         <section className="pb-16 sm:pb-20 lg:pb-24">
-          <div className="site-container grid gap-5 lg:grid-cols-3">
-            {displayedPlans.map((plan) => (
-              <article
-                key={plan.id}
-                className={`relative rounded-[24px] p-7 sm:p-8 ${plan.popular
-                  ? 'bg-[#10231f] text-white shadow-[0_28px_80px_rgba(16,22,38,0.24)]'
-                  : 'premium-card text-[#10231f]'
-                  }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-8 rounded-full bg-[#b8e36d] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#10231f]">
-                    Best fit
-                  </div>
-                )}
-                <h2 className="font-display text-2xl font-semibold">{plan.name}</h2>
-                <p className={`mt-3 min-h-[3.25rem] text-sm leading-6 ${plan.popular ? 'text-white/68' : 'text-[#53645f]'}`}>
-                  {PLAN_COPY[plan.id] || 'Flexible review tooling for modern delivery teams.'}
-                </p>
-                <div className="mt-8 flex items-end gap-2">
-                  <span className="font-display text-5xl font-bold tracking-tight">{plan.priceLabel}</span>
-                  {plan.period ? <span className={`pb-1 text-sm ${plan.popular ? 'text-white/60' : 'text-[#8a9b94]'}`}>{plan.period}</span> : null}
-                </div>
-                <p className={`mt-2 text-xs font-medium ${plan.popular ? 'text-white/45' : 'text-[#8a9b94]'}`}>Billed monthly</p>
-                <a
-                  href={plan.id === 'enterprise' ? 'mailto:hello@kommently.app' : `${APP_URL}/onboarding`}
-                  className={`mt-8 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold transition ${plan.popular ? 'bg-[#176b57] text-white hover:bg-[#0f5f4c]' : 'border border-emerald-100 bg-white text-[#365047] hover:bg-[#f4faf4]'
-                    }`}
-                >
-                  {plan.cta}
-                  <ArrowRightIcon className="h-4 w-4" />
-                </a>
-                <ul className="mt-8 space-y-3">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3">
-                      <CheckIcon className={`mt-1 h-4 w-4 flex-none ${plan.popular ? 'text-[#b8e36d]' : 'text-emerald-600'}`} />
-                      <span className={`text-sm leading-6 ${plan.popular ? 'text-white/76' : 'text-[#53645f]'}`}>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            ))}
+          <div className="site-container">
+            <PlanCards />
+            <p className="mt-8 text-center text-sm font-medium text-slate-500">{TRIAL_NOTE}</p>
           </div>
         </section>
 
@@ -136,22 +68,23 @@ export default function PricingPage() {
               <div>
                 <span className="eyebrow">Compare</span>
                 <h2 className="section-heading mt-5">See what changes by tier.</h2>
-                <p className="body-copy mt-4">Core review flows are available from day one. Higher tiers add scale, automation, and security controls.</p>
+                <p className="body-copy mt-4">Core review flows are available from day one. Higher tiers add scale, integrations, and history.</p>
+                <p className="mt-4 text-sm font-semibold text-[#003dff]">{TRIAL_NOTE}</p>
               </div>
-              <div className="overflow-x-auto rounded-[24px] border border-emerald-100 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.055)]">
-                <div className="min-w-[660px]">
-                  <div className="grid grid-cols-[1.4fr_repeat(3,0.7fr)] border-b border-emerald-100 bg-[#f4faf4] px-5 py-4 text-sm font-semibold text-[#365047]">
+              <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.055)]">
+                <div className="min-w-[720px]">
+                  <div className="grid grid-cols-[1.6fr_repeat(4,0.7fr)] border-b border-slate-200 bg-[#f8fafc] px-5 py-4 text-sm font-semibold text-[#475569]">
                     <span>Feature</span>
-                    <span>Starter</span>
-                    <span>Pro</span>
-                    <span>Enterprise</span>
+                    {COMPARE_PLANS.map((name) => <span key={name}>{name}</span>)}
                   </div>
-                  {FEATURES.map(([feature, starter, pro, enterprise]) => (
-                    <div key={feature} className="grid grid-cols-[1.4fr_repeat(3,0.7fr)] items-center border-b border-emerald-100 px-5 py-4 text-sm last:border-0">
-                      <span className="font-medium text-[#365047]">{feature}</span>
-                      {[starter, pro, enterprise].map((included, index) => (
-                        <span key={`${feature}-${index}`} className={included ? 'text-emerald-600' : 'text-[#8a9b94]'}>
-                          {included ? <CheckIcon className="h-4 w-4" /> : <XIcon className="h-4 w-4" />}
+                  {FEATURES.map(([feature, ...values]) => (
+                    <div key={feature} className="grid grid-cols-[1.6fr_repeat(4,0.7fr)] items-center border-b border-slate-100 px-5 py-4 text-sm last:border-0">
+                      <span className="font-medium text-[#475569]">{feature}</span>
+                      {values.map((value, index) => (
+                        <span key={`${feature}-${index}`} className={value ? 'text-[#0f172a]' : 'text-[#94a3b8]'}>
+                          {typeof value === 'string'
+                            ? <span className="font-medium">{value}</span>
+                            : value ? <CheckIcon className="h-4 w-4 text-[#003dff]" /> : <XIcon className="h-4 w-4" />}
                         </span>
                       ))}
                     </div>
@@ -168,11 +101,11 @@ export default function PricingPage() {
               {[
                 [ClockIcon, 'Fast onboarding', 'Start from a URL or upload and invite reviewers in seconds.'],
                 [UsersIcon, 'Guest-friendly', 'Clients and stakeholders can review without learning another tool.'],
-                [ShieldIcon, 'Controlled access', 'Password links, private projects, and workspace roles keep reviews governed.'],
+                [ShieldIcon, 'Controlled access', 'Password-protected, expiring guest links and workspace roles keep reviews governed.'],
               ].map(([Icon, title, copy]) => (
                 <div key={title} className="premium-card p-6">
-                  <Icon className="h-6 w-6 text-[#176b57]" />
-                  <h3 className="mt-5 font-display text-xl font-semibold text-[#10231f]">{title}</h3>
+                  <Icon className="h-6 w-6 text-[#003dff]" />
+                  <h3 className="mt-5 font-display text-xl font-semibold text-[#0f172a]">{title}</h3>
                   <p className="body-copy mt-3">{copy}</p>
                 </div>
               ))}
@@ -180,17 +113,17 @@ export default function PricingPage() {
 
             <div className="mt-14">
               <div className="text-center">
-                <ZapIcon className="mx-auto h-7 w-7 text-[#176b57]" />
+                <ZapIcon className="mx-auto h-7 w-7 text-[#003dff]" />
                 <h2 className="section-heading mt-4 text-3xl lg:text-4xl">Pricing questions</h2>
               </div>
               <div className="mx-auto mt-8 max-w-3xl space-y-3">
                 {FAQ.map(([question, answer], index) => (
-                  <div key={question} className="rounded-2xl border border-emerald-100 bg-white">
-                    <button type="button" className="flex w-full items-center justify-between gap-4 p-5 text-left font-semibold text-[#10231f]" onClick={() => setOpenFaq(openFaq === index ? -1 : index)}>
+                  <div key={question} className="rounded-2xl border border-slate-200 bg-white">
+                    <button type="button" className="flex w-full items-center justify-between gap-4 p-5 text-left font-semibold text-[#0f172a]" onClick={() => setOpenFaq(openFaq === index ? -1 : index)}>
                       {question}
-                      <span className="text-[#176b57]">{openFaq === index ? '-' : '+'}</span>
+                      <span className="text-[#003dff]">{openFaq === index ? '-' : '+'}</span>
                     </button>
-                    {openFaq === index ? <p className="px-5 pb-5 text-sm leading-7 text-[#53645f]">{answer}</p> : null}
+                    {openFaq === index ? <p className="px-5 pb-5 text-sm leading-7 text-slate-600">{answer}</p> : null}
                   </div>
                 ))}
               </div>

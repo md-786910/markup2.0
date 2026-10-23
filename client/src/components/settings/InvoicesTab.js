@@ -5,6 +5,8 @@ import {
   downloadInvoicePdfApi,
 } from '../../services/billingService';
 import { useAuth } from '../../hooks/useAuth';
+import { toastError } from '../../utils/toast';
+import useEscape from '../../hooks/useEscape';
 
 function loadScript(src, id) {
   return new Promise((resolve) => {
@@ -27,6 +29,7 @@ function formatAmount(invoice) {
 }
 
 function PaypalPayInvoiceModal({ invoice, paypalClientId, onClose, onPaid }) {
+  useEscape(onClose);
   const containerRef = useRef(null);
   const renderedRef = useRef(false);
   const [error, setError] = useState('');
@@ -73,7 +76,7 @@ function PaypalPayInvoiceModal({ invoice, paypalClientId, onClose, onPaid }) {
   }, [paypalClientId, invoice, onPaid]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
         <div className="px-6 pt-6 pb-3 border-b border-gray-100 flex items-center justify-between">
@@ -138,7 +141,7 @@ export default function InvoicesTab() {
       setKeyId(res.data.key_id);
       setPaypalClientId(res.data.paypalClientId || null);
     } catch (err) {
-      console.error('Failed to load invoices:', err);
+      toastError(err, 'Could not load invoices.');
       setError('Failed to load invoices.');
     } finally {
       setLoading(false);
@@ -183,7 +186,7 @@ export default function InvoicesTab() {
         }
       },
       prefill: { name: user?.name, email: user?.email },
-      theme: { color: '#176b57' },
+      theme: { color: '#003dff' },
       modal: { ondismiss: () => setPayingInvoiceId(null) },
     };
 

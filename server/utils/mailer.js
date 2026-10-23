@@ -34,7 +34,7 @@ function fromAddress() {
 // Notification emails (opts.notification) get an unsubscribe link in the footer
 // plus List-Unsubscribe / List-Unsubscribe-Post headers (one-click, RFC 8058),
 // which Gmail and Yahoo require from bulk senders.
-async function send(to, { subject, html, text }, { notification = false } = {}) {
+async function send(to, { subject, html, text }, { notification = false, replyTo } = {}) {
   const mail = {
     from: fromAddress(),
     to,
@@ -42,6 +42,7 @@ async function send(to, { subject, html, text }, { notification = false } = {}) 
     html,
     text,
   };
+  if (replyTo) mail.replyTo = replyTo;
   if (notification) {
     const url = unsubscribeUrl(to);
     mail.html = html.replace(
@@ -87,6 +88,11 @@ async function sendDigestEmail(toEmail, projectName, events) {
 }
 
 // ── Account ─────────────────────────────────────────────────────────────────
+
+// Website contact form: to the support inbox, answerable with Reply
+async function sendSupportRequest(toEmail, request) {
+  await send(toEmail, templates.supportRequest(request), { replyTo: { name: request.name, address: request.email } });
+}
 
 async function sendPasswordResetEmail(toEmail, resetUrl) {
   await send(toEmail, templates.passwordReset({ resetUrl }));
@@ -138,6 +144,7 @@ async function sendSubscriptionCanceledEmail(toEmail, orgName, planName, endsAt,
 
 module.exports = {
   getTransporter,
+  sendSupportRequest,
   sendInvitationEmail,
   sendPinNotificationEmail,
   sendCommentNotificationEmail,

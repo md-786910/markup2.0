@@ -30,6 +30,8 @@ export function useIframeMessages() {
     screenshot: null,
     // The pin-mode click the screenshot belongs to (frame's clickId)
     screenshotClickId: null,
+    // Set when the proxy could not load the site: { kind: 'blocked'|'unreachable', domain }
+    blocked: null,
   });
 
   // Screenshot messages go to subscribers one by one (state would merge two
@@ -57,6 +59,13 @@ export function useIframeMessages() {
             ...prev,
             navigating: true,
             ready: false,
+            blocked: null,
+          }));
+          break;
+        case "MARKUP_BLOCKED":
+          setState((prev) => ({
+            ...prev,
+            blocked: { kind: data.kind === 'blocked' ? 'blocked' : 'unreachable', domain: data.domain || '' },
           }));
           break;
         case "MARKUP_READY":
@@ -64,6 +73,7 @@ export function useIframeMessages() {
             ...prev,
             ready: true,
             navigating: false,
+            blocked: null,
             currentPageUrl: data.pageUrl || prev.currentPageUrl,
           }));
           scrollRef.current.documentWidth = data.documentWidth;

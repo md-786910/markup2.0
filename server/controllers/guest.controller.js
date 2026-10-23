@@ -175,15 +175,21 @@ exports.getGuestPins = asyncHandler(async (req, res) => {
   const pinIds = pins.map((p) => p._id);
   const commentAgg = await Comment.aggregate([
     { $match: { pin: { $in: pinIds } } },
-    { $group: { _id: '$pin', count: { $sum: 1 } } },
+    { $sort: { createdAt: 1 } },
+    { $group: { _id: '$pin', count: { $sum: 1 }, firstBody: { $first: '$body' }, firstCreatedAt: { $first: '$createdAt' } } },
   ]);
   const countMap = {};
-  commentAgg.forEach((c) => { countMap[c._id.toString()] = c.count; });
+  commentAgg.forEach((c) => { countMap[c._id.toString()] = c; });
 
-  const pinsWithCounts = pins.map((pin) => ({
-    ...pin.toObject(),
-    commentsCount: countMap[pin._id.toString()] || 0,
-  }));
+  // Count plus the first comment (list preview), as in the member pin list
+  const pinsWithCounts = pins.map((pin) => {
+    const info = countMap[pin._id.toString()];
+    return {
+      ...pin.toObject(),
+      commentsCount: info ? info.count : 0,
+      firstComment: info ? { body: info.firstBody, createdAt: info.firstCreatedAt } : null,
+    };
+  });
 
   res.json({ pins: pinsWithCounts });
 });

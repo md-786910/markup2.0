@@ -14,7 +14,7 @@ export default function ProjectList({
   onArchive,
   onDelete,
   onConfirmDelete,
-  onManageMembers,
+  onCreate,
   onStatusChange,
 }) {
   if (loading) {
@@ -64,11 +64,29 @@ export default function ProjectList({
         <p className="text-base font-semibold text-gray-700 mb-1">
           {tab === 'active' ? 'No active projects yet' : 'No archived projects'}
         </p>
-        <p className="text-sm text-gray-400 max-w-xs mx-auto">
+        <p className="text-sm text-gray-500 max-w-xs mx-auto">
           {tab === 'active'
-            ? 'Create your first project to start collecting visual feedback on websites or documents.'
+            ? 'Paste a website link or upload a PDF to start collecting feedback. No install needed.'
             : 'Projects you archive will appear here for safekeeping.'}
         </p>
+        {tab === 'active' && onCreate && (
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => onCreate('website')}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+            >
+              Review a website
+            </button>
+            <button
+              type="button"
+              onClick={() => onCreate('document')}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors"
+            >
+              Upload PDF or images
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -89,7 +107,6 @@ export default function ProjectList({
           onArchive={onArchive}
           onDelete={onDelete}
           onConfirmDelete={onConfirmDelete}
-          onManageMembers={onManageMembers}
           onStatusChange={onStatusChange}
         />
       ))}

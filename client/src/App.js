@@ -2,6 +2,8 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import Toaster from './components/common/Toaster';
+import ConfirmHost from './components/common/ConfirmHost';
 import PrivateRoute from './components/common/PrivateRoute';
 import AppLayout from './components/layout/AppLayout';
 import './index.css';
@@ -57,6 +59,8 @@ function App() {
               <Route path="*" element={<Navigate to="/dashboard" />} />
             </Routes>
           </Suspense>
+          <Toaster />
+          <ConfirmHost />
         </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>

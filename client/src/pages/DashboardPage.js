@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import ProjectList from '../components/dashboard/ProjectList';
 import CreateProjectModal from '../components/dashboard/CreateProjectModal';
@@ -13,6 +13,8 @@ import {
   updateProjectApi,
   deleteProjectApi,
 } from '../services/projectService';
+import { toastError } from '../utils/toast';
+import useEscape from '../hooks/useEscape';
 
 const DEFAULT_DATE_RANGE = { preset: null, start: '', end: '' };
 
@@ -62,16 +64,27 @@ function isInDateRange(project, dateRange) {
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'active';
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [createType, setCreateType] = useState('website');
+
+  // ?create=website|document (e.g. from a blocked site) opens the create dialog
+  useEffect(() => {
+    const type = searchParams.get('create');
+    if (!isAdmin || (type !== 'website' && type !== 'document')) return;
+    setCreateType(type);
+    setShowCreate(true);
+    setSearchParams((prev) => { const next = new URLSearchParams(prev); next.delete('create'); return next; }, { replace: true });
+  }, [searchParams, setSearchParams, isAdmin]);
   const [editingProject, setEditingProject] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  useEscape(() => setConfirmDelete(null), !!confirmDelete);
   const initialLoadDone = useRef(false);
   const [filters, setFilters] = useState({
     status: null,
@@ -88,7 +101,7 @@ export default function DashboardPage() {
         setProjects(res.data.projects);
         initialLoadDone.current = true;
       })
-      .catch((err) => console.error('Failed to load projects:', err))
+      .catch((err) => toastError(err, 'Could not load your projects.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -157,7 +170,7 @@ export default function DashboardPage() {
         prev.map((p) => (p._id === res.data.project._id ? { ...p, ...res.data.project } : p))
       );
     } catch (err) {
-      console.error('Failed to update status:', err);
+      toastError(err, 'Could not update the status.');
     }
   };
 
@@ -169,7 +182,7 @@ export default function DashboardPage() {
         prev.map((p) => (p._id === res.data.project._id ? { ...p, ...res.data.project } : p))
       );
     } catch (err) {
-      console.error('Failed to update project:', err);
+      toastError(err, 'Could not update the project.');
     }
   };
 
@@ -179,7 +192,7 @@ export default function DashboardPage() {
       setProjects((prev) => prev.filter((p) => p._id !== projectId));
       setConfirmDelete(null);
     } catch (err) {
-      console.error('Failed to delete project:', err);
+      toastError(err, 'Could not delete the project.');
     }
   };
 
@@ -191,7 +204,7 @@ export default function DashboardPage() {
       );
       setEditingProject(null);
     } catch (err) {
-      console.error('Failed to update project:', err);
+      toastError(err, 'Could not update the project.');
     }
   };
 
@@ -257,7 +270,7 @@ export default function DashboardPage() {
           onArchive={handleArchiveToggle}
           onDelete={handleDelete}
           onConfirmDelete={setConfirmDelete}
-          onManageMembers={() => { }}
+          onCreate={isAdmin ? (type) => { setCreateType(type); setShowCreate(true); } : null}
           onStatusChange={handleStatusChange}
         />
       )}
@@ -270,6 +283,8 @@ export default function DashboardPage() {
         onCreated={(project) => {
           setProjects((prev) => [project, ...prev]);
           setShowCreate(false);
+          // Straight into the new project: the next step is the first comment
+          navigate(`/project/${project._id}`);
         }}
       />
 
@@ -284,7 +299,7 @@ export default function DashboardPage() {
 
       {/* Delete confirm overlay */}
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm mx-4 animate-scale-in">
             <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -318,6 +333,7 @@ export default function DashboardPage() {
 
 /* Inline Edit Modal */
 function EditProjectModal({ project, onClose, onSave }) {
+  useEscape(onClose);
   const [name, setName] = useState(project.name);
   const [websiteUrl, setWebsiteUrl] = useState(project.websiteUrl);
   const [loading, setLoading] = useState(false);
@@ -328,14 +344,14 @@ function EditProjectModal({ project, onClose, onSave }) {
     try {
       await onSave(project, { name, websiteUrl });
     } catch (err) {
-      console.error('Failed to save project:', err);
+      toastError(err, 'Could not save the project.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scale-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">Edit Project</h3>

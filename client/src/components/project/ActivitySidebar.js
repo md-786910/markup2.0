@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getActivityApi } from '../../services/projectService';
+import { toastError } from '../../utils/toast';
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -83,7 +84,7 @@ export default function ActivitySidebar({ projectId }) {
       setActivities((prev) => append ? [...prev, ...newActivities] : newActivities);
       setHasMore(pagination.page < pagination.pages);
     } catch (err) {
-      console.error('Failed to load activity:', err);
+      toastError(err, 'Could not load activity.');
     } finally {
       setLoading(false);
       setLoadingMore(false);

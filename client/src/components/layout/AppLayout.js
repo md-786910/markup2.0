@@ -7,7 +7,9 @@ import NotificationBell from '../common/NotificationBell';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function AppLayout() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // On phones the sidebar is a drawer: closed until the menu button opens it
+  const isSmallScreen = () => typeof window !== 'undefined' && window.innerWidth < 1024;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(isSmallScreen);
   const { orgLocked, user } = useAuth();
   const pendingInvoice = user?.orgPendingInvoice;
 
@@ -16,6 +18,7 @@ export default function AppLayout() {
       <AppSidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onNavigate={() => { if (isSmallScreen()) setSidebarCollapsed(true); }}
       />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">

@@ -5,42 +5,43 @@ const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 
 export default function CtaSection() {
   return (
-    <section className="relative overflow-hidden bg-[#10231f] py-16 text-white sm:py-20 lg:py-24">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(23,107,87,0.24),transparent_34%),radial-gradient(circle_at_85%_70%,rgba(143,209,79,0.14),transparent_30%)]" />
-      <div className="pointer-events-none absolute inset-0 opacity-35 [background-image:linear-gradient(to_right,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:56px_56px]" />
-
-      <div className="relative z-10 mx-auto max-w-4xl px-4 text-center sm:px-6">
-        <span className="inline-flex rounded-full border border-white/10 bg-white/8 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">
-          Ready when your next review starts
-        </span>
-        <h2 className="mt-6 font-display text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
-          Replace scattered comments with one precise review workspace.
-        </h2>
-        <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-white/68 sm:text-lg">
-          Start with a live URL, invite your team or client, and resolve comments where the work actually lives.
-        </p>
-
-        <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <a href={`${APP_URL}/onboarding`} className="button-primary px-8 py-4">
-            Get started free
-            <ArrowRightIcon className="h-5 w-5" />
-          </a>
-          <a href="/pricing" className="inline-flex items-center justify-center rounded-full border border-white/12 bg-white/8 px-8 py-4 text-sm font-semibold text-white transition hover:bg-white/12">
-            Compare plans
-          </a>
-        </div>
-
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-[#8a9b94]">
-          {['No credit card required', 'Guest links included', 'Cancel any time'].map((item) => (
-            <span key={item} className="inline-flex items-center gap-2">
-              <CheckIcon className="h-4 w-4 text-[#b8e36d]" />
-              {item}
-            </span>
-          ))}
+    <section className="pb-16 sm:pb-20 lg:pb-24">
+      <div className="site-container">
+        <div className="relative overflow-hidden rounded-3xl bg-[#003dff] px-6 py-14 text-center text-white sm:px-12 sm:py-20">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.18),transparent_60%)]" />
+          <div className="relative mx-auto max-w-2xl">
+            <h2 className="font-display text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+              Your next review round starts with a link.
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-base leading-8 text-white/80 sm:text-lg">
+              Paste a URL, invite your team or client, and resolve every comment where the work lives.
+            </p>
+            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <a
+                href={`${APP_URL}/onboarding`}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-[15px] font-semibold text-[#003dff] transition hover:-translate-y-0.5 hover:bg-slate-50"
+              >
+                Start free, no card
+                <ArrowRightIcon className="h-4 w-4" />
+              </a>
+              <a
+                href="/pricing"
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/30 px-7 py-3.5 text-[15px] font-semibold text-white transition hover:bg-white/10"
+              >
+                Compare plans
+              </a>
+            </div>
+            <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/80">
+              {['No credit card required', '30-day Pro trial', 'Cancel any time'].map((item) => (
+                <li key={item} className="inline-flex items-center gap-2">
+                  <CheckIcon className="h-4 w-4" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     </section>
   );
 }
-
-

@@ -265,6 +265,32 @@ function isBlockedResponse(status, contentType, body) {
   return WAF_MARKERS.some((m) => snippet.includes(m));
 }
 
+const escHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// Error page shown inside the review frame. It also tells the app
+// (MARKUP_BLOCKED) so it can turn off commenting and offer alternatives.
+function proxyErrorPage({ kind, domain, title, message }) {
+  const payload = JSON.stringify({ type: 'MARKUP_BLOCKED', kind, domain: String(domain || '') }).replace(/</g, '\\u003c');
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>${escHtml(title)}</title>
+<style>
+  body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex; align-items: center; justify-content: center; min-height: 100vh;
+    margin: 0; background: #f8fafc; color: #334155; }
+  .card { text-align: center; max-width: 480px; padding: 2.5rem 2rem; }
+  h1 { font-size: 1.2rem; margin: 0 0 0.5rem; color: #0f172a; }
+  p { color: #64748b; font-size: 0.95rem; line-height: 1.6; margin: 0.25rem 0; }
+  code { background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; }
+</style></head>
+<body><div class="card">
+  <h1>${escHtml(title)}</h1>
+  <p><code>${escHtml(domain)}</code></p>
+  <p>${escHtml(message)}</p>
+</div>
+<script>try { parent.postMessage(${payload}, '*'); } catch (e) {}</script>
+</body></html>`;
+}
+
 function sendContentAwareError(req, res, url, domain, reason) {
   const lowerUrl = url.toLowerCase();
   const accept = (req.headers.accept || '').toLowerCase();
@@ -297,54 +323,19 @@ function sendContentAwareError(req, res, url, domain, reason) {
   }
 
   // Default: styled HTML error page (for document/page requests)
-  const errorHtml = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Unable to load site</title>
-<style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    display: flex; align-items: center; justify-content: center; min-height: 100vh;
-    margin: 0; background: #f9fafb; color: #374151; }
-  .card { text-align: center; max-width: 440px; padding: 2rem; }
-  h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
-  p { color: #6b7280; font-size: 0.95rem; line-height: 1.5; }
-  code { background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; }
-</style></head>
-<body><div class="card">
-  <h1>Unable to load site</h1>
-  <p><code>${domain}</code></p>
-  <p>${reason}</p>
-</div></body></html>`;
-
+  const errorHtml = proxyErrorPage({ kind: 'unreachable', domain, title: 'Unable to load site', message: reason });
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   return res.status(502).send(errorHtml);
 }
 
 function sendBlockedError(req, res, url, domain) {
   res.removeHeader('X-Frame-Options');
-  const errorHtml = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Site blocked</title>
-<style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    display: flex; align-items: center; justify-content: center; min-height: 100vh;
-    margin: 0; background: #f9fafb; color: #374151; }
-  .card { text-align: center; max-width: 480px; padding: 2.5rem 2rem; }
-  .icon { width: 48px; height: 48px; margin: 0 auto 1rem; border-radius: 50%;
-    background: #fef2f2; display: flex; align-items: center; justify-content: center; }
-  .icon svg { width: 24px; height: 24px; color: #ef4444; }
-  h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
-  p { color: #6b7280; font-size: 0.95rem; line-height: 1.6; margin: 0.25rem 0; }
-  code { background: #e5e7eb; padding: 2px 8px; border-radius: 4px; font-size: 0.85rem; }
-  .hint { font-size: 0.85rem; color: #9ca3af; margin-top: 1rem; }
-</style></head>
-<body><div class="card">
-  <div class="icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
-  </svg></div>
-  <h1>This site can\u2019t be loaded</h1>
-  <p><code>${domain}</code></p>
-  <p>This website uses firewall protection (Cloudflare, Akamai, etc.) that blocks automated access. The proxy was unable to load it through any available method.</p>
-  <p class="hint">Try visiting the site directly in your browser to confirm it\u2019s accessible.</p>
-</div></body></html>`;
-
+  const errorHtml = proxyErrorPage({
+    kind: 'blocked',
+    domain,
+    title: 'This site can\u2019t be loaded',
+    message: 'This website uses firewall protection (Cloudflare, Akamai, etc.) that blocks automated access, so it can\u2019t be shown for review here.',
+  });
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   return res.status(502).send(errorHtml);
 }

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { upgradePlanApi } from '../../services/billingService';
+import useEscape from '../../hooks/useEscape';
 
 export default function DowngradeModal({ targetPlan, currentPlan, onClose, onDowngradeComplete }) {
+  useEscape(onClose);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -22,7 +24,7 @@ export default function DowngradeModal({ targetPlan, currentPlan, onClose, onDow
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-auto overflow-hidden animate-scale-in flex flex-col max-h-[90vh]">

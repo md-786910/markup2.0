@@ -4,6 +4,7 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { useAuth } from '../../hooks/useAuth';
 import { updateProjectEmailNotificationsApi } from '../../services/projectService';
 import { uploadUrl } from '../../utils/uploadUrl';
+import { toastError } from '../../utils/toast';
 
 const AVATAR_COLORS = [
   { bg: 'bg-blue-100', text: 'text-blue-700' },
@@ -163,7 +164,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
         updateUser({ mutedProjectEmails: res.data.mutedProjectEmails });
       }
     } catch (err) {
-      console.error('Failed to toggle project email notifications:', err);
+      toastError(err, 'Could not update email notifications for this project.');
     } finally {
       setEmailToggling(false);
     }

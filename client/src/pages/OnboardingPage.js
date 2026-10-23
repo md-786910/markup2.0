@@ -8,7 +8,6 @@ import AuthLayout from '../components/layout/AuthLayout';
 const STEPS = [
   { id: 'organization', label: 'Organization' },
   { id: 'account', label: 'Account' },
-  { id: 'review', label: 'Review' },
   { id: 'payment', label: 'Plan' },
 ];
 
@@ -105,7 +104,7 @@ export default function OnboardingPage() {
   // Fetch live plans once we approach the Payment step
   useEffect(() => {
     if (livePlans !== null) return;
-    if (step < 2) return; // pre-fetch on review step so the user doesn't wait
+    if (step < 1) return; // pre-fetch from the account step so the plan step does not wait
     let alive = true;
     getPublicPlansApi()
       .then((res) => {
@@ -232,10 +231,6 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleReviewNext = () => {
-    setStep(step + 1);
-  };
-
   // Run the shared setup steps (signup → org → avatar). Updates the staged
   // checklist as it progresses. Returns true on success, false on error.
   const runSetup = async () => {
@@ -315,7 +310,7 @@ export default function OnboardingPage() {
       name: 'Kommently',
       description: `${(livePlans || []).find((p) => p.id === selectedPlan)?.name || ''} subscription`,
       prefill: { name, email },
-      theme: { color: '#176b57' },
+      theme: { color: '#003dff' },
       handler: async (response) => {
         try {
           const verifyRes = await verifyPaymentApi({
@@ -702,64 +697,7 @@ export default function OnboardingPage() {
         </>
       )}
 
-      {/* ===== STEP 3: REVIEW ===== */}
-      {currentStep === 'review' && (
-        <>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Review & confirm</h2>
-          <p className="text-sm text-gray-500 mb-6">Make sure everything looks good before we set things up.</p>
-
-          <div className="space-y-3 mb-8">
-            {/* Workspace summary */}
-            <div className="border border-gray-200 rounded-xl p-4">
-              <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Workspace</h3>
-              <div className="flex items-center gap-3">
-                {logoPreview ? (
-                  <img src={logoPreview} alt="" className="w-9 h-9 rounded-lg object-cover" />
-                ) : (
-                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
-                    {(orgName || '?')[0].toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{orgName}</p>
-                  <p className="text-xs text-gray-400">Free trial · 30 days</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Account summary */}
-            <div className="border border-gray-200 rounded-xl p-4">
-              <h3 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Account</h3>
-              <div className="flex items-center gap-3">
-                {avatarPreview ? (
-                  <img src={avatarPreview} alt="" className="w-9 h-9 rounded-full object-cover" />
-                ) : (
-                  <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
-                    {(name || '?')[0].toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{name}</p>
-                  <p className="text-xs text-gray-400">{email} · Owner</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button onClick={handleBack}
-              className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
-              Back
-            </button>
-            <button onClick={handleReviewNext}
-              className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
-              Continue
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* ===== STEP 4: PAYMENT ===== */}
+      {/* ===== STEP 3: PLAN ===== */}
       {currentStep === 'payment' && (
         <>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose your plan</h2>

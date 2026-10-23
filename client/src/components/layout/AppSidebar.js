@@ -65,8 +65,8 @@ function getActiveNavId(pathname, searchParams) {
   return null;
 }
 
-export default function AppSidebar({ collapsed, onToggle }) {
-  const { user, logout } = useAuth();
+export default function AppSidebar({ collapsed, onToggle, onNavigate }) {
+  const { user, logout, canManage } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -87,6 +87,7 @@ export default function AppSidebar({ collapsed, onToggle }) {
 
   const handleNavClick = (item) => {
     navigate(item.path);
+    onNavigate?.();
   };
 
   return (
@@ -143,13 +144,9 @@ export default function AppSidebar({ collapsed, onToggle }) {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 space-y-1 overflow-y-auto scrollbar-thin">
-          {navItems.filter(item => {
-            if (item.id === 'integrations') {
-              return user?.orgLimits?.hasIntegrations;
-            }
-            return true;
-          }).map((item) => {
+          {navItems.filter(item => item.id !== 'integrations' || canManage).map((item) => {
             const isActive = activeNavId === item.id;
+            const locked = item.id === 'integrations' && !user?.orgLimits?.hasIntegrations;
             const showBilling = item.id === 'settings' && !!user?.orgPendingInvoice;
             return (
               <button
@@ -165,6 +162,12 @@ export default function AppSidebar({ collapsed, onToggle }) {
               >
                 {item.icon}
                 <span>{item.label}</span>
+                {locked && (
+                  <svg className="ml-auto h-3.5 w-3.5 text-gray-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-label="Upgrade required">
+                    <rect x="5" y="11" width="14" height="10" rx="2" />
+                    <path strokeLinecap="round" d="M8 11V7a4 4 0 018 0v4" />
+                  </svg>
+                )}
                 {showBilling && (
                   <span
                     title="You have an unpaid invoice"
@@ -185,7 +188,7 @@ export default function AppSidebar({ collapsed, onToggle }) {
           {userMenuOpen && (
             <div className="absolute bottom-full left-3 right-3 mb-2 bg-gray-800 border border-gray-700 rounded-xl shadow-xl py-1.5 animate-scale-in">
               <button
-                onClick={() => { setUserMenuOpen(false); navigate('/profile'); }}
+                onClick={() => { setUserMenuOpen(false); navigate('/profile'); onNavigate?.(); }}
                 className="w-full text-left px-4 py-2.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700/60 flex items-center gap-2.5 transition-colors"
               >
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

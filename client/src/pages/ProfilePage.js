@@ -12,6 +12,7 @@ import {
   updateProjectEmailNotificationsApi,
 } from '../services/projectService';
 import { uploadUrl } from '../utils/uploadUrl';
+import { toastError } from '../utils/toast';
 
 function FieldRow({ label, children }) {
   return (
@@ -63,7 +64,7 @@ function PasswordInput({ value, onChange, placeholder, autoComplete = 'off', cla
 }
 
 export default function ProfilePage() {
-  const { user, updateUser, logout } = useAuth();
+  const { user, updateUser, logout, isOwner } = useAuth();
   const navigate = useNavigate();
   const fileRef = useRef(null);
 
@@ -95,7 +96,7 @@ export default function ProfilePage() {
         setProjects(res.data.projects || []);
       })
       .catch((err) => {
-        console.error('Failed to load projects for notifications:', err);
+        toastError(err, 'Could not load your projects.');
       })
       .finally(() => {
         setProjectsLoading(false);
@@ -112,7 +113,7 @@ export default function ProfilePage() {
         updateUser({ mutedProjectEmails: res.data.mutedProjectEmails });
       }
     } catch (err) {
-      console.error('Failed to update project email notifications:', err);
+      toastError(err, 'Could not update email notifications for this project.');
     } finally {
       setTogglingProjectId(null);
     }
@@ -131,7 +132,7 @@ export default function ProfilePage() {
       const res = await updateProfileApi({ emailNotificationsEnabled: !allEmailsEnabled });
       updateUser(res.data.user);
     } catch (err) {
-      console.error('Failed to update email notifications:', err);
+      toastError(err, 'Could not update email notifications.');
     } finally {
       setGlobalEmailSaving(false);
     }
@@ -197,7 +198,7 @@ export default function ProfilePage() {
       logout();
       navigate('/login');
     } catch (err) {
-      console.error('Failed to delete account:', err);
+      toastError(err, 'Could not delete your account.');
       setDeleteLoading(false);
     }
   };
@@ -444,7 +445,13 @@ export default function ProfilePage() {
       {/* Delete Account */}
       <div className="py-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete your account</h3>
-        {!showDeleteConfirm ? (
+        {isOwner ? (
+          <p className="max-w-xl text-sm leading-6 text-gray-500">
+            You own this workspace, so your account is closed together with it. To delete everything, go to{' '}
+            <Link to="/settings" className="font-medium text-blue-600 hover:text-blue-700">Settings → Workspace</Link>{' '}
+            and delete the workspace. It is removed after a 7-day grace period.
+          </p>
+        ) : !showDeleteConfirm ? (
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="px-5 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
@@ -454,7 +461,7 @@ export default function ProfilePage() {
         ) : (
           <div className="bg-red-50 border border-red-200 rounded-xl p-5">
             <p className="text-sm text-red-800 mb-4">
-              This will permanently delete your account, remove you from all projects, and delete all projects you own along with their pins and comments. This action cannot be undone.
+              This permanently deletes your account and removes you from this workspace's projects. Projects you created are deleted with their pins and comments. Your comments on other projects stay, shown as "Deleted user". This cannot be undone.
             </p>
             <div className="flex gap-3">
               <button

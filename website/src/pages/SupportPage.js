@@ -11,15 +11,15 @@ const HELP_TOPICS = [
     icon: UsersIcon,
   },
   {
-    title: 'Connect Slack, Jira, or Discord',
+    title: 'Connect Slack, Jira, Discord, or Teams',
     category: 'Integrations',
-    description: 'Route resolved comments, new pins, and review updates into the tools your team already uses.',
+    description: 'Send new pins, comments, and status changes to the tools your team already uses; Jira gets an issue per pin.',
     icon: PlugIcon,
   },
   {
     title: 'Manage project access',
     category: 'Security',
-    description: 'Use private projects, passwords, and workspace roles to keep sensitive reviews governed.',
+    description: 'Use project members, workspace roles, and password-protected, expiring guest links to keep reviews governed.',
     icon: LockIcon,
   },
   {
@@ -29,9 +29,9 @@ const HELP_TOPICS = [
     icon: FileTextIcon,
   },
   {
-    title: 'Resolve and archive comments',
+    title: 'Resolve comments and track progress',
     category: 'Workflow',
-    description: 'Track open, resolved, and archived comments so launch readiness is visible.',
+    description: 'Mark pins resolved, filter open and resolved feedback, and archive finished projects so launch readiness is visible.',
     icon: CheckIcon,
   },
   {
@@ -42,16 +42,20 @@ const HELP_TOPICS = [
   },
 ];
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const SUPPORT_EMAIL = 'hello@kommently.app';
+const EMPTY_FORM = { name: '', email: '', topic: 'Product support', message: '', website: '' };
+
 const SUPPORT_PATHS = [
-  ['Live chat', 'Weekdays, 9am-6pm IST', 'Best for account and setup questions.'],
-  ['Email support', 'hello@kommently.app', 'Best for billing, security, and longer troubleshooting.'],
-  ['Priority routing', 'Pro and Enterprise', 'Fastest help for production review workflows.'],
+  ['Contact form', 'Below on this page', 'Best for product, setup, and account questions.'],
+  ['Email support', SUPPORT_EMAIL, 'Best for billing, security, and longer troubleshooting.'],
+  ['Priority support', 'Pro and Enterprise', 'Faster replies for production review workflows.'],
 ];
 
 export default function SupportPage() {
   const [query, setQuery] = useState('');
-  const [form, setForm] = useState({ name: '', email: '', topic: 'Product support', message: '' });
-  const [submitted, setSubmitted] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [status, setStatus] = useState({ state: 'idle', message: '' }); // idle | sending | sent | error
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -65,10 +69,22 @@ export default function SupportPage() {
     ));
   }, [query]);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    setSubmitted(true);
-    setForm({ name: '', email: '', topic: 'Product support', message: '' });
+    setStatus({ state: 'sending', message: '' });
+    try {
+      const response = await fetch(`${API_URL}/api/support/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'We could not send your message.');
+      setStatus({ state: 'sent', message: '' });
+      setForm(EMPTY_FORM);
+    } catch (err) {
+      setStatus({ state: 'error', message: err.message || 'We could not send your message.' });
+    }
   };
 
   return (
@@ -84,14 +100,14 @@ export default function SupportPage() {
             <p className="body-large mx-auto mt-6 max-w-2xl">
               Search common workflows, contact support, or route urgent review issues to the right team.
             </p>
-            <div className="mx-auto mt-9 max-w-2xl rounded-full border border-emerald-100 bg-white/80 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur">
+            <div className="mx-auto mt-9 max-w-2xl rounded-full border border-slate-200 bg-white/80 p-2 shadow-[0_18px_50px_rgba(15,23,42,0.06)] backdrop-blur">
               <label className="sr-only" htmlFor="support-search">Search support topics</label>
               <input
                 id="support-search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search sharing, billing, integrations..."
-                className="h-12 w-full rounded-full border-0 bg-white px-5 text-sm text-[#10231f] outline-none"
+                className="h-12 w-full rounded-full border-0 bg-white px-5 text-sm text-[#0f172a] outline-none"
               />
             </div>
           </div>
@@ -102,9 +118,9 @@ export default function SupportPage() {
             <div className="grid gap-5 md:grid-cols-3">
               {SUPPORT_PATHS.map(([title, meta, copy]) => (
                 <article key={title} className="premium-card p-6">
-                  <ChatIcon className="h-6 w-6 text-[#176b57]" />
-                  <h2 className="mt-5 font-display text-xl font-semibold text-[#10231f]">{title}</h2>
-                  <p className="mt-2 text-sm font-semibold text-[#365047]">{meta}</p>
+                  <ChatIcon className="h-6 w-6 text-[#003dff]" />
+                  <h2 className="mt-5 font-display text-xl font-semibold text-[#0f172a]">{title}</h2>
+                  <p className="mt-2 text-sm font-semibold text-[#475569]">{meta}</p>
                   <p className="body-copy mt-3">{copy}</p>
                 </article>
               ))}
@@ -119,7 +135,7 @@ export default function SupportPage() {
                 <span className="eyebrow">Help library</span>
                 <h2 className="section-heading mt-5">Popular support topics</h2>
               </div>
-              <p className="text-sm text-[#53645f]">{filteredTopics.length} article{filteredTopics.length === 1 ? '' : 's'} found</p>
+              <p className="text-sm text-slate-600">{filteredTopics.length} article{filteredTopics.length === 1 ? '' : 's'} found</p>
             </div>
             <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {filteredTopics.map((topic) => {
@@ -130,11 +146,11 @@ export default function SupportPage() {
                       <div className="icon-tile">
                         <Icon className="h-5 w-5" />
                       </div>
-                      <span className="rounded-full bg-[#eaf6ef] px-3 py-1 text-xs font-semibold text-[#53645f]">{topic.category}</span>
+                      <span className="rounded-full bg-[#eef3ff] px-3 py-1 text-xs font-semibold text-slate-600">{topic.category}</span>
                     </div>
-                    <h3 className="mt-6 font-display text-xl font-semibold leading-tight text-[#10231f]">{topic.title}</h3>
+                    <h3 className="mt-6 font-display text-xl font-semibold leading-tight text-[#0f172a]">{topic.title}</h3>
                     <p className="body-copy mt-3">{topic.description}</p>
-                    <a href="#contact" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#176b57]">
+                    <a href="#contact" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#003dff]">
                       Get help
                       <ArrowRightIcon className="h-4 w-4" />
                     </a>
@@ -159,72 +175,93 @@ export default function SupportPage() {
                   [ShieldIcon, 'Security and billing requests are handled privately'],
                   [UsersIcon, 'Enterprise teams can request onboarding help'],
                 ].map(([Icon, text]) => (
-                  <div key={text} className="flex items-center gap-3 text-sm font-medium text-[#365047]">
-                    <Icon className="h-5 w-5 text-[#176b57]" />
+                  <div key={text} className="flex items-center gap-3 text-sm font-medium text-[#475569]">
+                    <Icon className="h-5 w-5 text-[#003dff]" />
                     {text}
                   </div>
                 ))}
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="premium-card p-6 sm:p-8">
+            <form onSubmit={handleSubmit} className="premium-card relative p-6 sm:p-8">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="text-sm font-semibold text-[#365047]" htmlFor="support-name">Name</label>
+                  <label className="text-sm font-semibold text-[#475569]" htmlFor="support-name">Name</label>
                   <input
                     id="support-name"
                     required
                     value={form.name}
                     onChange={(event) => setForm({ ...form, name: event.target.value })}
-                    className="mt-2 h-12 w-full rounded-2xl border border-emerald-100 px-4 text-sm outline-none focus:border-[#176b57]"
+                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm outline-none focus:border-[#003dff]"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-[#365047]" htmlFor="support-email">Email</label>
+                  <label className="text-sm font-semibold text-[#475569]" htmlFor="support-email">Email</label>
                   <input
                     id="support-email"
                     type="email"
                     required
                     value={form.email}
                     onChange={(event) => setForm({ ...form, email: event.target.value })}
-                    className="mt-2 h-12 w-full rounded-2xl border border-emerald-100 px-4 text-sm outline-none focus:border-[#176b57]"
+                    className="mt-2 h-12 w-full rounded-2xl border border-slate-200 px-4 text-sm outline-none focus:border-[#003dff]"
                   />
                 </div>
               </div>
               <div className="mt-4">
-                <label className="text-sm font-semibold text-[#365047]" htmlFor="support-topic">Topic</label>
+                <label className="text-sm font-semibold text-[#475569]" htmlFor="support-topic">Topic</label>
                 <select
                   id="support-topic"
                   value={form.topic}
                   onChange={(event) => setForm({ ...form, topic: event.target.value })}
-                  className="mt-2 h-12 w-full rounded-2xl border border-emerald-100 bg-white px-4 text-sm outline-none focus:border-[#176b57]"
+                  className="mt-2 h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none focus:border-[#003dff]"
                 >
                   <option>Product support</option>
                   <option>Billing</option>
                   <option>Integrations</option>
                   <option>Security</option>
                   <option>Sales</option>
+                  <option>Other</option>
                 </select>
               </div>
               <div className="mt-4">
-                <label className="text-sm font-semibold text-[#365047]" htmlFor="support-message">Message</label>
+                <label className="text-sm font-semibold text-[#475569]" htmlFor="support-message">Message</label>
                 <textarea
                   id="support-message"
                   required
                   rows="5"
                   value={form.message}
                   onChange={(event) => setForm({ ...form, message: event.target.value })}
-                  className="mt-2 w-full resize-none rounded-2xl border border-emerald-100 px-4 py-3 text-sm outline-none focus:border-[#176b57]"
+                  className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-[#003dff]"
                   placeholder="Share what you were trying to do and what happened."
                 />
               </div>
-              <button type="submit" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#176b57] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(23,107,87,0.24)] transition hover:bg-[#0f5f4c]">
-                Send support request
+              {/* Honeypot: hidden from people, filled by bots */}
+              <input
+                type="text"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                value={form.website}
+                onChange={(event) => setForm({ ...form, website: event.target.value })}
+                className="absolute -left-[9999px] h-0 w-0 opacity-0"
+              />
+              <button
+                type="submit"
+                disabled={status.state === 'sending'}
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#003dff] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_14px_32px_rgba(0,61,255,0.24)] transition hover:bg-[#0031d1] disabled:opacity-60"
+              >
+                {status.state === 'sending' ? 'Sending…' : 'Send support request'}
                 <ArrowRightIcon className="h-4 w-4" />
               </button>
-              {submitted ? (
-                <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                  Request drafted. Our team will follow up by email.
+              {status.state === 'sent' ? (
+                <p role="status" className="mt-4 rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+                  Thanks, your message was sent. We'll reply by email.
+                </p>
+              ) : null}
+              {status.state === 'error' ? (
+                <p role="alert" className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                  {status.message} You can also email <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
                 </p>
               ) : null}
             </form>

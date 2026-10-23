@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
 import CookieBanner from './CookieBanner';
 import CookiePreferencesModal from './CookiePreferencesModal';
 import {
@@ -8,6 +7,12 @@ import {
   readCookieConsent,
   writeCookieConsent,
 } from '../utils/cookieConsent';
+
+const OPEN_EVENT = 'kommently:cookie-settings';
+
+export function openCookieSettings() {
+  window.dispatchEvent(new Event(OPEN_EVENT));
+}
 
 export default function CookieConsentManager() {
   const [mounted, setMounted] = useState(false);
@@ -30,7 +35,6 @@ export default function CookieConsentManager() {
     return undefined;
   }, []);
 
-  const hasDecision = useMemo(() => !!savedConsent, [savedConsent]);
 
   function persistConsent(status, preferences) {
     const payload = createConsentPayload(status, preferences);
@@ -70,6 +74,16 @@ export default function CookieConsentManager() {
     setDraftPreferences(savedConsent?.preferences || DEFAULT_COOKIE_PREFERENCES);
   }
 
+  // Reopened from the footer's "Cookie settings" link (openCookieSettings)
+  useEffect(() => {
+    const open = () => {
+      setModalOpen(true);
+      setDraftPreferences(savedConsent?.preferences || DEFAULT_COOKIE_PREFERENCES);
+    };
+    window.addEventListener(OPEN_EVENT, open);
+    return () => window.removeEventListener(OPEN_EVENT, open);
+  }, [savedConsent]);
+
   if (!mounted) return null;
 
   return (
@@ -91,22 +105,6 @@ export default function CookieConsentManager() {
         onToggle={handleTogglePreference}
       />
 
-      <AnimatePresence>
-        {hasDecision && !bannerVisible ? (
-          <motion.button
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.28 }}
-            type="button"
-            onClick={handleOpenPreferences}
-            className="fixed bottom-4 left-4 z-[70] rounded-full border border-emerald-100 bg-white/85 px-4 py-2 text-sm font-medium text-[#365047] shadow-[0_16px_36px_rgba(15,23,42,0.12)] backdrop-blur-xl transition hover:border-emerald-200 hover:bg-white dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-200"
-            aria-label="Open cookie preferences"
-          >
-            Cookie preferences
-          </motion.button>
-        ) : null}
-      </AnimatePresence>
     </>
   );
 }

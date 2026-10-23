@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { PROJECT_STATUSES } from "../../utils/projectConstants";
 import { useAuth } from "../../hooks/useAuth";
 import { updateProjectEmailNotificationsApi } from "../../services/projectService";
+import { toastError } from '../../utils/toast';
 
 const API_BASE = (
   process.env.REACT_APP_BASE_URL || "http://localhost:5000/api"
@@ -106,7 +107,6 @@ export default function ProjectCard({
   onArchive,
   onDelete,
   onConfirmDelete,
-  onManageMembers,
   onStatusChange,
 }) {
   const { user, updateUser } = useAuth();
@@ -128,7 +128,7 @@ export default function ProjectCard({
         updateUser({ mutedProjectEmails: res.data.mutedProjectEmails });
       }
     } catch (err) {
-      console.error("Failed to toggle project email notifications:", err);
+      toastError(err, 'Could not update email notifications for this project.');
     } finally {
       setEmailToggling(false);
     }
@@ -493,10 +493,10 @@ export default function ProjectCard({
           <div className="flex items-center gap-2">
             {openCount > 0 && (
               <div
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-600 ring-1 ring-inset ring-red-100"
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-100"
                 title={`${openCount} open comment${openCount === 1 ? "" : "s"}`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
                 <span className="text-[11px] font-semibold tabular-nums">{openCount} open</span>
               </div>
             )}
