@@ -1,17 +1,20 @@
 import api from './api';
+import { track } from '../monitoring/analytics';
 
 export const getProjectsApi = () =>
   api.get('/projects');
 
 export const createProjectApi = (name, websiteUrl) =>
-  api.post('/projects', { name, websiteUrl, projectType: 'website' });
+  api.post('/projects', { name, websiteUrl, projectType: 'website' })
+    .then((res) => { track('project_created', { type: 'website' }); return res; });
 
 export const createDocumentProjectApi = (name, files) => {
   const formData = new FormData();
   formData.append('name', name);
   formData.append('projectType', 'document');
   files.forEach((f) => formData.append('documents', f));
-  return api.post('/projects', formData);
+  return api.post('/projects', formData)
+    .then((res) => { track('project_created', { type: 'document', documents: files.length }); return res; });
 };
 
 export const getProjectApi = (projectId, signal) =>
@@ -24,7 +27,8 @@ export const deleteProjectApi = (projectId) =>
   api.delete(`/projects/${projectId}`);
 
 export const inviteMemberApi = (projectId, email, role = 'member') =>
-  api.post(`/projects/${projectId}/members`, { email, role });
+  api.post(`/projects/${projectId}/members`, { email, role })
+    .then((res) => { track('member_invited', { role }); return res; });
 
 export const getWorkspaceMembersApi = (projectId) =>
   api.get(`/projects/${projectId}/workspace-members`);

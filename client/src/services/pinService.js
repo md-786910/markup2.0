@@ -1,4 +1,5 @@
-import api from './api';
+import api from "./api";
+import { track } from "../monitoring/analytics";
 
 export const getPinsApi = (projectId, pageUrl, signal, deviceMode) => {
   const params = {};
@@ -8,7 +9,14 @@ export const getPinsApi = (projectId, pageUrl, signal, deviceMode) => {
 };
 
 export const createPinApi = (projectId, data) =>
-  api.post(`/projects/${projectId}/pins`, data);
+  api.post(`/projects/${projectId}/pins`, data).then((res) => {
+    const pin = res.data && res.data.pin;
+    track("pin_created", {
+      device: pin && pin.deviceMode,
+      document: !!(pin && /^doc:/.test(pin.pageUrl || "")),
+    });
+    return res;
+  });
 
 export const updatePinApi = (projectId, pinId, data) =>
   api.patch(`/projects/${projectId}/pins/${pinId}`, data);

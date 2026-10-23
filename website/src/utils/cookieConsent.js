@@ -30,14 +30,25 @@ export function readCookieConsent() {
 
 export function writeCookieConsent(consent) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, JSON.stringify({
-    ...consent,
-    preferences: {
-      ...DEFAULT_COOKIE_PREFERENCES,
-      ...(consent.preferences || {}),
-      necessary: true,
-    },
-  }));
+  const preferences = {
+    ...DEFAULT_COOKIE_PREFERENCES,
+    ...(consent.preferences || {}),
+    necessary: true,
+  };
+  window.localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, JSON.stringify({ ...consent, preferences }));
+  updateAnalyticsConsent(preferences);
+}
+
+// Google Analytics (public/index.html) runs in Consent Mode: pass the choice on
+function updateAnalyticsConsent(preferences) {
+  if (typeof window.gtag !== 'function') return;
+  const marketing = preferences.marketing ? 'granted' : 'denied';
+  window.gtag('consent', 'update', {
+    analytics_storage: preferences.analytics ? 'granted' : 'denied',
+    ad_storage: marketing,
+    ad_user_data: marketing,
+    ad_personalization: marketing,
+  });
 }
 
 export function createConsentPayload(status, preferences) {

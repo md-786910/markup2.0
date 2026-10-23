@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { TOKEN_KEY } from '../utils/constants';
 import { loginApi, signupApi, getMeApi } from '../services/authService';
 import { setSentryUser } from '../monitoring/sentry';
+import { identifyUser } from '../monitoring/analytics';
 
 export const AuthContext = createContext(null);
 
@@ -10,11 +11,13 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem(TOKEN_KEY));
   const [loading, setLoading] = useState(true);
 
-  // Attach the signed-in user id to error reports (cleared on logout)
+  // Attach the signed-in user id to error reports and analytics (cleared on logout)
   const userId = user?.id || user?._id || null;
   useEffect(() => {
     setSentryUser(userId ? { id: userId } : null);
-  }, [userId]);
+    identifyUser(userId ? user : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, user?.orgPlan]);
 
   useEffect(() => {
     if (token) {

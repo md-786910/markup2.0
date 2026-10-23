@@ -4,9 +4,11 @@ import './index.css';
 import App from './App';
 import AppErrorBoundary from './components/common/AppErrorBoundary';
 import { initSentry } from './monitoring/sentry';
+import { initAnalytics } from './monitoring/analytics';
 import reportWebVitals from './reportWebVitals';
 
 initSentry();
+initAnalytics();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

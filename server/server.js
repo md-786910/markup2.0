@@ -17,7 +17,10 @@ const { resolveAccess } = require("./middleware/projectAccess");
 const { isProxyToken } = require("./utils/proxyToken");
 const { flushAll, startEmailWorker } = require("./utils/emailQueue");
 const { redisEnabled, createConnection, closeRedis } = require("./utils/redis");
-const { startBillingScheduler, stopBillingScheduler } = require("./utils/scheduler");
+const {
+  startBillingScheduler,
+  stopBillingScheduler,
+} = require("./utils/scheduler");
 const { ALLOWED_ORIGINS } = require("./config/env");
 
 // Log instead of dying silently; a crash after an uncaught exception is intended
@@ -53,7 +56,12 @@ connectDB()
     // to different API instances see each other's pins, comments and presence.
     if (redisEnabled) {
       const { createAdapter } = require("@socket.io/redis-adapter");
-      io.adapter(createAdapter(createConnection("socket-pub"), createConnection("socket-sub")));
+      io.adapter(
+        createAdapter(
+          createConnection("socket-pub"),
+          createConnection("socket-sub"),
+        ),
+      );
     }
 
     // Socket.IO JWT authentication middleware
@@ -65,10 +73,16 @@ connectDB()
           algorithms: ["HS256"],
         });
         if (isProxyToken(decoded)) return next(new Error("Invalid token"));
-        const user = await User.findById(decoded.id).select("name email role organization sessionToken");
+        const user = await User.findById(decoded.id).select(
+          "name email role organization sessionToken",
+        );
         if (!user) return next(new Error("User not found"));
         // Single-session enforcement, same as the HTTP auth middleware
-        if (decoded.sessionToken && user.sessionToken && decoded.sessionToken !== user.sessionToken) {
+        if (
+          decoded.sessionToken &&
+          user.sessionToken &&
+          decoded.sessionToken !== user.sessionToken
+        ) {
           return next(new Error("Session expired"));
         }
         socket.user = user;
@@ -91,7 +105,9 @@ connectDB()
         // Only project members (or admins of the project's org) may join its room
         try {
           if (!mongoose.isValidObjectId(projectId)) return;
-          const project = await Project.findById(projectId).select("owner members organization");
+          const project = await Project.findById(projectId).select(
+            "owner members organization",
+          );
           if (!project || !resolveAccess(socket.user, project).allowed) return;
         } catch {
           return;
@@ -108,7 +124,9 @@ connectDB()
         // Send current online user list to the newly joined user (all instances)
         try {
           const sockets = await io.in(`project:${projectId}`).fetchSockets();
-          const onlineUserIds = [...new Set(sockets.map((s) => s.data.userId).filter(Boolean))];
+          const onlineUserIds = [
+            ...new Set(sockets.map((s) => s.data.userId).filter(Boolean)),
+          ];
           socket.emit("presence:online", { userIds: onlineUserIds });
         } catch (err) {
           console.error("presence lookup failed:", err.message);
@@ -151,7 +169,9 @@ connectDB()
 
     // Background jobs: email batches (Redis only) and daily billing/trials
     startEmailWorker();
-    startBillingScheduler().catch((err) => console.error("[billing] scheduler failed to start:", err));
+    startBillingScheduler().catch((err) =>
+      console.error("[billing] scheduler failed to start:", err),
+    );
 
     // Graceful shutdown: stop accepting connections, send queued emails, close DB.
     let shuttingDown = false;
