@@ -5,6 +5,7 @@ const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 const { emitToProject, emailProjectMembers, notifyIntegrations } = require('../utils/notifier');
 const { logActivity } = require('../utils/activityLogger');
+const { metric } = require('../instrument');
 const { extractMentionedUserIds } = require('../utils/mentionHelper');
 const { createProjectNotifications } = require('../utils/notificationHelper');
 const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
@@ -97,6 +98,7 @@ exports.createPin = asyncHandler(async (req, res) => {
     }
   }
 
+  metric('pin.created', { screenshot: req.file ? 'yes' : 'later' });
   res.status(201).json({ pin: populated });
 });
 

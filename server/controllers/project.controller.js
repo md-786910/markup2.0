@@ -12,6 +12,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendInvitationEmail } = require('../utils/mailer');
 const { canAssignRole } = require('../middleware/roles');
 const { logActivity } = require('../utils/activityLogger');
+const { metric } = require('../instrument');
 const { createProjectNotifications, createSingleNotification } = require('../utils/notificationHelper');
 const { signProxyToken } = require('../utils/proxyToken');
 const { seatLimitError } = require('../middleware/orgLimits');
@@ -108,6 +109,7 @@ exports.createProject = asyncHandler(async (req, res) => {
   // Activity log
   logActivity(project._id, req.user._id, 'project.created', { projectName: name });
 
+  metric('project.created', { type: projectType });
   res.status(201).json({
     project: { ...project.toObject(), proxyToken: project.projectType === 'website' ? signProxyToken(req.user, project._id) : undefined },
   });

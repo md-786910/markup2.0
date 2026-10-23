@@ -5,6 +5,7 @@ const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { emitToProject, emailProjectMembers, emailMentionedUsers, notifyIntegrations } = require('../utils/notifier');
 const { logActivity } = require('../utils/activityLogger');
+const { metric } = require('../instrument');
 const { extractMentionedUserIds, stripHtmlAndMentions } = require('../utils/mentionHelper');
 const { createProjectNotifications } = require('../utils/notificationHelper');
 const { sanitizeCommentBody } = require('../utils/sanitizeComment');
@@ -123,6 +124,7 @@ exports.createComment = asyncHandler(async (req, res) => {
     }
   }).catch(() => {});
 
+  metric('comment.created', { source: 'member' });
   res.status(201).json({ comment: populated });
 });
 

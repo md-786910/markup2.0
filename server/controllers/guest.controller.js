@@ -7,6 +7,7 @@ const Comment = require('../models/Comment');
 const Organization = require('../models/Organization');
 const asyncHandler = require('../utils/asyncHandler');
 const { logGuestActivity } = require('../utils/activityLogger');
+const { metric } = require('../instrument');
 const { createProjectNotifications } = require('../utils/notificationHelper');
 const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { reserveStorage, discardUploads } = require('../utils/storage');
@@ -281,6 +282,7 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
     io.to(`project:${project._id}`).emit('pin:created', { pin });
   }
 
+  metric('pin.created', { source: 'guest' });
   res.status(201).json({ pin });
 });
 
@@ -354,5 +356,6 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
     io.to(`project:${project._id}`).emit('comment:created', { comment, pinId });
   }
 
+  metric('comment.created', { source: 'guest' });
   res.status(201).json({ comment });
 });

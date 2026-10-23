@@ -20,6 +20,7 @@ const { getLimitsForPlanAsync, getNewSignupPlanMode } = require("../config/plans
 const { generateCsrfToken, CSRF_COOKIE } = require("../middleware/csrf");
 const { validatePassword } = require("../utils/passwordPolicy");
 const { logOrgActivity, logActivity } = require("../utils/activityLogger");
+const { metric } = require("../instrument");
 const { createProjectNotifications, createSingleNotification } = require("../utils/notificationHelper");
 const { URLS, SECURE_COOKIES } = require('../config/env');
 
@@ -333,6 +334,7 @@ exports.signup = asyncHandler(async (req, res) => {
     }
   }
 
+  metric('user.signup', { kind: acceptedProjectId ? 'invited' : (isFirstUser ? 'new_org' : 'joined') });
   await setCookieAndRespond(res, user, org, 201, {
     isNewOrg: isFirstUser,
     invitedProjectId: acceptedProjectId ? acceptedProjectId.toString() : undefined,
