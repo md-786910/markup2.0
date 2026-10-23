@@ -467,6 +467,8 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   }
 
   function renderViewport(kind, fast) {
+    var scrollX = window.scrollX || window.pageXOffset;
+    var scrollY = window.scrollY || window.pageYOffset;
     var marked = markHiddenImages();
     var restoreScroll = disableSmoothScroll();
     // CSS pixels: what the page shows, at a normal file size
@@ -476,8 +478,8 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     var capture;
     try {
       capture = window.__markupH2c[kind](document.documentElement, {
-        x: window.scrollX || window.pageXOffset,
-        y: window.scrollY || window.pageYOffset,
+        x: scrollX,
+        y: scrollY,
         width: window.innerWidth,
         height: window.innerHeight,
         windowWidth: window.innerWidth,
@@ -492,13 +494,17 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
           return isHiddenOnPage(el);
         },
         onclone: function(doc) {
+          // Before changing the copy's layout: no scroll anchoring (it would
+          // move the copy's scroll position when content above shrinks)
+          var st = doc.createElement('style');
+          st.textContent = 'html,body{scroll-behavior:auto!important;overflow-anchor:none!important}*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition:none!important;caret-color:transparent!important}';
+          (doc.head || doc.documentElement).appendChild(st);
           unmark(marked);
           unprepare(prepared);
           blankSkippedImages(doc);
           applyFidelity(doc, prepared);
-          var st = doc.createElement('style');
-          st.textContent = 'html,body{scroll-behavior:auto!important}*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition:none!important;caret-color:transparent!important}';
-          (doc.head || doc.documentElement).appendChild(st);
+          // html2canvas places everything relative to the page's scroll position
+          if (doc.defaultView) doc.defaultView.scrollTo(scrollX, scrollY);
         }
       });
     } catch (err) {
