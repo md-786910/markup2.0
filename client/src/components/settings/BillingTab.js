@@ -265,15 +265,17 @@ export default function BillingTab() {
             <div className="flex items-end gap-3 mb-2">
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
                 {currentPlanId === "trial"
-                  ? "Free Trial"
+                  ? "Pro trial"
                   : livePlans[currentPlanId]?.name || "Free"}
               </h2>
-              <span
-                className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeColors[livePlans[currentPlanId]?.badgeColor || "gray"]
-                  }`}
-              >
-                {currentPlanId === "trial" ? "Trial" : "Active"}
-              </span>
+              {currentPlanId !== "trial" && (
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeColors[livePlans[currentPlanId]?.badgeColor || "gray"]
+                    }`}
+                >
+                  Active
+                </span>
+              )}
             </div>
 
             {isTrialActive && (

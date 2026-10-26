@@ -16,9 +16,9 @@ import { toastError } from '../utils/toast';
 
 function FieldRow({ label, children }) {
   return (
-    <div className="flex items-start gap-8 py-6">
-      <label className="text-sm font-medium text-gray-700 w-40 pt-2.5 shrink-0">{label}</label>
-      <div className="flex-1 max-w-lg">{children}</div>
+    <div className="flex flex-col gap-2 py-5 sm:flex-row sm:items-start sm:gap-8 sm:py-6">
+      <label className="text-sm font-medium text-gray-700 sm:w-40 sm:pt-2.5 shrink-0">{label}</label>
+      <div className="w-full min-w-0 max-w-lg sm:flex-1">{children}</div>
     </div>
   );
 }
@@ -217,7 +217,7 @@ export default function ProfilePage() {
             type="text"
             value={name}
             onChange={(e) => { setName(e.target.value); setNameError(''); setNameSuccess(''); }}
-            className="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow"
+            className="flex-1 min-w-0 px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow"
           />
           <button
             onClick={handleNameUpdate}
@@ -264,8 +264,8 @@ export default function ProfilePage() {
       <div className="border-t border-gray-100" />
 
       <FieldRow label="New password">
-        <div className="flex gap-3">
-          <div className="flex-1">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex-1 min-w-0">
             <PasswordInput
               value={newPassword}
               onChange={(e) => { setNewPassword(e.target.value); setPwError(''); setPwSuccess(''); }}

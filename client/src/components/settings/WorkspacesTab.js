@@ -26,16 +26,16 @@ function WorkspaceRow({ workspace, isCurrent, onRename, onDelete, onMembers, onS
   };
 
   return (
-    <div className="flex items-center gap-3 px-5 py-3.5">
-      <WorkspaceTile name={workspace.name} />
+    <div className="flex flex-col gap-2 px-5 py-3.5 sm:flex-row sm:items-center sm:gap-3">
       {editing ? (
-        <form onSubmit={save} className="flex flex-1 items-center gap-2">
+        <form onSubmit={save} className="flex flex-1 flex-wrap items-center gap-2">
+          <WorkspaceTile name={workspace.name} />
           <input
             autoFocus
             value={name}
             maxLength={60}
             onChange={(e) => setName(e.target.value)}
-            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
+            className="min-w-0 flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
           />
           <button type="button" onClick={() => { setEditing(false); setName(workspace.name); }} className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900">
             Cancel
@@ -46,35 +46,40 @@ function WorkspaceRow({ workspace, isCurrent, onRename, onDelete, onMembers, onS
         </form>
       ) : (
         <>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {workspace.name}
-              {workspace.isDefault && <span className="ml-2 text-xs font-normal text-gray-400">Default</span>}
-              {isCurrent && <span className="ml-2 text-xs font-normal text-blue-600">Current</span>}
-            </p>
-            <p className="text-xs text-gray-500">
-              {workspace.projectCount} {workspace.projectCount === 1 ? 'project' : 'projects'}
-              {' · '}
-              {workspace.memberCount ? `${workspace.memberCount} ${workspace.memberCount === 1 ? 'member' : 'members'}` : 'Owners and admins'}
-              {workspace.shareSettings?.enabled && <span className="ml-1.5 rounded-full bg-emerald-50 px-1.5 py-px text-[11px] font-medium text-emerald-700">Link on</span>}
-            </p>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <WorkspaceTile name={workspace.name} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {workspace.name}
+                {workspace.isDefault && <span className="ml-2 text-xs font-normal text-gray-400">Default</span>}
+                {isCurrent && <span className="ml-2 text-xs font-normal text-blue-600">Current</span>}
+              </p>
+              <p className="text-xs text-gray-500">
+                {workspace.projectCount} {workspace.projectCount === 1 ? 'project' : 'projects'}
+                {' · '}
+                {workspace.memberCount ? `${workspace.memberCount} ${workspace.memberCount === 1 ? 'member' : 'members'}` : 'Owners and admins'}
+                {workspace.shareSettings?.enabled && <span className="ml-1.5 rounded-full bg-emerald-50 px-1.5 py-px text-[11px] font-medium text-emerald-700">Link on</span>}
+              </p>
+            </div>
           </div>
-          <button type="button" onClick={() => onMembers(workspace)} className="px-3 py-1.5 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">
-            Members
-          </button>
-          <button type="button" onClick={() => onShare(workspace)} className="px-3 py-1.5 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">
-            Share
-          </button>
-          {isOrgAdmin && (
-            <button type="button" onClick={() => setEditing(true)} className="px-3 py-1.5 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">
-              Rename
+          <div className="-ml-3 flex flex-wrap items-center pl-11 sm:ml-0 sm:pl-0">
+            <button type="button" onClick={() => onMembers(workspace)} className="px-3 py-1.5 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">
+              Members
             </button>
-          )}
-          {isOrgAdmin && !workspace.isDefault && (
-            <button type="button" onClick={() => onDelete(workspace)} className="px-3 py-1.5 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50">
-              Delete
+            <button type="button" onClick={() => onShare(workspace)} className="px-3 py-1.5 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">
+              Share
             </button>
-          )}
+            {isOrgAdmin && (
+              <button type="button" onClick={() => setEditing(true)} className="px-3 py-1.5 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">
+                Rename
+              </button>
+            )}
+            {isOrgAdmin && !workspace.isDefault && (
+              <button type="button" onClick={() => onDelete(workspace)} className="px-3 py-1.5 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50">
+                Delete
+              </button>
+            )}
+          </div>
         </>
       )}
     </div>
@@ -146,13 +151,13 @@ export default function WorkspacesTab() {
             />
           ))}
         </div>
-        {isAdmin && <form onSubmit={handleCreate} className="flex items-center gap-3 border-t border-gray-100 px-5 py-4">
+        {isAdmin && <form onSubmit={handleCreate} className="flex flex-col gap-3 border-t sm:flex-row sm:items-center border-gray-100 px-5 py-4">
           <input
             value={newName}
             maxLength={60}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="New workspace name, e.g. Client X"
-            className="flex-1 px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
+            className="min-w-0 flex-1 px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
           />
           <button type="submit" disabled={!newName.trim() || creating} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40">
             {creating ? 'Creating…' : 'Create workspace'}

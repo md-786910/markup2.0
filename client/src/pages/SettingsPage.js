@@ -90,14 +90,14 @@ export default function SettingsPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="border-b border-gray-200 mb-8 flex gap-6">
+      <div className="-mx-6 px-6 sm:mx-0 sm:px-0 border-b border-gray-200 mb-8 flex gap-6 overflow-x-auto scrollbar-none">
         {TABS.map((tab) => {
           const showDot = tab.id === 'invoices' && !!user?.orgPendingInvoice;
           return (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`relative px-1 pb-3 text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === tab.id
+              className={`relative shrink-0 whitespace-nowrap px-1 pb-3 text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === tab.id
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-500 hover:text-gray-900 border-b-2 border-transparent'
                 }`}
@@ -121,9 +121,9 @@ export default function SettingsPage() {
           <p className="text-sm text-gray-500 mt-1 mb-6">Your company or team. Its name and icon appear in the app, emails, and on review links.</p>
 
           {/* Workspace Name */}
-          <div className="flex items-start gap-8 mb-8">
-            <label className="text-sm font-medium text-gray-700 w-32 pt-2.5 shrink-0">Name</label>
-            <div className="flex-1 max-w-md">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-8 mb-8">
+            <label className="text-sm font-medium text-gray-700 sm:w-32 sm:pt-2.5 shrink-0">Name</label>
+            <div className="w-full min-w-0 max-w-md sm:flex-1">
               {isOwner ? (
                 <>
                   <div className="flex gap-3">
@@ -131,7 +131,7 @@ export default function SettingsPage() {
                       type="text"
                       value={workspaceName}
                       onChange={(e) => { setWorkspaceName(e.target.value); setNameError(''); setNameSuccess(''); }}
-                      className="flex-1 px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 bg-white transition-shadow"
+                      className="flex-1 min-w-0 px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 bg-white transition-shadow"
                     />
                     <button
                       onClick={handleNameUpdate}
@@ -151,7 +151,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Workspace Icon */}
-          <div className="flex items-start gap-8">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-8">
             <label className="text-sm font-medium text-gray-700 w-32 pt-2 shrink-0">
               Icon
               <span className="inline-block ml-1 text-gray-300 cursor-help" title="Recommended: 256x256px, PNG or JPG">

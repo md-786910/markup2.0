@@ -81,7 +81,9 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
   const [sidebarTab, setSidebarTab] = useState('pins');
   const [selectedVersion, setSelectedVersion] = useState(null);
-  const [smallScreenNoticeDismissed, setSmallScreenNoticeDismissed] = useState(false);
+  // Phones show the page or the comments, switched by a bottom tab bar
+  const [mobilePane, setMobilePane] = useState('page');
+  const showCommentsOnPhone = () => { if (window.innerWidth < 768) setMobilePane('comments'); };
   const iframeState = useIframeMessages();
   const { onEvent, onlineUsers, lastSeenMap, resyncKey } = useSocket(project._id);
   const initialPinHandled = useRef(false);
@@ -332,6 +334,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         if (pin) {
           setPendingPinData(null);
           handlePinNavigate(pin);
+          showCommentsOnPhone();
         }
       }
     };
@@ -527,8 +530,80 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     setPendingPinData((prev) => prev ? { ...prev, screenshot } : prev);
   }, []);
 
+  const deviceButtons = (
+    <>
+    {/* Desktop */}
+    <button
+      onClick={() => handleDeviceChange('desktop')}
+      className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'desktop' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+      title="Desktop (1440px)"
+    >
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
+      </svg>
+      {devicePinCounts.desktop > 0 && deviceMode !== 'desktop' && (
+        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+      )}
+    </button>
+    {/* Tablet */}
+    <button
+      onClick={() => handleDeviceChange('tablet')}
+      className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'tablet' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+      title="Tablet (768px)"
+    >
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5h3m-6.75 2.25h10.5a2.25 2.25 0 002.25-2.25V4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 4.5v15a2.25 2.25 0 002.25 2.25z" />
+      </svg>
+      {devicePinCounts.tablet > 0 && deviceMode !== 'tablet' && (
+        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+      )}
+    </button>
+    {/* Mobile */}
+    <button
+      onClick={() => handleDeviceChange('mobile')}
+      className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'mobile' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+      title="Mobile (375px)"
+    >
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+      </svg>
+      {devicePinCounts.mobile > 0 && deviceMode !== 'mobile' && (
+        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+      )}
+    </button>
+    </>
+  );
+
+  const modeToggle = canComment ? (
+    <div className="relative flex bg-gray-100 rounded-lg p-1" role="group" aria-label="Mode">
+      <div
+        className={`absolute top-1 bottom-1 rounded-md shadow-sm transition-all duration-200 ease-in-out ${pinMode ? 'bg-blue-600' : 'bg-white'}`}
+        style={{
+          width: 'calc(50% - 4px)',
+          left: pinMode ? 'calc(50%)' : '4px',
+        }}
+      />
+      <button
+        onClick={() => setPinMode(false)}
+        className={`relative z-10 flex-1 text-center py-1 px-4 md:px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
+          !pinMode ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'
+        }`}
+      >
+        View
+      </button>
+      <button
+        onClick={() => setPinMode(true)}
+        className={`relative z-10 flex-1 text-center py-1 px-4 md:px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
+          pinMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'
+        }`}
+      >
+        Comment
+      </button>
+    </div>
+  ) : null;
+
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen h-dvh">
       {/* Toolbar */}
       <div className="bg-white border-b border-gray-200/80 px-4 h-14 flex items-center justify-between relative">
         {/* Left: Brand + Project + URL */}
@@ -543,8 +618,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             </svg>
           </button>
           <div className="w-px h-6 bg-gray-200/80 shrink-0"></div>
-          <h2 className="font-semibold text-gray-900 shrink-0 text-[14px] tracking-tight">{project.name}</h2>
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 hover:bg-gray-100/60 transition-colors cursor-default" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
+          <h2 className="min-w-0 max-w-[160px] truncate font-semibold text-gray-900 text-[14px] tracking-tight sm:max-w-[220px] xl:max-w-none xl:shrink-0" title={project.name}>{project.name}</h2>
+          <div className="hidden xl:flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 hover:bg-gray-100/60 transition-colors cursor-default" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
             {isDocumentProject ? (
               <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -560,49 +635,11 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
         {/* Center: Device switcher — absolutely centered so it doesn't shift with URL length */}
         {!isDocumentProject ? (
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">
-            {/* Desktop */}
-            <button
-              onClick={() => handleDeviceChange('desktop')}
-              className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'desktop' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-              title="Desktop (1440px)"
-            >
-              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
-              </svg>
-              {devicePinCounts.desktop > 0 && deviceMode !== 'desktop' && (
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-              )}
-            </button>
-            {/* Tablet */}
-            <button
-              onClick={() => handleDeviceChange('tablet')}
-              className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'tablet' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-              title="Tablet (768px)"
-            >
-              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5h3m-6.75 2.25h10.5a2.25 2.25 0 002.25-2.25V4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 4.5v15a2.25 2.25 0 002.25 2.25z" />
-              </svg>
-              {devicePinCounts.tablet > 0 && deviceMode !== 'tablet' && (
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-              )}
-            </button>
-            {/* Mobile */}
-            <button
-              onClick={() => handleDeviceChange('mobile')}
-              className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'mobile' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-              title="Mobile (375px)"
-            >
-              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-              </svg>
-              {devicePinCounts.mobile > 0 && deviceMode !== 'mobile' && (
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-              )}
-            </button>
+          <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">
+            {deviceButtons}
           </div>
         ) : (
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50/80 px-3 py-1.5 rounded-lg border border-gray-100/80">
+          <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 text-xs text-gray-500 bg-gray-50/80 px-3 py-1.5 rounded-lg border border-gray-100/80">
             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
@@ -611,37 +648,13 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         )}
 
         {/* Right: Mode toggle + Avatars + Invite */}
-        <div className="flex items-center gap-3 z-10">
+        <div className="flex shrink-0 items-center gap-2 md:gap-3 z-10">
           {/* View / Comment mode toggle */}
-          {canComment && <div className="relative flex bg-gray-100 rounded-lg p-1" role="group" aria-label="Mode">
-            <div
-              className={`absolute top-1 bottom-1 rounded-md shadow-sm transition-all duration-200 ease-in-out ${pinMode ? 'bg-blue-600' : 'bg-white'}`}
-              style={{
-                width: 'calc(50% - 4px)',
-                left: pinMode ? 'calc(50%)' : '4px',
-              }}
-            />
-            <button
-              onClick={() => setPinMode(false)}
-              className={`relative z-10 flex-1 text-center py-1 px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
-                !pinMode ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              View
-            </button>
-            <button
-              onClick={() => setPinMode(true)}
-              className={`relative z-10 flex-1 text-center py-1 px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
-                pinMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Comment
-            </button>
-          </div>}
+          <div className="hidden md:block">{modeToggle}</div>
 
           {/* Member avatars */}
           <MembersPresencePopover entries={memberPresence}>
-          <div tabIndex={0} className="flex items-center -space-x-2 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+          <div tabIndex={0} className="hidden lg:flex items-center -space-x-2 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
             {memberPresence.slice(0, 5).map((p) => (
               <div key={p.member._id} className="relative transition-transform hover:-translate-y-0.5 hover:z-10">
                 <div className={`w-8 h-8 rounded-full ${p.color.bg} ${p.color.text} flex items-center justify-center text-[11px] font-bold border-[2.5px] border-white`}>
@@ -663,47 +676,52 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           {/* Bell Notifications */}
           <NotificationBell variant="detailed" projectId={project?._id} onSelectPin={handlePinNavigate} />
 
-          <div className="w-px h-6 bg-gray-200/80"></div>
+          <div className="hidden md:block w-px h-6 bg-gray-200/80"></div>
 
           {canManageProject && (
             <button
               onClick={() => setShowShare(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-gray-600 text-[13px] font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 lg:px-3 py-2 text-gray-600 text-[13px] font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
               title="Share with guests"
+              aria-label="Share"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-4.874a4.5 4.5 0 00-1.242-7.244l4.5-4.5a4.5 4.5 0 016.364 6.364l-1.757 1.757" />
               </svg>
-              Share
+              <span className="hidden lg:inline">Share</span>
             </button>
           )}
 
           {canManageProject && (
             <button
               onClick={() => setShowInvite(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 text-white text-[13px] font-medium rounded-lg hover:bg-blue-700 shadow-sm shadow-blue-600/20 transition-all hover:shadow-md hover:shadow-blue-600/25"
+              className="flex items-center gap-1.5 px-2.5 lg:px-3.5 py-2 bg-blue-600 text-white text-[13px] font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              title="Invite people"
+              aria-label="Invite"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
               </svg>
-              Invite
+              <span className="hidden lg:inline">Invite</span>
             </button>
           )}
         </div>
       </div>
 
-      {!smallScreenNoticeDismissed && (
-        <div className="md:hidden flex items-center gap-3 border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-[13px] text-blue-900">
-          <span className="flex-1">Reviewing works best on a tablet or computer. You can still read and reply to feedback here.</span>
-          <button type="button" onClick={() => setSmallScreenNoticeDismissed(true)} className="font-medium text-blue-700">
-            Got it
-          </button>
+      {/* Phones: device size and mode under the toolbar */}
+      {(!isDocumentProject || modeToggle) && (
+        <div className="md:hidden flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2">
+          {!isDocumentProject ? (
+            <div className="flex items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">{deviceButtons}</div>
+          ) : <span />}
+          {modeToggle}
         </div>
       )}
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
+        <div className={`${mobilePane === 'comments' ? 'flex' : 'hidden'} md:flex w-full md:w-auto shrink-0`}>
         {sidebarTab === 'pins' ? (
           <PinListSidebar
             readOnly={!canComment}
@@ -724,7 +742,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             onTabChange={setSidebarTab}
           />
         ) : (
-          <div className="w-80 shrink-0 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden">
+          <div className="w-full md:w-80 shrink-0 bg-white border-r border-gray-200 flex flex-col h-full overflow-hidden">
             <SidebarTabs active={sidebarTab} onChange={setSidebarTab} />
             {sidebarTab === 'activity' && (isTabLocked('activity', limits) ? (
               <LockedFeature
@@ -750,8 +768,10 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           </div>
         )}
 
+        </div>
+
         {/* Content area */}
-        <div className="flex-1 min-w-0 relative">
+        <div className={`${mobilePane === 'page' ? 'block' : 'hidden'} md:block flex-1 min-w-0 relative`}>
           {isDocumentProject ? (
             <React.Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-10 h-10 border-[3px] border-gray-200 border-t-blue-500 rounded-full animate-spin"></div></div>}>
             <DocumentViewer
@@ -764,7 +784,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               pins={shownPins}
               selectedPinId={selectedPin?._id}
               onDocumentClick={handleDocumentClick}
-              onPinClick={(pin) => { setPendingPinData(null); setSelectedPin(pin); }}
+              onPinClick={(pin) => { setPendingPinData(null); setSelectedPin(pin); showCommentsOnPhone(); }}
               onScreenshot={handleDocScreenshot}
               viewportWidth={viewportWidth}
             />
@@ -843,6 +863,21 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           )}
         </div>
       </div>
+
+      {/* Phones: switch between the page and the comments */}
+      <nav className="md:hidden grid grid-cols-2 border-t border-gray-200 bg-white shrink-0" aria-label="View">
+        {[['page', 'Page'], ['comments', `Comments (${shownAllPins.filter((p) => p.status !== 'resolved').length})`]].map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setMobilePane(id)}
+            aria-pressed={mobilePane === id}
+            className={`py-3 text-sm font-medium ${mobilePane === id ? 'text-blue-600' : 'text-gray-500'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
 
       {/* New pin comment popup — pin is created only when comment is submitted */}
       {pendingPinData && (

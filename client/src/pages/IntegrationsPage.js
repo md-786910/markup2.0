@@ -554,7 +554,7 @@ export default function IntegrationsPage() {
       </div>
 
       {/* Integration cards */}
-      <div className="gap-4 grid ">
+      <div className="grid grid-cols-1 gap-4">
         {INTEGRATION_TYPES.map((typeConfig) => {
           const existing = integrations.find((i) => i.type === typeConfig.type);
           return (

@@ -414,7 +414,7 @@ export default function GuestProjectPage() {
   );
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen h-dvh">
       {/* ─── Toolbar ─── */}
       <div className="bg-white border-b border-gray-200/80 px-4 h-14 flex items-center justify-between relative shrink-0">
         {/* Left: Brand + Project + URL */}

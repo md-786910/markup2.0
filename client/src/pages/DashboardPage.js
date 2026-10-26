@@ -152,16 +152,15 @@ export default function DashboardPage() {
   const activeFilterCount =
     [filters.status, filters.type, filters.ownership, filters.dateRange?.preset].filter(Boolean).length +
     (filters.search.trim() ? 1 : 0);
-  const dateFilterCount = filters.dateRange?.preset ? 1 : 0;
 
   // Collect unique members across all projects
   const allMembers = [];
   const seenIds = new Set();
-  dateFilteredProjects.forEach((project) => {
+  projects.forEach((project) => {
     (project.members || []).forEach((member) => {
       if (!seenIds.has(member._id)) {
         seenIds.add(member._id);
-        const memberProjects = dateFilteredProjects.filter((p) =>
+        const memberProjects = projects.filter((p) =>
           (p.members || []).some((m) => m._id === member._id)
         );
         allMembers.push({ ...member, projects: memberProjects });
@@ -222,7 +221,7 @@ export default function DashboardPage() {
 
   const pageTitle = tab === 'members' ? 'Team' : tab === 'archived' ? 'Archive' : (workspace?.name || 'Dashboard');
   const pageSubtitle = tab === 'members'
-    ? `${allMembers.length} member${allMembers.length !== 1 ? 's' : ''} across ${dateFilteredProjects.length} project${dateFilteredProjects.length !== 1 ? 's' : ''}`
+    ? `${allMembers.length} member${allMembers.length !== 1 ? 's' : ''} across ${projects.length} project${projects.length !== 1 ? 's' : ''}`
     : `${websiteCount} website${websiteCount !== 1 ? 's' : ''}${documentCount > 0 ? ` · ${documentCount} document${documentCount !== 1 ? 's' : ''}` : ''}${archivedProjects.length > 0 && tab !== 'archived' ? ` · ${archivedProjects.length} archived` : ''}`;
 
   return (
@@ -248,19 +247,20 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <FilterBar
-        filters={filters}
-        onFiltersChange={setFilters}
-        activeFilterCount={tab === 'members' ? dateFilterCount : activeFilterCount}
-        dateOnly={tab === 'members'}
-      />
+      {/* Filter Bar (projects only; the team list is not filtered) */}
+      {tab !== 'members' && (
+        <FilterBar
+          filters={filters}
+          onFiltersChange={setFilters}
+          activeFilterCount={activeFilterCount}
+        />
+      )}
 
       {/* Content */}
       {tab === 'members' ? (
         <MembersTab
           members={allMembers}
-          projects={dateFilteredProjects}
+          projects={projects}
           isAdmin={isAdmin}
           currentUserId={user?.id}
           onProjectsChanged={loadProjects}
