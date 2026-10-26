@@ -6,6 +6,9 @@ import AdminLayout from './components/layout/AdminLayout';
 import './index.css';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const AccountPage = lazy(() => import('./pages/AccountPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const OrganizationsPage = lazy(() => import('./pages/OrganizationsPage'));
 const OrganizationDetailPage = lazy(() => import('./pages/OrganizationDetailPage'));
@@ -31,6 +34,8 @@ function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
             <Route element={<PrivateRoute />}>
               <Route element={<AdminLayout />}>
                 <Route path="/dashboard" element={<DashboardPage />} />
@@ -42,6 +47,7 @@ function App() {
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/payments" element={<PaymentsPage />} />
                 <Route path="/audit" element={<AuditLogPage />} />
+                <Route path="/account" element={<AccountPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" />} />

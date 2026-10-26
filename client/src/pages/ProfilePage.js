@@ -64,7 +64,7 @@ function PasswordInput({ value, onChange, placeholder, autoComplete = 'off', cla
 }
 
 export default function ProfilePage() {
-  const { user, updateUser, logout, isOwner } = useAuth();
+  const { user, updateUser, replaceToken, logout, isOwner } = useAuth();
   const navigate = useNavigate();
   const fileRef = useRef(null);
 
@@ -161,7 +161,8 @@ export default function ProfilePage() {
     setPwError('');
     setPwSuccess('');
     try {
-      await changePasswordApi(currentPassword, newPassword);
+      const res = await changePasswordApi(currentPassword, newPassword);
+      replaceToken(res.data.token);
       setPwSuccess('Password changed successfully');
       setCurrentPassword('');
       setNewPassword('');

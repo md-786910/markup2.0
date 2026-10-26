@@ -126,6 +126,7 @@ app.use(globalLimiter);
 // requests using Authorization: Bearer (header auth isn't CSRF-able).
 const PUBLIC_AUTH_PATHS = new Set([
   "/api/auth/login",
+  "/api/auth/login/2fa",
   "/api/auth/signup",
   "/api/auth/validate-email",
   "/api/auth/send-otp",

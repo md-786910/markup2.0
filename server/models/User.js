@@ -77,6 +77,18 @@ const userSchema = new mongoose.Schema({
     ref: 'Project',
     default: [],
   }],
+  // Two-step sign-in with an authenticator app (utils/totp.js). Secrets are
+  // encrypted (utils/secretBox.js); recovery codes are stored as SHA-256 hashes.
+  twoFactor: {
+    enabled: { type: Boolean, default: false },
+    enabledAt: { type: Date, default: null },
+    secret: { type: String, default: null, select: false },
+    pendingSecret: { type: String, default: null, select: false },
+    pendingCreatedAt: { type: Date, default: null, select: false },
+    // Last accepted 30-second step, so a code can't be used twice
+    lastUsedStep: { type: Number, default: 0, select: false },
+    recoveryCodes: { type: [String], default: [], select: false },
+  },
 }, { timestamps: true });
 
 userSchema.pre('save', async function () {
@@ -92,6 +104,7 @@ userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.passwordHash;
   delete obj.sessionToken;
+  if (obj.twoFactor) obj.twoFactor = { enabled: !!obj.twoFactor.enabled, enabledAt: obj.twoFactor.enabledAt || null };
   return obj;
 };
 

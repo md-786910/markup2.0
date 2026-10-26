@@ -29,11 +29,19 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401) {
+    const status = error.response?.status;
+    const url = error.config?.url || "";
+    // A wrong password or code on the sign-in screens is not an expired session
+    const signInCall = /^\/auth\/(login|forgot-password|reset-password)/.test(url);
+    if (status === 401 && !signInCall) {
       localStorage.removeItem(TOKEN_KEY);
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";
       }
+    }
+    // Admin policy: 2FA must be on before the admin API answers
+    if (status === 403 && error.response?.data?.code === "TWO_FACTOR_SETUP_REQUIRED" && window.location.pathname !== "/account") {
+      window.location.href = "/account?setup=2fa";
     }
     return Promise.reject(error);
   },

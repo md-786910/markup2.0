@@ -217,18 +217,18 @@ function digest({ projectName, events }) {
 
 // ── Account ─────────────────────────────────────────────────────────────────
 
-function passwordReset({ resetUrl }) {
+function passwordReset({ resetUrl, expiresIn = '1 hour' }) {
   return {
     subject: 'Reset your Kommently password',
     ...renderEmail({
-      preheader: 'Use this link to choose a new password. It expires in 1 hour.',
+      preheader: `Use this link to choose a new password. It expires in ${expiresIn}.`,
       eyebrow: 'Security',
       tone: 'neutral',
       title: 'Reset your password',
       blocks: [
         { type: 'p', text: 'We received a request to reset the password for your Kommently account. Click below to choose a new one.' },
         { type: 'button', label: 'Reset password', url: resetUrl, fallback: true },
-        { type: 'note', text: 'This link expires in **1 hour**. If you didn\'t request a reset, you can ignore this email — your password won\'t change.' },
+        { type: 'note', text: `This link expires in **${expiresIn}**. If you didn't request a reset, you can ignore this email — your password won't change.` },
       ],
     }),
   };

@@ -49,6 +49,7 @@
     "pino": "10.4.0",
     "pino-http": "11.0.0",
     "pino-pretty": "13.2.0",
+    "qrcode": "^1.5.4",
     "rate-limit-redis": "6.0.1",
     "razorpay": "^2.9.6",
     "sanitize-html": "^2.18.1",

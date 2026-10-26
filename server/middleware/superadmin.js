@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { isProxyToken } = require('../utils/proxyToken');
+const { adminRequiresTwoFactor } = require('../utils/twoFactor');
 
 const superadmin = asyncHandler(async (req, res, next) => {
   let token = null;
@@ -38,6 +39,11 @@ const superadmin = asyncHandler(async (req, res, next) => {
 
     if (user.role !== 'superadmin') {
       return res.status(403).json({ message: 'Superadmin access required' });
+    }
+
+    // With the policy on, the admin API stays closed until 2FA is set up
+    if (adminRequiresTwoFactor() && !user.twoFactor?.enabled) {
+      return res.status(403).json({ message: 'Turn on two-step sign-in to use the admin panel.', code: 'TWO_FACTOR_SETUP_REQUIRED' });
     }
 
     req.user = user;

@@ -1,105 +1,135 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
-import BrandMark from '../components/common/BrandMark';
+import AuthShell, { AuthError, PasswordInput, SubmitButton, authInputClass } from '../components/auth/AuthShell';
+
+const message = (err, fallback) => err.response?.data?.message || err.message || fallback;
 
 export default function LoginPage() {
+  const { login, completeTwoFactor } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [challenge, setChallenge] = useState(null);
+  const [code, setCode] = useState('');
+  const [useRecovery, setUseRecovery] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
-  const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handlePassword = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      navigate('/dashboard', { replace: true });
+      const data = await login(email, password);
+      if (data.twoFactorRequired) {
+        setChallenge(data.challengeToken);
+        setPassword('');
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     } catch (err) {
-      setError(err.message || err.response?.data?.message || 'Login failed');
+      setError(message(err, 'Could not sign in.'));
     }
     setLoading(false);
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <BrandMark className="h-11 w-11" />
-          <h1 className="mt-4 text-xl font-semibold tracking-tight text-gray-900">Kommently admin</h1>
-          <p className="mt-1 text-sm text-gray-500">Sign in with a superadmin account</p>
-        </div>
+  const handleCode = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await completeTwoFactor(challenge, code);
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      if (err.response?.data?.code === 'CHALLENGE_EXPIRED') {
+        setChallenge(null);
+        setCode('');
+      }
+      setError(message(err, 'Could not verify the code.'));
+    }
+    setLoading(false);
+  };
 
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6">
-          {error && (
-            <div role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
+  if (challenge) {
+    return (
+      <AuthShell
+        title="Two-step sign-in"
+        description={useRecovery ? 'Enter one of your recovery codes.' : 'Enter the 6-digit code from your authenticator app.'}
+        footer={<button type="button" onClick={() => { setChallenge(null); setCode(''); setError(''); }} className="font-medium text-gray-700 hover:text-gray-900">Use a different account</button>}
+      >
+        <form onSubmit={handleCode} className="space-y-4">
+          <AuthError>{error}</AuthError>
           <div>
-            <label htmlFor="admin-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-            <input
-              id="admin-email"
-              autoComplete="email"
-              autoFocus
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15"
-              placeholder="admin@example.com"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="admin-password" className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-            <div className="relative">
+            <label htmlFor="admin-code" className="mb-1.5 block text-sm font-medium text-gray-700">{useRecovery ? 'Recovery code' : 'Authentication code'}</label>
+            {useRecovery ? (
               <input
-                id="admin-password"
-                autoComplete="current-password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                id="admin-code"
+                key="recovery"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
                 required
-                className="h-10 w-full rounded-lg border border-gray-200 px-3 pr-10 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15"
-                placeholder="Enter your password"
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="XXXXX-XXXXX"
+                className={`${authInputClass} font-mono tracking-wider`}
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                tabIndex={-1}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                title={showPassword ? 'Hide password' : 'Show password'}
-                className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                {showPassword ? (
-                  <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.243 4.243L9.88 9.88" />
-                  </svg>
-                ) : (
-                  <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                )}
-              </button>
-            </div>
+            ) : (
+              <input
+                id="admin-code"
+                key="totp"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                required
+                autoFocus
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123456"
+                className={`${authInputClass} text-center font-mono text-lg tracking-[0.4em]`}
+              />
+            )}
           </div>
-
+          <SubmitButton loading={loading} loadingLabel="Verifying…">Verify</SubmitButton>
           <button
-            type="submit"
-            disabled={loading}
-            className="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            type="button"
+            onClick={() => { setUseRecovery((v) => !v); setCode(''); setError(''); }}
+            className="w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700"
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {useRecovery ? 'Use your authenticator app instead' : 'Lost your phone? Use a recovery code'}
           </button>
         </form>
-      </div>
-    </div>
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell title="Kommently admin" description="Sign in with your admin account">
+      <form onSubmit={handlePassword} className="space-y-4">
+        <AuthError>{error}</AuthError>
+        <div>
+          <label htmlFor="admin-email" className="mb-1.5 block text-sm font-medium text-gray-700">Email</label>
+          <input
+            id="admin-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoFocus
+            autoComplete="email"
+            placeholder="you@company.com"
+            className={authInputClass}
+          />
+        </div>
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="admin-password" className="text-sm font-medium text-gray-700">Password</label>
+            <Link to="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-700">Forgot password?</Link>
+          </div>
+          <PasswordInput id="admin-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" />
+        </div>
+        <SubmitButton loading={loading} loadingLabel="Signing in…">Sign in</SubmitButton>
+      </form>
+    </AuthShell>
   );
 }

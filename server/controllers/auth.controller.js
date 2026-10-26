@@ -19,6 +19,7 @@ const { ROLE_HIERARCHY } = require("../middleware/roles");
 const { getLimitsForPlanAsync, getNewSignupPlanMode } = require("../config/plans");
 const { generateCsrfToken, CSRF_COOKIE } = require("../middleware/csrf");
 const { validatePassword } = require("../utils/passwordPolicy");
+const { issueChallenge, readChallenge, passwordFingerprint, checkSecondFactor, SECOND_FACTOR_FIELDS } = require("../utils/twoFactor");
 const { logOrgActivity, logActivity } = require("../utils/activityLogger");
 const { metric } = require("../instrument");
 const { createProjectNotifications, createSingleNotification } = require("../utils/notificationHelper");
@@ -78,6 +79,7 @@ const userResponse = (user, org, dynamicLimits) => ({
   orgPendingInvoice: org && org._pendingInvoice ? org._pendingInvoice : null,
   mutedProjectEmails: (user.mutedProjectEmails || []).map((id) => id.toString()),
   emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
+  twoFactorEnabled: !!user.twoFactor?.enabled,
 });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -124,6 +126,7 @@ async function attachPendingInvoice(org) {
 
 // Exported for reuse in billing controller
 exports.userResponse = userResponse;
+exports.setCookieAndRespond = (...args) => setCookieAndRespond(...args);
 exports.attachPendingInvoice = attachPendingInvoice;
 
 const setCookieAndRespond = async (res, user, org, statusCode = 200, extra = {}) => {
@@ -380,7 +383,16 @@ exports.login = asyncHandler(async (req, res) => {
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
-  // Generate new session token (invalidates all other sessions)
+  // Two-step sign-in: the password alone only earns a short-lived challenge
+  if (user.twoFactor?.enabled) {
+    return res.json({ twoFactorRequired: true, challengeToken: issueChallenge(user) });
+  }
+
+  await startSession(req, res, user);
+});
+
+// New session for a fully signed-in user (invalidates all other sessions)
+async function startSession(req, res, user) {
   user.sessionToken = generateSessionToken();
   const clientIp = req.ip;
   user.lastLoginIp = clientIp;
@@ -391,6 +403,28 @@ exports.login = asyncHandler(async (req, res) => {
     ? await Organization.findById(user.organization)
     : null;
   await setCookieAndRespond(res, user, org);
+}
+
+// POST /auth/login/2fa { challengeToken, code }: the second step of sign-in,
+// with a 6-digit authenticator code or a one-time recovery code
+exports.loginTwoFactor = asyncHandler(async (req, res) => {
+  const { challengeToken, code } = req.body || {};
+  const challenge = readChallenge(challengeToken);
+  if (!challenge) {
+    return res.status(401).json({ message: "Your sign-in expired. Enter your password again.", code: "CHALLENGE_EXPIRED" });
+  }
+  const user = await User.findById(challenge.id).select(`+passwordHash ${SECOND_FACTOR_FIELDS}`);
+  if (!user || challenge.pf !== passwordFingerprint(user) || !user.twoFactor?.enabled) {
+    return res.status(401).json({ message: "Your sign-in expired. Enter your password again.", code: "CHALLENGE_EXPIRED" });
+  }
+  const used = checkSecondFactor(user, code);
+  if (!used) {
+    return res.status(401).json({ message: "That code didn't work. Check your authenticator app and try again." });
+  }
+  if (used === 'recovery') {
+    req.log.warn({ userId: String(user._id), left: user.twoFactor.recoveryCodes.length }, "signed in with a recovery code");
+  }
+  await startSession(req, res, user);
 });
 
 exports.getMe = asyncHandler(async (req, res) => {
@@ -462,7 +496,7 @@ exports.changePassword = asyncHandler(async (req, res) => {
       .json({ message: "Current password and new password are required" });
   }
 
-  const policy = validatePassword(newPassword);
+  const policy = validatePassword(newPassword, { role: req.user.role });
   if (!policy.ok) {
     return res.status(400).json({ message: policy.message });
   }
@@ -470,14 +504,16 @@ exports.changePassword = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id).select("+passwordHash");
   const isMatch = await user.comparePassword(currentPassword);
   if (!isMatch) {
-    return res.status(401).json({ message: "Current password is incorrect" });
+    // 400, not 401: a typo must not look like an expired session to the apps
+    return res.status(400).json({ message: "Current password is incorrect" });
   }
 
   user.passwordHash = newPassword;
   user.sessionToken = generateSessionToken(); // Invalidate other sessions
   await user.save();
 
-  res.json({ message: "Password changed successfully" });
+  // A fresh token keeps this device signed in; every other session ends
+  await setCookieAndRespond(res, user, req.organization || null, 200, { message: "Password changed successfully" });
 });
 
 // Upload avatar
@@ -555,14 +591,16 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
       .update(rawToken)
       .digest("hex");
 
+    // Admin accounts reset in the admin panel, with a shorter window
+    const isAdmin = user.role === "superadmin";
     user.resetPasswordToken = hashedToken;
-    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+    user.resetPasswordExpires = Date.now() + (isAdmin ? 30 : 60) * 60 * 1000;
     await user.save({ validateBeforeSave: false });
 
-    const resetUrl = `${URLS.app}/reset-password/${rawToken}`;
+    const resetUrl = `${isAdmin ? URLS.admin : URLS.app}/reset-password/${rawToken}`;
 
     try {
-      await sendPasswordResetEmail(user.email, resetUrl);
+      await sendPasswordResetEmail(user.email, resetUrl, isAdmin ? "30 minutes" : "1 hour");
     } catch (err) {
       req.log.error({ err, smtpCode: err.code }, "password reset email failed to send");
       user.resetPasswordToken = undefined;
@@ -584,11 +622,6 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   const { token } = req.params;
   const { password } = req.body;
 
-  const policy = validatePassword(password);
-  if (!policy.ok) {
-    return res.status(400).json({ message: policy.message });
-  }
-
   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
   const user = await User.findOne({
@@ -598,6 +631,11 @@ exports.resetPassword = asyncHandler(async (req, res) => {
 
   if (!user) {
     return res.status(400).json({ message: "Invalid or expired reset token" });
+  }
+
+  const policy = validatePassword(password, { role: user.role });
+  if (!policy.ok) {
+    return res.status(400).json({ message: policy.message });
   }
 
   user.passwordHash = password;

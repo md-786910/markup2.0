@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { TOKEN_KEY } from '../utils/constants';
-import { loginApi, getMeApi } from '../services/authService';
+import { loginApi, loginTwoFactorApi, getMeApi } from '../services/authService';
 
 export const AuthContext = createContext(null);
 
@@ -31,13 +31,28 @@ export function AuthProvider({ children }) {
 
   useEffect(() => { fetchUser(); }, [fetchUser]);
 
+  // Stores a session from any response that issues one (sign-in, password
+  // change, turning on 2FA: the server rotates the session on those)
+  const applySession = useCallback((data) => {
+    if (data?.user && data.user.role !== 'superadmin') {
+      throw new Error('This account is not an admin account.');
+    }
+    if (data?.token) localStorage.setItem(TOKEN_KEY, data.token);
+    if (data?.user) setUser(data.user);
+  }, []);
+
+  // Step 1. Returns { twoFactorRequired, challengeToken } when a code is needed
   const login = async (email, password) => {
     const { data } = await loginApi(email, password);
-    if (data.user.role !== 'superadmin') {
-      throw new Error('Access denied. Superadmin role required.');
-    }
-    localStorage.setItem(TOKEN_KEY, data.token);
-    setUser(data.user);
+    if (data.twoFactorRequired) return data;
+    applySession(data);
+    return data;
+  };
+
+  // Step 2: authenticator or recovery code
+  const completeTwoFactor = async (challengeToken, code) => {
+    const { data } = await loginTwoFactorApi(challengeToken, code);
+    applySession(data);
     return data;
   };
 
@@ -52,6 +67,9 @@ export function AuthProvider({ children }) {
       loading,
       isAuthenticated: !!user,
       login,
+      completeTwoFactor,
+      applySession,
+      refreshUser: fetchUser,
       logout,
     }}>
       {children}

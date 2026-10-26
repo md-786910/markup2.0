@@ -94,8 +94,8 @@ async function sendSupportRequest(toEmail, request) {
   await send(toEmail, templates.supportRequest(request), { replyTo: { name: request.name, address: request.email } });
 }
 
-async function sendPasswordResetEmail(toEmail, resetUrl) {
-  await send(toEmail, templates.passwordReset({ resetUrl }));
+async function sendPasswordResetEmail(toEmail, resetUrl, expiresIn) {
+  await send(toEmail, templates.passwordReset({ resetUrl, expiresIn }));
 }
 
 async function sendEmailVerificationOtp(toEmail, otp) {

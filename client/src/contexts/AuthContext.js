@@ -54,6 +54,13 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  // The server rotates the session on a password change and returns a new token
+  const replaceToken = useCallback((nextToken) => {
+    if (!nextToken) return;
+    localStorage.setItem(TOKEN_KEY, nextToken);
+    setToken(nextToken);
+  }, []);
+
   const updateUser = useCallback((userData) => {
     setUser((prev) => (prev ? { ...prev, ...userData } : prev));
   }, []);
@@ -77,6 +84,7 @@ export function AuthProvider({ children }) {
       signup,
       logout,
       updateUser,
+      replaceToken,
     }}>
       {children}
     </AuthContext.Provider>

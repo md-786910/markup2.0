@@ -111,6 +111,31 @@ const supportLimiter = rateLimit({
   ...shared,
 });
 
+// Second sign-in step: wrong codes per account (from the challenge), so a stolen
+// password can't be paired with guessing 6-digit codes from many IPs
+const twoFactorLimiter = rateLimit({
+  windowMs: FIFTEEN_MIN,
+  max: 5,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => !challengeUserId(req),
+  keyGenerator: (req) => challengeUserId(req),
+  message: { message: 'Too many wrong codes. Wait 15 minutes, or use a recovery code later.' },
+  store: store('2fa'),
+  ...shared,
+});
+
+// User id inside a 2FA challenge, read without verifying (only used as a key)
+function challengeUserId(req) {
+  try {
+    const payload = JSON.parse(Buffer.from(String(req.body?.challengeToken || '').split('.')[1] || '', 'base64url').toString());
+    return typeof payload.id === 'string' ? `u:${payload.id}` : null;
+  } catch {
+    return null;
+  }
+}
+
 const loginEmailLimiter = emailLimiter('login', FIFTEEN_MIN, 10, { skipSuccessfulRequests: true });
 const passwordResetEmailLimiter = emailLimiter('reset', 60 * 60 * 1000, 3);
 const otpEmailLimiter = emailLimiter('otp', 60 * 60 * 1000, 6);
@@ -121,6 +146,7 @@ module.exports = {
   adminLimiter,
   globalLimiter,
   loginEmailLimiter,
+  twoFactorLimiter,
   passwordResetEmailLimiter,
   otpEmailLimiter,
 };
