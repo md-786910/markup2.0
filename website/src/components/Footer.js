@@ -1,4 +1,5 @@
 import React from 'react';
+import BrandMark from './BrandMark';
 import { openCookieSettings } from './CookieConsentManager';
 
 const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
@@ -32,11 +33,7 @@ export default function Footer() {
         <div className="grid gap-10 lg:grid-cols-[1.4fr_repeat(3,minmax(0,1fr))] lg:gap-12">
           <div className="max-w-sm">
             <a href="/" className="inline-flex items-center gap-3">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#003dff] text-white">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M7 16 L10 8 L12 12 L14 8 L17 16" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
+              <BrandMark className="h-9 w-9" />
               <span className="font-display text-xl font-semibold tracking-tight">Kommently</span>
             </a>
             <p className="mt-5 text-sm leading-7 text-slate-400">

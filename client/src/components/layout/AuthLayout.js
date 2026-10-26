@@ -59,7 +59,7 @@ export default function AuthLayout({ children }) {
         <div className="relative z-10 flex flex-col justify-between p-12 w-full text-white">
           <div className="flex items-center gap-2.5">
             <BrandMark className="w-9 h-9" />
-            <span className="text-lg font-semibold tracking-tight">Kommently</span>
+            <span className="text-xl font-display font-bold tracking-[-0.03em]">Kommently</span>
           </div>
 
           <div>
@@ -94,7 +94,7 @@ export default function AuthLayout({ children }) {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
             <BrandMark className="w-8 h-8" />
-            <span className="text-lg font-semibold text-gray-900 tracking-tight">Kommently</span>
+            <span className="text-xl font-display font-bold tracking-[-0.03em] text-gray-900">Kommently</span>
           </div>
           {children}
         </div>

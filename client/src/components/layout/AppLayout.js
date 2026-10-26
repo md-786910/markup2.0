@@ -36,7 +36,7 @@ export default function AppLayout() {
             </button>
             <div className="flex items-center gap-2">
               <BrandMark className="w-6 h-6" />
-              <span className="text-base font-semibold text-gray-900">Kommently</span>
+              <span className="text-base font-display font-bold tracking-[-0.03em] text-gray-900">Kommently</span>
             </div>
           </div>
           <NotificationBell />

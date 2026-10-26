@@ -1,4 +1,5 @@
 import React from 'react';
+import BrandMark from '../common/BrandMark';
 import { NavLink } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 
@@ -64,9 +65,12 @@ export default function AdminSidebar() {
 
   return (
     <aside className="w-60 bg-gray-900 text-white flex flex-col h-screen sticky top-0">
-      <div className="px-5 py-5 border-b border-gray-800">
-        <h1 className="text-lg font-bold tracking-tight">Kommently</h1>
-        <p className="text-xs text-gray-400 mt-0.5">Admin Panel</p>
+      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-gray-800">
+        <BrandMark className="w-8 h-8" />
+        <div>
+          <h1 className="text-lg font-display font-bold tracking-[-0.03em] leading-tight">Kommently</h1>
+          <p className="text-xs text-gray-400">Admin panel</p>
+        </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-thin">

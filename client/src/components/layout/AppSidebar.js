@@ -114,7 +114,7 @@ export default function AppSidebar({ collapsed, onToggle, onNavigate }) {
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-4 h-16 shrink-0">
           <BrandMark className="w-8 h-8" />
-          <span className="text-base font-semibold tracking-tight">Kommently</span>
+          <span className="text-lg font-display font-bold tracking-[-0.03em]">Kommently</span>
           <NotificationBell align="left" dark className="ml-auto hidden lg:block" />
         </div>
 
