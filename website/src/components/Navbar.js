@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { MenuIcon, XCloseIcon } from './icons';
 
 const NAV_LINKS = [
+  { label: 'Home', href: '/' },
   { label: 'Use cases', href: '/use-cases' },
   { label: 'Pricing', href: '/pricing' },
   { label: 'About', href: '/about' },
@@ -15,38 +16,40 @@ const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 // here: the next page's Navbar starts the pill there and slides it over.
 let lastPill = null;
 
-const isActive = (pathname, href) => pathname === href || pathname.startsWith(`${href}/`);
+const isActive = (pathname, href) => (href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`));
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pathname } = useLocation();
   const linksRef = useRef(null);
+  // Starts where the previous page's pill was (painted first, then slid over)
   const [pill, setPill] = useState(lastPill);
-  const [animate, setAnimate] = useState(false);
+  const [animate, setAnimate] = useState(!!lastPill);
 
   // Measure the active link and slide the pill to it
   useLayoutEffect(() => {
-    const measure = () => {
-      const el = linksRef.current?.querySelector('[data-active="true"]');
-      return el ? { left: el.offsetLeft, width: el.offsetWidth } : null;
-    };
-    const target = measure();
-    if (lastPill && target) {
-      // Start where the previous page's pill was, then animate on the next frame
-      setPill(lastPill);
+    const el = linksRef.current?.querySelector('[data-active="true"]');
+    const target = el ? { left: el.offsetLeft, width: el.offsetWidth } : null;
+    const from = lastPill;
+    lastPill = target;
+    if (!from || !target) {
       setAnimate(false);
-      const id = requestAnimationFrame(() => {
+      setPill(target);
+      return undefined;
+    }
+    // Two frames: let the start position paint, then move (CSS transition)
+    let id2;
+    const id1 = requestAnimationFrame(() => {
+      id2 = requestAnimationFrame(() => {
         setAnimate(true);
         setPill(target);
       });
-      lastPill = target;
-      return () => cancelAnimationFrame(id);
-    }
-    setAnimate(false);
-    setPill(target);
-    lastPill = target;
-    return undefined;
+    });
+    return () => {
+      cancelAnimationFrame(id1);
+      cancelAnimationFrame(id2);
+    };
   }, [pathname]);
 
   // Keep the pill aligned when fonts load or the window resizes
@@ -59,7 +62,8 @@ export default function Navbar() {
       lastPill = next;
     };
     window.addEventListener('resize', realign);
-    document.fonts?.ready?.then(realign).catch(() => {});
+    // Only on a cold load (fonts still loading); otherwise it would cut the slide short
+    if (document.fonts && document.fonts.status !== 'loaded') document.fonts.ready.then(realign).catch(() => {});
     return () => window.removeEventListener('resize', realign);
   }, []);
 
@@ -104,20 +108,20 @@ export default function Navbar() {
             <div className="site-container flex h-16 items-center justify-between">
               <div className="flex min-w-0 flex-1 items-center">
                 <Link to="/" className="flex items-center gap-3">
-                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#003dff] text-white">
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#003dff] text-white">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                       <path d="M7 16 L10 8 L12 12 L14 8 L17 16" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </span>
-                  <span className="font-display text-[1.45rem] font-semibold tracking-tight text-[#0f172a]">Kommently</span>
+                  <span className="font-display text-[1.25rem] font-semibold tracking-tight text-[#0f172a]">Kommently</span>
                 </Link>
               </div>
 
-              <div ref={linksRef} className="relative hidden flex-1 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/70 p-1 md:flex">
+              <div ref={linksRef} className="relative hidden items-center gap-0.5 rounded-full border border-slate-200/80 bg-white/80 p-0.5 md:flex">
                 {/* Active page indicator */}
                 <span
                   aria-hidden="true"
-                  className={`absolute top-1 bottom-1 rounded-full bg-[#eef3ff] ${animate ? 'transition-all duration-300 ease-out' : ''} ${pill ? 'opacity-100' : 'opacity-0'}`}
+                  className={`absolute top-0.5 bottom-0.5 rounded-full bg-[#eef3ff] ${animate ? 'transition-all duration-300 ease-out' : 'transition-opacity duration-200'} ${pill ? 'opacity-100' : 'opacity-0'}`}
                   style={pill ? { left: pill.left, width: pill.width } : { left: 0, width: 0 }}
                 />
                 {NAV_LINKS.map((link) => {
@@ -128,7 +132,7 @@ export default function Navbar() {
                       to={link.href}
                       data-active={active}
                       aria-current={active ? 'page' : undefined}
-                      className={`relative rounded-full px-4 py-2 text-[14px] font-semibold transition-colors duration-300 ${
+                      className={`relative rounded-full px-3.5 py-1.5 text-[13.5px] font-medium transition-colors duration-300 ${
                         active ? 'text-[#003dff]' : 'text-slate-600 hover:text-[#0f172a]'
                       }`}
                     >
@@ -138,13 +142,13 @@ export default function Navbar() {
                 })}
               </div>
 
-              <div className="hidden flex-1 items-center justify-end gap-6 md:flex">
-                <a href={`${APP_URL}/login`} className="text-[15px] font-medium text-[#475569] transition-colors hover:text-[#0f172a]">
+              <div className="hidden flex-1 items-center justify-end gap-5 md:flex">
+                <a href={`${APP_URL}/login`} className="text-[13.5px] font-medium text-[#475569] transition-colors hover:text-[#0f172a]">
                   Login
                 </a>
                 <a
                   href={`${APP_URL}/onboarding`}
-                  className="inline-flex h-10 items-center rounded-full bg-[#003dff] px-5 text-[14px] font-semibold text-white transition-transform hover:-translate-y-px hover:bg-[#0031d1]"
+                  className="inline-flex h-9 items-center rounded-full bg-[#003dff] px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-[#0031d1]"
                 >
                   Sign up free
                 </a>
