@@ -75,7 +75,7 @@ export default function WorkspaceSwitcher({ onNavigate }) {
   const name = current?.name || user?.orgName || 'Workspace';
 
   return (
-    <div className="relative px-3 pb-3" ref={ref}>
+    <div className="relative px-3 pt-3 pb-3" ref={ref}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

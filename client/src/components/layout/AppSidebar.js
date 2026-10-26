@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import TrialBadge from '../common/TrialBadge';
-import NotificationBell from '../common/NotificationBell';
 import BrandMark from '../common/BrandMark';
 import { chatAvailable, openChat } from '../../utils/supportChat';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
@@ -116,10 +115,9 @@ export default function AppSidebar({ collapsed, onToggle, onNavigate }) {
         `}
       >
         {/* Logo */}
-        <div className="flex items-center gap-2.5 px-4 h-16 shrink-0">
+        <div className="flex items-center gap-2.5 px-4 h-14 shrink-0 border-b border-gray-800">
           <BrandMark className="w-8 h-8" />
           <span className="text-lg font-display font-bold tracking-[-0.03em]">Kommently</span>
-          <NotificationBell align="left" dark className="ml-auto hidden lg:block" />
         </div>
 
         {/* Workspace switcher */}
