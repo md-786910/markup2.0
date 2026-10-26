@@ -37,6 +37,7 @@ const BILLING = "/settings?tab=billing";
 const LIMIT_MESSAGES = {
   ORG_LOCKED: ["Your workspace is locked. Settle billing to keep working.", "Open billing"],
   PROJECT_LIMIT: ["You've reached your plan's project limit.", "Upgrade plan"],
+  WORKSPACE_LIMIT: ["You've reached your plan's workspace limit.", "Upgrade plan"],
   MEMBER_LIMIT: ["You've reached your plan's team member limit.", "Upgrade plan"],
   GUEST_LIMIT: ["You've reached your plan's guest limit.", "Upgrade plan"],
   STORAGE_LIMIT: ["Your workspace is out of storage.", "Upgrade plan"],

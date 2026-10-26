@@ -40,7 +40,7 @@ export default function DowngradeModal({ targetPlan, currentPlan, onClose, onDow
             </svg>
           </button>
 
-          <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-4 shadow-inner border border-amber-100">
+          <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-4 border border-amber-100">
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
@@ -52,7 +52,7 @@ export default function DowngradeModal({ targetPlan, currentPlan, onClose, onDow
         <div className="p-8 space-y-6 overflow-y-auto">
           <div className="flex items-center justify-between gap-3 bg-gray-50/80 p-4 rounded-2xl border border-gray-100">
             <div className="flex-1 text-center">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Current</p>
+              <p className="text-xs font-medium text-gray-500 mb-1.5">Current</p>
               <p className="text-sm font-semibold text-gray-700">{currentPlan?.name || 'Current plan'}</p>
             </div>
             <div className="flex flex-col items-center justify-center text-amber-400 shrink-0 px-2">
@@ -61,7 +61,7 @@ export default function DowngradeModal({ targetPlan, currentPlan, onClose, onDow
               </svg>
             </div>
             <div className="flex-1 text-center bg-white shadow-sm border border-amber-100 py-2.5 px-3 rounded-xl transform scale-105 transition-transform">
-              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">New plan</p>
+              <p className="text-xs font-medium text-amber-700 mb-1">New plan</p>
               <p className="text-sm font-bold text-amber-700">{targetPlan?.name}</p>
             </div>
           </div>
@@ -77,7 +77,7 @@ export default function DowngradeModal({ targetPlan, currentPlan, onClose, onDow
 
           {losingFeatures.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-              <p className="text-xs font-bold text-amber-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <p className="text-sm font-semibold text-amber-900 mb-3 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>

@@ -41,6 +41,8 @@ const activitySchema = new Schema({
       'org.plan_set_by_admin', 'org.limits_overridden', 'org.trial_extended',
       'org.invoice_refunded',
       'org.data_exported', 'org.deletion_scheduled', 'org.deletion_cancelled',
+      'workspace.created', 'workspace.renamed', 'workspace.deleted',
+      'workspace.members_updated', 'workspace.share_enabled', 'workspace.share_disabled',
       'integration.connected', 'integration.disconnected',
       'billing.payment_succeeded',
     ],

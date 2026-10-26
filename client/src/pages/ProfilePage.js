@@ -17,7 +17,7 @@ import { toastError } from '../utils/toast';
 function FieldRow({ label, children }) {
   return (
     <div className="flex items-start gap-8 py-6">
-      <label className="text-sm text-gray-500 w-40 pt-2.5 shrink-0">{label}</label>
+      <label className="text-sm font-medium text-gray-700 w-40 pt-2.5 shrink-0">{label}</label>
       <div className="flex-1 max-w-lg">{children}</div>
     </div>
   );
@@ -222,9 +222,9 @@ export default function ProfilePage() {
           <button
             onClick={handleNameUpdate}
             disabled={nameLoading || name.trim() === user?.name}
-            className="px-5 py-2.5 text-sm font-medium text-white bg-gray-500 rounded-lg hover:bg-gray-600 disabled:opacity-40 transition-colors shrink-0"
+            className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0"
           >
-            {nameLoading ? 'Saving...' : 'Update'}
+            {nameLoading ? 'Saving…' : 'Save'}
           </button>
         </div>
         <StatusMessage error={nameError} success={nameSuccess} />
@@ -252,7 +252,7 @@ export default function ProfilePage() {
           <PasswordInput
             value={currentPassword}
             onChange={(e) => { setCurrentPassword(e.target.value); setPwError(''); setPwSuccess(''); }}
-            placeholder="Current Password"
+            placeholder="Current password"
             autoComplete="current-password"
           />
           <Link to="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
@@ -263,22 +263,22 @@ export default function ProfilePage() {
 
       <div className="border-t border-gray-100" />
 
-      <FieldRow label="New Password">
+      <FieldRow label="New password">
         <div className="flex gap-3">
           <div className="flex-1">
             <PasswordInput
               value={newPassword}
               onChange={(e) => { setNewPassword(e.target.value); setPwError(''); setPwSuccess(''); }}
-              placeholder="New Password"
+              placeholder="New password"
               autoComplete="new-password"
             />
           </div>
           <button
             onClick={handlePasswordChange}
             disabled={pwLoading || !currentPassword || !newPassword}
-            className="px-5 py-2.5 text-sm font-medium text-white bg-gray-500 rounded-lg hover:bg-gray-600 disabled:opacity-40 transition-colors shrink-0"
+            className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0"
           >
-            {pwLoading ? 'Saving...' : 'Update'}
+            {pwLoading ? 'Saving…' : 'Change password'}
           </button>
         </div>
         <p className="text-xs text-gray-400 mt-1.5">Must be at least 8 characters</p>
@@ -313,12 +313,9 @@ export default function ProfilePage() {
           <button
             onClick={() => fileRef.current?.click()}
             disabled={avatarLoading}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            {avatarLoading ? 'Uploading...' : 'Upload new avatar'}
+            {avatarLoading ? 'Uploading…' : 'Change avatar'}
           </button>
           <input
             ref={fileRef}
@@ -336,7 +333,7 @@ export default function ProfilePage() {
       {/* All notification emails */}
       <div className="py-6 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Notification Emails</h3>
+          <h3 className="text-base font-semibold text-gray-900">Notification emails</h3>
           <p className="text-xs text-gray-500 mt-1">
             Pin, comment, mention and status emails for all projects. Account and billing emails are always sent.
           </p>
@@ -366,7 +363,7 @@ export default function ProfilePage() {
       {/* Project Email Notifications */}
       <div className="py-6">
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Project Email Notifications</h3>
+          <h3 className="text-base font-semibold text-gray-900">Email notifications per project</h3>
           <p className="text-xs text-gray-500 mt-1">
             Turn email notifications on or off independently for each project. When muted, you will not receive comment, mention, or status emails for that project.
           </p>
@@ -382,7 +379,7 @@ export default function ProfilePage() {
             No projects found in this workspace.
           </div>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden shadow-sm">
+          <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100 overflow-hidden">
             {projects.map((proj) => {
               const isEnabled = !user?.mutedProjectEmails?.includes(proj._id);
               const isToggling = togglingProjectId === proj._id;
@@ -414,7 +411,7 @@ export default function ProfilePage() {
 
                   <div className="flex items-center gap-3 shrink-0">
                     <span className={`text-xs font-medium ${isEnabled ? 'text-blue-600' : 'text-gray-400'}`}>
-                      {isEnabled ? 'Emails On' : 'Muted'}
+                      {isEnabled ? 'On' : 'Muted'}
                     </span>
                     <button
                       type="button"
@@ -444,24 +441,24 @@ export default function ProfilePage() {
 
       {/* Delete Account */}
       <div className="py-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete your account</h3>
+        <h3 className="text-base font-semibold text-gray-900 mb-3">Delete your account</h3>
         {isOwner ? (
           <p className="max-w-xl text-sm leading-6 text-gray-500">
-            You own this workspace, so your account is closed together with it. To delete everything, go to{' '}
-            <Link to="/settings" className="font-medium text-blue-600 hover:text-blue-700">Settings → Workspace</Link>{' '}
-            and delete the workspace. It is removed after a 7-day grace period.
+            You own this organization, so your account is closed together with it. To delete everything, go to{' '}
+            <Link to="/settings" className="font-medium text-blue-600 hover:text-blue-700">Settings → Organization</Link>{' '}
+            and delete the organization. It is removed after a 7-day grace period.
           </p>
         ) : !showDeleteConfirm ? (
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="px-5 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
           >
-            Delete Your Account
+            Delete account…
           </button>
         ) : (
           <div className="bg-red-50 border border-red-200 rounded-xl p-5">
             <p className="text-sm text-red-800 mb-4">
-              This permanently deletes your account and removes you from this workspace's projects. Projects you created are deleted with their pins and comments. Your comments on other projects stay, shown as "Deleted user". This cannot be undone.
+              This permanently deletes your account and removes you from this organization's projects. Projects you created are deleted with their pins and comments. Your comments on other projects stay, shown as "Deleted user". This cannot be undone.
             </p>
             <div className="flex gap-3">
               <button

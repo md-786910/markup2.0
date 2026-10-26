@@ -91,7 +91,7 @@ export default function OnboardingPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   // General
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [error, setError] = useState('');
 
   // Tick down resend cooldown
@@ -461,7 +461,7 @@ export default function OnboardingPage() {
         <div className="flex items-center justify-between mb-2">
           {STEPS.map((s, i) => (
             <span key={s.id} className={`text-[11px] font-medium ${
-              i < step ? 'text-blue-600' : i === step ? 'text-gray-900' : 'text-gray-300'
+              i < step ? 'text-blue-600' : i === step ? 'text-gray-900' : 'text-gray-400'
             }`}>
               {s.label}
             </span>
@@ -482,14 +482,14 @@ export default function OnboardingPage() {
           <p className="text-sm text-gray-500 mb-8">This is your team's shared space for all projects.</p>
 
           <div className="mb-5">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace Name <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace name <span className="text-red-500">*</span></label>
             <input type="text" value={orgName} onChange={(e) => setOrgName(e.target.value)}
               placeholder="Acme Inc." autoFocus
               className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow" />
           </div>
 
           <div className="mb-8">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace Logo <span className="text-gray-400 font-normal">(optional)</span></label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace logo <span className="text-gray-400 font-normal">(optional)</span></label>
             <div onClick={() => logoRef.current?.click()}
               className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50/20 transition-colors">
               {logoPreview ? (

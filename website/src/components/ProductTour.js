@@ -45,6 +45,26 @@ const ROWS = [
     alt: 'The guest review page with feedback from a client in the sidebar',
     url: 'app.kommently.app/review/…',
   },
+  {
+    id: 'workspaces',
+    eyebrow: 'Workspaces',
+    title: 'A workspace for every client.',
+    copy: 'Group each client\'s sites and documents in their own workspace. Switch between them in one click, and share one review link that lists every project inside, new ones included.',
+    points: ['One review link per client, with password and expiry', 'Invite people to a whole workspace', 'One plan and one bill for all workspaces'],
+    image: '/images/product/workspaces.webp',
+    alt: 'The Kommently dashboard with the workspace switcher open, listing client workspaces',
+    url: 'app.kommently.app/dashboard',
+  },
+  {
+    id: 'access',
+    eyebrow: 'Access',
+    title: 'Everyone gets exactly the access they need.',
+    copy: 'Give each person Can manage, Can comment or Can view on a workspace, and it applies to every project in it. Raise it for a single project when you need to. Owners and admins see everything; clients stay a guest.',
+    points: ['Can manage, Can comment, Can view', 'Set once on the workspace, change per project', 'Guests never get more than commenting'],
+    image: '/images/product/workspace-access.webp',
+    alt: 'Workspace members with Can manage, Can comment and Can view access',
+    url: 'app.kommently.app/settings',
+  },
 ];
 
 const DETAILS = [
@@ -53,7 +73,7 @@ const DETAILS = [
   [ChatIcon, 'Threads and mentions', 'Reply, @mention teammates, attach files, and get email digests.'],
   [ClockIcon, 'Real time', 'See who is online and new comments as they happen, without refreshing.'],
   [FileTextIcon, 'Versions and activity', 'Snapshot a review round and see who changed what, when.'],
-  [LockIcon, 'Roles and access', 'Owners, admins, members, and guests, with per-project access.'],
+  [LockIcon, 'Your data, your control', 'Export everything as JSON or delete your organization from settings at any time.'],
 ];
 
 function TourRow({ row, index }) {

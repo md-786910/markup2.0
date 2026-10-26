@@ -104,6 +104,26 @@ const ACTION_RENDERERS = {
   ),
   'org.unlocked': () => <>unlocked the workspace</>,
 
+  // ── Workspaces ──
+  'workspace.created': (a) => (
+    <>created the workspace <strong>{a.metadata?.name || 'a workspace'}</strong></>
+  ),
+  'workspace.renamed': (a) => (
+    <>renamed the workspace <strong>{a.metadata?.from || 'a workspace'}</strong> to <strong>{a.metadata?.name || 'a new name'}</strong></>
+  ),
+  'workspace.deleted': (a) => (
+    <>deleted the workspace <strong>{a.metadata?.name || 'a workspace'}</strong></>
+  ),
+  'workspace.members_updated': (a) => (
+    <>updated the members of <strong>{a.metadata?.name || 'a workspace'}</strong></>
+  ),
+  'workspace.share_enabled': (a) => (
+    <>turned on the review link for <strong>{a.metadata?.name || 'a workspace'}</strong></>
+  ),
+  'workspace.share_disabled': (a) => (
+    <>turned off the review link for <strong>{a.metadata?.name || 'a workspace'}</strong></>
+  ),
+
   // ── Integrations ──
   'integration.connected': (a) => (
     <>connected the <strong>{a.metadata?.type || 'integration'}</strong> integration</>

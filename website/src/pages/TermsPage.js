@@ -35,7 +35,7 @@ export default function TermsPage() {
         {/* Hero Banner */}
         <section className="page-hero">
           <div className="relative z-10 max-w-4xl mx-auto text-center px-4 sm:px-6">
-            <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#003dff] text-white shadow-[0_16px_34px_rgba(0,61,255,0.24)]">
+            <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#003dff] text-white">
               <FileTextIcon className="h-7 w-7" />
             </div>
             <h1 className="section-heading">
@@ -76,7 +76,7 @@ export default function TermsPage() {
               By accessing or using Kommently ("the Service"), operated by Kommently ("we," "us," or "our") at{' '}
               <a href="https://kommently.app" className="text-[#003dff] hover:text-[#0031d1] underline">kommently.app</a>{' '}
               and{' '}
-              <a href="https://site.kommently.app" className="text-[#003dff] hover:text-[#0031d1] underline">site.kommently.app</a>,
+              <a href="https://app.kommently.app" className="text-[#003dff] hover:text-[#0031d1] underline">app.kommently.app</a>,
               you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you may not access or use the Service.
             </p>
             <p className="text-slate-600 leading-relaxed mb-4">

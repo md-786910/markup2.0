@@ -23,6 +23,7 @@ import {
 } from "../../services/pinService";
 import { useSocket } from "../../hooks/useSocket";
 import { toastError } from '../../utils/toast';
+import BrandMark from "../common/BrandMark";
 
 // PDF viewer (react-pdf + pdf.js) is only downloaded for document projects
 const DocumentViewer = React.lazy(() => import("./DocumentViewer"));
@@ -55,7 +56,10 @@ function getAvatarColor(id) {
 export default function ProjectView({ project, proxyToken, onProjectUpdate, initialPinId }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAdmin, canCreate, user } = useAuth();
+  const { user, orgLocked } = useAuth();
+  // This user's level on the project (server: utils/access.js)
+  const canComment = (project.access === 'comment' || project.access === 'manage') && !orgLocked;
+  const canManageProject = project.access === 'manage';
   const limits = user?.orgLimits || {};
 
   const [pins, setPins] = useState([]);
@@ -96,8 +100,10 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     };
     add(project.owner);
     (project.members || []).forEach(add);
+    // Members of the project's workspace see it too (mentions, presence)
+    (project.workspaceMembers || []).forEach(add);
     return list;
-  }, [project.owner, project.members]);
+  }, [project.owner, project.members, project.workspaceMembers]);
 
   // Presence info for the header avatar hover cards
   const getMemberPresence = useCallback((member) => {
@@ -531,11 +537,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             onClick={() => navigate('/dashboard')}
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors shrink-0 group"
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-500/20">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-              </svg>
-            </div>
+            <BrandMark className="w-8 h-8" />
             <svg className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
             </svg>
@@ -611,9 +613,9 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         {/* Right: Mode toggle + Avatars + Invite */}
         <div className="flex items-center gap-3 z-10">
           {/* View / Comment mode toggle */}
-          {canCreate && <div className="relative flex bg-gray-100/80 rounded-lg p-1">
+          {canComment && <div className="relative flex bg-gray-100 rounded-lg p-1" role="group" aria-label="Mode">
             <div
-              className="absolute top-1 bottom-1 rounded-md bg-blue-600 shadow-sm transition-all duration-200 ease-in-out"
+              className={`absolute top-1 bottom-1 rounded-md shadow-sm transition-all duration-200 ease-in-out ${pinMode ? 'bg-blue-600' : 'bg-white'}`}
               style={{
                 width: 'calc(50% - 4px)',
                 left: pinMode ? 'calc(50%)' : '4px',
@@ -622,7 +624,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             <button
               onClick={() => setPinMode(false)}
               className={`relative z-10 flex-1 text-center py-1 px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
-                !pinMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'
+                !pinMode ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               View
@@ -663,7 +665,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
           <div className="w-px h-6 bg-gray-200/80"></div>
 
-          {isAdmin && (
+          {canManageProject && (
             <button
               onClick={() => setShowShare(true)}
               className="flex items-center gap-1.5 px-3 py-2 text-gray-600 text-[13px] font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
@@ -676,7 +678,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             </button>
           )}
 
-          {isAdmin && (
+          {canManageProject && (
             <button
               onClick={() => setShowInvite(true)}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 text-white text-[13px] font-medium rounded-lg hover:bg-blue-700 shadow-sm shadow-blue-600/20 transition-all hover:shadow-md hover:shadow-blue-600/25"
@@ -704,6 +706,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         {/* Left sidebar */}
         {sidebarTab === 'pins' ? (
           <PinListSidebar
+            readOnly={!canComment}
             pins={shownAllPins}
             selectedPinId={selectedPin?._id}
             selectedPin={selectedPin}
@@ -825,7 +828,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
                   >
                     Open the site
                   </a>
-                  {isAdmin && (
+                  {canManageProject && (
                     <button
                       type="button"
                       onClick={() => navigate('/dashboard?create=document')}

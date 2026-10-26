@@ -6,12 +6,17 @@ import { ArrowRightIcon, CheckIcon, ShareIcon, CodeIcon, GlobeIcon } from '../co
 
 const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 
-// Matches the app's roles (server/middleware/roles.js)
-const ROLES = [
-  ['Owner', 'Manages the plan and billing, plus everything an admin can do.'],
-  ['Admin', 'Creates projects and share links, invites people, and sets up integrations.'],
-  ['Member', 'Pins comments, replies, and resolves feedback on the projects they are added to.'],
-  ['Guest', 'Reviews through a share link with a name and email. No account, no seat.'],
+// Matches the app's access model (server/utils/access.js)
+const ACCESS_LEVELS = [
+  ['Can manage', 'Edit projects, share review links, invite people and manage versions.'],
+  ['Can comment', 'Pin comments, reply, and resolve feedback.'],
+  ['Can view', 'See the work and every comment, without changing anything.'],
+];
+
+const ORG_ROLES = [
+  ['Owner and admins', 'Manage every workspace, the team, integrations and billing.'],
+  ['Members', 'Your team. They get access to the workspaces and projects you choose.'],
+  ['Guests', 'Clients and outside reviewers. They can comment at most, or review through a link with no account.'],
 ];
 
 const CUSTOMER_SEGMENTS = [
@@ -19,7 +24,7 @@ const CUSTOMER_SEGMENTS = [
     icon: ShareIcon,
     title: 'Agencies',
     description: 'Collect client notes on live work without turning every review into screenshots, email threads, and status calls.',
-    metrics: ['Guest review links, no client signup', 'Password and expiry on shared links', 'Version snapshots and activity history'],
+    metrics: ['A workspace and one review link per client', 'Clients comment without signing up', 'Version snapshots and activity history'],
   },
   {
     icon: CodeIcon,
@@ -125,19 +130,37 @@ export default function CustomersPage() {
         <section className="section-pad">
           <div className="site-container">
             <div className="mx-auto max-w-2xl text-center">
-              <span className="eyebrow">Roles</span>
+              <span className="eyebrow">Access</span>
               <h2 className="section-heading mt-5">One workspace for every approval path.</h2>
               <p className="body-large mt-4">
-                Bring in teammates and clients with the right level of access, without changing the way your team ships.
+                Give each client a workspace, and each person exactly the access they need.
               </p>
             </div>
-            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {ROLES.map(([role, copy]) => (
-                <div key={role} className="rounded-2xl border border-slate-200 bg-white p-6">
-                  <p className="font-display text-lg font-semibold text-slate-950">{role}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{copy}</p>
-                </div>
-              ))}
+            <div className="mt-12 grid gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6">
+                <p className="font-display text-lg font-semibold text-slate-950">Access on each workspace and project</p>
+                <p className="mt-1 text-sm text-slate-500">Set it once on a workspace and it applies to every project inside.</p>
+                <ul className="mt-5 divide-y divide-slate-100">
+                  {ACCESS_LEVELS.map(([level, copy]) => (
+                    <li key={level} className="flex gap-4 py-3">
+                      <span className="w-28 shrink-0 text-sm font-semibold text-[#003dff]">{level}</span>
+                      <span className="text-sm leading-6 text-slate-600">{copy}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-6">
+                <p className="font-display text-lg font-semibold text-slate-950">Roles in your organization</p>
+                <p className="mt-1 text-sm text-slate-500">Who can run the account, and who joins as a guest.</p>
+                <ul className="mt-5 divide-y divide-slate-100">
+                  {ORG_ROLES.map(([role, copy]) => (
+                    <li key={role} className="flex gap-4 py-3">
+                      <span className="w-28 shrink-0 text-sm font-semibold text-slate-900">{role}</span>
+                      <span className="text-sm leading-6 text-slate-600">{copy}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         </section>

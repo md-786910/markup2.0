@@ -108,7 +108,7 @@ export default function LoginForm() {
           disabled={loading}
           className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors text-sm"
         >
-          {loading ? 'Signing in...' : 'Sign In'}
+          {loading ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
       <p className="text-center mt-6 text-sm text-gray-500">

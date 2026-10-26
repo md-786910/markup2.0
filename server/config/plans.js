@@ -5,9 +5,10 @@ const PLANS = {
     price: 0,
     priceLabel: '$0',
     period: 'forever',
-    limits: { maxProjects: 2, maxMembers: 5, maxGuests: 2, maxStorageMB: 200, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false },
+    limits: { maxProjects: 2, maxWorkspaces: 1, maxMembers: 5, maxGuests: 2, maxStorageMB: 200, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false },
     features: [
       '2 projects',
+      '1 workspace',
       '5 team members',
       '2 guests',
       '200 MB storage',
@@ -22,9 +23,10 @@ const PLANS = {
     price: 12,
     priceLabel: '$12',
     period: '/month',
-    limits: { maxProjects: 15, maxMembers: 25, maxGuests: 10, maxStorageMB: 5120, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: false },
+    limits: { maxProjects: 15, maxWorkspaces: 3, maxMembers: 25, maxGuests: 10, maxStorageMB: 5120, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: false },
     features: [
       '15 projects',
+      '3 workspaces',
       '25 team members',
       '10 guests',
       '5 GB storage',
@@ -44,9 +46,10 @@ const PLANS = {
     period: '/month',
     popular: true,
     razorpayPlanId: process.env.RAZORPAY_PRO_PLAN_ID || null,
-    limits: { maxProjects: 999, maxMembers: 999, maxGuests: 50, maxStorageMB: 25600, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
+    limits: { maxProjects: 999, maxWorkspaces: 999, maxMembers: 999, maxGuests: 50, maxStorageMB: 25600, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
     features: [
       'Unlimited projects',
+      'Unlimited workspaces',
       'Unlimited members',
       '50 guests',
       '25 GB storage',
@@ -64,7 +67,7 @@ const PLANS = {
     price: null,
     priceLabel: 'Custom',
     period: '',
-    limits: { maxProjects: 9999, maxMembers: 9999, maxGuests: 9999, maxStorageMB: 102400, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
+    limits: { maxProjects: 9999, maxWorkspaces: 9999, maxMembers: 9999, maxGuests: 9999, maxStorageMB: 102400, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true },
     features: [
       'Everything in Pro',
       '100 GB storage',
@@ -127,6 +130,7 @@ async function getLimitsForPlanAsync(planId) {
   const override = overrides[effectiveId];
   if (override && override.limits) {
     if (override.limits.maxProjects != null) base.maxProjects = override.limits.maxProjects;
+    if (override.limits.maxWorkspaces != null) base.maxWorkspaces = override.limits.maxWorkspaces;
     if (override.limits.maxMembers != null) base.maxMembers = override.limits.maxMembers;
     if (override.limits.maxGuests != null) base.maxGuests = override.limits.maxGuests;
     if (override.limits.maxStorageMB != null) base.maxStorageMB = override.limits.maxStorageMB;

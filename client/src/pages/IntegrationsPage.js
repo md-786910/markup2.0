@@ -173,56 +173,39 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
   };
 
   const inputClass =
-    "w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow placeholder:text-gray-400";
+    "w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 bg-white transition-shadow placeholder:text-gray-400";
 
   return (
     <div
-      className={`border rounded-xl transition-all duration-200 ${expanded ? "border-gray-300 shadow-sm" : "border-gray-200 hover:border-gray-300"}`}
+      className={`bg-white border rounded-xl transition-colors duration-200 ${expanded ? "border-gray-300" : "border-gray-200 hover:border-gray-300"}`}
     >
       {/* Header */}
       <button
-        className="flex flex-col w-full p-5 text-left"
+        className="flex items-center gap-4 w-full px-5 py-4 text-left"
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
       >
-        <div className="flex items-start justify-between w-full mb-3">
-          <div
-            className={`w-11 h-11 rounded-xl bg-gradient-to-br ${typeConfig.color} flex items-center justify-center shadow-sm`}
-          >
-            {ICONS[typeConfig.type]}
+        <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${typeConfig.color} flex items-center justify-center shrink-0`}>
+          {ICONS[typeConfig.type]}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-900">{typeConfig.name}</h3>
+            {existing && (
+              <span
+                className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                  existing.enabled ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
+                }`}
+              >
+                {existing.enabled ? "Connected" : "Paused"}
+              </span>
+            )}
           </div>
-          <svg
-            className={`w-4 h-4 text-gray-400 shrink-0 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
+          <p className="text-[13px] text-gray-500 mt-0.5 truncate">{typeConfig.description}</p>
         </div>
-        <div className="flex items-center gap-2.5 mb-1">
-          <h3 className="text-sm font-semibold text-gray-900">
-            {typeConfig.name}
-          </h3>
-          {existing && (
-            <span
-              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                existing.enabled
-                  ? "bg-green-50 text-green-600 ring-1 ring-green-200"
-                  : "bg-gray-50 text-gray-500 ring-1 ring-gray-200"
-              }`}
-            >
-              {existing.enabled ? "Connected" : "Disabled"}
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-gray-500 leading-relaxed">
-          {typeConfig.description}
-        </p>
+        <span className="shrink-0 text-sm font-medium text-blue-600">
+          {expanded ? "Close" : existing ? "Manage" : "Connect"}
+        </span>
       </button>
 
       {/* Expanded config */}
@@ -419,7 +402,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
               disabled={saving}
               className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
             >
-              {saving ? "Saving..." : existing ? "Save Changes" : "Connect"}
+              {saving ? "Saving..." : existing ? "Save changes" : "Connect"}
             </button>
             {existing && (
               <button

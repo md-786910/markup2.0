@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const Project = require('../models/Project');
+const Workspace = require('../models/Workspace');
+const { ensureDefaultWorkspace } = require('../utils/workspaces');
 const Invoice = require('../models/Invoice');
 const asyncHandler = require('../utils/asyncHandler');
 const { UPGRADEABLE_PLANS, getLimitsForPlanAsync, getPlansWithOverrides } = require('../config/plans');
@@ -29,10 +31,12 @@ exports.getPlan = asyncHandler(async (req, res) => {
     return res.status(500).json({ message: 'Organization context missing' });
   }
 
-  const [projectCount, memberCount, guestCount] = await Promise.all([
+  await ensureDefaultWorkspace(org._id);
+  const [projectCount, memberCount, guestCount, workspaceCount] = await Promise.all([
     Project.countDocuments({ organization: org._id }),
     User.countDocuments({ organization: org._id, role: { $in: ['owner', 'admin', 'member'] } }),
     User.countDocuments({ organization: org._id, role: 'guest' }),
+    Workspace.countDocuments({ organization: org._id }),
   ]);
 
   const planId = org.plan;
@@ -59,6 +63,7 @@ exports.getPlan = asyncHandler(async (req, res) => {
     limits: org.limits,
     usage: {
       projects: projectCount,
+      workspaces: workspaceCount,
       members: memberCount,
       guests: guestCount,
       storageMB: Math.round(((org.storageUsedBytes || 0) / (1024 * 1024)) * 10) / 10,

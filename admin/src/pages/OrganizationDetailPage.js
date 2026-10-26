@@ -87,6 +87,7 @@ export default function OrganizationDetailPage() {
     const toNum = (v) => (v === '' || v == null ? null : Number(v));
     runAction(() => setOrganizationLimitsApi(id, {
       maxProjects: toNum(limitsForm.maxProjects),
+      maxWorkspaces: toNum(limitsForm.maxWorkspaces),
       maxMembers: toNum(limitsForm.maxMembers),
       maxGuests: toNum(limitsForm.maxGuests),
       maxStorageMB: toNum(limitsForm.maxStorageMB),
@@ -121,6 +122,7 @@ export default function OrganizationDetailPage() {
   const overrides = org.limitOverrides || {};
   const currentLimitsForm = limitsForm || {
     maxProjects: overrides.maxProjects ?? '',
+    maxWorkspaces: overrides.maxWorkspaces ?? '',
     maxMembers: overrides.maxMembers ?? '',
     maxGuests: overrides.maxGuests ?? '',
     maxStorageMB: overrides.maxStorageMB ?? '',
@@ -329,7 +331,7 @@ export default function OrganizationDetailPage() {
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Limit overrides (blank = plan default)</p>
             <div className="grid grid-cols-3 gap-2 mb-2">
-              {[['maxProjects', 'Projects'], ['maxMembers', 'Members'], ['maxGuests', 'Guests'], ['maxStorageMB', 'Storage MB']].map(([key, label]) => (
+              {[['maxProjects', 'Projects'], ['maxWorkspaces', 'Workspaces'], ['maxMembers', 'Members'], ['maxGuests', 'Guests'], ['maxStorageMB', 'Storage MB']].map(([key, label]) => (
                 <label key={key} className="text-xs text-gray-500">
                   {label}
                   <input type="number" min="0" value={currentLimitsForm[key]} onChange={(e) => updateLimit(key, e.target.value)} className={`${inputClass} mt-1`} />

@@ -31,6 +31,7 @@ const organizationSchema = new mongoose.Schema({
     maxMembers: { type: Number, default: 10 },
     maxGuests: { type: Number, default: 5 },
     maxProjects: { type: Number, default: 5 },
+    maxWorkspaces: { type: Number },
     hasIntegrations: { type: Boolean, default: false },
     hasActivityLogs: { type: Boolean, default: false },
     hasVersionHistory: { type: Boolean, default: false },
@@ -86,6 +87,7 @@ const organizationSchema = new mongoose.Schema({
   // limits on every request; unset keys use the plan default.
   limitOverrides: {
     maxProjects: { type: Number },
+    maxWorkspaces: { type: Number },
     maxMembers: { type: Number },
     maxGuests: { type: Number },
     maxStorageMB: { type: Number },

@@ -3,6 +3,7 @@ import PasswordInput from '../common/PasswordInput';
 import { useAuth } from '../../hooks/useAuth';
 import { Link, useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { getInvitationApi } from '../../services/invitationService';
+import { rememberWorkspace } from '../../contexts/WorkspaceContext';
 
 export default function SignupForm() {
   const [name, setName] = useState('');
@@ -44,6 +45,8 @@ export default function SignupForm() {
     setLoading(true);
     try {
       const data = await signup(name, email, password, token);
+      // Invited to a workspace: open it on the dashboard
+      if (data?.invitedWorkspaceId) rememberWorkspace(data.user?.organization, data.invitedWorkspaceId);
       navigate(data?.invitedProjectId ? `/project/${data.invitedProjectId}` : '/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Signup failed');

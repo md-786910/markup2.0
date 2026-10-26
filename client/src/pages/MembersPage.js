@@ -5,9 +5,11 @@ import {
   getProjectApi,
   inviteMemberApi,
   removeMemberApi,
-  updateMemberRoleApi,
+  updateMemberAccessApi,
 } from '../services/projectService';
 import { toastError } from '../utils/toast';
+
+const LEVEL_LABEL = { manage: 'Can manage', comment: 'Can comment', view: 'Can view' };
 
 export default function MembersPage() {
   const { projectId } = useParams();
@@ -15,6 +17,7 @@ export default function MembersPage() {
   const { user, isAdmin } = useAuth();
 
   const [project, setProject] = useState(null);
+  const [myAccess, setMyAccess] = useState(null);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
@@ -29,6 +32,7 @@ export default function MembersPage() {
     try {
       const res = await getProjectApi(projectId);
       setProject(res.data.project);
+      setMyAccess(res.data.access || null);
     } catch (err) {
       toastError(err, 'Could not load the project.');
     } finally {
@@ -64,7 +68,13 @@ export default function MembersPage() {
   const members = project.members || [];
   const ownerId = project.owner?._id || project.owner;
   const isOwner = ownerId === user?.id;
-  const canManage = isOwner || isAdmin;
+  const canManage = isOwner || isAdmin || myAccess === 'manage';
+  // Each member's level on this project (owners/admins and the creator manage it)
+  const levelOf = (member) => {
+    if (member.role === 'owner' || member.role === 'admin' || member._id === ownerId) return 'manage';
+    const entry = (project?.memberAccess || []).find((m) => String(m.user) === member._id);
+    return entry?.level || (member.role === 'guest' ? 'view' : 'comment');
+  };
 
   const handleInvite = async (e) => {
     e.preventDefault();
@@ -88,13 +98,13 @@ export default function MembersPage() {
     }
   };
 
-  const handleRoleChange = async (memberId, newRole) => {
+  const handleAccessChange = async (memberId, level) => {
     setRoleLoading(memberId);
     try {
-      const res = await updateMemberRoleApi(projectId, memberId, newRole);
+      const res = await updateMemberAccessApi(projectId, memberId, level);
       setProject(res.data.project);
     } catch (err) {
-      toastError(err, 'Could not change the role.');
+      toastError(err, 'Could not change access.');
     } finally {
       setRoleLoading(null);
     }
@@ -197,7 +207,7 @@ export default function MembersPage() {
         <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/80">
           <div className="flex items-center">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex-1">Member</span>
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider w-28 text-center">Role</span>
+            <span className="text-xs font-medium text-gray-500 w-32 text-center">Access</span>
             {canManage && <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider w-20 text-right">Action</span>}
           </div>
         </div>
@@ -230,27 +240,23 @@ export default function MembersPage() {
                   <p className="text-xs text-gray-500 truncate">{member.email}</p>
                 </div>
 
-                {/* Role */}
-                <div className="w-28 flex justify-center">
-                  {!canManage || isMemberOwner || isSelf || member.role === 'owner' ? (
-                    <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-                      member.role === 'owner' ? 'bg-amber-50 text-amber-700'
-                      : member.role === 'admin' ? 'bg-purple-50 text-purple-700'
-                      : member.role === 'guest' ? 'bg-blue-50 text-blue-500'
-                      : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {member.role || 'member'}
+                {/* Access on this project */}
+                <div className="w-32 flex justify-center">
+                  {!canManage || isMemberOwner || isSelf || member.role === 'owner' || member.role === 'admin' ? (
+                    <span className="text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-600">
+                      {LEVEL_LABEL[levelOf(member)]}
                     </span>
                   ) : (
                     <select
-                      value={member.role || 'member'}
-                      onChange={(e) => handleRoleChange(member._id, e.target.value)}
+                      value={levelOf(member)}
+                      onChange={(e) => handleAccessChange(member._id, e.target.value)}
                       disabled={roleLoading === member._id}
-                      className="text-xs font-medium text-gray-700 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                      aria-label={`Access for ${member.name || member.email}`}
+                      className="text-xs font-medium text-gray-700 bg-white border border-gray-300 px-2.5 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
                     >
-                      <option value="admin">Admin</option>
-                      <option value="member">Member</option>
-                      <option value="guest">Guest</option>
+                      <option value="manage" disabled={member.role === 'guest'}>Can manage</option>
+                      <option value="comment">Can comment</option>
+                      <option value="view">Can view</option>
                     </select>
                   )}
                 </div>

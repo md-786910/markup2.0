@@ -36,10 +36,10 @@ function FilterDropdown({ label, icon, options, value, onChange, isOpen, onToggl
       <button
         onClick={onToggle}
         className={`
-          flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all duration-150
+          flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] border transition-colors duration-150
           ${isActive
-            ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium shadow-sm'
-            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 shadow-sm'
+            ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium'
+            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'
           }
         `}
       >
@@ -127,10 +127,10 @@ function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose }) {
       <button
         onClick={onToggle}
         className={`
-          flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all duration-150
+          flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] border transition-colors duration-150
           ${isActive
-            ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium shadow-sm'
-            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 shadow-sm'
+            ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium'
+            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'
           }
         `}
       >
@@ -245,17 +245,7 @@ export default function FilterBar({ filters, onFiltersChange, activeFilterCount,
   };
 
   return (
-    <div className="flex items-center gap-2.5 mb-6 flex-wrap">
-      {/* Filter icon + label */}
-      <div className="flex items-center gap-2 mr-1">
-        <div className="flex items-center gap-1.5 text-gray-400">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 01-.659 1.591l-5.432 5.432a2.25 2.25 0 00-.659 1.591v2.927a2.25 2.25 0 01-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 00-.659-1.591L3.659 7.409A2.25 2.25 0 013 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0112 3z" />
-          </svg>
-        </div>
-        <span className="text-sm font-medium text-gray-500 hidden sm:inline">Filter by</span>
-      </div>
-
+    <div className="flex items-center gap-2 mb-6 flex-wrap">
       {!dateOnly && (
         <>
           {/* Status dropdown */}

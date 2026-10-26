@@ -123,7 +123,7 @@ function getActionBadge(type) {
   }
 }
 
-export default function NotificationBell({ className = '', variant, projectId, onSelectPin }) {
+export default function NotificationBell({ className = '', variant, projectId, onSelectPin, align = 'right', dark = false }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -325,8 +325,10 @@ export default function NotificationBell({ className = '', variant, projectId, o
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`relative p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors focus:outline-none ${
-          isOpen ? 'bg-gray-100 text-gray-800' : ''
+        className={`relative p-2 rounded-lg transition-colors focus:outline-none ${
+          dark
+            ? `text-gray-400 hover:text-white hover:bg-gray-800 ${isOpen ? 'bg-gray-800 text-white' : ''}`
+            : `text-gray-500 hover:text-gray-700 hover:bg-gray-100 ${isOpen ? 'bg-gray-100 text-gray-800' : ''}`
         }`}
         title="Notifications"
         aria-label="Notifications"
@@ -349,7 +351,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
 
         {/* Unread badge */}
         {scopedUnreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+          <span className={`absolute top-1 right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white shadow-sm ring-2 ${dark ? 'ring-gray-900' : 'ring-white'}`}>
             {scopedUnreadCount > 99 ? '99+' : scopedUnreadCount}
           </span>
         )}
@@ -357,7 +359,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-scale-in">
+        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-gray-200 z-50 overflow-hidden animate-scale-in`}>
           {/* Header */}
           <div className="px-4 py-3.5 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
             <div className="flex items-center gap-2">

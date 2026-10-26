@@ -11,6 +11,7 @@ const Activity = require('../models/Activity');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendInvitationEmail } = require('../utils/mailer');
 const { canAssignRole } = require('../middleware/roles');
+const { isLevel, capForRole } = require('../utils/access');
 const { logActivity } = require('../utils/activityLogger');
 const { metric } = require('../instrument');
 const { createProjectNotifications, createSingleNotification } = require('../utils/notificationHelper');
@@ -18,6 +19,18 @@ const { signProxyToken } = require('../utils/proxyToken');
 const { seatLimitError } = require('../middleware/orgLimits');
 const { deleteProjectCascade } = require('../utils/cascade');
 const { URLS } = require('../config/env');
+const mongoose = require('mongoose');
+const Workspace = require('../models/Workspace');
+const { ensureDefaultWorkspace, visibleProjectsQuery } = require('../utils/workspaces');
+
+// A workspace id from the request that belongs to the org, else the default one
+async function resolveWorkspace(orgId, requestedId) {
+  if (requestedId && mongoose.isValidObjectId(requestedId)) {
+    const ws = await Workspace.findOne({ _id: requestedId, organization: orgId });
+    if (ws) return ws;
+  }
+  return ensureDefaultWorkspace(orgId);
+}
 
 // Hash a share-link password with bcrypt. 10 rounds (vs 12 for user passwords)
 // because share passwords are typically shorter / lower-stakes and we want
@@ -63,11 +76,13 @@ exports.createProject = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'A project with this name already exists' });
   }
 
+  const workspace = await resolveWorkspace(orgId, req.body.workspace);
   const projectData = {
     name,
     projectType,
     owner: req.user._id,
     organization: orgId,
+    workspace: workspace._id,
     members: [req.user._id],
   };
 
@@ -122,7 +137,15 @@ exports.getProjects = asyncHandler(async (req, res) => {
   // Admins/owners see all org projects; members/guests see only their projects
   const query = isPlatformAdmin
     ? { organization: orgId }
-    : { organization: orgId, members: req.user._id };
+    : await visibleProjectsQuery(req.user);
+
+  // Projects created before workspaces have none: they belong to the default one
+  const defaultWs = await ensureDefaultWorkspace(orgId);
+  if (req.query.workspace && mongoose.isValidObjectId(req.query.workspace)) {
+    query.workspace = req.query.workspace === defaultWs._id.toString()
+      ? { $in: [defaultWs._id, null] }
+      : req.query.workspace;
+  }
 
   const projects = await Project.find(query)
     .populate('owner', 'name email lastSeen')
@@ -153,8 +176,12 @@ exports.getProjects = asyncHandler(async (req, res) => {
   ]);
   const statsByProject = new Map(stats.map((st) => [st._id.toString(), st]));
 
-  const projectsWithCounts = projects.map((project) => ({
+  const { projectLevelsFor } = require('../utils/workspaces');
+  const levels = await projectLevelsFor(req.user, projects);
+  const projectsWithCounts = projects.map((project, i) => ({
     ...project.toObject(),
+    access: levels[i],
+    workspace: project.workspace || defaultWs._id,
     commentCount: statsByProject.get(project._id.toString())?.comments || 0,
     openPinCount: (statsByProject.get(project._id.toString())?.total || 0) - (statsByProject.get(project._id.toString())?.resolved || 0),
     resolvedPinCount: statsByProject.get(project._id.toString())?.resolved || 0,
@@ -169,7 +196,10 @@ exports.getProject = asyncHandler(async (req, res) => {
     .populate('owner', 'name email lastSeen')
     .populate('members', 'name email role lastSeen avatar');
 
-  res.json({ project, proxyToken: signProxyToken(req.user, project._id) });
+  // Workspace members see the project too: offered for @mentions and presence
+  const { workspaceMemberUsers } = require('../utils/workspaces');
+  const workspaceMembers = await workspaceMemberUsers(project, 'name email role lastSeen avatar');
+  res.json({ project, access: req.access, workspaceMembers, proxyToken: signProxyToken(req.user, project._id) });
 });
 
 exports.getWorkspaceMembers = asyncHandler(async (req, res) => {
@@ -196,12 +226,11 @@ exports.getWorkspaceMembers = asyncHandler(async (req, res) => {
 });
 
 exports.updateProject = asyncHandler(async (req, res) => {
-  const { name, websiteUrl, status, projectStatus } = req.body;
+  const { name, websiteUrl, status, projectStatus, workspace } = req.body;
   const project = req.project;
 
-  const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
-  if (!isProjectOwner && !isPlatformAdmin) {
+  // Needs 'manage' on this project (creator, org admins, or granted)
+  if (req.access !== 'manage') {
     return res.status(403).json({ message: 'Only the project owner or admin can update' });
   }
 
@@ -212,6 +241,13 @@ exports.updateProject = asyncHandler(async (req, res) => {
   if (websiteUrl) project.websiteUrl = websiteUrl;
   if (status && ['active', 'archived'].includes(status)) project.status = status;
   if (projectStatus && ['not_started', 'in_progress', 'in_review', 'approved', 'completed'].includes(projectStatus)) project.projectStatus = projectStatus;
+  if (workspace) {
+    const target = mongoose.isValidObjectId(workspace)
+      ? await Workspace.findOne({ _id: workspace, organization: project.organization })
+      : null;
+    if (!target) return res.status(400).json({ message: 'Workspace not found' });
+    project.workspace = target._id;
+  }
   await project.save();
 
   // Activity log for status changes
@@ -239,9 +275,8 @@ exports.updateProject = asyncHandler(async (req, res) => {
 exports.deleteProject = asyncHandler(async (req, res) => {
   const project = req.project;
 
-  const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
-  if (!isProjectOwner && !isPlatformAdmin) {
+  // Needs 'manage' on this project (creator, org admins, or granted)
+  if (req.access !== 'manage') {
     return res.status(403).json({ message: 'Only the project owner or admin can delete' });
   }
 
@@ -254,13 +289,11 @@ exports.deleteProject = asyncHandler(async (req, res) => {
 
 exports.inviteMember = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
-  const { email, role: invitedRole } = req.body;
+  const { email, role: invitedRole, level: invitedLevel } = req.body;
   const project = req.project;
 
-  // Authorization: only project owner, platform admin, or platform owner can invite
-  const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
-  if (!isProjectOwner && !isPlatformAdmin) {
+  // Needs 'manage' on this project (creator, org admins, or granted)
+  if (req.access !== 'manage') {
     return res.status(403).json({ message: 'Only the project owner or admin can invite members' });
   }
 
@@ -271,6 +304,8 @@ exports.inviteMember = asyncHandler(async (req, res) => {
   if (!canAssignRole(req.user.role, roleToAssign)) {
     return res.status(403).json({ message: 'Cannot assign a role higher than your own' });
   }
+  // Access level on this project; guests can comment at most
+  const levelToGrant = capForRole(isLevel(invitedLevel) ? invitedLevel : 'comment', roleToAssign);
 
   // Check if user already exists
   const user = await User.findOne({ email });
@@ -281,17 +316,12 @@ exports.inviteMember = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'User is already a member' });
     }
 
-    // Keep the selected project role in sync with the user record so the UI
-    // and later member actions reflect the invited permission level. Never touch
-    // the role of a user from another organization, or of an owner/superadmin.
-    const inProjectOrg = !user.organization
-      || (project.organization && user.organization.toString() === project.organization.toString());
-    if (inProjectOrg && !['owner', 'superadmin'].includes(user.role)) {
-      user.role = roleToAssign;
-      await user.save({ validateBeforeSave: false });
-    }
-
+    // Organization roles are managed on the Team page: adding someone to a
+    // project only grants access to it. People without an organization get
+    // the invited role when they join this one (below).
+    const userLevel = capForRole(levelToGrant, user.organization ? user.role : roleToAssign);
     project.members.push(user._id);
+    project.memberAccess = [...(project.memberAccess || []).filter((m) => m.user.toString() !== user._id.toString()), { user: user._id, level: userLevel }];
     await project.save();
 
     // Activity log
@@ -305,7 +335,7 @@ exports.inviteMember = asyncHandler(async (req, res) => {
       projectId: project._id,
       type: 'member_invited',
       title: `${req.user.name || 'Someone'} added you to ${project.name}`,
-      message: `You were added to the project as a ${roleToAssign}.`,
+      message: `You can now ${userLevel === 'manage' ? 'manage' : userLevel === 'comment' ? 'comment on' : 'view'} this project.`,
       metadata: {
         projectName: project.name,
         role: roleToAssign,
@@ -333,6 +363,7 @@ exports.inviteMember = asyncHandler(async (req, res) => {
     // If user doesn't belong to an org yet, link them
     if (!user.organization && req.user.organization) {
       user.organization = req.user.organization;
+      if (!['owner', 'superadmin'].includes(user.role)) user.role = roleToAssign;
       await user.save({ validateBeforeSave: false });
     }
 
@@ -364,6 +395,7 @@ exports.inviteMember = asyncHandler(async (req, res) => {
     organization: req.user.organization,
     invitedBy: req.user._id,
     role: roleToAssign,
+    level: levelToGrant,
     token,
   });
 
@@ -424,10 +456,10 @@ exports.updateMemberRole = asyncHandler(async (req, res) => {
   }
 
   const project = req.project;
-  const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
-  if (!isProjectOwner && !isPlatformAdmin) {
-    return res.status(403).json({ message: 'Only the project owner or admin can change roles' });
+  // Organization roles: owners and admins only (project access levels are
+  // changed with updateMemberAccess)
+  if (!req.isOrgAdmin) {
+    return res.status(403).json({ message: 'Only organization owners and admins can change roles' });
   }
 
   // Enforce role hierarchy
@@ -480,14 +512,40 @@ exports.updateMemberRole = asyncHandler(async (req, res) => {
   res.json({ project: updated });
 });
 
+/**
+ * PATCH /api/projects/:projectId/members/:userId/access  { level }
+ * Access level of one project member: view | comment | manage.
+ */
+exports.updateMemberAccess = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const { level } = req.body || {};
+  if (!isLevel(level)) return res.status(400).json({ message: 'Level must be view, comment, or manage' });
+  const project = req.project;
+  if (!project.members.some((m) => m.toString() === userId)) {
+    return res.status(404).json({ message: 'User is not a member of this project' });
+  }
+  if (project.owner.toString() === userId) {
+    return res.status(400).json({ message: "The project's creator always manages it" });
+  }
+  const target = await User.findById(userId).select('name role');
+  const granted = capForRole(level, target?.role);
+  project.memberAccess = [...(project.memberAccess || []).filter((m) => m.user.toString() !== userId), { user: userId, level: granted }];
+  await project.save();
+  logActivity(project._id, req.user._id, 'member.role_changed', { memberName: target?.name, newRole: granted });
+
+  const updated = await Project.findById(project._id)
+    .populate('owner', 'name email lastSeen')
+    .populate('members', 'name email role lastSeen avatar');
+  res.json({ project: updated, level: granted });
+});
+
 exports.removeMember = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   const project = req.project;
   const { userId } = req.params;
 
-  const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
-  if (!isProjectOwner && !isPlatformAdmin) {
+  // Needs 'manage' on this project (creator, org admins, or granted)
+  if (req.access !== 'manage') {
     return res.status(403).json({ message: 'Only the project owner or admin can remove members' });
   }
 
@@ -502,6 +560,7 @@ exports.removeMember = asyncHandler(async (req, res) => {
   }
 
   project.members = project.members.filter((m) => m.toString() !== userId);
+  project.memberAccess = (project.memberAccess || []).filter((m) => m.user.toString() !== userId);
   await project.save();
   await User.findByIdAndUpdate(userId, { $pull: { mutedProjectEmails: project._id } });
 
@@ -586,9 +645,8 @@ exports.getActivity = asyncHandler(async (req, res) => {
 exports.enableShare = asyncHandler(async (req, res) => {
   const project = req.project;
 
-  const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
-  if (!isProjectOwner && !isPlatformAdmin) {
+  // Needs 'manage' on this project (creator, org admins, or granted)
+  if (req.access !== 'manage') {
     return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
   }
 
@@ -632,9 +690,8 @@ exports.enableShare = asyncHandler(async (req, res) => {
 exports.updateShare = asyncHandler(async (req, res) => {
   const project = req.project;
 
-  const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
-  if (!isProjectOwner && !isPlatformAdmin) {
+  // Needs 'manage' on this project (creator, org admins, or granted)
+  if (req.access !== 'manage') {
     return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
   }
 
@@ -667,9 +724,8 @@ exports.updateShare = asyncHandler(async (req, res) => {
 exports.disableShare = asyncHandler(async (req, res) => {
   const project = req.project;
 
-  const isProjectOwner = project.owner.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.isOrgAdmin; // admin/owner of this project's org (set by projectAccess)
-  if (!isProjectOwner && !isPlatformAdmin) {
+  // Needs 'manage' on this project (creator, org admins, or granted)
+  if (req.access !== 'manage') {
     return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
   }
 

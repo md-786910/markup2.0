@@ -4,13 +4,14 @@ import { track } from '../monitoring/analytics';
 export const getProjectsApi = () =>
   api.get('/projects');
 
-export const createProjectApi = (name, websiteUrl) =>
-  api.post('/projects', { name, websiteUrl, projectType: 'website' })
+export const createProjectApi = (name, websiteUrl, workspace) =>
+  api.post('/projects', { name, websiteUrl, projectType: 'website', workspace })
     .then((res) => { track('project_created', { type: 'website' }); return res; });
 
-export const createDocumentProjectApi = (name, files) => {
+export const createDocumentProjectApi = (name, files, workspace) => {
   const formData = new FormData();
   formData.append('name', name);
+  if (workspace) formData.append('workspace', workspace);
   formData.append('projectType', 'document');
   files.forEach((f) => formData.append('documents', f));
   return api.post('/projects', formData)
@@ -32,6 +33,9 @@ export const inviteMemberApi = (projectId, email, role = 'member') =>
 
 export const getWorkspaceMembersApi = (projectId) =>
   api.get(`/projects/${projectId}/workspace-members`);
+
+export const updateMemberAccessApi = (projectId, userId, level) =>
+  api.patch(`/projects/${projectId}/members/${userId}/access`, { level });
 
 export const updateMemberRoleApi = (projectId, userId, role) =>
   api.patch(`/projects/${projectId}/members/${userId}/role`, { role });

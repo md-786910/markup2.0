@@ -12,6 +12,7 @@ const FOOTER_LINKS = {
     { label: 'FAQ', href: '/#faq' },
   ],
   Resources: [
+    { label: 'About', href: '/about' },
     { label: 'Support', href: '/support' },
     { label: 'Get Started', href: `${APP_URL}/onboarding` },
     { label: 'Log In', href: `${APP_URL}/login` },

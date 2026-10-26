@@ -263,6 +263,7 @@ exports.signup = asyncHandler(async (req, res) => {
     expiresAt: { $gt: new Date() },
   });
   let acceptedProjectId = null;
+  let acceptedWorkspaceId = null;
   if (pendingInvites.length > 0) {
     // Assign the highest role from invitations (for non-first users)
     if (!isFirstUser) {
@@ -290,9 +291,27 @@ exports.signup = asyncHandler(async (req, res) => {
     // Add user to all invited projects
     const io = req.app.get('io');
     for (const invite of pendingInvites) {
+      // Workspace invitation: join the workspace (every project in it)
+      if (invite.workspace) {
+        const { capForRole } = require("../utils/access");
+        await require("../models/Workspace").updateOne(
+          { _id: invite.workspace, organization: invite.organization, "members.user": { $ne: user._id } },
+          { $push: { members: { user: user._id, level: capForRole(invite.level || "comment", user.role) } } },
+        );
+        if (!acceptedWorkspaceId) acceptedWorkspaceId = invite.workspace;
+        invite.status = "accepted";
+        await invite.save();
+        continue;
+      }
       await Project.findByIdAndUpdate(invite.project, {
         $addToSet: { members: user._id },
       });
+      if (invite.level) {
+        await Project.updateOne(
+          { _id: invite.project, "memberAccess.user": { $ne: user._id } },
+          { $push: { memberAccess: { user: user._id, level: require("../utils/access").capForRole(invite.level, user.role) } } },
+        );
+      }
       if (!acceptedProjectId) {
         acceptedProjectId = invite.project;
       }
@@ -334,10 +353,11 @@ exports.signup = asyncHandler(async (req, res) => {
     }
   }
 
-  metric('user.signup', { kind: acceptedProjectId ? 'invited' : (isFirstUser ? 'new_org' : 'joined') });
+  metric('user.signup', { kind: acceptedProjectId || acceptedWorkspaceId ? 'invited' : (isFirstUser ? 'new_org' : 'joined') });
   await setCookieAndRespond(res, user, org, 201, {
     isNewOrg: isFirstUser,
     invitedProjectId: acceptedProjectId ? acceptedProjectId.toString() : undefined,
+    invitedWorkspaceId: acceptedWorkspaceId ? acceptedWorkspaceId.toString() : undefined,
   });
 });
 
@@ -496,6 +516,8 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
 
   // Remove user from member lists of other projects
   await Project.updateMany({ members: userId }, { $pull: { members: userId } });
+  await Project.updateMany({ 'memberAccess.user': userId }, { $pull: { memberAccess: { user: userId } } });
+  await require('../models/Workspace').updateMany({ 'members.user': userId }, { $pull: { members: { user: userId } } });
 
   // Delete invitations created for this user's email, and the user's notifications
   await Invitation.deleteMany({ email: req.user.email });
@@ -852,6 +874,7 @@ exports.exportOrganization = asyncHandler(async (req, res) => {
   const Invoice = require("../models/Invoice");
 
   const projects = await Project.find({ organization: org._id }).lean();
+  const workspaces = await require("../models/Workspace").find({ organization: org._id }).select("name isDefault createdAt").lean();
   const projectIds = projects.map((p) => p._id);
   const pins = await Pin.find({ project: { $in: projectIds } }).lean();
   const [users, comments, versions, activity, invoices] = await Promise.all([
@@ -877,7 +900,7 @@ exports.exportOrganization = asyncHandler(async (req, res) => {
     organization: {
       _id: org._id, name: org.name, plan: org.plan, createdAt: org.createdAt, billingDetails: org.billingDetails,
     },
-    users, projects, pins, comments, versions, activity, invoices,
+    users, workspaces, projects, pins, comments, versions, activity, invoices,
     files: "Uploaded files (documents, screenshots, attachments) are referenced by their path in each record and can be downloaded from the app.",
   };
   logOrgActivity(org._id, req.user._id, "org.data_exported", {});

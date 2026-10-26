@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   inviteMemberApi,
   removeMemberApi,
-  updateMemberRoleApi,
 } from '../../services/projectService';
 import {
   getProjectInvitationsApi,
@@ -12,6 +11,8 @@ import {
 } from '../../services/invitationService';
 import { toastError } from '../../utils/toast';
 import useEscape from '../../hooks/useEscape';
+import { useWorkspaces } from '../../contexts/WorkspaceContext';
+import { inviteToWorkspaceApi, updateOrgRoleApi } from '../../services/workspaceService';
 
 const ROLE_STYLES = {
   owner: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -35,9 +36,9 @@ function getAvatarColor(name) {
 }
 
 const INVITE_ROLES = [
-  { value: 'admin', label: 'Admin', desc: 'Manage projects & members' },
-  { value: 'member', label: 'Member', desc: 'Create pins & comments' },
-  { value: 'guest', label: 'Guest', desc: 'View only' },
+  { value: 'admin', label: 'Admin', desc: 'Manages every workspace, project and member' },
+  { value: 'member', label: 'Member', desc: 'Works on the workspaces and projects they are given' },
+  { value: 'guest', label: 'Guest', desc: 'Outside collaborator, can comment at most' },
 ];
 
 const EMAIL_SPLIT_RE = /[,\n\r\t ]+/;
@@ -63,6 +64,9 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
     [projects]
   );
   const [inviteProjectIds, setInviteProjectIds] = useState([]);
+  // Whole workspaces: the invitee sees every project in them (incl. future ones)
+  const [inviteWorkspaceIds, setInviteWorkspaceIds] = useState([]);
+  const { workspaces } = useWorkspaces();
   const [inviteEmails, setInviteEmails] = useState([]);
   const [inviteEmailInput, setInviteEmailInput] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
@@ -94,11 +98,16 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
     () => activeProjects.filter((project) => inviteProjectIds.includes(project._id)),
     [activeProjects, inviteProjectIds]
   );
-  const projectSelectLabel = selectedInviteProjects.length === 0
-    ? 'Select projects'
-    : selectedInviteProjects.length === 1
-      ? selectedInviteProjects[0].name
-      : `${selectedInviteProjects.length} projects selected`;
+  const selectedInviteWorkspaces = workspaces.filter((w) => inviteWorkspaceIds.includes(w._id));
+  const selectedCount = selectedInviteProjects.length + selectedInviteWorkspaces.length;
+  const projectSelectLabel = selectedCount === 0
+    ? 'Select workspaces or projects'
+    : selectedCount === 1
+      ? (selectedInviteWorkspaces[0] ? `All of ${selectedInviteWorkspaces[0].name}` : selectedInviteProjects[0].name)
+      : [
+        selectedInviteWorkspaces.length && `${selectedInviteWorkspaces.length} ${selectedInviteWorkspaces.length === 1 ? 'workspace' : 'workspaces'}`,
+        selectedInviteProjects.length && `${selectedInviteProjects.length} ${selectedInviteProjects.length === 1 ? 'project' : 'projects'}`,
+      ].filter(Boolean).join(', ');
 
   const addInviteEmails = useCallback((value) => {
     const nextEmails = parseEmailList(value);
@@ -232,7 +241,8 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
     const uniqueEmails = [...new Set(emails.map((email) => email.toLowerCase()))]
       .map((lowerEmail) => emails.find((email) => email.toLowerCase() === lowerEmail))
       .filter(Boolean);
-    if (uniqueEmails.length === 0 || inviteProjectIds.length === 0) return;
+    const workspaceIds = inviteRole === 'admin' ? [] : inviteWorkspaceIds;
+    if (uniqueEmails.length === 0 || (inviteProjectIds.length === 0 && workspaceIds.length === 0)) return;
 
     const invalidEmails = uniqueEmails.filter((email) => !EMAIL_RE.test(email));
     if (invalidEmails.length > 0) {
@@ -249,6 +259,9 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
           uniqueEmails.map((email) => inviteMemberApi(projectId, email, inviteRole))
         )
       );
+      const workspaceResults = await Promise.allSettled(
+        workspaceIds.map((wsId) => inviteToWorkspaceApi(wsId, uniqueEmails, inviteRole))
+      );
 
       const failures = [];
       let successCount = 0;
@@ -259,6 +272,17 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
           return;
         }
         failures.push(result.reason?.response?.data?.message || 'Failed to invite member');
+      });
+      // A workspace call reports each email separately
+      workspaceResults.forEach((result) => {
+        if (result.status !== 'fulfilled') {
+          failures.push(result.reason?.response?.data?.message || 'Failed to invite to the workspace');
+          return;
+        }
+        (result.value.data.results || []).forEach((r) => {
+          if (r.status === 'added' || r.status === 'invited') successCount += 1;
+          else if (r.status === 'error') failures.push(`${r.email}: ${r.message}`);
+        });
       });
 
       if (successCount > 0) {
@@ -275,6 +299,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
         setInviteEmails([]);
         setInviteEmailInput('');
         setInviteProjectIds([]);
+        setInviteWorkspaceIds([]);
         setProjectDropdownOpen(false);
       }
 
@@ -287,12 +312,11 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
     }
   };
 
+  // Organization role (access to each workspace/project is set there)
   const handleRoleChange = async (member, newRole) => {
-    const project = member.projects?.[0];
-    if (!project) return;
     setRoleLoading(member._id);
     try {
-      await updateMemberRoleApi(project._id, member._id, newRole);
+      await updateOrgRoleApi(member._id, newRole);
       onProjectsChanged();
     } catch (err) {
       toastError(err, 'Could not change the role.');
@@ -332,7 +356,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                 </svg>
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">Invite Team Member</h3>
+                <h3 className="text-sm font-semibold text-gray-900">Invite people</h3>
                 <p className="text-xs text-gray-400">Existing users are added instantly. New users receive a signup link.</p>
               </div>
             </div>
@@ -370,13 +394,13 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                         : 'border-gray-200 hover:border-gray-300'
                       }`}
                   >
-                    <span className={`truncate text-left ${selectedInviteProjects.length === 0 ? 'text-gray-400' : 'text-gray-900'}`}>
+                    <span className={`truncate text-left ${selectedCount === 0 ? 'text-gray-400' : 'text-gray-900'}`}>
                       {projectSelectLabel}
                     </span>
                     <span className="flex items-center gap-2 shrink-0">
-                      {selectedInviteProjects.length > 0 && (
+                      {selectedCount > 0 && (
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                          {selectedInviteProjects.length}
+                          {selectedCount}
                         </span>
                       )}
                       <svg className={`w-4 h-4 text-gray-400 transition-transform ${projectDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -386,8 +410,27 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                   </button>
 
                   {projectDropdownOpen && (
-                    <div className="absolute left-0 top-full mt-1 z-50 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
-                      <div className="max-h-64 overflow-y-auto py-1">
+                    <div className="absolute left-0 top-full mt-1 z-50 w-72 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+                      <div className="max-h-80 overflow-y-auto py-1">
+                        <p className="px-3.5 pt-2 pb-1 text-xs font-medium text-gray-500">Whole workspace</p>
+                        {inviteRole === 'admin' ? (
+                          <p className="px-3.5 pb-2 text-xs text-gray-400">Admins see every workspace.</p>
+                        ) : workspaces.map((w) => {
+                          const checked = inviteWorkspaceIds.includes(w._id);
+                          return (
+                            <label key={w._id} className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-gray-50 ${checked ? 'bg-blue-50/60' : ''}`}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => setInviteWorkspaceIds((prev) => (prev.includes(w._id) ? prev.filter((id) => id !== w._id) : [...prev, w._id]))}
+                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="min-w-0 flex-1 truncate text-gray-700">{w.name}</span>
+                              <span className="text-xs text-gray-400">{w.projectCount} {w.projectCount === 1 ? 'project' : 'projects'}</span>
+                            </label>
+                          );
+                        })}
+                        <p className="mt-1 border-t border-gray-100 px-3.5 pt-2.5 pb-1 text-xs font-medium text-gray-500">Single projects</p>
                         {activeProjects.length === 0 ? (
                           <div className="px-3.5 py-3 text-sm text-gray-400">
                             No active projects available
@@ -504,7 +547,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                 </div>
                 <button
                   type="submit"
-                  disabled={inviteLoading || selectedInviteProjects.length === 0}
+                  disabled={inviteLoading || (selectedInviteProjects.length === 0 && (inviteRole === 'admin' || selectedInviteWorkspaces.length === 0))}
                   className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
                 >
                   {inviteLoading ? (
@@ -512,7 +555,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                       <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       Sending...
                     </span>
-                  ) : 'Send Invite'}
+                  ) : 'Send invite'}
                 </button>
               </div>
             </form>

@@ -111,6 +111,112 @@ function check(name, cond, extra = '') {
 
   // --- trial workspaces get Pro limits
   const { getLimitsForPlanAsync } = r('config/plans');
+  // --- workspaces inside an organization
+  const wsList = await call('GET', '/api/workspaces', { user: ownerA });
+  const defaultWsA = wsList.data?.workspaces?.find((w) => w.isDefault);
+  check('org gets a default workspace holding existing projects', wsList.status === 200 && defaultWsA && defaultWsA.projectCount === 1, JSON.stringify(wsList.data));
+  check('members cannot create workspaces', (await call('POST', '/api/workspaces', { user: memberA, body: { name: 'Nope' } })).status === 403);
+  const wsClient = await call('POST', '/api/workspaces', { user: adminA, body: { name: 'Client X' } });
+  check('admin creates a workspace', wsClient.status === 201 && wsClient.data.workspace.name === 'Client X');
+  check('duplicate workspace names are refused', (await call('POST', '/api/workspaces', { user: ownerA, body: { name: 'client x' } })).status === 400);
+  const wsId = wsClient.data.workspace._id;
+  const pInWs = await call('POST', '/api/projects', { user: ownerA, body: { name: 'In workspace', websiteUrl: 'https://example.net', workspace: wsId } });
+  check('project is created in the chosen workspace', pInWs.status === 201 && String(pInWs.data.project.workspace) === wsId);
+  const filtered = await call('GET', `/api/projects?workspace=${wsId}`, { user: ownerA });
+  const filteredDefault = await call('GET', `/api/projects?workspace=${defaultWsA._id}`, { user: ownerA });
+  check('projects filter by workspace (default includes legacy projects)', filtered.data.projects.length === 1 && filteredDefault.data.projects.some((p) => p._id === String(PA._id)) && !filteredDefault.data.projects.some((p) => p._id === pInWs.data.project._id));
+  check('org B cannot see or delete org A workspaces', !(await call('GET', '/api/workspaces', { user: ownerB })).data.workspaces.some((w) => w._id === wsId) && (await call('DELETE', `/api/workspaces/${wsId}`, { user: ownerB })).status === 404);
+  const otherOrgWs = (await call('GET', '/api/workspaces', { user: ownerB })).data.workspaces[0]._id;
+  check('a project cannot be moved into another org\'s workspace', (await call('PATCH', `/api/projects/${PA._id}`, { user: ownerA, body: { workspace: otherOrgWs } })).status === 400);
+  // workspace members see every project in the workspace
+  const wsMember = await mkUser('wsMemberA', 'member', { organization: orgA._id });
+  const wsProjId = pInWs.data.project._id;
+  check('non-member cannot open a workspace project', (await call('GET', `/api/projects/${wsProjId}`, { user: wsMember })).status === 403);
+  check('workspace members must belong to the organization', (await call('PUT', `/api/workspaces/${wsId}/members`, { user: ownerA, body: { userIds: [String(ownerB._id)] } })).status === 400);
+  const setMembers = await call('PUT', `/api/workspaces/${wsId}/members`, { user: ownerA, body: { userIds: [String(wsMember._id)] } });
+  const memberList = await call('GET', '/api/projects', { user: wsMember });
+  check('workspace member sees its projects', setMembers.status === 200 && (await call('GET', `/api/projects/${wsProjId}`, { user: wsMember })).status === 200
+    && memberList.data.projects.some((p) => p._id === wsProjId) && !memberList.data.projects.some((p) => p._id === String(PA._id)));
+  check('workspace member can comment on its projects', (await call('POST', `/api/projects/${wsProjId}/pins`, { user: wsMember, body: { pageUrl: 'https://example.net/', xPercent: 5, yPercent: 5 } })).status === 201);
+
+  // access levels (view < comment < manage), inherited from the workspace
+  const setLevel = (level) => call('PUT', `/api/workspaces/${wsId}/members`, { user: ownerA, body: { members: [{ userId: String(wsMember._id), level }] } });
+  await setLevel('view');
+  check('view level can read but not pin', (await call('GET', `/api/projects/${wsProjId}`, { user: wsMember })).data?.access === 'view'
+    && (await call('POST', `/api/projects/${wsProjId}/pins`, { user: wsMember, body: { pageUrl: 'https://example.net/', xPercent: 6, yPercent: 6 } })).status === 403);
+  check('comment level cannot manage the project', (await setLevel('comment')).status === 200
+    && (await call('PATCH', `/api/projects/${wsProjId}`, { user: wsMember, body: { name: 'Renamed by member' } })).status === 403);
+  await setLevel('manage');
+  const mgrProject = await call('POST', '/api/projects', { user: wsMember, body: { name: 'Made by manager', websiteUrl: 'https://example.net/m', workspace: wsId } });
+  check('workspace managers manage its projects and can create new ones', (await call('PATCH', `/api/projects/${wsProjId}`, { user: wsMember, body: { name: 'In workspace' } })).status === 200
+    && mgrProject.status === 201 && (await call('POST', '/api/projects', { user: wsMember, body: { name: 'Elsewhere', websiteUrl: 'https://example.net/e' } })).status === 403);
+  check('workspace managers cannot rename or delete the workspace', (await call('PATCH', `/api/workspaces/${wsId}`, { user: wsMember, body: { name: 'Nope' } })).status === 403);
+  const guestUser = await mkUser('wsGuestA', 'guest', { organization: orgA._id });
+  const capped = await call('PUT', `/api/workspaces/${wsId}/members`, { user: ownerA, body: { members: [{ userId: String(wsMember._id), level: 'manage' }, { userId: String(guestUser._id), level: 'manage' }] } });
+  check('guests are capped at comment', capped.data?.members?.find((m) => m._id === String(guestUser._id))?.level === 'comment');
+  // project-level access overrides for one project
+  const paView = await call('PATCH', `/api/projects/${PA._id}/members/${memberA._id}/access`, { user: ownerA, body: { level: 'view' } });
+  check('project access level applies', paView.status === 200
+    && (await call('POST', `/api/projects/${PA._id}/pins`, { user: memberA, body: { pageUrl: 'https://example.com/', xPercent: 7, yPercent: 7 } })).status === 403);
+  await call('PATCH', `/api/projects/${PA._id}/members/${memberA._id}/access`, { user: ownerA, body: { level: 'comment' } });
+  check('members cannot change project access', (await call('PATCH', `/api/projects/${PA._id}/members/${memberA._id}/access`, { user: memberA, body: { level: 'manage' } })).status === 403);
+  // organization roles are set on the Team page, not by project actions
+  check('admins change organization roles', (await call('PATCH', `/api/workspaces/people/${guestUser._id}/role`, { user: adminA, body: { role: 'member' } })).status === 200
+    && (await call('PATCH', `/api/workspaces/people/${ownerA._id}/role`, { user: adminA, body: { role: 'member' } })).status === 403
+    && (await call('PATCH', `/api/workspaces/people/${guestUser._id}/role`, { user: memberA, body: { role: 'admin' } })).status === 403);
+  await r('utils/cascade').deleteProjectCascade(await Project.findById(mgrProject.data.project._id));
+
+  // one review link for the whole workspace
+  const wsShare = await call('POST', `/api/workspaces/${wsId}/share`, { user: adminA, body: {} });
+  const wsTok = wsShare.data?.shareSettings?.token;
+  const portal = await call('GET', `/api/guest/workspace/${wsTok}`);
+  const entry = portal.data?.projects?.[0];
+  check('workspace link lists its projects', wsShare.status === 200 && portal.status === 200 && portal.data.projects.length === 1 && entry._id === wsProjId, JSON.stringify(portal.data));
+  check('project opens through the workspace link', (await call('GET', `/api/guest/${entry.shareToken}`)).status === 200 && (await call('GET', `/api/guest/${entry.shareToken}/pins`)).status === 200);
+  check('workspace link does not reach projects of other workspaces', (await call('GET', `/api/guest/${wsTok}.${PA._id}`)).status === 404);
+  check('guest proxy accepts projects shared through their workspace', await r('utils/sharing').isProjectShared(await Project.findById(wsProjId)));
+  await call('PATCH', `/api/workspaces/${wsId}/share`, { user: adminA, body: { password: 's3cret' } });
+  const locked = await call('GET', `/api/guest/workspace/${wsTok}`);
+  const unlocked = await call('GET', `/api/guest/workspace/${wsTok}?password=s3cret`);
+  const wgh = { 'X-Guest-Access': unlocked.data?.guestAccessToken };
+  check('workspace link password protects every project', locked.status === 401 && (await call('GET', `/api/guest/${entry.shareToken}/pins`)).status === 401
+    && unlocked.status === 200 && (await call('GET', `/api/guest/${entry.shareToken}/pins`, { headers: wgh })).status === 200);
+  await call('DELETE', `/api/workspaces/${wsId}/share`, { user: adminA });
+  check('turned-off workspace link stops working', (await call('GET', `/api/guest/workspace/${wsTok}`)).status === 404 && (await call('GET', `/api/guest/${entry.shareToken}`)).status === 404);
+
+  // invite people to a workspace
+  const inviteeExisting = await mkUser('wsInviteeA', 'member', { organization: orgA._id });
+  const wsInv = await call('POST', `/api/workspaces/${wsId}/invitations`, { user: ownerA, body: { emails: ['newclient@e2e.test', 'wsinviteea@e2e.test', 'ownerb@e2e.test'], role: 'member' } });
+  const byEmail = Object.fromEntries((wsInv.data?.results || []).map((x) => [x.email, x.status]));
+  check('workspace invite: new email invited, org user added, other org refused',
+    wsInv.status === 201 && byEmail['newclient@e2e.test'] === 'invited' && byEmail['wsinviteea@e2e.test'] === 'added' && byEmail['ownerb@e2e.test'] === 'error', JSON.stringify(wsInv.data));
+  check('added org user sees the workspace project', (await call('GET', `/api/projects/${wsProjId}`, { user: inviteeExisting })).status === 200);
+  check('members cannot invite to workspaces', (await call('POST', `/api/workspaces/${wsId}/invitations`, { user: memberA, body: { emails: ['x@e2e.test'] } })).status === 403);
+  const wsInvite = await Invitation.findOne({ email: 'newclient@e2e.test', workspace: wsId });
+  const pendingList = await call('GET', `/api/workspaces/${wsId}/invitations`, { user: adminA });
+  check('pending workspace invitations are listed without tokens', pendingList.data?.invitations?.length === 1 && !pendingList.data.invitations[0].token);
+  const inviteInfo = await call('GET', `/api/invitations/${wsInvite.token}`);
+  check('invitation page names the workspace', inviteInfo.status === 200 && /Client X/.test(inviteInfo.data.invitation.projectName));
+  const signupRes = await call('POST', '/api/auth/signup', { body: { name: 'New Client', email: 'newclient@e2e.test', password: 'Str0ng!Passw0rd', invitationToken: wsInvite.token } });
+  const newClient = await User.findOne({ email: 'newclient@e2e.test' });
+  check('accepting a workspace invitation joins the org and the workspace',
+    signupRes.status === 201 && signupRes.data.invitedWorkspaceId === wsId && String(newClient.organization) === String(orgA._id)
+      && (await call('GET', `/api/projects/${wsProjId}`, { user: newClient })).status === 200, JSON.stringify(signupRes.data?.message || signupRes.status));
+  const recipients = await r('utils/notifier').getRecipients(wsProjId, ownerA._id);
+  check('workspace members get project notifications', recipients.some((u) => String(u._id) === String(newClient._id)));
+
+  // plan limit on workspaces
+  await Organization.updateOne({ _id: orgB._id }, { $set: { 'limitOverrides.maxWorkspaces': 1 } });
+  const overLimit = await call('POST', '/api/workspaces', { user: ownerB, body: { name: 'Second' } });
+  check('workspace limit is enforced', overLimit.status === 403 && overLimit.data.code === 'WORKSPACE_LIMIT', JSON.stringify(overLimit.data));
+  await Organization.updateOne({ _id: orgB._id }, { $unset: { 'limitOverrides.maxWorkspaces': 1 } });
+
+  check('the default workspace cannot be deleted', (await call('DELETE', `/api/workspaces/${defaultWsA._id}`, { user: ownerA })).status === 400);
+  const delWs = await call('DELETE', `/api/workspaces/${wsId}`, { user: ownerA });
+  const movedProject = await Project.findById(pInWs.data.project._id);
+  check('deleting a workspace keeps its projects in the default one', delWs.status === 200 && String(movedProject.workspace) === String(defaultWsA._id));
+  await r('utils/cascade').deleteProjectCascade(movedProject);
+
   check('trial gets Pro limits', (await getLimitsForPlanAsync('trial')).hasVersionHistory === true);
 
   // --- invite cannot rewrite another org's user role
@@ -121,8 +227,9 @@ function check(name, cond, extra = '') {
   // --- invitation cancel
   const invitation = await Invitation.create({ email: 'new@e2e.test', project: PA._id, organization: orgA._id, invitedBy: ownerA._id, role: 'member', token: 't'.repeat(64) });
   check('org B owner cannot cancel org A invitation', (await call('DELETE', `/api/invitations/${invitation._id}`, { user: ownerB })).status === 403);
-  const invList = await call('GET', `/api/projects/${PA._id}/invitations`, { user: memberA });
+  const invList = await call('GET', `/api/projects/${PA._id}/invitations`, { user: ownerA });
   check('invitation list hides tokens', invList.status === 200 && invList.data.invitations.every((i) => !i.token));
+  check('only managers see pending project invitations', (await call('GET', `/api/projects/${PA._id}/invitations`, { user: memberA })).status === 403);
   check('org A owner can cancel', (await call('DELETE', `/api/invitations/${invitation._id}`, { user: ownerA })).status === 200);
 
   // --- guest share links

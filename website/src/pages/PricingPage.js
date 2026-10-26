@@ -14,6 +14,8 @@ const FEATURES = [
   ['Website, PDF, and image review', true, true, true, true],
   ['Desktop, tablet, and mobile pins', true, true, true, true],
   ['Projects', '2', '15', 'Unlimited', 'Unlimited'],
+  ['Workspaces (group projects per client)', '1', '3', 'Unlimited', 'Unlimited'],
+  ['Workspace review links for clients', false, true, true, true],
   ['Team members', '5', '25', 'Unlimited', 'Unlimited'],
   ['Guests', '2', '10', '50', 'Custom'],
   ['Storage', '200 MB', '5 GB', '25 GB', '100 GB'],

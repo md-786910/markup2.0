@@ -36,6 +36,19 @@ const projectSchema = new Schema({
     ref: 'Organization',
     required: true,
   },
+  // Access level per project member (utils/access.js); members without an
+  // entry get the default for their role (member: comment, guest: view)
+  memberAccess: [{
+    _id: false,
+    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    level: { type: String, enum: ['view', 'comment', 'manage'], required: true },
+  }],
+  // Workspace inside the organization; null = the org's default workspace
+  workspace: {
+    type: Schema.Types.ObjectId,
+    ref: 'Workspace',
+    default: null,
+  },
   members: [{
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -93,5 +106,6 @@ projectSchema.pre('validate', function () {
 projectSchema.index({ owner: 1 });
 projectSchema.index({ members: 1 });
 projectSchema.index({ organization: 1 });
+projectSchema.index({ organization: 1, workspace: 1 });
 
 module.exports = mongoose.model('Project', projectSchema);

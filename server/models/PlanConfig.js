@@ -13,6 +13,7 @@ const planConfigSchema = new mongoose.Schema({
   },
   limits: {
     maxProjects: { type: Number, default: null },
+    maxWorkspaces: { type: Number, default: null },
     maxMembers: { type: Number, default: null },
     maxGuests: { type: Number, default: null },
     maxStorageMB: { type: Number, default: null },

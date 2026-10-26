@@ -1,80 +1,100 @@
 import React from 'react';
+import BrandMark from '../common/BrandMark';
+
+const POINTS = [
+  'Pin comments on live sites, PDFs, and images',
+  'Clients review with a link, no account needed',
+  'Slack, Jira, Discord, and Microsoft Teams',
+];
+
+// A small product illustration: a page with two pins and an open comment
+function ReviewIllustration() {
+  return (
+    <div className="relative mx-auto w-full max-w-[380px]" aria-hidden="true">
+      <div className="rounded-xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40 backdrop-blur-sm">
+        <div className="flex items-center gap-1.5 border-b border-white/10 px-3 py-2.5">
+          <span className="h-2 w-2 rounded-full bg-white/20" />
+          <span className="h-2 w-2 rounded-full bg-white/20" />
+          <span className="h-2 w-2 rounded-full bg-white/20" />
+          <span className="ml-3 h-4 flex-1 rounded bg-white/[0.06]" />
+        </div>
+        <div className="space-y-3 p-5">
+          <div className="h-3 w-2/3 rounded bg-white/25" />
+          <div className="h-2 w-5/6 rounded bg-white/10" />
+          <div className="h-2 w-3/4 rounded bg-white/10" />
+          <div className="mt-4 grid grid-cols-3 gap-2.5">
+            <div className="h-14 rounded-lg bg-white/[0.07]" />
+            <div className="h-14 rounded-lg bg-white/[0.07]" />
+            <div className="h-14 rounded-lg bg-white/[0.07]" />
+          </div>
+          <div className="h-2 w-1/2 rounded bg-white/10" />
+        </div>
+      </div>
+      {/* Pins */}
+      <span className="absolute left-[54%] top-[34%] flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white ring-2 ring-white shadow-lg">1</span>
+      <span className="absolute left-[16%] top-[66%] flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-bold text-white ring-2 ring-white shadow-lg">2</span>
+      {/* Comment */}
+      <div className="absolute -right-6 top-[44%] w-52 rounded-xl bg-white p-3 text-left shadow-2xl shadow-black/40">
+        <div className="flex items-center gap-2">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700">M</span>
+          <span className="text-[11px] font-semibold text-gray-900">Maya</span>
+          <span className="text-[10px] text-gray-400">just now</span>
+        </div>
+        <p className="mt-1.5 text-[11px] leading-4 text-gray-600">Can we make this headline one line on desktop?</p>
+      </div>
+    </div>
+  );
+}
 
 export default function AuthLayout({ children }) {
   return (
     <div className="min-h-screen flex animate-page-enter">
       {/* Left branded panel — hidden on mobile */}
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[540px] bg-[#0f172a] relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(90,133,255,0.22),transparent_32%),radial-gradient(circle_at_82%_78%,rgba(56,189,248,0.16),transparent_34%),linear-gradient(90deg,rgba(15,23,42,0.46),rgba(15,23,42,0.16))]" />
-        <div className="pointer-events-none absolute inset-0 opacity-50 [background-image:linear-gradient(to_right,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.035)_1px,transparent_1px)] [background-size:60px_60px]" />
-        <div className="relative z-10 flex flex-col justify-between p-12 w-full">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold text-white tracking-tight">Kommently</span>
+      <div className="hidden lg:flex lg:w-[480px] xl:w-[540px] bg-gray-950 relative overflow-hidden">
+        {/* Dot grid, fading out toward the bottom, and a soft brand glow */}
+        <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(rgba(255,255,255,0.14)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_bottom,black,transparent_85%)]" />
+        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-blue-600/30 blur-[110px]" />
+        <div className="pointer-events-none absolute -bottom-32 right-0 h-80 w-80 rounded-full bg-blue-500/15 blur-[120px]" />
+
+        <div className="relative z-10 flex flex-col justify-between p-12 w-full text-white">
+          <div className="flex items-center gap-2.5">
+            <BrandMark className="w-9 h-9" />
+            <span className="text-lg font-semibold tracking-tight">Kommently</span>
           </div>
 
-          {/* Tagline */}
-          <div className="flex-1 flex flex-col justify-center -mt-12">
-            <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6">
-              Visual comments<br />
-              for your websites
+          <div>
+            <h1 className="text-[34px] xl:text-[40px] font-bold leading-[1.1] tracking-tight">
+              Feedback on any website.
+              <span className="block text-blue-400">No install needed.</span>
             </h1>
-            <p className="text-lg text-gray-400 leading-relaxed max-w-sm">
-              Pin comments directly on live pages. Collaborate with your team in real-time with contextual annotations.
-            </p>
-            <div className="flex items-center gap-6 mt-10">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <span className="text-sm text-gray-300">Pin annotations</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <span className="text-sm text-gray-300">Real-time</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <span className="text-sm text-gray-300">Team collab</span>
-              </div>
+            <ul className="mt-7 space-y-3">
+              {POINTS.map((point) => (
+                <li key={point} className="flex items-center gap-3 text-[15px] text-gray-300">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600/20 text-blue-400">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                  {point}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-12 pr-6">
+              <ReviewIllustration />
             </div>
           </div>
 
-          {/* Footer */}
-          <p className="text-xs text-gray-600">&copy; {new Date().getFullYear()} Kommently. All rights reserved.</p>
+          <p className="text-xs text-gray-500">&copy; {new Date().getFullYear()} Kommently</p>
         </div>
-
-        {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-600/10 to-purple-600/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-indigo-600/10 to-cyan-600/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
       </div>
 
       {/* Right form panel */}
       <div className="flex-1 flex items-center justify-center p-6 sm:p-12 bg-white">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-sm">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-              <svg className="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-              </svg>
-            </div>
-            <span className="text-lg font-bold text-gray-900 tracking-tight">Kommently</span>
+            <BrandMark className="w-8 h-8" />
+            <span className="text-lg font-semibold text-gray-900 tracking-tight">Kommently</span>
           </div>
           {children}
         </div>

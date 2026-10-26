@@ -5,11 +5,14 @@ import { updateOrganizationApi } from '../services/authService';
 import BillingTab from '../components/settings/BillingTab';
 import InvoicesTab from '../components/settings/InvoicesTab';
 import ActivityTab from '../components/settings/ActivityTab';
+import WorkspacesTab from '../components/settings/WorkspacesTab';
+import { useWorkspaces } from '../contexts/WorkspaceContext';
 import DataPrivacySection from '../components/settings/DataPrivacySection';
 import { uploadUrl } from '../utils/uploadUrl';
 
 const ALL_TABS = [
-  { id: 'workspace', label: 'Workspace' },
+  { id: 'workspace', label: 'Organization' },
+  { id: 'workspaces', label: 'Workspaces', managerOrAdmin: true },
   { id: 'billing', label: 'Billing' },
   { id: 'invoices', label: 'Invoices' },
   { id: 'activity', label: 'Activity', adminOnly: true },
@@ -21,7 +24,9 @@ export default function SettingsPage() {
   const requestedTab = searchParams.get('tab') || 'workspace';
 
   // Hide admin-only tabs for non-admins; redirect away if they hit one directly.
-  const TABS = ALL_TABS.filter((t) => !t.adminOnly || isAdmin);
+  const { workspaces } = useWorkspaces();
+  const managesAWorkspace = workspaces.some((w) => w.myLevel === 'manage');
+  const TABS = ALL_TABS.filter((t) => (t.adminOnly ? isAdmin : t.managerOrAdmin ? isAdmin || managesAWorkspace : true));
   const activeTab = TABS.some((t) => t.id === requestedTab) ? requestedTab : 'workspace';
 
   const [workspaceName, setWorkspaceName] = useState(user?.orgName || '');
@@ -93,8 +98,8 @@ export default function SettingsPage() {
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
               className={`relative px-1 pb-3 text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === tab.id
-                ? 'text-gray-900 border-b-2 border-gray-900'
-                : 'text-gray-500 hover:text-gray-700 border-b-2 border-transparent'
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-500 hover:text-gray-900 border-b-2 border-transparent'
                 }`}
             >
               {tab.label}
@@ -111,12 +116,13 @@ export default function SettingsPage() {
 
       {/* Workspace tab */}
       {activeTab === 'workspace' && (
-        <div className="mb-10">
-          <h3 className="text-sm font-semibold text-gray-900 mb-6">General Workspace</h3>
+        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-6">
+          <h3 className="text-base font-semibold text-gray-900">Organization</h3>
+          <p className="text-sm text-gray-500 mt-1 mb-6">Your company or team. Its name and icon appear in the app, emails, and on review links.</p>
 
           {/* Workspace Name */}
           <div className="flex items-start gap-8 mb-8">
-            <label className="text-sm text-gray-500 w-36 pt-2.5 shrink-0">Workspace Name</label>
+            <label className="text-sm font-medium text-gray-700 w-32 pt-2.5 shrink-0">Name</label>
             <div className="flex-1 max-w-md">
               {isOwner ? (
                 <>
@@ -125,14 +131,14 @@ export default function SettingsPage() {
                       type="text"
                       value={workspaceName}
                       onChange={(e) => { setWorkspaceName(e.target.value); setNameError(''); setNameSuccess(''); }}
-                      className="flex-1 px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow"
+                      className="flex-1 px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 bg-white transition-shadow"
                     />
                     <button
                       onClick={handleNameUpdate}
                       disabled={nameLoading || workspaceName.trim() === (user?.orgName || '')}
-                      className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0"
+                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0"
                     >
-                      {nameLoading ? 'Saving...' : 'Update'}
+                      {nameLoading ? 'Saving...' : 'Save'}
                     </button>
                   </div>
                   {nameError && <p className="text-xs text-red-500 mt-1.5">{nameError}</p>}
@@ -146,8 +152,8 @@ export default function SettingsPage() {
 
           {/* Workspace Icon */}
           <div className="flex items-start gap-8">
-            <label className="text-sm text-gray-500 w-36 pt-2 shrink-0">
-              Workspace Icon
+            <label className="text-sm font-medium text-gray-700 w-32 pt-2 shrink-0">
+              Icon
               <span className="inline-block ml-1 text-gray-300 cursor-help" title="Recommended: 256x256px, PNG or JPG">
                 <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -185,13 +191,16 @@ export default function SettingsPage() {
                   {logoError && <p className="text-xs text-red-500 mt-1">{logoError}</p>}
                 </div>
               ) : (
-                <p className="text-xs text-gray-400">Only the workspace owner can change the icon</p>
+                <p className="text-xs text-gray-400">Only the organization owner can change the icon</p>
               )}
             </div>
           </div>
         </div>
       )}
       {activeTab === 'workspace' && <DataPrivacySection />}
+
+      {/* Workspaces tab — owner/admin only */}
+      {activeTab === 'workspaces' && <WorkspacesTab />}
 
       {/* Billing tab */}
       {activeTab === 'billing' && <BillingTab />}

@@ -19,7 +19,7 @@ const HELP_TOPICS = [
   {
     title: 'Manage project access',
     category: 'Security',
-    description: 'Use project members, workspace roles, and password-protected, expiring guest links to keep reviews governed.',
+    description: 'Give people Can manage, Can comment or Can view on a workspace or project, and protect review links with a password and expiry.',
     icon: LockIcon,
   },
   {

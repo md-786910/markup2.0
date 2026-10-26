@@ -20,7 +20,7 @@ export default function ProjectPage() {
     getProjectApi(projectId, controller.signal)
       .then((res) => {
         if (controller.signal.aborted) return;
-        setProject(res.data.project);
+        setProject({ ...res.data.project, access: res.data.access, workspaceMembers: res.data.workspaceMembers || [] });
         setProxyToken(res.data.proxyToken || null);
       })
       .catch((err) => {
@@ -60,7 +60,7 @@ export default function ProjectPage() {
       <ProjectView
         project={project}
         proxyToken={proxyToken}
-        onProjectUpdate={(updated) => setProject(updated)}
+        onProjectUpdate={(updated) => setProject((prev) => ({ ...updated, access: updated.access || prev?.access, workspaceMembers: updated.workspaceMembers || prev?.workspaceMembers || [] }))}
         initialPinId={initialPinId}
       />
     </div>

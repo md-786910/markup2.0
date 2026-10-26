@@ -8,10 +8,16 @@ const invitationSchema = new Schema({
     lowercase: true,
     trim: true,
   },
+  // An invitation is to one project, or to a whole workspace
   project: {
     type: Schema.Types.ObjectId,
     ref: 'Project',
-    required: true,
+    default: null,
+  },
+  workspace: {
+    type: Schema.Types.ObjectId,
+    ref: 'Workspace',
+    default: null,
   },
   organization: {
     type: Schema.Types.ObjectId,
@@ -27,6 +33,12 @@ const invitationSchema = new Schema({
     type: String,
     enum: ['admin', 'member', 'guest'],
     default: 'member',
+  },
+  // Access level on the invited project/workspace (utils/access.js)
+  level: {
+    type: String,
+    enum: ['view', 'comment', 'manage'],
+    default: null,
   },
   token: {
     type: String,
@@ -44,7 +56,12 @@ const invitationSchema = new Schema({
   },
 }, { timestamps: true });
 
+invitationSchema.pre('validate', function () {
+  if (!this.project && !this.workspace) this.invalidate('project', 'An invitation needs a project or a workspace');
+});
+
 invitationSchema.index({ email: 1, project: 1 });
+invitationSchema.index({ email: 1, workspace: 1 });
 invitationSchema.index({ organization: 1 });
 
 module.exports = mongoose.model('Invitation', invitationSchema);

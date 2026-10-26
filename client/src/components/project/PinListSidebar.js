@@ -114,6 +114,7 @@ export default function PinListSidebar({
   onPinClick,
   onClosePin,
   onDeletePin,
+  readOnly = false,
   onNavigatePin,
   onStatusChange,
   onEvent,
@@ -387,6 +388,7 @@ export default function PinListSidebar({
             onEvent={onEvent}
             resyncKey={resyncKey}
             members={members}
+            readOnly={readOnly}
           />
         )}
       </div>
@@ -1062,6 +1064,7 @@ export default function PinListSidebar({
                               )}
                             </div>
                             {/* Resolve toggle */}
+                            {!readOnly && (
                             <button
                               onClick={() => onStatusChange(pin._id, pin.status === 'resolved' ? 'pending' : 'resolved')}
                               className={`p-1 rounded transition-colors ${pin.status === 'resolved'
@@ -1075,16 +1078,20 @@ export default function PinListSidebar({
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12l3 3 5-5" />
                               </svg>
                             </button>
+                            )}
                           </div>
                         </div>
 
                         {/* Author + New badge + Unread comments badge */}
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[13px] font-semibold text-gray-900">
-                            {pin.createdBy?.name || 'Unknown'}
+                          <span className="text-[13px] font-semibold text-gray-900 truncate">
+                            {pin.createdBy?.name || pin.createdByGuest?.name || 'Unknown'}
                           </span>
+                          {!pin.createdBy && pin.createdByGuest?.name && (
+                            <span className="text-[11px] font-medium text-gray-400">Guest</span>
+                          )}
                           {!readPins.has(pin._id) && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-500 text-white">
+                            <span className="text-[11px] font-medium px-1.5 py-px rounded-full bg-blue-50 text-blue-700">
                               New
                             </span>
                           )}
@@ -1093,8 +1100,8 @@ export default function PinListSidebar({
                               const lastRead = readComments[pin._id] || 0;
                               const commentTime = new Date(pin.latestComment.createdAt).getTime();
                               return commentTime > lastRead ? (
-                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500 text-white">
-                                  Unread
+                                <span className="text-[11px] font-medium px-1.5 py-px rounded-full bg-blue-50 text-blue-700">
+                                  New reply
                                 </span>
                               ) : null;
                             })()

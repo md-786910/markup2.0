@@ -26,6 +26,11 @@ const FAQ_ITEMS = [
       'No. Share a review link and clients can view the site and pin their own comments with just a name and email. You can protect links with a password and an expiry date, make them view-only, or turn them off at any time.',
   },
   {
+    question: 'Can I keep each client separate?',
+    answer:
+      'Yes. Create a workspace per client and keep their sites and documents in it. Invite people to the whole workspace, give each person Can manage, Can comment or Can view, and share one review link that lists every project in it. One plan covers all your workspaces.',
+  },
+  {
     question: 'Which tools does Kommently connect to?',
     answer:
       'Slack, Microsoft Teams, and Discord get notifications for new pins, comments, and status changes. Jira gets a new issue for every new pin. Integrations are included from the Starter plan and can be set for the whole workspace or per project.',

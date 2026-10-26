@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
+import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import Toaster from './components/common/Toaster';
 import ConfirmHost from './components/common/ConfirmHost';
 import PrivateRoute from './components/common/PrivateRoute';
@@ -19,6 +20,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
 const GuestProjectPage = lazy(() => import('./pages/GuestProjectPage'));
+const GuestWorkspacePage = lazy(() => import('./pages/GuestWorkspacePage'));
 const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage'));
 
 function PageLoader() {
@@ -35,6 +37,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <WorkspaceProvider>
         <NotificationProvider>
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -43,6 +46,7 @@ function App() {
               <Route path="/onboarding" element={<OnboardingPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+              <Route path="/review/w/:workspaceToken" element={<GuestWorkspacePage />} />
               <Route path="/review/:shareToken" element={<GuestProjectPage />} />
               <Route element={<PrivateRoute />}>
                 {/* Routes WITH sidebar layout */}
@@ -62,6 +66,7 @@ function App() {
           <Toaster />
           <ConfirmHost />
         </NotificationProvider>
+        </WorkspaceProvider>
       </AuthProvider>
     </BrowserRouter>
   );

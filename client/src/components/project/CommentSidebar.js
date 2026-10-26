@@ -50,6 +50,7 @@ export default function CommentSidebar({
   onEvent,
   resyncKey = 0,
   members = [],
+  readOnly = false,
 }) {
   const [comments, setComments] = useState([]);
   const [body, setBody] = useState("");
@@ -236,12 +237,14 @@ export default function CommentSidebar({
               }`}
             ></span>
             <span className="text-[12px] text-gray-400" title={formatFullTimestamp(pin.createdAt)}>
-              {pin.createdBy?.name || "Unknown"} &middot;{" "}
+              {pin.createdBy?.name || pin.createdByGuest?.name || "Unknown"} &middot;{" "}
               {formatDateTime(pin.createdAt)}
             </span>
           </div>
           {/* Right: action icons */}
           <div className="flex items-center gap-0.5">
+            {/* View-only access: no resolve or delete */}
+            {!readOnly && (<>
             {/* Resolve/Reopen */}
             <button
               onClick={() =>
@@ -322,6 +325,7 @@ export default function CommentSidebar({
                 </svg>
               </button>
             )}
+            </>)}
             {!onBack && (
               <button
                 onClick={onClose}
@@ -365,11 +369,14 @@ export default function CommentSidebar({
             <div key={comment._id} className="group">
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold shrink-0">
-                  {(comment.author?.name || "?")[0].toUpperCase()}
+                  {(comment.author?.name || comment.authorGuest?.name || "?")[0].toUpperCase()}
                 </div>
                 <span className="text-sm font-medium text-gray-800 truncate">
-                  {comment.author?.name || "Unknown"}
+                  {comment.author?.name || comment.authorGuest?.name || "Unknown"}
                 </span>
+                {!comment.author && comment.authorGuest?.name && comment.authorGuest.name !== "Deleted user" && (
+                  <span className="text-[11px] text-gray-400 shrink-0">Guest</span>
+                )}
                 <span className="text-[11px] text-gray-400 shrink-0" title={formatFullTimestamp(comment.createdAt)}>
                   {formatDateTime(comment.createdAt)}
                 </span>
@@ -469,6 +476,9 @@ export default function CommentSidebar({
           ))}
       </div>
 
+      {readOnly ? (
+        <p className="p-3 border-t border-gray-200 bg-gray-50 text-center text-xs text-gray-500 shrink-0">You can view this project but not comment.</p>
+      ) : (<>
       {/* Comment Input */}
       <form
         onSubmit={handleSubmit}
@@ -516,6 +526,7 @@ export default function CommentSidebar({
           </button>
         </div>
       </form>
+      </>)}
 
       {/* Screenshot */}
       {pin.screenshot?.path && (

@@ -28,7 +28,8 @@ export default function TrialDashboardBanner() {
   const { daysLeft, isTrialActive, urgency } = useTrialStatus();
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem('trial-banner-dismissed') === 'true');
 
-  if (!isTrialActive || dismissed) return null;
+  // The sidebar always shows the trial; the banner only appears near the end
+  if (!isTrialActive || dismissed || urgency === 'normal') return null;
 
   const styles = urgencyStyles[urgency];
   const dayLabel = daysLeft === 1 ? 'day' : 'days';

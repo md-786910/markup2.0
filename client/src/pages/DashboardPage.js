@@ -7,7 +7,6 @@ import MembersTab from '../components/dashboard/MembersTab';
 import NewProjectDropdown from '../components/dashboard/NewProjectDropdown';
 import FilterBar from '../components/dashboard/FilterBar';
 import TrialDashboardBanner from '../components/common/TrialDashboardBanner';
-import NotificationBell from '../components/common/NotificationBell';
 import {
   getProjectsApi,
   updateProjectApi,
@@ -15,6 +14,7 @@ import {
 } from '../services/projectService';
 import { toastError } from '../utils/toast';
 import useEscape from '../hooks/useEscape';
+import { useWorkspaces } from '../contexts/WorkspaceContext';
 
 const DEFAULT_DATE_RANGE = { preset: null, start: '', end: '' };
 
@@ -66,6 +66,9 @@ function isInDateRange(project, dateRange) {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
+  const { workspaces, current: workspace, refresh: refreshWorkspaces } = useWorkspaces();
+  // Org admins, or people who can manage the current workspace, create projects in it
+  const canCreateHere = isAdmin || workspace?.myLevel === 'manage';
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'active';
 
@@ -77,11 +80,11 @@ export default function DashboardPage() {
   // ?create=website|document (e.g. from a blocked site) opens the create dialog
   useEffect(() => {
     const type = searchParams.get('create');
-    if (!isAdmin || (type !== 'website' && type !== 'document')) return;
+    if (!canCreateHere || (type !== 'website' && type !== 'document')) return;
     setCreateType(type);
     setShowCreate(true);
     setSearchParams((prev) => { const next = new URLSearchParams(prev); next.delete('create'); return next; }, { replace: true });
-  }, [searchParams, setSearchParams, isAdmin]);
+  }, [searchParams, setSearchParams, canCreateHere]);
   const [editingProject, setEditingProject] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   useEscape(() => setConfirmDelete(null), !!confirmDelete);
@@ -114,8 +117,11 @@ export default function DashboardPage() {
     [projects, filters.dateRange]
   );
 
-  const activeProjects = dateFilteredProjects.filter((p) => p.status === 'active');
-  const archivedProjects = dateFilteredProjects.filter((p) => p.status === 'archived');
+  // Projects of the selected workspace (no workspace = the default one)
+  const defaultWorkspaceId = workspaces.find((w) => w.isDefault)?._id;
+  const inWorkspace = (p) => !workspace || String(p.workspace?._id || p.workspace || defaultWorkspaceId) === workspace._id;
+  const activeProjects = dateFilteredProjects.filter((p) => p.status === 'active' && inWorkspace(p));
+  const archivedProjects = dateFilteredProjects.filter((p) => p.status === 'archived' && inWorkspace(p));
 
   const filteredProjects = useMemo(() => {
     let result = tab === 'archived' ? archivedProjects : activeProjects;
@@ -181,6 +187,7 @@ export default function DashboardPage() {
       setProjects((prev) =>
         prev.map((p) => (p._id === res.data.project._id ? { ...p, ...res.data.project } : p))
       );
+      refreshWorkspaces().catch(() => {});
     } catch (err) {
       toastError(err, 'Could not update the project.');
     }
@@ -191,6 +198,7 @@ export default function DashboardPage() {
       await deleteProjectApi(projectId);
       setProjects((prev) => prev.filter((p) => p._id !== projectId));
       setConfirmDelete(null);
+      refreshWorkspaces().catch(() => {});
     } catch (err) {
       toastError(err, 'Could not delete the project.');
     }
@@ -203,6 +211,7 @@ export default function DashboardPage() {
         prev.map((p) => (p._id === res.data.project._id ? { ...p, ...res.data.project } : p))
       );
       setEditingProject(null);
+      if (data.workspace) refreshWorkspaces().catch(() => {});
     } catch (err) {
       toastError(err, 'Could not update the project.');
     }
@@ -211,7 +220,7 @@ export default function DashboardPage() {
   const websiteCount = filteredProjects.filter((p) => p.projectType !== 'document').length;
   const documentCount = filteredProjects.filter((p) => p.projectType === 'document').length;
 
-  const pageTitle = tab === 'members' ? 'Team' : tab === 'archived' ? 'Archive' : 'Dashboard';
+  const pageTitle = tab === 'members' ? 'Team' : tab === 'archived' ? 'Archive' : (workspace?.name || 'Dashboard');
   const pageSubtitle = tab === 'members'
     ? `${allMembers.length} member${allMembers.length !== 1 ? 's' : ''} across ${dateFilteredProjects.length} project${dateFilteredProjects.length !== 1 ? 's' : ''}`
     : `${websiteCount} website${websiteCount !== 1 ? 's' : ''}${documentCount > 0 ? ` · ${documentCount} document${documentCount !== 1 ? 's' : ''}` : ''}${archivedProjects.length > 0 && tab !== 'archived' ? ` · ${archivedProjects.length} archived` : ''}`;
@@ -228,7 +237,7 @@ export default function DashboardPage() {
           <p className="text-sm text-gray-500 mt-1">{pageSubtitle}</p>
         </div>
         <div className="flex items-center gap-3">
-          {isAdmin && tab !== 'members' && (
+          {canCreateHere && tab !== 'members' && (
             <NewProjectDropdown
               onSelect={(type) => {
                 setCreateType(type);
@@ -236,7 +245,6 @@ export default function DashboardPage() {
               }}
             />
           )}
-          <NotificationBell />
         </div>
       </div>
 
@@ -270,7 +278,7 @@ export default function DashboardPage() {
           onArchive={handleArchiveToggle}
           onDelete={handleDelete}
           onConfirmDelete={setConfirmDelete}
-          onCreate={isAdmin ? (type) => { setCreateType(type); setShowCreate(true); } : null}
+          onCreate={canCreateHere ? (type) => { setCreateType(type); setShowCreate(true); } : null}
           onStatusChange={handleStatusChange}
         />
       )}
@@ -283,6 +291,7 @@ export default function DashboardPage() {
         onCreated={(project) => {
           setProjects((prev) => [project, ...prev]);
           setShowCreate(false);
+          refreshWorkspaces().catch(() => {});
           // Straight into the new project: the next step is the first comment
           navigate(`/project/${project._id}`);
         }}
@@ -334,15 +343,19 @@ export default function DashboardPage() {
 /* Inline Edit Modal */
 function EditProjectModal({ project, onClose, onSave }) {
   useEscape(onClose);
+  const { workspaces } = useWorkspaces();
+  const defaultWorkspaceId = workspaces.find((w) => w.isDefault)?._id;
+  const initialWorkspace = String(project.workspace?._id || project.workspace || defaultWorkspaceId || '');
+  const [workspaceId, setWorkspaceId] = useState(initialWorkspace);
   const [name, setName] = useState(project.name);
-  const [websiteUrl, setWebsiteUrl] = useState(project.websiteUrl);
+  const [websiteUrl] = useState(project.websiteUrl);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await onSave(project, { name, websiteUrl });
+      await onSave(project, { name, websiteUrl, ...(workspaceId && workspaceId !== initialWorkspace ? { workspace: workspaceId } : {}) });
     } catch (err) {
       toastError(err, 'Could not save the project.');
     } finally {
@@ -354,7 +367,7 @@ function EditProjectModal({ project, onClose, onSave }) {
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scale-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Edit Project</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Edit project</h3>
           <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -363,7 +376,7 @@ function EditProjectModal({ project, onClose, onSave }) {
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Project Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Project name</label>
             <input
               type="text"
               value={name}
@@ -372,6 +385,20 @@ function EditProjectModal({ project, onClose, onSave }) {
               className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
             />
           </div>
+          {workspaces.length > 1 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace</label>
+              <select
+                value={workspaceId}
+                onChange={(e) => setWorkspaceId(e.target.value)}
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {workspaces.map((w) => (
+                  <option key={w._id} value={w._id}>{w.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {/* <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Website URL</label>
             <input
@@ -387,7 +414,7 @@ function EditProjectModal({ project, onClose, onSave }) {
               Cancel
             </button>
             <button type="submit" disabled={loading} className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading ? 'Saving...' : 'Save changes'}
             </button>
           </div>
         </form>

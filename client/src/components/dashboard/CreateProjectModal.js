@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Modal from '../common/Modal';
 import { createProjectApi, createDocumentProjectApi } from '../../services/projectService';
+import { useWorkspaces } from '../../contexts/WorkspaceContext';
 
 function formatFileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -10,6 +11,7 @@ function formatFileSize(bytes) {
 
 export default function CreateProjectModal({ isOpen, defaultType = 'website', onClose, onCreated }) {
   const [projectType, setProjectType] = useState(defaultType);
+  const { current: workspace } = useWorkspaces();
 
   // Sync with defaultType when modal opens
   React.useEffect(() => {
@@ -42,14 +44,14 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
     try {
       let res;
       if (projectType === 'website') {
-        res = await createProjectApi(name, websiteUrl);
+        res = await createProjectApi(name, websiteUrl, workspace?._id);
       } else {
         if (files.length === 0) {
           setError('Please upload at least one document');
           setLoading(false);
           return;
         }
-        res = await createDocumentProjectApi(name, files);
+        res = await createDocumentProjectApi(name, files, workspace?._id);
       }
       onCreated(res.data.project);
       setName('');
@@ -73,7 +75,12 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create New Project">
+    <Modal isOpen={isOpen} onClose={onClose} title="Create project">
+      {workspace && (
+        <p className="-mt-2 mb-4 text-sm text-gray-500">
+          In <span className="font-medium text-gray-900">{workspace.name}</span>
+        </p>
+      )}
       {error && (
         <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm flex items-center gap-2">
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -142,7 +149,7 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Project Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Project name</label>
           <input
             type="text"
             value={name}
@@ -233,7 +240,7 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
             disabled={loading}
             className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
-            {loading ? 'Creating...' : 'Create Project'}
+            {loading ? 'Creating...' : 'Create project'}
           </button>
         </div>
       </form>

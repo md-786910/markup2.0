@@ -43,7 +43,7 @@ export default function PlanCards({ reveal = false }) {
       {plans.map((plan, index) => (
         <article
           key={plan.id}
-          className={`relative flex flex-col rounded-2xl bg-white p-7 ${plan.popular ? 'border-2 border-[#003dff] shadow-xl shadow-[#003dff]/10' : 'border border-slate-200'}`}
+          className={`relative flex flex-col rounded-2xl bg-white p-7 ${plan.popular ? 'border-2 border-[#003dff]' : 'border border-slate-200'}`}
           {...(reveal ? { 'data-reveal': true, 'data-delay': String(index + 1) } : {})}
         >
           {plan.popular && (

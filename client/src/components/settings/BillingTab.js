@@ -47,7 +47,7 @@ function UsageBar({ label, used, max, color = "blue" }) {
           {used} / {isUnlimited ? "∞" : max}
         </span>
       </div>
-      <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${activeColor}`}
           style={{ width: `${Math.max(percent, 2)}%` }}
@@ -219,16 +219,11 @@ export default function BillingTab() {
       {/* Top Grid: Subscription & Usage */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Current Subscription Card */}
-        <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute -top-6 -right-6 text-blue-50 opacity-[0.04] pointer-events-none">
-            <svg className="w-48 h-48" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg>
-          </div>
+        <section className="bg-white rounded-xl border border-gray-200 p-6 relative overflow-hidden flex flex-col justify-between">
 
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+              <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
                 <svg
                   className="w-4 h-4 text-blue-500"
                   fill="none"
@@ -242,7 +237,7 @@ export default function BillingTab() {
                     d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
                   />
                 </svg>
-                Current Plan
+                Current plan
               </h3>
               {hasPaidSubscription && isOwner && (
                 <button
@@ -262,19 +257,19 @@ export default function BillingTab() {
                       d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     ></path>
                   </svg>
-                  View Invoices
+                  View invoices
                 </button>
               )}
             </div>
 
             <div className="flex items-end gap-3 mb-2">
-              <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
                 {currentPlanId === "trial"
                   ? "Free Trial"
                   : livePlans[currentPlanId]?.name || "Free"}
               </h2>
               <span
-                className={`text-[10px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-full ${badgeColors[livePlans[currentPlanId]?.badgeColor || "gray"]
+                className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeColors[livePlans[currentPlanId]?.badgeColor || "gray"]
                   }`}
               >
                 {currentPlanId === "trial" ? "Trial" : "Active"}
@@ -336,8 +331,8 @@ export default function BillingTab() {
           {isTrialActive && (
             <div className="mt-6 pt-5 border-t border-gray-100 relative z-10">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Trial Progress
+                <span className="text-xs font-medium text-gray-500">
+                  Trial progress
                 </span>
                 <span
                   className={`text-xs font-bold ${urgency === "critical"
@@ -350,7 +345,7 @@ export default function BillingTab() {
                   {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
                 </span>
               </div>
-              <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${urgency === "critical"
                       ? "bg-red-500"
@@ -366,8 +361,8 @@ export default function BillingTab() {
         </section>
 
         {/* Workspace Usage Card */}
-        <section className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2 mb-6">
+        <section className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2 mb-6">
             <svg
               className="w-4 h-4 text-purple-500"
               fill="none"
@@ -386,33 +381,41 @@ export default function BillingTab() {
                 d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z"
               />
             </svg>
-            Workspace Usage
+            Usage
           </h3>
           <div className="space-y-5">
             <UsageBar
               label="Projects"
               used={usage.projects}
               max={limits.maxProjects}
-              color="purple"
+              color="blue"
             />
+            {limits.maxWorkspaces != null && (
+              <UsageBar
+                label="Workspaces"
+                used={usage.workspaces || 1}
+                max={limits.maxWorkspaces}
+                color="blue"
+              />
+            )}
             <UsageBar
-              label="Team Members"
+              label="Team members"
               used={usage.members}
               max={limits.maxMembers}
               color="blue"
             />
             <UsageBar
-              label="Guest Reviewers"
+              label="Guest reviewers"
               used={usage.guests}
               max={limits.maxGuests}
-              color="emerald"
+              color="blue"
             />
             {limits.maxStorageMB != null && (
               <UsageBar
                 label="Storage (GB)"
                 used={Math.round(((usage.storageMB || 0) / 1024) * 100) / 100}
                 max={Math.round((limits.maxStorageMB / 1024) * 10) / 10}
-                color="purple"
+                color="blue"
               />
             )}
           </div>
@@ -425,10 +428,10 @@ export default function BillingTab() {
       <section className="pt-4">
         <div className="mb-6">
           <h3 className="text-xl font-bold text-gray-900">
-            Upgrade your workspace
+            Upgrade your plan
           </h3>
           <p className="text-sm text-gray-500 mt-1">
-            Unlock premium features, remove limits, and collaborate seamlessly
+            One plan covers every workspace in your organization. Unlock premium features, remove limits, and collaborate seamlessly
             with your entire team.
           </p>
         </div>
@@ -437,25 +440,28 @@ export default function BillingTab() {
           {livePlanList
             .filter((p) => p.id !== "enterprise" && p.enabled !== false)
             .map((plan) => {
-              const isCurrent =
-                plan.id === currentPlanId ||
-                (currentPlanId === "trial" && plan.id === "free");
-              const isUpgrade = !isCurrent && plan.order > currentOrder;
-              const isDowngrade = !isCurrent && plan.order <= currentOrder;
+              // A trial runs with Pro features: Pro is what they're trying,
+              // and Free is not "current" (nor an upgrade) during the trial
+              const onTrial = currentPlanId === "trial";
+              const isCurrent = plan.id === currentPlanId;
+              const isTrying = onTrial && plan.id === "pro";
+              const trialFree = onTrial && plan.id === "free";
+              const isUpgrade = !isCurrent && !trialFree && plan.order > currentOrder;
+              const isDowngrade = !isCurrent && !trialFree && plan.order <= currentOrder;
 
               return (
                 <div
                   key={plan.id}
-                  className={`relative flex flex-col bg-white rounded-2xl p-6 transition-all duration-200 ${isCurrent
-                      ? "border-2 border-blue-500 shadow-md transform -translate-y-1"
+                  className={`relative flex flex-col bg-white rounded-xl p-6 transition-colors duration-200 ${isCurrent || isTrying
+                      ? "border-2 border-blue-600"
                       : "border border-gray-200 hover:border-gray-300 hover:shadow-sm"
                     }`}
                 >
                   {/* Popular badge */}
-                  {plan.popular && (
+                  {(plan.popular || isTrying) && (
                     <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                      <span className="text-[9px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-sm">
-                        Most Popular
+                      <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-600 text-white whitespace-nowrap">
+                        {isTrying ? "Your trial" : "Most popular"}
                       </span>
                     </div>
                   )}
@@ -465,7 +471,7 @@ export default function BillingTab() {
                       {plan.name}
                     </h4>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-extrabold text-gray-900 tracking-tight">
+                      <span className="text-3xl font-bold text-gray-900 tracking-tight">
                         {plan.priceLabel}
                       </span>
                       {plan.period && (
@@ -505,12 +511,15 @@ export default function BillingTab() {
                   </div>
 
                   <div className="mt-auto pt-4 border-t border-gray-100">
+                    {trialFree && (
+                      <p className="py-2.5 text-center text-sm text-gray-500">Free forever, no card needed</p>
+                    )}
                     {isCurrent && (
                       <button
                         disabled
                         className="w-full py-2.5 text-sm font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-xl cursor-default"
                       >
-                        Current Plan
+                        Current plan
                       </button>
                     )}
                     {isUpgrade && isOwner && (
@@ -538,7 +547,7 @@ export default function BillingTab() {
                       <button
                         disabled
                         className="w-full py-2.5 text-sm font-bold text-gray-500 bg-gray-100 rounded-xl cursor-not-allowed border border-gray-200"
-                        title="Only the workspace owner can upgrade"
+                        title="Only the organization owner can upgrade"
                       >
                         Ask owner to upgrade
                       </button>
@@ -555,7 +564,7 @@ export default function BillingTab() {
                       <button
                         disabled
                         className="w-full py-2.5 text-sm font-bold text-gray-500 bg-gray-100 rounded-xl cursor-not-allowed border border-gray-200"
-                        title="Only the workspace owner can change the plan"
+                        title="Only the organization owner can change the plan"
                       >
                         Ask owner to downgrade
                       </button>

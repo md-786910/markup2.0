@@ -1,3 +1,4 @@
+const { isProjectShared } = require('../utils/sharing');
 const axios = require("axios");
 const dns = require("dns");
 const http = require("http");
@@ -560,11 +561,9 @@ exports.proxyPage = asyncHandler(async (req, res) => {
   // forged guest cookie can't skip this check.
   const isGuestRequest = req.query.guest === 'true' || !req.user;
   if (isGuestRequest) {
-    if (!project.shareSettings?.enabled) {
+    // Its own share link, or its workspace's review link
+    if (!(await isProjectShared(project))) {
       return res.status(403).json({ message: 'Sharing is not enabled for this project' });
-    }
-    if (project.shareSettings.expiresAt && new Date(project.shareSettings.expiresAt) < new Date()) {
-      return res.status(410).json({ message: 'This review link has expired.' });
     }
   }
 

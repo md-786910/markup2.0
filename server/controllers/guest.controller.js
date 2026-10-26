@@ -12,6 +12,7 @@ const { createProjectNotifications } = require('../utils/notificationHelper');
 const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { reserveStorage, discardUploads } = require('../utils/storage');
 const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
+const { findShared, findSharedWorkspace, workspaceProjectsQuery, composeWorkspaceToken, isExpired } = require('../utils/sharing');
 
 // Verify a guest-supplied password against either the bcrypt hash (preferred,
 // new projects + migrated ones) or the legacy plaintext field (pre-migration
@@ -31,7 +32,8 @@ async function verifySharePassword(supplied, shareSettings) {
 // Issued by getGuestProject after a successful password check and sent back by
 // the guest client in the X-Guest-Access header, so password-protected shares
 // stay protected on every endpoint (not just the first load). Bound to the
-// project and to the current password, so changing the password revokes it.
+// project (or, for a workspace link, to the workspace) and to the current
+// password, so changing the password revokes it.
 const GUEST_TOKEN_PURPOSE = 'guest';
 
 function passwordFingerprint(shareSettings) {
@@ -39,48 +41,42 @@ function passwordFingerprint(shareSettings) {
   return crypto.createHash('sha256').update(String(secret)).digest('hex').slice(0, 16);
 }
 
-function signGuestAccessToken(project) {
+function signGuestAccessToken(scope, share) {
   return jwt.sign(
-    { purpose: GUEST_TOKEN_PURPOSE, projectId: project._id.toString(), pwf: passwordFingerprint(project.shareSettings) },
+    { purpose: GUEST_TOKEN_PURPOSE, ...scope, pwf: passwordFingerprint(share) },
     process.env.JWT_SECRET,
     { expiresIn: '24h', algorithm: 'HS256' },
   );
 }
 
-function hasValidGuestAccessToken(req, project) {
+function hasValidGuestAccessToken(req, scope, share) {
   const token = req.get('X-Guest-Access');
   if (!token) return false;
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-    return decoded.purpose === GUEST_TOKEN_PURPOSE
-      && decoded.projectId === project._id.toString()
-      && decoded.pwf === passwordFingerprint(project.shareSettings);
+    const sameScope = scope.workspaceId ? decoded.workspaceId === scope.workspaceId : decoded.projectId === scope.projectId;
+    return decoded.purpose === GUEST_TOKEN_PURPOSE && sameScope && decoded.pwf === passwordFingerprint(share);
   } catch {
     return false;
   }
 }
 
+const hasPassword = (share) => !!(share.passwordHash || share.password);
+
 // Loads the shared project and enforces enabled + expiry + password on every
 // guest endpoint (and, for writes, that the owning org isn't locked). Sends the
 // error response and returns null when access is denied.
+// The governing share settings (project's or workspace's) are set on req.share.
 async function loadSharedProject(req, res, { write = false } = {}) {
-  const project = await Project.findOne({
-    'shareSettings.token': req.params.shareToken,
-    'shareSettings.enabled': true,
-  });
-
-  if (!project) {
-    res.status(404).json({ message: 'Review link not found.' });
+  const found = await findShared(req.params.shareToken);
+  if (!found.project) {
+    res.status(found.status).json({ message: found.message });
     return null;
   }
+  const { project, share, scope } = found;
+  req.share = share;
 
-  if (project.shareSettings.expiresAt && new Date(project.shareSettings.expiresAt) < new Date()) {
-    res.status(410).json({ message: 'This review link has expired.' });
-    return null;
-  }
-
-  const hasSharePassword = !!(project.shareSettings.passwordHash || project.shareSettings.password);
-  if (hasSharePassword && !hasValidGuestAccessToken(req, project)) {
+  if (hasPassword(share) && !hasValidGuestAccessToken(req, scope, share)) {
     res.status(401).json({ message: 'This review requires a password.', requiresPassword: true });
     return null;
   }
@@ -104,31 +100,26 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
   const { shareToken } = req.params;
   const { password } = req.query;
 
-  const project = await Project.findOne({
-    'shareSettings.token': shareToken,
-    'shareSettings.enabled': true,
-  }).select('name projectType websiteUrl documents shareSettings projectStatus');
-
-  if (!project) {
-    return res.status(404).json({ message: 'Review link not found or has been disabled.' });
+  const found = await findShared(shareToken, 'name projectType websiteUrl documents shareSettings projectStatus workspace');
+  if (!found.project) {
+    return res.status(found.status).json({
+      message: found.status === 404 ? 'Review link not found or has been disabled.' : found.message,
+    });
   }
-
-  // Check expiry
-  if (project.shareSettings.expiresAt && new Date(project.shareSettings.expiresAt) < new Date()) {
-    return res.status(410).json({ message: 'This review link has expired.' });
-  }
+  const { project, share, scope } = found;
 
   // Check password. Distinguish "no password supplied" (first load — show prompt
   // without an error) from "wrong password" (user submitted a guess — show error).
-  const hasSharePassword = !!(project.shareSettings.passwordHash || project.shareSettings.password);
-  if (hasSharePassword) {
+  // A valid access token (e.g. from the workspace page) also counts.
+  const hasSharePassword = hasPassword(share);
+  if (hasSharePassword && !hasValidGuestAccessToken(req, scope, share)) {
     if (!password) {
       return res.status(401).json({
         message: 'This review requires a password.',
         requiresPassword: true,
       });
     }
-    const ok = await verifySharePassword(password, project.shareSettings);
+    const ok = await verifySharePassword(password, share);
     if (!ok) {
       return res.status(401).json({
         message: 'Incorrect password. Please try again.',
@@ -140,7 +131,8 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
 
   // Return limited project data
   res.json({
-    guestAccessToken: hasSharePassword ? signGuestAccessToken(project) : undefined,
+    guestAccessToken: hasSharePassword ? signGuestAccessToken(scope, share) : undefined,
+    workspaceToken: scope.workspaceId ? shareToken.split('.')[0] : undefined,
     project: {
       _id: project._id,
       name: project.name,
@@ -148,8 +140,60 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
       websiteUrl: project.websiteUrl,
       documents: project.documents,
       projectStatus: project.projectStatus,
-      allowComments: project.shareSettings.allowComments,
+      allowComments: share.allowComments,
     },
+  });
+});
+
+/**
+ * GET /api/guest/workspace/:workspaceToken[?password=]
+ * Public: the projects behind a workspace review link. Each project opens on
+ * the normal review page with the token "<workspaceToken>.<projectId>".
+ */
+exports.getGuestWorkspace = asyncHandler(async (req, res) => {
+  const { workspaceToken } = req.params;
+  const workspace = await findSharedWorkspace(workspaceToken);
+  if (!workspace) return res.status(404).json({ message: 'Review link not found or has been disabled.' });
+  const share = workspace.shareSettings;
+  if (isExpired(share)) return res.status(410).json({ message: 'This review link has expired.' });
+
+  const scope = { workspaceId: workspace._id.toString() };
+  if (hasPassword(share) && !hasValidGuestAccessToken(req, scope, share)) {
+    const { password } = req.query;
+    if (!password) return res.status(401).json({ message: 'This review requires a password.', requiresPassword: true });
+    if (!(await verifySharePassword(password, share))) {
+      return res.status(401).json({ message: 'Incorrect password. Please try again.', requiresPassword: true, invalidPassword: true });
+    }
+  }
+
+  const [org, projects] = await Promise.all([
+    Organization.findById(workspace.organization).select('name logo'),
+    Project.find(workspaceProjectsQuery(workspace))
+      .select('name projectType websiteUrl documents updatedAt')
+      .sort({ updatedAt: -1 })
+      .lean(),
+  ]);
+  const counts = await Pin.aggregate([
+    { $match: { project: { $in: projects.map((p) => p._id) }, status: 'pending' } },
+    { $group: { _id: '$project', open: { $sum: 1 } } },
+  ]);
+  const openBy = new Map(counts.map((c) => [c._id.toString(), c.open]));
+
+  res.json({
+    guestAccessToken: hasPassword(share) ? signGuestAccessToken(scope, share) : undefined,
+    workspace: { name: workspace.name, allowComments: share.allowComments },
+    organization: { name: org?.name || '', logo: org?.logo || null },
+    projects: projects.map((p) => ({
+      _id: p._id,
+      name: p.name,
+      projectType: p.projectType,
+      websiteUrl: p.websiteUrl,
+      documentCount: (p.documents || []).length,
+      cover: p.documents?.[0] ? { path: p.documents[0].path, mimetype: p.documents[0].mimetype, name: p.documents[0].originalName, pages: p.documents[0].pageCount || 1 } : null,
+      updatedAt: p.updatedAt,
+      openPinCount: openBy.get(p._id.toString()) || 0,
+      shareToken: composeWorkspaceToken(workspaceToken, p._id),
+    })),
   });
 });
 
@@ -225,7 +269,7 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
   const project = await loadSharedProject(req, res, { write: true });
   if (!project) return;
 
-  if (!project.shareSettings.allowComments) {
+  if (!req.share.allowComments) {
     return res.status(403).json({ message: 'Guest commenting is disabled for this project.' });
   }
 
@@ -305,7 +349,7 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
   const storageError = await reserveStorage(project.organization, req);
   if (storageError) return res.status(403).json(storageError);
 
-  if (!project.shareSettings.allowComments) {
+  if (!req.share.allowComments) {
     return res.status(403).json({ message: 'Guest commenting is disabled for this project.' });
   }
 

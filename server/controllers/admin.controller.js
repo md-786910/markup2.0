@@ -565,7 +565,7 @@ exports.setOrganizationLimits = asyncHandler(async (req, res) => {
   if (!org) return res.status(404).json({ message: 'Organization not found' });
   const b = req.body || {};
   const overrides = {};
-  for (const key of ['maxProjects', 'maxMembers', 'maxGuests', 'maxStorageMB']) {
+  for (const key of ['maxProjects', 'maxWorkspaces', 'maxMembers', 'maxGuests', 'maxStorageMB']) {
     if (b[key] === null || b[key] === '' || b[key] === undefined) continue;
     const n = Number(b[key]);
     if (!Number.isInteger(n) || n < 0) return res.status(400).json({ message: `${key} must be a whole number` });

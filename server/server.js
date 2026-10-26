@@ -13,7 +13,7 @@ const app = require("./app");
 const User = require("./models/User");
 const Project = require("./models/Project");
 const mongoose = require("mongoose");
-const { resolveAccess } = require("./middleware/projectAccess");
+const { resolveAccessAsync } = require("./middleware/projectAccess");
 const { isProxyToken } = require("./utils/proxyToken");
 const { flushAll, startEmailWorker } = require("./utils/emailQueue");
 const { redisEnabled, createConnection, closeRedis } = require("./utils/redis");
@@ -106,9 +106,9 @@ connectDB()
         try {
           if (!mongoose.isValidObjectId(projectId)) return;
           const project = await Project.findById(projectId).select(
-            "owner members organization",
+            "owner members memberAccess organization workspace",
           );
-          if (!project || !resolveAccess(socket.user, project).allowed) return;
+          if (!project || !(await resolveAccessAsync(socket.user, project)).allowed) return;
         } catch {
           return;
         }

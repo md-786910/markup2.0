@@ -245,12 +245,12 @@ export default function InvoicesTab() {
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50/80">
               <tr>
-                <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">Billing Date</th>
-                <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">Plan Detail</th>
-                <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">Amount</th>
-                <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">Method</th>
-                <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-500 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-500 uppercase tracking-widest">Action</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500">Billing Date</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500">Plan Detail</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500">Amount</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500">Method</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500">Status</th>
+                <th className="px-6 py-4 text-right text-xs font-medium text-gray-500">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -277,7 +277,7 @@ export default function InvoicesTab() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border ${
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize border ${
                       inv.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
                       inv.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-100' :
                       inv.status === 'refunded' ? 'bg-gray-50 text-gray-600 border-gray-200' :

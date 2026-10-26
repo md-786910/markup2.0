@@ -25,7 +25,7 @@ export default function CookiePolicyPage() {
       <main id="main-content">
         <section className="page-hero">
           <div className="relative z-10 mx-auto max-w-4xl px-4 text-center sm:px-6">
-            <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#003dff] text-white shadow-[0_16px_34px_rgba(0,61,255,0.24)]">
+            <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#003dff] text-white">
               <LockIcon className="h-7 w-7" />
             </div>
             <h1 className="section-heading">

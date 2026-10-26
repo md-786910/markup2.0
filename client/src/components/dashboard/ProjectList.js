@@ -100,7 +100,7 @@ export default function ProjectList({
         <ProjectCard
           key={project._id}
           project={project}
-          isAdmin={isAdmin}
+          isAdmin={isAdmin || project.access === 'manage'}
           userId={userId}
           confirmDelete={confirmDelete}
           onEdit={onEdit}

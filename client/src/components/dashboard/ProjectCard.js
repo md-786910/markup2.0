@@ -4,55 +4,11 @@ import { PROJECT_STATUSES } from "../../utils/projectConstants";
 import { useAuth } from "../../hooks/useAuth";
 import { updateProjectEmailNotificationsApi } from "../../services/projectService";
 import { toastError } from '../../utils/toast';
+import SiteThumbnail from "../common/SiteThumbnail";
 
 const API_BASE = (
   process.env.REACT_APP_BASE_URL || "http://localhost:5000/api"
 ).replace(/\/api$/, "");
-
-const IFRAME_WIDTH = 1440;
-const IFRAME_HEIGHT = 900;
-
-function IframeThumbnail({ src, title }) {
-  const wrapperRef = useRef(null);
-  const [scale, setScale] = useState(0.25);
-
-  useEffect(() => {
-    const el = wrapperRef.current;
-    if (!el) return;
-    const computeScale = () => {
-      const w = el.clientWidth;
-      if (w > 0) setScale(w / IFRAME_WIDTH);
-    };
-    computeScale();
-    const observer = new ResizeObserver(computeScale);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div
-      ref={wrapperRef}
-      className="absolute inset-0 bg-white"
-      style={{ overflow: "hidden" }}
-    >
-      <iframe
-        src={src}
-        title={title}
-        loading="lazy"
-        sandbox="allow-scripts allow-same-origin allow-forms"
-        style={{
-          width: `${IFRAME_WIDTH}px`,
-          height: `${IFRAME_HEIGHT}px`,
-          transform: `scale(${scale})`,
-          transformOrigin: "top left",
-          border: "none",
-          pointerEvents: "none",
-          background: "white",
-        }}
-      />
-    </div>
-  );
-}
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -420,7 +376,7 @@ export default function ProjectCard({
             </div>
           ) : (
             /* Live iframe preview — use container-query scale to fill width */
-            <IframeThumbnail
+            <SiteThumbnail
               src={`${API_BASE}/api/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}&token=${encodeURIComponent(project.proxyToken || "")}`}
               title={project.name}
             />

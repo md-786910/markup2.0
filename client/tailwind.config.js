@@ -45,10 +45,11 @@ module.exports = {
         teal: brand,
       },
       boxShadow: {
-        sm: '0 8px 18px rgba(0, 61, 255, 0.08)',
-        md: '0 14px 34px rgba(15, 23, 42, 0.1)',
-        lg: '0 20px 50px rgba(15, 23, 42, 0.12)',
-        xl: '0 28px 80px rgba(15, 35, 31, 0.18)',
+        // Crisp, neutral elevation (no colored glows)
+        sm: '0 1px 2px rgba(15, 23, 42, 0.06)',
+        md: '0 4px 12px rgba(15, 23, 42, 0.08)',
+        lg: '0 12px 32px rgba(15, 23, 42, 0.10)',
+        xl: '0 24px 60px rgba(15, 23, 42, 0.16)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],

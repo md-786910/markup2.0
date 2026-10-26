@@ -10,6 +10,7 @@ exports.getInvitation = asyncHandler(async (req, res) => {
 
   const invitation = await Invitation.findOne({ token, status: 'pending' })
     .populate('project', 'name websiteUrl')
+    .populate('workspace', 'name')
     .populate('invitedBy', 'name');
 
   if (!invitation) {
@@ -23,7 +24,8 @@ exports.getInvitation = asyncHandler(async (req, res) => {
   res.json({
     invitation: {
       email: invitation.email,
-      projectName: invitation.project?.name,
+      projectName: invitation.project?.name || (invitation.workspace ? `the ${invitation.workspace.name} workspace` : undefined),
+      workspaceName: invitation.workspace?.name,
       invitedBy: invitation.invitedBy?.name,
     },
   });
@@ -80,6 +82,7 @@ exports.resendInvitation = asyncHandler(async (req, res) => {
 
   const invitation = await Invitation.findById(invitationId)
     .populate('project', 'name owner')
+    .populate('workspace', 'name')
     .populate('invitedBy', 'name email');
 
   if (!invitation || invitation.status !== 'pending') {
@@ -105,7 +108,7 @@ exports.resendInvitation = asyncHandler(async (req, res) => {
     await sendInvitationEmail(
       invitation.email,
       req.user.name || invitation.invitedBy?.name || 'A teammate',
-      invitation.project?.name || 'a project',
+      invitation.project?.name || (invitation.workspace ? `the ${invitation.workspace.name} workspace` : 'a project'),
       signupUrl
     );
   } catch (err) {

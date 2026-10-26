@@ -190,6 +190,7 @@ app.use("/api/projects", versionRoutes);
 app.use("/api/integrations", integrationRoutes);
 app.use("/api/admin", adminLimiter, adminRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/workspaces", require("./routes/workspace.routes"));
 
 // Health check
 app.get("/api/health", async (req, res) => {

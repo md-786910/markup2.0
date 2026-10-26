@@ -118,6 +118,25 @@ const checkProjectLimit = asyncHandler(async (req, res, next) => {
 });
 
 /**
+ * Block workspace creation when the organization has reached its workspace limit
+ * (the default workspace counts).
+ */
+const checkWorkspaceLimit = asyncHandler(async (req, res, next) => {
+  const org = req.organization;
+  if (!org) return next();
+  const max = org.limits.maxWorkspaces;
+  if (max == null) return next();
+  const count = await require('../models/Workspace').countDocuments({ organization: org._id });
+  if (count >= max) {
+    return res.status(403).json({
+      message: `Workspace limit reached (${max}). Upgrade your plan to create more workspaces.`,
+      code: 'WORKSPACE_LIMIT',
+    });
+  }
+  next();
+});
+
+/**
  * Block integration creation if plan does not allow it.
  */
 const checkIntegrationsLimit = asyncHandler(async (req, res, next) => {
@@ -166,6 +185,7 @@ const checkVersionHistoryLimit = asyncHandler(async (req, res, next) => {
 });
 
 module.exports = {
+  checkWorkspaceLimit,
   seatLimitError,
   checkShareLinksAllowed,
   checkOrgNotLocked,

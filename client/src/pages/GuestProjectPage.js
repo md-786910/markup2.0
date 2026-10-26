@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import PasswordInput from '../components/common/PasswordInput';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import {
   getGuestProjectApi,
   getGuestPinsApi,
@@ -17,6 +17,7 @@ import IframeContainer from '../components/project/IframeContainer';
 import { useIframeMessages } from '../hooks/useIframeMessages';
 import { normalizePageUrl } from '../utils/pageUrl';
 import useEscape from '../hooks/useEscape';
+import BrandMark from '../components/common/BrandMark';
 
 const DocumentViewer = React.lazy(() => import('../components/project/DocumentViewer'));
 const API_BASE = process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api';
@@ -100,6 +101,8 @@ export default function GuestProjectPage() {
   const [commentMode, setCommentMode] = useState(false);
   // Phones show one pane at a time (bottom tab bar)
   const [mobilePane, setMobilePane] = useState('page');
+  // Set when this project was opened from a workspace review link
+  const [workspaceToken, setWorkspaceToken] = useState(null);
   const [draft, setDraft] = useState(null);
   const [draftBody, setDraftBody] = useState('');
   const [postingPin, setPostingPin] = useState(false);
@@ -124,6 +127,7 @@ export default function GuestProjectPage() {
       setError('');
       const res = await getGuestProjectApi(shareToken, pwd);
       setProject(res.data.project);
+      setWorkspaceToken(res.data.workspaceToken || null);
       setRequiresPassword(false);
     } catch (err) {
       if (err.response?.data?.requiresPassword) {
@@ -415,11 +419,16 @@ export default function GuestProjectPage() {
       <div className="bg-white border-b border-gray-200/80 px-4 h-14 flex items-center justify-between relative shrink-0">
         {/* Left: Brand + Project + URL */}
         <div className="flex items-center gap-3 min-w-0 z-10">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-blue-500/20 shrink-0">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-            </svg>
-          </div>
+          {workspaceToken ? (
+            <Link to={`/review/w/${workspaceToken}`} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 shrink-0" title="All projects">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              <BrandMark className="w-8 h-8" />
+            </Link>
+          ) : (
+            <BrandMark className="w-8 h-8" />
+          )}
           <div className="w-px h-6 bg-gray-200/80 shrink-0" />
           <h2 className="font-semibold text-gray-900 truncate text-[14px] tracking-tight">{project.name}</h2>
           {project.projectType === 'website' && project.websiteUrl && (

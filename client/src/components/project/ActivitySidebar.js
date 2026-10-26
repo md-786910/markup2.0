@@ -58,13 +58,6 @@ function ActionIcon({ type, className }) {
   );
 }
 
-function getInitials(name) {
-  if (!name) return '??';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-}
-
 export default function ActivitySidebar({ projectId }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);

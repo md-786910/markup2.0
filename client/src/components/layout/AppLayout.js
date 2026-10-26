@@ -5,6 +5,7 @@ import OrgLockedBanner from '../common/OrgLockedBanner';
 import PendingPaymentBanner from '../common/PendingPaymentBanner';
 import NotificationBell from '../common/NotificationBell';
 import { useAuth } from '../../hooks/useAuth';
+import BrandMark from '../common/BrandMark';
 
 export default function AppLayout() {
   // On phones the sidebar is a drawer: closed until the menu button opens it
@@ -34,12 +35,8 @@ export default function AppLayout() {
               </svg>
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                </svg>
-              </div>
-              <span className="text-base font-bold text-gray-900">Kommently</span>
+              <BrandMark className="w-6 h-6" />
+              <span className="text-base font-semibold text-gray-900">Kommently</span>
             </div>
           </div>
           <NotificationBell />
