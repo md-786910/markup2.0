@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   getOrganizationDetailApi,
   lockOrganizationApi,
@@ -8,390 +8,653 @@ import {
   extendTrialApi,
   setOrganizationLimitsApi,
   refundInvoiceApi,
+  addOrganizationNoteApi,
+  updateOrganizationNoteApi,
+  deleteOrganizationNoteApi,
 } from '../services/adminService';
 import DataTable from '../components/common/DataTable';
-import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { formatDate, timeAgo } from '../utils/formatters';
-import { PLAN_COLORS, PLAN_LABELS } from '../config/plans';
+import StatCard from '../components/common/StatCard';
+import { Avatar, Button, Card, DefinitionList, Field, PageHeader, Tabs, UsageBar, inputClass } from '../components/common/ui';
+import { InvoiceStatusBadge, PlanBadge, Pill, RoleBadge, StatusBadge } from '../components/common/StatusBadge';
+import { formatDate, formatDateTime, formatLocation, formatMoney, formatUsd, relativeDays, timeAgo } from '../utils/formatters';
+import { PLAN_LABELS } from '../config/plans';
+import { describeAction } from '../utils/actions';
+import { toast, toastError } from '../utils/toast';
+import { confirmDialog } from '../utils/confirm';
 
-// Invoice amounts are stored in the smallest unit of their own currency
-function formatMoney(invoice) {
-  const major = (invoice.amount || 0) / 100;
-  return invoice.currency === 'USD'
-    ? '$' + major.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '₹' + major.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const LIMIT_FIELDS = [
+  ['maxProjects', 'Projects'],
+  ['maxWorkspaces', 'Workspaces'],
+  ['maxMembers', 'Members'],
+  ['maxGuests', 'Guests'],
+  ['maxStorageMB', 'Storage (MB)'],
+];
+const FEATURE_FIELDS = [
+  ['hasIntegrations', 'Integrations'],
+  ['hasActivityLogs', 'Activity log'],
+  ['hasVersionHistory', 'Version history'],
+];
+
+// ── Dialogs ──────────────────────────────────────────────────────
+
+function ChangePlanDialog({ org, onClose, onDone }) {
+  const [plan, setPlan] = useState(org.plan);
+  const [periodEnd, setPeriodEnd] = useState('');
+  const [saving, setSaving] = useState(false);
+  const priced = plan === 'starter' || plan === 'pro';
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await setOrganizationPlanApi(org._id, { plan, periodEnd: priced && periodEnd ? periodEnd : undefined });
+      toast.success(`Plan set to ${PLAN_LABELS[plan]}.`);
+      onDone();
+    } catch (err) {
+      toastError(err, 'Could not change the plan.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen onClose={onClose} title="Change plan" size="sm">
+      <p className="mb-4 text-sm text-gray-500">Sets the plan without taking a payment, for deals, comps and corrections. Starter and Pro are invoiced as usual from the end date on.</p>
+      <div className="space-y-4">
+        <Field label="Plan">
+          <select value={plan} onChange={(e) => setPlan(e.target.value)} className={inputClass}>
+            {Object.entries(PLAN_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </Field>
+        {priced && (
+          <Field label="Paid until" hint="Leave empty for one month from today.">
+            <input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} className={inputClass} />
+          </Field>
+        )}
+      </div>
+      <div className="mt-6 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" onClick={save} disabled={saving || (plan === org.plan && !priced)}>{saving ? 'Saving…' : 'Change plan'}</Button>
+      </div>
+    </Modal>
+  );
 }
+
+function ExtendTrialDialog({ org, onClose, onDone }) {
+  const [days, setDays] = useState(14);
+  const [saving, setSaving] = useState(false);
+  const from = org.trialEndsAt && new Date(org.trialEndsAt) > new Date() ? new Date(org.trialEndsAt) : new Date();
+  const until = new Date(from.getTime() + (Number(days) || 0) * 86400000);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await extendTrialApi(org._id, Number(days));
+      toast.success(`Trial extended by ${days} days.`);
+      onDone();
+    } catch (err) {
+      toastError(err, 'Could not extend the trial.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen onClose={onClose} title="Extend trial" size="sm">
+      <Field label="Extra days" hint={`The trial will end on ${formatDate(until)}. Reminder emails are sent again before the new date.`}>
+        <input type="number" min="1" max="365" value={days} onChange={(e) => setDays(e.target.value)} className={inputClass} />
+      </Field>
+      <div className="mt-6 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" onClick={save} disabled={saving || !(days >= 1 && days <= 365)}>{saving ? 'Saving…' : 'Extend trial'}</Button>
+      </div>
+    </Modal>
+  );
+}
+
+function LimitsDialog({ org, limits, onClose, onDone }) {
+  const o = org.limitOverrides || {};
+  const [form, setForm] = useState(() => Object.fromEntries([
+    ...LIMIT_FIELDS.map(([k]) => [k, o[k] ?? '']),
+    ...FEATURE_FIELDS.map(([k]) => [k, o[k] == null ? '' : String(o[k])]),
+  ]));
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    const toNum = (v) => (v === '' || v == null ? null : Number(v));
+    const body = Object.fromEntries(LIMIT_FIELDS.map(([k]) => [k, toNum(form[k])]));
+    for (const [k] of FEATURE_FIELDS) if (form[k] !== '') body[k] = form[k] === 'true';
+    try {
+      await setOrganizationLimitsApi(org._id, body);
+      toast.success('Custom limits saved.');
+      onDone();
+    } catch (err) {
+      toastError(err, 'Could not save the limits.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen onClose={onClose} title="Custom limits" size="lg">
+      <p className="mb-4 text-sm text-gray-500">Overrides on top of the {PLAN_LABELS[org.plan]} plan. Leave a field empty to use the plan's value.</p>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        {LIMIT_FIELDS.map(([key, label]) => (
+          <Field key={key} label={label}>
+            <input
+              type="number"
+              min="0"
+              value={form[key]}
+              placeholder={limits?.[key] >= 999 ? 'Unlimited' : String(limits?.[key] ?? '')}
+              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+              className={inputClass}
+            />
+          </Field>
+        ))}
+        {FEATURE_FIELDS.map(([key, label]) => (
+          <Field key={key} label={label}>
+            <select value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} className={inputClass}>
+              <option value="">Plan default</option>
+              <option value="true">On</option>
+              <option value="false">Off</option>
+            </select>
+          </Field>
+        ))}
+      </div>
+      <div className="mt-6 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save limits'}</Button>
+      </div>
+    </Modal>
+  );
+}
+
+function LockDialog({ org, onClose, onDone }) {
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await lockOrganizationApi(org._id, reason.trim());
+      toast.success(`${org.name} is locked.`);
+      onDone();
+    } catch (err) {
+      toastError(err, 'Could not lock the organization.');
+      setSaving(false);
+    }
+  };
+  return (
+    <Modal isOpen onClose={onClose} title={`Lock ${org.name}?`} size="sm">
+      <p className="mb-4 text-sm text-gray-500">Members can still sign in and read, but can't create or change anything until you unlock it.</p>
+      <Field label="Reason" hint="Shown to the organization's members.">
+        <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={300} className={`${inputClass} h-auto py-2`} placeholder="e.g. Suspected abuse, contact support" />
+      </Field>
+      <div className="mt-6 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="danger" onClick={save} disabled={saving}>{saving ? 'Locking…' : 'Lock organization'}</Button>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────
+
+function OverviewTab({ data, onOpenNotes }) {
+  const { organization: org, usage, limits, engagement, pinStats, notes } = data;
+  const overrides = org.limitOverrides || {};
+  const sub = org.subscription || {};
+  const pinned = notes.filter((n) => n.pinned);
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-3">
+      <div className="space-y-6 lg:col-span-2">
+        <Card title="Usage" description={`Against the ${PLAN_LABELS[org.plan]} plan${Object.keys(overrides).length ? ' with custom limits' : ''}`}>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <UsageBar label="Projects" used={usage.projects} limit={limits.maxProjects} />
+            <UsageBar label="Workspaces" used={usage.workspaces} limit={limits.maxWorkspaces} />
+            <UsageBar label="Members" used={usage.members} limit={limits.maxMembers} />
+            <UsageBar label="Guests" used={usage.guests} limit={limits.maxGuests} />
+            <UsageBar label="Storage" used={usage.storageMB} limit={limits.maxStorageMB} unit=" MB" />
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
+            {FEATURE_FIELDS.map(([key, label]) => (
+              <Pill key={key} tone={limits[key] ? 'green' : 'gray'}>
+                {limits[key] ? '✓' : '✕'} {label}{overrides[key] != null ? ' (custom)' : ''}
+              </Pill>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Engagement" description="From sign-ins and activity in the app">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
+            {[
+              ['Last active', timeAgo(engagement.lastActiveAt)],
+              ['Active members', `${engagement.activeMembers7d} in 7 days · ${engagement.activeMembers30d} in 30`],
+              ['Pins, last 30 days', engagement.pins30d],
+              ['Comments, last 30 days', engagement.comments30d],
+              ['Client reviewers', engagement.guestReviewers],
+              ['Review links on', engagement.shareLinks],
+              ['Pins resolved', pinStats.total ? `${pinStats.resolved} of ${pinStats.total} (${Math.round((pinStats.resolved / pinStats.total) * 100)}%)` : '—'],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <p className="text-xs text-gray-500">{label}</p>
+                <p className="mt-1 text-sm font-medium text-gray-900">{value}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <div className="space-y-6">
+        <Card title="Account">
+          <DefinitionList
+            items={[
+              ['Plan', <PlanBadge plan={org.plan} />],
+              ['Status', <StatusBadge status={data.status} trialEndsAt={org.trialEndsAt} />],
+              org.plan === 'trial' && ['Trial ends', `${formatDate(org.trialEndsAt)} (${relativeDays(org.trialEndsAt)})`],
+              sub.currentPeriodEnd && [sub.cancelAtPeriodEnd ? 'Ends on' : 'Renews on', formatDate(sub.currentPeriodEnd)],
+              sub.provider && ['Paid with', sub.provider === 'razorpay' ? 'Razorpay' : sub.provider === 'paypal' ? 'PayPal' : sub.provider],
+              ['Monthly revenue', data.mrr ? formatUsd(data.mrr) : '—'],
+              org.billingDetails?.legalName && ['Billed to', org.billingDetails.legalName],
+              org.billingDetails?.taxId && ['GSTIN / VAT', org.billingDetails.taxId],
+              org.billingDetails?.country && ['Country', [org.billingDetails.state, org.billingDetails.country].filter(Boolean).join(', ')],
+              ['Created', formatDate(org.createdAt)],
+              org.isLocked && ['Locked', org.lockedReason || 'Yes'],
+              org.deletionScheduledAt && ['Deletion on', formatDate(org.deletionScheduledAt)],
+            ]}
+          />
+        </Card>
+
+        <Card title="Pinned notes" actions={<button type="button" onClick={onOpenNotes} className="text-sm font-medium text-blue-600 hover:text-blue-700">All notes</button>}>
+          {pinned.length === 0 ? (
+            <p className="text-sm text-gray-500">Pin a note to keep it here, e.g. a deal, a promise or who to talk to.</p>
+          ) : (
+            <ul className="space-y-3">
+              {pinned.map((n) => (
+                <li key={n._id} className="whitespace-pre-wrap rounded-lg bg-amber-50/60 px-3 py-2 text-sm text-gray-800">{n.body}</li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function PeopleTab({ data }) {
+  const columns = [
+    {
+      key: 'name',
+      label: 'Person',
+      render: (row) => (
+        <Link to={`/users/${row._id}`} className="flex min-w-[200px] items-center gap-3" onClick={(e) => e.stopPropagation()}>
+          <Avatar name={row.name} size="sm" />
+          <span className="min-w-0">
+            <span className="block truncate font-medium text-gray-900 hover:text-blue-700">{row.name}</span>
+            <span className="block truncate text-xs text-gray-500">{row.email}</span>
+          </span>
+        </Link>
+      ),
+    },
+    { key: 'role', label: 'Role', render: (row) => <RoleBadge role={row.role} /> },
+    { key: 'lastSeen', label: 'Last active', render: (row) => timeAgo(row.lastSeen) },
+    { key: 'location', label: 'Location', render: (row) => formatLocation(row.lastLoginLocation) },
+    { key: 'createdAt', label: 'Joined', render: (row) => formatDate(row.createdAt) },
+  ];
+  return (
+    <div className="space-y-6">
+      <Card title="Members" padded={false}>
+        <DataTable columns={columns} data={data.members} emptyMessage="No members" />
+      </Card>
+      {data.invitations.length > 0 && (
+        <Card title="Pending invitations" padded={false}>
+          <div className="divide-y divide-gray-100">
+            {data.invitations.map((inv) => (
+              <div key={inv._id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+                <span className="truncate text-gray-900">{inv.email}</span>
+                <span className="flex shrink-0 items-center gap-3 text-xs text-gray-500">
+                  <RoleBadge role={inv.role} />
+                  Expires {relativeDays(inv.expiresAt)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function ProjectsTab({ data }) {
+  const wsName = Object.fromEntries(data.workspaces.map((w) => [String(w._id), w.name]));
+  const defaultWs = data.workspaces.find((w) => w.isDefault);
+  const columns = [
+    {
+      key: 'name',
+      label: 'Project',
+      render: (row) => (
+        <div className="min-w-[180px]">
+          <p className="font-medium text-gray-900">{row.name}</p>
+          <p className="max-w-[260px] truncate text-xs text-gray-500">
+            {row.projectType === 'website' ? row.websiteUrl?.replace(/^https?:\/\//, '') : `${row.documents?.length || 0} files`}
+          </p>
+        </div>
+      ),
+    },
+    { key: 'workspace', label: 'Workspace', render: (row) => wsName[String(row.workspace || defaultWs?._id)] || '—' },
+    { key: 'type', label: 'Type', render: (row) => (row.projectType === 'website' ? 'Website' : 'Document') },
+    { key: 'status', label: 'Status', render: (row) => <Pill tone={row.status === 'active' ? 'green' : 'gray'}>{row.status === 'active' ? 'Active' : 'Archived'}</Pill> },
+    { key: 'share', label: 'Review link', render: (row) => (row.shareSettings?.enabled ? 'On' : <span className="text-gray-400">Off</span>) },
+    { key: 'updatedAt', label: 'Updated', render: (row) => timeAgo(row.updatedAt) },
+  ];
+  return (
+    <div className="space-y-6">
+      <Card title="Workspaces" padded={false}>
+        <div className="divide-y divide-gray-100">
+          {data.workspaces.map((w) => (
+            <div key={w._id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+              <span className="flex min-w-0 items-center gap-3">
+                <Avatar name={w.name} size="sm" square />
+                <span className="truncate font-medium text-gray-900">{w.name}</span>
+                {w.isDefault && <span className="text-xs text-gray-400">Default</span>}
+              </span>
+              <span className="flex shrink-0 items-center gap-4 text-xs text-gray-500">
+                <span>{w.projectCount} {w.projectCount === 1 ? 'project' : 'projects'}</span>
+                <span>{w.memberCount} {w.memberCount === 1 ? 'member' : 'members'}</span>
+                {w.shared && <Pill tone="green">Link on</Pill>}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card title="Projects" padded={false}>
+        <DataTable columns={columns} data={data.projects} emptyMessage="No projects yet" />
+      </Card>
+    </div>
+  );
+}
+
+function BillingTab({ data, onRefund, busy }) {
+  const org = data.organization;
+  const sub = org.subscription || {};
+  const columns = [
+    { key: 'createdAt', label: 'Date', render: (row) => <span className="whitespace-nowrap">{formatDate(row.createdAt)}</span> },
+    { key: 'invoiceNumber', label: 'Invoice', render: (row) => row.invoiceNumber ? <span className="font-mono text-xs">{row.invoiceNumber}</span> : <span className="text-gray-400">—</span> },
+    { key: 'plan', label: 'Plan', render: (row) => <PlanBadge plan={row.plan} /> },
+    {
+      key: 'period',
+      label: 'Period',
+      render: (row) => row.billingMonth
+        ? <span className="font-mono text-xs">{row.billingMonth}</span>
+        : row.periodStart && row.periodEnd
+          ? <span className="whitespace-nowrap text-xs text-gray-600">{formatDate(row.periodStart)} – {formatDate(row.periodEnd)}</span>
+          : <span className="text-gray-400">—</span>,
+    },
+    { key: 'amount', label: 'Amount', align: 'right', render: (row) => <span className="font-medium text-gray-900">{formatMoney(row.amount, row.currency)}</span> },
+    { key: 'status', label: 'Status', render: (row) => <InvoiceStatusBadge status={row.status} /> },
+    { key: 'dueAt', label: 'Due', render: (row) => row.status === 'pending' && row.dueAt ? <span className={new Date(row.dueAt) < new Date() ? 'font-medium text-red-600' : ''}>{relativeDays(row.dueAt)}</span> : <span className="text-gray-400">—</span> },
+    { key: 'provider', label: 'Provider', render: (row) => row.provider || '—' },
+    {
+      key: 'actions',
+      label: '',
+      align: 'right',
+      render: (row) => row.status === 'paid' ? (
+        <Button size="sm" variant="danger-soft" disabled={busy} onClick={(e) => { e.stopPropagation(); onRefund(row); }}>Refund</Button>
+      ) : null,
+    },
+  ];
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Subscription" value={sub.status && sub.status !== 'none' ? sub.status[0].toUpperCase() + sub.status.slice(1) : 'None'} hint={sub.cancelAtPeriodEnd ? 'Cancels at the end of the period' : sub.currentPeriodEnd ? `Renews ${formatDate(sub.currentPeriodEnd)}` : undefined} tone={sub.cancelAtPeriodEnd ? 'warn' : 'default'} />
+        <StatCard label="Monthly revenue" value={data.mrr ? formatUsd(data.mrr) : '—'} hint="At the plan's list price" />
+        <StatCard
+          label="Paid to date"
+          value={Object.entries(data.invoices.filter((i) => i.status === 'paid').reduce((acc, i) => ({ ...acc, [i.currency]: (acc[i.currency] || 0) + i.amount }), {}))
+            .map(([cur, amt]) => formatMoney(amt, cur)).join(' + ') || '—'}
+          hint={`${data.invoices.filter((i) => i.status === 'paid').length} paid invoices`}
+        />
+      </div>
+      <Card title="Invoices" padded={false}>
+        <DataTable columns={columns} data={data.invoices} emptyMessage="No invoices yet" />
+      </Card>
+    </div>
+  );
+}
+
+function ActivityTab({ data }) {
+  if (!data.activity.length) return <Card><p className="py-6 text-center text-sm text-gray-500">No activity yet.</p></Card>;
+  return (
+    <Card padded={false}>
+      <ol className="divide-y divide-gray-100">
+        {data.activity.map((a) => {
+          const byAdmin = a.metadata?.actorRole === 'superadmin';
+          return (
+            <li key={a._id} className="flex items-start gap-3 px-5 py-3">
+              <Avatar name={a.actor?.name || a.actorGuest?.name || '?'} size="sm" />
+              <div className="min-w-0 flex-1 text-sm">
+                <p className="text-gray-700">
+                  <span className="font-medium text-gray-900">{a.actor?.name || a.actorGuest?.name || 'Someone'}</span>
+                  {byAdmin && <span className="ml-1.5"><Pill tone="red">Admin</Pill></span>}
+                  {a.actorGuest?.name && !a.actor && <span className="ml-1.5"><Pill>Guest</Pill></span>}{' '}
+                  {describeAction(a)}
+                  {a.project?.name && <span className="text-gray-500"> in {a.project.name}</span>}
+                </p>
+                <p className="mt-0.5 text-xs text-gray-400" title={formatDateTime(a.createdAt)}>{timeAgo(a.createdAt)}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </Card>
+  );
+}
+
+function NotesTab({ data, onChange }) {
+  const [body, setBody] = useState('');
+  const [saving, setSaving] = useState(false);
+  const orgId = data.organization._id;
+
+  const add = async (e) => {
+    e.preventDefault();
+    if (!body.trim()) return;
+    setSaving(true);
+    try {
+      await addOrganizationNoteApi(orgId, body.trim());
+      setBody('');
+      onChange();
+    } catch (err) {
+      toastError(err, 'Could not save the note.');
+    }
+    setSaving(false);
+  };
+
+  const togglePin = async (note) => {
+    try {
+      await updateOrganizationNoteApi(orgId, note._id, { pinned: !note.pinned });
+      onChange();
+    } catch (err) {
+      toastError(err, 'Could not update the note.');
+    }
+  };
+
+  const remove = async (note) => {
+    if (!(await confirmDialog({ title: 'Delete this note?', confirmLabel: 'Delete', danger: true }))) return;
+    try {
+      await deleteOrganizationNoteApi(orgId, note._id);
+      onChange();
+    } catch (err) {
+      toastError(err, 'Could not delete the note.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card title="Add a note" description="Only admins see notes. Customers never do.">
+        <form onSubmit={add}>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={3}
+            maxLength={4000}
+            placeholder="e.g. Agreed 20% off Pro for the first year; contact is Daniel, CTO."
+            className={`${inputClass} h-auto py-2`}
+          />
+          <div className="mt-3 flex justify-end">
+            <Button type="submit" variant="primary" disabled={saving || !body.trim()}>{saving ? 'Saving…' : 'Add note'}</Button>
+          </div>
+        </form>
+      </Card>
+      {data.notes.length > 0 && (
+        <Card padded={false}>
+          <ul className="divide-y divide-gray-100">
+            {data.notes.map((n) => (
+              <li key={n._id} className="px-5 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="whitespace-pre-wrap text-sm text-gray-800">{n.body}</p>
+                  <div className="flex shrink-0 gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => togglePin(n)}>{n.pinned ? 'Unpin' : 'Pin'}</Button>
+                    <Button size="sm" variant="ghost" onClick={() => remove(n)}>Delete</Button>
+                  </div>
+                </div>
+                <p className="mt-1.5 text-xs text-gray-400">
+                  {n.pinned && <span className="mr-1.5 font-medium text-amber-600">Pinned ·</span>}
+                  {n.author?.name || 'Admin'} · <span title={formatDateTime(n.createdAt)}>{timeAgo(n.createdAt)}</span>
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ── Page ─────────────────────────────────────────────────────────
 
 export default function OrganizationDetailPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') || 'overview';
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [lockModal, setLockModal] = useState(false);
-  const [lockReason, setLockReason] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
-  const [actionMessage, setActionMessage] = useState('');
-  const [planForm, setPlanForm] = useState({ plan: '', periodEnd: '' });
-  const [trialDays, setTrialDays] = useState(14);
-  const [limitsForm, setLimitsForm] = useState(null);
+  const [dialog, setDialog] = useState(null); // plan | trial | limits | lock
+  const [busy, setBusy] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
       const res = await getOrganizationDetailApi(id);
       setData(res.data);
-    } catch {}
+    } catch {
+      setData(null);
+    }
     setLoading(false);
   }, [id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleLock = async () => {
-    setActionLoading(true);
-    try {
-      await lockOrganizationApi(id, lockReason);
-      setLockModal(false);
-      setLockReason('');
-      fetchData();
-    } catch {}
-    setActionLoading(false);
-  };
-
-  // Runs a billing action, shows its result, and reloads the organization
-  const runAction = async (fn, successText) => {
-    setActionLoading(true);
-    setActionMessage('');
-    try {
-      await fn();
-      setActionMessage(successText);
-      setLimitsForm(null);
-      await fetchData();
-    } catch (err) {
-      setActionMessage(err.response?.data?.message || 'Action failed');
-    }
-    setActionLoading(false);
-  };
-
-  const handleSetPlan = () => {
-    if (!planForm.plan) return;
-    runAction(
-      () => setOrganizationPlanApi(id, { plan: planForm.plan, periodEnd: planForm.periodEnd || undefined }),
-      `Plan set to ${planForm.plan}`,
-    );
-  };
-
-  const handleExtendTrial = () => runAction(() => extendTrialApi(id, Number(trialDays)), `Trial extended by ${trialDays} days`);
-
-  const handleSaveLimits = () => {
-    const toNum = (v) => (v === '' || v == null ? null : Number(v));
-    runAction(() => setOrganizationLimitsApi(id, {
-      maxProjects: toNum(limitsForm.maxProjects),
-      maxWorkspaces: toNum(limitsForm.maxWorkspaces),
-      maxMembers: toNum(limitsForm.maxMembers),
-      maxGuests: toNum(limitsForm.maxGuests),
-      maxStorageMB: toNum(limitsForm.maxStorageMB),
-      ...(limitsForm.hasIntegrations !== '' && { hasIntegrations: limitsForm.hasIntegrations === 'true' }),
-      ...(limitsForm.hasActivityLogs !== '' && { hasActivityLogs: limitsForm.hasActivityLogs === 'true' }),
-      ...(limitsForm.hasVersionHistory !== '' && { hasVersionHistory: limitsForm.hasVersionHistory === 'true' }),
-    }), 'Limit overrides saved');
-  };
-
-  const handleRefund = (invoice) => {
-    // eslint-disable-next-line no-alert
-    if (!window.confirm(`Refund ${formatMoney(invoice)} to the customer? A refund of the current period also ends the paid plan.`)) return;
-    runAction(() => refundInvoiceApi(invoice._id), 'Refund issued');
-  };
+  const setTab = (next) => setParams(next === 'overview' ? {} : { tab: next }, { replace: true });
+  const closeAndReload = () => { setDialog(null); fetchData(); };
 
   const handleUnlock = async () => {
-    setActionLoading(true);
+    if (!(await confirmDialog({ title: `Unlock ${data.organization.name}?`, message: 'Members can create and change content again.', confirmLabel: 'Unlock' }))) return;
+    setBusy(true);
     try {
       await unlockOrganizationApi(id);
-      fetchData();
-    } catch {}
-    setActionLoading(false);
+      toast.success('Organization unlocked.');
+      await fetchData();
+    } catch (err) {
+      toastError(err, 'Could not unlock the organization.');
+    }
+    setBusy(false);
+  };
+
+  const handleRefund = async (invoice) => {
+    const ok = await confirmDialog({
+      title: `Refund ${formatMoney(invoice.amount, invoice.currency)}?`,
+      message: 'The full amount goes back to the customer through the payment provider. Refunding the current period also ends the paid plan.',
+      confirmLabel: 'Refund',
+      danger: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const res = await refundInvoiceApi(invoice._id);
+      toast.success(res.data.downgraded ? 'Refunded. The organization moved to Free.' : 'Refund issued.');
+      await fetchData();
+    } catch (err) {
+      toastError(err, 'The refund failed.');
+    }
+    setBusy(false);
   };
 
   if (loading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
-  if (!data) return <p className="text-gray-500 py-10 text-center">Organization not found.</p>;
+  if (!data) return <p className="py-10 text-center text-gray-500">Organization not found.</p>;
 
-  const { organization: org, members, projects, pinStats, invoices = [] } = data;
-
-  const statusColor = (s) => (s === 'paid' ? 'green' : s === 'pending' ? 'amber' : s === 'void' ? 'gray' : 'red');
-
-  const overrides = org.limitOverrides || {};
-  const currentLimitsForm = limitsForm || {
-    maxProjects: overrides.maxProjects ?? '',
-    maxWorkspaces: overrides.maxWorkspaces ?? '',
-    maxMembers: overrides.maxMembers ?? '',
-    maxGuests: overrides.maxGuests ?? '',
-    maxStorageMB: overrides.maxStorageMB ?? '',
-    hasIntegrations: overrides.hasIntegrations == null ? '' : String(overrides.hasIntegrations),
-    hasActivityLogs: overrides.hasActivityLogs == null ? '' : String(overrides.hasActivityLogs),
-    hasVersionHistory: overrides.hasVersionHistory == null ? '' : String(overrides.hasVersionHistory),
-  };
-  const updateLimit = (key, value) => setLimitsForm({ ...currentLimitsForm, [key]: value });
-  const inputClass = 'w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white';
-
-  const reminderDots = (r) => {
-    const stages = [
-      ['0', r?.day0Sent],
-      ['4', r?.day4Sent],
-      ['7', r?.day7Sent],
-      ['9', r?.day9Sent],
-    ];
-    return (
-      <span className="inline-flex items-center gap-1 font-mono text-[11px]">
-        {stages.map(([label, on]) => (
-          <span
-            key={label}
-            title={`Day ${label} reminder ${on ? 'sent' : 'not sent'}`}
-            className={`inline-flex items-center justify-center w-4 h-4 rounded-full border ${
-              on ? 'bg-blue-500 border-blue-500 text-white' : 'bg-white border-gray-300 text-gray-400'
-            }`}
-          >
-            {label}
-          </span>
-        ))}
-        {r?.lockSent && (
-          <span title="Org-locked email sent" className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 text-white">L</span>
-        )}
-      </span>
-    );
-  };
-
-  const shortId = (id) => (id ? id.slice(-8) : null);
-
-  const memberColumns = [
-    { key: 'name', label: 'Name', render: (row) => <span className="font-medium">{row.name}</span> },
-    { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Role', render: (row) => <Badge label={row.role} color={row.role === 'owner' ? 'purple' : row.role === 'admin' ? 'blue' : 'gray'} /> },
-    { key: 'lastSeen', label: 'Last Seen', render: (row) => timeAgo(row.lastSeen) },
-  ];
-
-  const invoiceColumns = [
-    { key: 'createdAt', label: 'Date', render: (row) => formatDate(row.createdAt) },
-    { key: 'plan', label: 'Plan', render: (row) => (
-      <Badge label={PLAN_LABELS[row.plan] || row.plan} color={PLAN_COLORS[row.plan] || 'gray'} />
-    ) },
-    { key: 'period', label: 'Period', render: (row) => {
-      if (row.billingMonth) {
-        return <span className="font-mono text-xs">{row.billingMonth}</span>;
-      }
-      if (row.periodStart && row.periodEnd) {
-        return (
-          <span className="text-xs text-gray-600">
-            {formatDate(row.periodStart)} → {formatDate(row.periodEnd)}
-          </span>
-        );
-      }
-      return <span className="text-gray-400 text-xs">—</span>;
-    } },
-    { key: 'invoiceNumber', label: 'Number', render: (row) => row.invoiceNumber
-      ? <span className="font-mono text-[11px]">{row.invoiceNumber}</span>
-      : <span className="text-gray-400 text-xs">—</span> },
-    { key: 'amount', label: 'Amount', render: (row) => (
-      <span className="font-medium">{formatMoney(row)}</span>
-    ) },
-    { key: 'status', label: 'Status', render: (row) => (
-      <Badge label={row.status} color={statusColor(row.status)} />
-    ) },
-    { key: 'dueAt', label: 'Due', render: (row) => row.dueAt ? formatDate(row.dueAt) : <span className="text-gray-400 text-xs">—</span> },
-    { key: 'reminders', label: 'Reminders', render: (row) => reminderDots(row.reminders) },
-    { key: 'razorpayOrderId', label: 'Order', render: (row) => row.razorpayOrderId ? (
-      <span className="font-mono text-[11px] text-gray-700" title={row.razorpayOrderId}>{shortId(row.razorpayOrderId)}</span>
-    ) : <span className="text-gray-400 text-xs">—</span> },
-    { key: 'razorpayPaymentId', label: 'Payment', render: (row) => row.razorpayPaymentId ? (
-      <span className="font-mono text-[11px] text-gray-700" title={row.razorpayPaymentId}>{shortId(row.razorpayPaymentId)}</span>
-    ) : <span className="text-gray-400 text-xs">—</span> },
-    { key: 'actions', label: '', render: (row) => row.status === 'paid' ? (
-      <button
-        onClick={(e) => { e.stopPropagation(); handleRefund(row); }}
-        disabled={actionLoading}
-        className="px-2 py-1 text-xs font-medium text-red-700 bg-red-50 rounded hover:bg-red-100 disabled:opacity-50"
-      >
-        Refund
-      </button>
-    ) : null },
-  ];
-
-  const projectColumns = [
-    { key: 'name', label: 'Name', render: (row) => <span className="font-medium">{row.name}</span> },
-    { key: 'url', label: 'URL', render: (row) => row.websiteUrl ? (
-      <a href={row.websiteUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-blue-600 hover:underline text-xs max-w-[200px] truncate block">
-        {row.websiteUrl.replace(/^https?:\/\//, '')}
-      </a>
-    ) : <span className="text-gray-400 text-xs">—</span> },
-    { key: 'projectType', label: 'Type', render: (row) => <Badge label={row.projectType} color={row.projectType === 'website' ? 'blue' : 'purple'} /> },
-    { key: 'status', label: 'Status', render: (row) => <Badge label={row.status} color={row.status === 'active' ? 'green' : 'gray'} /> },
-    { key: 'members', label: 'Members', render: (row) => row.members?.length || 0 },
-    { key: 'createdAt', label: 'Created', render: (row) => formatDate(row.createdAt) },
+  const { organization: org, engagement } = data;
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'people', label: 'People', count: data.members.length },
+    { id: 'projects', label: 'Projects', count: data.projects.length },
+    { id: 'billing', label: 'Billing', count: data.invoices.length },
+    { id: 'activity', label: 'Activity' },
+    { id: 'notes', label: 'Notes', count: data.notes.length || null },
   ];
 
   return (
     <div className="animate-fade-in">
-      <button onClick={() => navigate('/organizations')} className="text-sm text-gray-500 hover:text-gray-700 mb-4 flex items-center gap-1">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-        Back to Organizations
-      </button>
+      <PageHeader
+        back={{ to: '/organizations', label: 'Organizations' }}
+        title={
+          <span className="flex flex-wrap items-center gap-3">
+            <Avatar name={org.name} size="lg" square />
+            <span>{org.name}</span>
+            <PlanBadge plan={org.plan} />
+            <StatusBadge status={data.status} trialEndsAt={org.trialEndsAt} />
+          </span>
+        }
+        actions={
+          <>
+            <Button onClick={() => setDialog('plan')}>Change plan</Button>
+            {org.plan === 'trial' && <Button onClick={() => setDialog('trial')}>Extend trial</Button>}
+            <Button onClick={() => setDialog('limits')}>Custom limits</Button>
+            {org.isLocked
+              ? <Button variant="secondary" onClick={handleUnlock} disabled={busy}>Unlock</Button>
+              : <Button variant="danger-soft" onClick={() => setDialog('lock')}>Lock</Button>}
+          </>
+        }
+      >
+        <p className="mt-2 text-sm text-gray-500">
+          {org.owner ? <>Owner <Link to={`/users/${org.owner._id}`} className="font-medium text-gray-700 hover:text-blue-700">{org.owner.name}</Link> · {org.owner.email}</> : 'No owner'}
+          {' · '}Customer since {formatDate(org.createdAt)}
+        </p>
+      </PageHeader>
 
-      {/* Header */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">{org.name}</h1>
-              <Badge label={PLAN_LABELS[org.plan] || org.plan} color={PLAN_COLORS[org.plan] || 'gray'} />
-              <Badge label={org.isLocked ? 'Locked' : 'Active'} color={org.isLocked ? 'red' : 'green'} />
-            </div>
-            <p className="text-sm text-gray-500 mt-1">
-              Owner: {org.owner?.name} ({org.owner?.email}) &middot; Created {formatDate(org.createdAt)}
-            </p>
-            {org.isLocked && org.lockedReason && (
-              <p className="text-sm text-red-600 mt-1">Locked: {org.lockedReason}</p>
-            )}
-          </div>
-          <div>
-            {org.isLocked ? (
-              <button onClick={handleUnlock} disabled={actionLoading} className="px-4 py-2 text-sm font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50">
-                Unlock
-              </button>
-            ) : (
-              <button onClick={() => setLockModal(true)} className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100">
-                Lock
-              </button>
-            )}
-          </div>
+      {org.isLocked && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <span className="font-medium">Locked.</span> {org.lockedReason || 'No reason given.'}
         </div>
+      )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5">
-          <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-gray-900">{members.length}</p>
-            <p className="text-xs text-gray-500">Members</p>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-gray-900">{projects.length}</p>
-            <p className="text-xs text-gray-500">Projects</p>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-gray-900">{pinStats.total}</p>
-            <p className="text-xs text-gray-500">Total Pins</p>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-lg font-bold text-gray-900">{pinStats.resolved}</p>
-            <p className="text-xs text-gray-500">Resolved</p>
-          </div>
-        </div>
-
-        {org.subscription?.status && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <p className="text-sm text-gray-600">
-              Subscription: <Badge label={org.subscription.status} color={org.subscription.status === 'active' ? 'green' : 'red'} />
-              {org.subscription.currentPeriodEnd && <span className="ml-2">Period ends: {formatDate(org.subscription.currentPeriodEnd)}</span>}
-              {org.subscription.cancelAtPeriodEnd && <span className="ml-2 text-amber-700">Cancels at period end</span>}
-              <span className="ml-2 text-gray-500">Storage used: {((org.storageUsedBytes || 0) / 1048576).toFixed(1)} MB</span>
-            </p>
-          </div>
-        )}
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Monthly revenue" value={data.mrr ? formatUsd(data.mrr) : '—'} hint={org.plan === 'trial' ? `Trial ends ${relativeDays(org.trialEndsAt)}` : undefined} tone={data.status === 'trial_ending' ? 'warn' : 'default'} />
+        <StatCard label="Last active" value={timeAgo(engagement.lastActiveAt)} hint={`${engagement.activeMembers7d} of ${data.members.length} members active this week`} />
+        <StatCard label="Pins, last 30 days" value={engagement.pins30d} hint={`${engagement.comments30d} comments`} />
+        <StatCard label="Projects" value={data.usage.projects} hint={`${data.usage.workspaces} ${data.usage.workspaces === 1 ? 'workspace' : 'workspaces'}`} />
       </div>
 
-      {/* Billing actions */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Billing actions</h2>
-        {actionMessage && <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 mb-4">{actionMessage}</p>}
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Set plan (no payment)</p>
-            <select value={planForm.plan} onChange={(e) => setPlanForm({ ...planForm, plan: e.target.value })} className={`${inputClass} mb-2`}>
-              <option value="">Choose plan…</option>
-              {['free', 'trial', 'starter', 'pro', 'enterprise'].map((p) => <option key={p} value={p}>{PLAN_LABELS[p] || p}</option>)}
-            </select>
-            {(planForm.plan === 'starter' || planForm.plan === 'pro') && (
-              <label className="block text-xs text-gray-500 mb-2">
-                Paid until (default: one month)
-                <input type="date" value={planForm.periodEnd} onChange={(e) => setPlanForm({ ...planForm, periodEnd: e.target.value })} className={`${inputClass} mt-1`} />
-              </label>
-            )}
-            <button onClick={handleSetPlan} disabled={actionLoading || !planForm.plan} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              Set plan
-            </button>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Extend trial</p>
-            {org.plan === 'trial' ? (
-              <>
-                <p className="text-xs text-gray-500 mb-2">Ends {formatDate(org.trialEndsAt)}</p>
-                <input type="number" min="1" max="365" value={trialDays} onChange={(e) => setTrialDays(e.target.value)} className={`${inputClass} mb-2`} />
-                <button onClick={handleExtendTrial} disabled={actionLoading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                  Extend by {trialDays} days
-                </button>
-              </>
-            ) : <p className="text-xs text-gray-400">Not on a trial.</p>}
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Limit overrides (blank = plan default)</p>
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              {[['maxProjects', 'Projects'], ['maxWorkspaces', 'Workspaces'], ['maxMembers', 'Members'], ['maxGuests', 'Guests'], ['maxStorageMB', 'Storage MB']].map(([key, label]) => (
-                <label key={key} className="text-xs text-gray-500">
-                  {label}
-                  <input type="number" min="0" value={currentLimitsForm[key]} onChange={(e) => updateLimit(key, e.target.value)} className={`${inputClass} mt-1`} />
-                </label>
-              ))}
-            </div>
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              {[['hasIntegrations', 'Integrations'], ['hasActivityLogs', 'Activity'], ['hasVersionHistory', 'Versions']].map(([key, label]) => (
-                <label key={key} className="text-xs text-gray-500">
-                  {label}
-                  <select value={currentLimitsForm[key]} onChange={(e) => updateLimit(key, e.target.value)} className={`${inputClass} mt-1`}>
-                    <option value="">Plan</option>
-                    <option value="true">On</option>
-                    <option value="false">Off</option>
-                  </select>
-                </label>
-              ))}
-            </div>
-            <button onClick={handleSaveLimits} disabled={actionLoading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              Save overrides
-            </button>
-          </div>
-        </div>
-      </div>
+      <Tabs tabs={tabs} active={tab} onChange={setTab} />
 
-      {/* Members */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Members ({members.length})</h2>
-        <DataTable columns={memberColumns} data={members} emptyMessage="No members" />
-      </div>
+      {tab === 'overview' && <OverviewTab data={data} onOpenNotes={() => setTab('notes')} />}
+      {tab === 'people' && <PeopleTab data={data} />}
+      {tab === 'projects' && <ProjectsTab data={data} />}
+      {tab === 'billing' && <BillingTab data={data} onRefund={handleRefund} busy={busy} />}
+      {tab === 'activity' && <ActivityTab data={data} />}
+      {tab === 'notes' && <NotesTab data={data} onChange={fetchData} />}
 
-      {/* Invoices */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Invoices ({invoices.length})</h2>
-        <DataTable columns={invoiceColumns} data={invoices} emptyMessage="No invoices" />
-      </div>
-
-      {/* Projects */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h2 className="text-sm font-semibold text-gray-900 mb-4">Projects ({projects.length})</h2>
-        <DataTable columns={projectColumns} data={projects} emptyMessage="No projects" />
-      </div>
-
-      {/* Lock Modal */}
-      <Modal isOpen={lockModal} onClose={() => setLockModal(false)} title="Lock Organization">
-        <p className="text-sm text-gray-600 mb-3">This will prevent all members from creating or modifying content.</p>
-        <textarea
-          value={lockReason}
-          onChange={(e) => setLockReason(e.target.value)}
-          placeholder="Reason for locking (optional)"
-          rows={3}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-        />
-        <div className="flex justify-end gap-2">
-          <button onClick={() => setLockModal(false)} className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
-          <button onClick={handleLock} disabled={actionLoading} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50">
-            {actionLoading ? 'Locking...' : 'Lock Organization'}
-          </button>
-        </div>
-      </Modal>
+      {dialog === 'plan' && <ChangePlanDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
+      {dialog === 'trial' && <ExtendTrialDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
+      {dialog === 'limits' && <LimitsDialog org={org} limits={data.limits} onClose={() => setDialog(null)} onDone={closeAndReload} />}
+      {dialog === 'lock' && <LockDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
     </div>
   );
 }

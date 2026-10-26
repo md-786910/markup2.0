@@ -1,6 +1,6 @@
 export const PLAN_COLORS = {
   free: 'gray',
-  trial: 'yellow',
+  trial: 'amber',
   starter: 'blue',
   pro: 'purple',
   enterprise: 'amber',

@@ -14,6 +14,7 @@ const UserDetailPage = lazy(() => import('./pages/UserDetailPage'));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const PaymentsPage = lazy(() => import('./pages/PaymentsPage'));
+const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 
 function PageLoader() {
   return (
@@ -40,6 +41,7 @@ function App() {
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/payments" element={<PaymentsPage />} />
+                <Route path="/audit" element={<AuditLogPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" />} />

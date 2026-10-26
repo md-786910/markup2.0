@@ -11,7 +11,14 @@ export const unlockOrganizationApi = (id) => api.patch(`/admin/organizations/${i
 export const setOrganizationPlanApi = (id, data) => api.patch(`/admin/organizations/${id}/plan`, data);
 export const extendTrialApi = (id, days) => api.post(`/admin/organizations/${id}/extend-trial`, { days });
 export const setOrganizationLimitsApi = (id, data) => api.patch(`/admin/organizations/${id}/limits`, data);
+export const addOrganizationNoteApi = (id, body) => api.post(`/admin/organizations/${id}/notes`, { body });
+export const updateOrganizationNoteApi = (id, noteId, data) => api.patch(`/admin/organizations/${id}/notes/${noteId}`, data);
+export const deleteOrganizationNoteApi = (id, noteId) => api.delete(`/admin/organizations/${id}/notes/${noteId}`);
+export const exportOrganizationsApi = (params) => api.get('/admin/organizations', { params: { ...params, format: 'csv' }, responseType: 'blob' });
 export const refundInvoiceApi = (id) => api.post(`/admin/invoices/${id}/refund`);
+
+// Admin action log
+export const getAuditLogApi = (params) => api.get('/admin/audit', { params });
 
 // Users
 export const getUsersApi = (params) => api.get('/admin/users', { params });

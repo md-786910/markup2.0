@@ -1,75 +1,97 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getUsersApi } from '../services/adminService';
 import DataTable from '../components/common/DataTable';
 import Pagination from '../components/common/Pagination';
 import SearchInput from '../components/common/SearchInput';
 import FilterDropdown from '../components/common/FilterDropdown';
-import Badge from '../components/common/Badge';
+import { Avatar, PageHeader } from '../components/common/ui';
+import { PlanBadge, RoleBadge } from '../components/common/StatusBadge';
 import { formatDate, timeAgo, formatLocation } from '../utils/formatters';
 
+const PAGE_SIZE = 20;
+
 export default function UsersPage() {
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const search = params.get('search') || '';
+  const role = params.get('role');
+  const page = Number(params.get('page')) || 1;
+
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [role, setRole] = useState(null);
-  const navigate = useNavigate();
 
-  const fetchUsers = useCallback(async () => {
+  const setParam = (key, value) => {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set(key, value); else next.delete(key);
+      if (key !== 'page') next.delete('page');
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    try {
-      const params = { page, limit: 20 };
-      if (search) params.search = search;
-      if (role) params.role = role;
-      const { data } = await getUsersApi(params);
-      setUsers(data.users);
-      setTotal(data.total);
-      setTotalPages(data.totalPages);
-    } catch {}
-    setLoading(false);
+    const q = { page, limit: PAGE_SIZE };
+    if (search) q.search = search;
+    if (role) q.role = role;
+    getUsersApi(q)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setUsers(data.users);
+        setTotal(data.total);
+        setTotalPages(data.totalPages);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [page, search, role]);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
-
-  const roleColors = { owner: 'purple', admin: 'blue', member: 'gray', guest: 'yellow' };
-
   const columns = [
-    { key: 'name', label: 'Name', render: (row) => (
-      <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
-          {row.name?.charAt(0)?.toUpperCase()}
+    {
+      key: 'name',
+      label: 'Person',
+      render: (row) => (
+        <div className="flex min-w-[200px] items-center gap-3">
+          <Avatar name={row.name} size="sm" />
+          <div className="min-w-0">
+            <p className="truncate font-medium text-gray-900">{row.name}</p>
+            <p className="truncate text-xs text-gray-500">{row.email}</p>
+          </div>
         </div>
-        <span className="font-medium text-gray-900">{row.name}</span>
-      </div>
-    )},
-    { key: 'email', label: 'Email' },
-    { key: 'role', label: 'Role', render: (row) => <Badge label={row.role} color={roleColors[row.role] || 'gray'} /> },
-    { key: 'org', label: 'Organization', render: (row) => row.organization?.name || '—' },
-    { key: 'lastSeen', label: 'Last Seen', render: (row) => timeAgo(row.lastSeen) },
+      ),
+    },
+    {
+      key: 'org',
+      label: 'Organization',
+      render: (row) => row.organization ? (
+        <span className="flex items-center gap-2">
+          <span className="max-w-[180px] truncate">{row.organization.name}</span>
+          <PlanBadge plan={row.organization.plan} />
+        </span>
+      ) : <span className="text-gray-400">—</span>,
+    },
+    { key: 'role', label: 'Role', render: (row) => <RoleBadge role={row.role} /> },
+    { key: 'lastSeen', label: 'Last active', render: (row) => <span className="whitespace-nowrap">{timeAgo(row.lastSeen)}</span> },
     { key: 'location', label: 'Location', render: (row) => formatLocation(row.lastLoginLocation) },
-    { key: 'createdAt', label: 'Joined', render: (row) => formatDate(row.createdAt) },
+    { key: 'createdAt', label: 'Joined', render: (row) => <span className="whitespace-nowrap text-gray-500">{formatDate(row.createdAt)}</span> },
   ];
 
   return (
     <div className="animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-          <p className="text-sm text-gray-500 mt-1">{total} total</p>
-        </div>
-      </div>
+      <PageHeader title="People" description={`${total} ${total === 1 ? 'person' : 'people'} across all organizations`} />
 
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="flex flex-wrap items-center gap-3 p-4 border-b border-gray-200">
-          <div className="flex-1 min-w-[200px]">
-            <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search users..." />
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 p-4">
+          <div className="min-w-[220px] flex-1">
+            <SearchInput value={search} onChange={(v) => setParam('search', v)} placeholder="Search by name or email" />
           </div>
           <FilterDropdown
             value={role}
-            onChange={(v) => { setRole(v); setPage(1); }}
+            onChange={(v) => setParam('role', v)}
             placeholder="All roles"
             options={[
               { value: 'owner', label: 'Owner' },
@@ -85,9 +107,9 @@ export default function UsersPage() {
           data={users}
           loading={loading}
           onRowClick={(row) => navigate(`/users/${row._id}`)}
-          emptyMessage="No users found"
+          emptyMessage={search || role ? 'Nobody matches these filters' : 'Nobody has signed up yet'}
         />
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        <Pagination page={page} totalPages={totalPages} total={total} pageSize={PAGE_SIZE} onPageChange={(p) => setParam('page', p > 1 ? String(p) : null)} />
       </div>
     </div>
   );

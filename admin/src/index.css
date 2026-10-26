@@ -29,6 +29,12 @@ h1, h2, h3 {
 }
 
 @layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
   .scrollbar-thin::-webkit-scrollbar {
     width: 4px;
   }

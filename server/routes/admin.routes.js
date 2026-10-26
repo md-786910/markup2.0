@@ -14,6 +14,10 @@ router.patch('/organizations/:id/lock', ctrl.lockOrganization);
 router.patch('/organizations/:id/unlock', ctrl.unlockOrganization);
 router.patch('/organizations/:id/plan', ctrl.setOrganizationPlan);
 router.post('/organizations/:id/extend-trial', ctrl.extendTrial);
+router.post('/organizations/:id/notes', ctrl.addOrganizationNote);
+router.patch('/organizations/:id/notes/:noteId', ctrl.updateOrganizationNote);
+router.delete('/organizations/:id/notes/:noteId', ctrl.deleteOrganizationNote);
+router.get('/audit', ctrl.getAuditLog);
 router.patch('/organizations/:id/limits', ctrl.setOrganizationLimits);
 router.post('/invoices/:id/refund', ctrl.refundInvoice);
 

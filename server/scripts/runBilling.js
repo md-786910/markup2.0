@@ -376,6 +376,7 @@ async function phaseOrgDeletion() {
       Integration.deleteMany({ organization: org._id }),
       Activity.deleteMany({ organization: org._id }),
       require('../models/Workspace').deleteMany({ organization: org._id }),
+      require('../models/AdminNote').deleteMany({ organization: org._id }),
       Project.updateMany({ members: { $in: userIds } }, { $pull: { members: { $in: userIds } } }),
     ]);
     await User.deleteMany({ _id: { $in: userIds } });

@@ -161,6 +161,8 @@ async function getPlansWithOverrides() {
       if (override.name != null) merged.name = override.name;
       // price: null means "Custom", so accept null but skip undefined
       if (override.price !== undefined) merged.price = override.price;
+      // Free is always $0; an empty price saved for it must not turn it into "Custom"
+      if (key === 'free') merged.price = 0;
       if (override.priceLabel != null) merged.priceLabel = override.priceLabel;
       if (override.period != null) merged.period = override.period;
       // explicit [] is an intentional override; missing field falls through

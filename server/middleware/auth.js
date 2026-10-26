@@ -6,6 +6,8 @@ const { checkTrialExpiry } = require('../utils/orgUtils');
 const { getEffectiveLimitsAsync } = require('../config/plans');
 const { isProxyToken } = require('../utils/proxyToken');
 
+const LAST_SEEN_INTERVAL_MS = 5 * 60 * 1000;
+
 const auth = asyncHandler(async (req, res, next) => {
   let token = null;
 
@@ -43,6 +45,12 @@ const auth = asyncHandler(async (req, res, next) => {
     }
 
     req.user = user;
+
+    // Last activity for the admin panel, written at most every 5 minutes per user
+    if (!user.lastSeen || Date.now() - user.lastSeen.getTime() > LAST_SEEN_INTERVAL_MS) {
+      user.lastSeen = new Date();
+      User.updateOne({ _id: user._id }, { $set: { lastSeen: user.lastSeen } }).catch(() => {});
+    }
 
     // Populate organization context if user has one
     if (user.organization) {

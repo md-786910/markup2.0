@@ -99,6 +99,13 @@ Tests: `cd server && npm test` runs `test/smoke.js` (~90 end-to-end checks: tena
 - **Small screens**: the app sidebar is a drawer below `lg`; the guest review page switches Page/Comments with a bottom tab bar below `md`; the member project view only shows a "works best on a larger screen" note.
 
 
+## Admin (`admin/src/`)
+- Superadmin only (`scripts/createSuperAdmin.js <email> <password>`); API under `/api/admin` (`routes/admin.routes.js`, `controllers/admin.controller.js`).
+- Layout: dark grouped sidebar (Overview; Customers: Organizations, People, Projects; Business: Plans & pricing; Settings: Payment settings, Action log) and a top bar with `GlobalSearch` (orgs + people, `/` focuses). Shared pieces in `components/common/ui.js` (`PageHeader`, `Card`, `Button`, `Tabs`, `Avatar`, `UsageBar`, `DefinitionList`, `inputClass`) and `StatusBadge.js` (`PlanBadge`, `StatusBadge`, `RoleBadge`, `InvoiceStatusBadge`); toasts/confirm/Modal are the client's copies. List filters live in the URL (`?search=&plan=&status=&sort=&page=`).
+- Org lifecycle status (`lifecycleStatus`: paying, trial, trial_ending, free, cancelling, locked, deleting) and MRR (`monthlyRevenue`: list price of active Starter/Pro, enterprise excluded) are computed server-side. `GET /admin/organizations?format=csv` exports the filtered list. The org detail returns usage vs effective limits, engagement (from `User.lastSeen`, pins/comments 30d), workspaces, pending invitations, activity, invoices and notes.
+- `User.lastSeen` is written by the auth middleware (at most every 5 min) and on socket connect/disconnect.
+- Internal notes: `AdminNote` model (never on the Organization document), `POST|PATCH|DELETE /admin/organizations/:id/notes[/:noteId]`; deleted with the org purge. The action log (`GET /admin/audit`) is Activity entries with `metadata.actorRole: 'superadmin'`; `utils/actions.js` describes every Activity action in words.
+
 ## Known issues / gotchas (verify before relying on them)
 - Guest proxy iframe requests check only that sharing is enabled and not expired, not the share password (the iframe URL has no share token).
 - The proxy and `/uploads` are served from the API origin; moving them to a separate sandbox domain is the remaining structural fix.

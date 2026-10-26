@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { PageHeader } from '../components/common/ui';
 import { getPlansApi, updatePlanApi, togglePlanApi } from '../services/adminService';
 import Modal from '../components/common/Modal';
 import Badge from '../components/common/Badge';
@@ -139,10 +140,10 @@ export default function PricingPage() {
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Pricing Management</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        Edits here are reflected immediately on the in-app billing tab and marketing site.
-      </p>
+      <PageHeader
+        title="Plans & pricing"
+        description="Changes apply right away to the in-app billing page and the website's pricing."
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {planOrder.map((key) => {

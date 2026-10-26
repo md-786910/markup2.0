@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { PageHeader } from '../components/common/ui';
 import {
   getPaymentSettingsApi,
   updatePaymentSettingsApi,
@@ -89,15 +90,11 @@ export default function PaymentsPage() {
     !!settings?.allowDowngrades !== draftAllowDowngrades;
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Choose which payment provider is active for new orders. If "None" is
-          selected, customers see "We're facing payment issues" and cannot
-          start checkout.
-        </p>
-      </div>
+    <div className="max-w-4xl animate-fade-in">
+      <PageHeader
+        title="Payment settings"
+        description={'Choose which payment provider takes new orders. With "None", customers see "We\'re facing payment issues" and can\'t start checkout.'}
+      />
 
       {error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-100 text-red-700 text-sm rounded-lg">

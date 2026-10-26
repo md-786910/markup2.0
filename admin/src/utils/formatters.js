@@ -38,3 +38,26 @@ export function formatLocation(location) {
   const parts = [location.city, location.country].filter(Boolean);
   return parts.length > 0 ? parts.join(', ') : '—';
 }
+
+// Invoice amounts are stored in the smallest unit of their own currency
+export function formatMoney(amountMinor, currency = 'USD') {
+  const major = (amountMinor || 0) / 100;
+  return currency === 'USD'
+    ? '$' + major.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '₹' + major.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Whole US dollars, e.g. monthly revenue
+export function formatUsd(amount) {
+  return '$' + (amount || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+// "in 3 days", "today", "2 days ago" for a date relative to now
+export function relativeDays(date) {
+  if (!date) return '—';
+  const days = Math.round((new Date(date).getTime() - Date.now()) / 86400000);
+  if (days === 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  if (days === -1) return 'yesterday';
+  return days > 0 ? `in ${days} days` : `${-days} days ago`;
+}

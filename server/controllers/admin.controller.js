@@ -5,9 +5,13 @@ const Pin = require('../models/Pin');
 const Activity = require('../models/Activity');
 const PlanConfig = require('../models/PlanConfig');
 const Invoice = require('../models/Invoice');
+const Comment = require('../models/Comment');
+const Workspace = require('../models/Workspace');
+const Invitation = require('../models/Invitation');
+const AdminNote = require('../models/AdminNote');
 const PaymentSettings = require('../models/PaymentSettings');
 const asyncHandler = require('../utils/asyncHandler');
-const { PLANS, getPlansWithOverrides, clearPlanCache, getLimitsForPlanAsync } = require('../config/plans');
+const { PLANS, getPlansWithOverrides, clearPlanCache, getLimitsForPlanAsync, getEffectiveLimitsAsync } = require('../config/plans');
 const {
   getProvider,
   getProviderStatus,
@@ -25,130 +29,263 @@ function parsePaging(query) {
   return { page, limit };
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Plans billed monthly at a list price; enterprise is a custom deal
+const PRICED_PLANS = ['starter', 'pro'];
+
+function escapeRegex(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Monthly revenue of an org at its plan's list price (USD), 0 unless it pays
+function monthlyRevenue(org, plans) {
+  if (!PRICED_PLANS.includes(org.plan) || org.subscription?.status !== 'active') return 0;
+  return Number(plans[org.plan]?.price) || 0;
+}
+
+// One lifecycle status per org, most important first
+function lifecycleStatus(org, now = Date.now()) {
+  if (org.deletionScheduledAt) return 'deleting';
+  if (org.isLocked) return 'locked';
+  if (org.plan === 'trial') {
+    return org.trialEndsAt && new Date(org.trialEndsAt).getTime() - now < 7 * DAY_MS ? 'trial_ending' : 'trial';
+  }
+  if (org.subscription?.cancelAtPeriodEnd) return 'cancelling';
+  if (org.plan === 'free') return 'free';
+  return 'paying';
+}
+
+// Last activity and active people per org, from the members' lastSeen
+async function engagementByOrg(orgIds) {
+  const since7 = new Date(Date.now() - 7 * DAY_MS);
+  const rows = await User.aggregate([
+    { $match: { organization: { $in: orgIds } } },
+    {
+      $group: {
+        _id: '$organization',
+        members: { $sum: 1 },
+        lastActiveAt: { $max: '$lastSeen' },
+        active7d: { $sum: { $cond: [{ $gte: ['$lastSeen', since7] }, 1, 0] } },
+      },
+    },
+  ]);
+  return new Map(rows.map((r) => [String(r._id), r]));
+}
+
+// Mongo filter for the customer list's status filter
+async function statusFilter(status) {
+  const now = new Date();
+  switch (status) {
+    case 'locked': return { isLocked: true };
+    case 'trial': return { plan: 'trial' };
+    case 'trial_ending': return { plan: 'trial', trialEndsAt: { $lte: new Date(now.getTime() + 7 * DAY_MS) } };
+    case 'paying': return { plan: { $in: [...PRICED_PLANS, 'enterprise'] }, 'subscription.status': 'active' };
+    case 'cancelling': return { 'subscription.cancelAtPeriodEnd': true };
+    case 'free': return { plan: 'free' };
+    case 'deleting': return { deletionScheduledAt: { $ne: null } };
+    case 'unpaid': return { _id: { $in: await Invoice.distinct('organization', { status: 'pending' }) } };
+    default: return {};
+  }
+}
+
 // ── Dashboard Stats ──────────────────────────────────────────────
 
 exports.getDashboardStats = asyncHandler(async (req, res) => {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * DAY_MS);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * DAY_MS);
+  const inSevenDays = new Date(now.getTime() + 7 * DAY_MS);
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
   const [
+    plans,
     totalUsers,
     activeUsers,
     totalOrgs,
+    newOrgs30d,
     planBreakdown,
-    subscriptionStats,
+    payingOrgs,
+    activeOrgIds,
+    unpaid,
+    trialsEnding,
+    overdueInvoices,
+    lockedOrgs,
     recentSignups,
-    recentActivity,
     monthlySignups,
+    recentAdminActions,
     totalProjects,
   ] = await Promise.all([
+    getPlansWithOverrides(),
     User.countDocuments({ role: { $ne: 'superadmin' } }),
     User.countDocuments({ lastSeen: { $gte: sevenDaysAgo }, role: { $ne: 'superadmin' } }),
     Organization.countDocuments(),
-    Organization.aggregate([
-      { $group: { _id: '$plan', count: { $sum: 1 } } },
+    Organization.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+    Organization.aggregate([{ $group: { _id: '$plan', count: { $sum: 1 } } }]),
+    Organization.find({ plan: { $in: [...PRICED_PLANS, 'enterprise'] }, 'subscription.status': 'active' })
+      .select('plan subscription').lean(),
+    User.distinct('organization', { lastSeen: { $gte: sevenDaysAgo }, organization: { $ne: null } }),
+    Invoice.aggregate([
+      { $match: { status: 'pending' } },
+      { $group: { _id: '$currency', count: { $sum: 1 }, amount: { $sum: '$amount' } } },
     ]),
-    Organization.aggregate([
-      { $group: { _id: '$subscription.status', count: { $sum: 1 } } },
-    ]),
+    Organization.find({ plan: 'trial', trialEndsAt: { $gte: now, $lte: inSevenDays } })
+      .sort({ trialEndsAt: 1 }).limit(8)
+      .select('name plan trialEndsAt owner').populate('owner', 'name email').lean(),
+    Invoice.find({ status: 'pending', dueAt: { $lt: now } })
+      .sort({ dueAt: 1 }).limit(8)
+      .select('organization amount currency dueAt plan invoiceNumber')
+      .populate('organization', 'name plan').lean(),
+    Organization.find({ isLocked: true, deletionScheduledAt: null })
+      .sort({ lockedAt: -1 }).limit(5)
+      .select('name plan lockedAt lockedReason').lean(),
     User.find({ role: { $ne: 'superadmin' } })
-      .sort({ createdAt: -1 })
-      .limit(10)
+      .sort({ createdAt: -1 }).limit(8)
       .select('name email role createdAt organization')
       .populate('organization', 'name plan'),
-    Activity.find()
-      .sort({ createdAt: -1 })
-      .limit(20)
-      .populate('actor', 'name email')
-      .populate('project', 'name'),
     User.aggregate([
       { $match: { createdAt: { $gte: sixMonthsAgo }, role: { $ne: 'superadmin' } } },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
-          count: { $sum: 1 },
-        },
-      },
+      { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } }, count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]),
+    Activity.find({ 'metadata.actorRole': 'superadmin' })
+      .sort({ createdAt: -1 }).limit(8)
+      .populate('actor', 'name email')
+      .populate('organization', 'name')
+      .lean(),
     Project.countDocuments(),
   ]);
 
-  const planMap = {};
-  for (const p of planBreakdown) { planMap[p._id || 'none'] = p.count; }
+  // Last active per org in the trials-ending list
+  const engagement = await engagementByOrg(trialsEnding.map((o) => o._id));
 
-  const subMap = {};
-  for (const s of subscriptionStats) { subMap[s._id || 'none'] = s.count; }
+  const planMap = {};
+  for (const p of planBreakdown) planMap[p._id || 'none'] = p.count;
 
   res.json({
-    totalUsers,
-    activeUsers,
-    totalOrgs,
-    totalProjects,
+    kpis: {
+      mrr: payingOrgs.reduce((sum, org) => sum + monthlyRevenue(org, plans), 0),
+      payingOrgs: payingOrgs.length,
+      activeTrials: planMap.trial || 0,
+      trialsEnding7d: await Organization.countDocuments({ plan: 'trial', trialEndsAt: { $gte: now, $lte: inSevenDays } }),
+      activeOrgs7d: activeOrgIds.length,
+      totalOrgs,
+      newOrgs30d,
+      totalUsers,
+      activeUsers,
+      totalProjects,
+      lockedOrgs: await Organization.countDocuments({ isLocked: true }),
+      unpaidInvoices: unpaid.map((u) => ({ currency: u._id, count: u.count, amount: u.amount })),
+    },
     planBreakdown: planMap,
-    subscriptionStats: subMap,
-    recentSignups,
-    recentActivity,
     monthlySignups,
+    attention: {
+      trialsEnding: trialsEnding.map((o) => ({
+        ...o,
+        lastActiveAt: engagement.get(String(o._id))?.lastActiveAt || null,
+      })),
+      overdueInvoices,
+      lockedOrgs,
+    },
+    recentSignups,
+    recentAdminActions,
   });
 });
 
 // ── Organizations ────────────────────────────────────────────────
 
+const ORG_SORTS = {
+  newest: { createdAt: -1 },
+  oldest: { createdAt: 1 },
+  name: { name: 1 },
+  trial_end: { trialEndsAt: 1 },
+};
+
 exports.getOrganizations = asyncHandler(async (req, res) => {
-  const { plan, status, search } = req.query;
-  const { page, limit } = parsePaging(req.query);
+  const { plan, status, search, sort, format } = req.query;
+  const csv = format === 'csv';
+  const { page, limit } = csv ? { page: 1, limit: 5000 } : parsePaging(req.query);
   const skip = (page - 1) * limit;
 
-  const filter = {};
-  if (plan) filter.plan = plan;
-  if (status === 'locked') filter.isLocked = true;
-  if (status === 'active') filter.isLocked = { $ne: true };
+  const filter = { ...(await statusFilter(status)) };
+  if (plan) filter.plan = String(plan);
   if (search) {
+    const re = new RegExp(escapeRegex(String(search).slice(0, 100)), 'i');
+    const owners = await User.find({ $or: [{ email: re }, { name: re }] }).select('_id').limit(200).lean();
     filter.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { slug: { $regex: search, $options: 'i' } },
+      { name: re },
+      { slug: re },
+      { owner: { $in: owners.map((u) => u._id) } },
     ];
   }
 
-  const [orgs, total] = await Promise.all([
+  const [orgs, total, plans] = await Promise.all([
     Organization.find(filter)
-      .sort({ createdAt: -1 })
+      .sort(ORG_SORTS[sort] || ORG_SORTS.newest)
       .skip(skip)
       .limit(limit)
-      .populate('owner', 'name email'),
+      .populate('owner', 'name email')
+      .lean(),
     Organization.countDocuments(filter),
+    getPlansWithOverrides(),
   ]);
 
-  // Batch count members and projects per org
-  const orgIds = orgs.map(o => o._id);
-  const [memberCounts, projectCounts] = await Promise.all([
-    User.aggregate([
-      { $match: { organization: { $in: orgIds } } },
-      { $group: { _id: '$organization', count: { $sum: 1 } } },
-    ]),
+  const orgIds = orgs.map((o) => o._id);
+  const [engagement, projectCounts, unpaidOrgIds] = await Promise.all([
+    engagementByOrg(orgIds),
     Project.aggregate([
       { $match: { organization: { $in: orgIds } } },
       { $group: { _id: '$organization', count: { $sum: 1 } } },
     ]),
+    Invoice.distinct('organization', { organization: { $in: orgIds }, status: 'pending' }),
   ]);
+  const projectMap = new Map(projectCounts.map((p) => [String(p._id), p.count]));
+  const unpaidSet = new Set(unpaidOrgIds.map(String));
 
-  const memberMap = {};
-  for (const m of memberCounts) { memberMap[m._id.toString()] = m.count; }
-  const projectMap = {};
-  for (const p of projectCounts) { projectMap[p._id.toString()] = p.count; }
+  const now = Date.now();
+  const data = orgs.map((org) => {
+    const e = engagement.get(String(org._id));
+    return {
+      _id: org._id,
+      name: org.name,
+      slug: org.slug,
+      logo: org.logo,
+      owner: org.owner,
+      plan: org.plan,
+      status: lifecycleStatus(org, now),
+      isLocked: org.isLocked,
+      trialEndsAt: org.trialEndsAt,
+      subscription: org.subscription,
+      createdAt: org.createdAt,
+      memberCount: e?.members || 0,
+      activeMembers7d: e?.active7d || 0,
+      lastActiveAt: e?.lastActiveAt || null,
+      projectCount: projectMap.get(String(org._id)) || 0,
+      mrr: monthlyRevenue(org, plans),
+      hasUnpaidInvoice: unpaidSet.has(String(org._id)),
+    };
+  });
 
-  const data = orgs.map(org => ({
-    ...org.toObject(),
-    memberCount: memberMap[org._id.toString()] || 0,
-    projectCount: projectMap[org._id.toString()] || 0,
-  }));
+  if (csv) {
+    const cell = (v) => {
+      const s = v == null ? '' : String(v);
+      // Quote, and defuse spreadsheet formulas in customer-entered text
+      return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    };
+    const iso = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
+    const header = ['Organization', 'Owner', 'Owner email', 'Plan', 'Status', 'Members', 'Active members (7d)', 'Projects', 'MRR (USD)', 'Last active', 'Trial ends', 'Created'];
+    const lines = data.map((o) => [
+      o.name, o.owner?.name, o.owner?.email, o.plan, o.status, o.memberCount, o.activeMembers7d,
+      o.projectCount, o.mrr, iso(o.lastActiveAt), iso(o.trialEndsAt), iso(o.createdAt),
+    ].map(cell).join(','));
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="kommently-customers-${new Date().toISOString().slice(0, 10)}.csv"`);
+    return res.send([header.map(cell).join(','), ...lines].join('\n'));
+  }
 
   res.json({
     organizations: data,
     total,
-    page: page,
+    page,
     totalPages: Math.ceil(total / limit),
   });
 });
@@ -157,30 +294,94 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
   const org = await Organization.findById(req.params.id).populate('owner', 'name email');
   if (!org) return res.status(404).json({ message: 'Organization not found' });
 
-  const [members, projects, pinStats, invoices] = await Promise.all([
-    User.find({ organization: org._id }).select('name email role lastSeen avatar createdAt'),
-    Project.find({ organization: org._id }).select('name projectType websiteUrl status projectStatus members createdAt'),
-    Pin.aggregate([
-      { $lookup: { from: 'projects', localField: 'project', foreignField: '_id', as: 'proj' } },
-      { $unwind: '$proj' },
-      { $match: { 'proj.organization': org._id } },
-      { $group: {
-        _id: null,
-        total: { $sum: 1 },
-        resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
-      }},
-    ]),
-    // Invoice does not store any Razorpay secrets — safe to return as-is.
+  const now = Date.now();
+  const since7 = new Date(now - 7 * DAY_MS);
+  const since30 = new Date(now - 30 * DAY_MS);
+
+  const [members, projects, workspaces, invoices, invitations, notes, activity, limits, plans] = await Promise.all([
+    User.find({ organization: org._id })
+      .select('name email role lastSeen avatar createdAt lastLoginLocation')
+      .sort({ createdAt: 1 }).lean(),
+    Project.find({ organization: org._id })
+      .select('name projectType websiteUrl status projectStatus members workspace createdAt updatedAt shareSettings.enabled documents.originalName')
+      .sort({ updatedAt: -1 }).lean(),
+    Workspace.find({ organization: org._id })
+      .select('name isDefault members shareSettings.enabled createdAt').lean(),
+    // Invoice does not store any provider secrets, safe to return as-is.
     // Do NOT add credentials to this projection if Invoice schema ever grows.
     Invoice.find({ organization: org._id }).sort({ createdAt: -1 }).lean(),
+    Invitation.find({ organization: org._id, status: 'pending', expiresAt: { $gt: new Date() } })
+      .select('email role level project workspace createdAt expiresAt').lean(),
+    AdminNote.find({ organization: org._id })
+      .sort({ pinned: -1, createdAt: -1 })
+      .populate('author', 'name email').lean(),
+    Activity.find({ organization: org._id })
+      .sort({ createdAt: -1 }).limit(50)
+      .populate('actor', 'name email')
+      .populate('project', 'name').lean(),
+    getEffectiveLimitsAsync(org),
+    getPlansWithOverrides(),
   ]);
+
+  const projectIds = projects.map((p) => p._id);
+  const pinIds = await Pin.find({ project: { $in: projectIds } }).distinct('_id');
+  const [pinStats, pins30d, comments30d, guestReviewers] = await Promise.all([
+    Pin.aggregate([
+      { $match: { project: { $in: projectIds } } },
+      { $group: { _id: null, total: { $sum: 1 }, resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } } } },
+    ]),
+    Pin.countDocuments({ project: { $in: projectIds }, createdAt: { $gte: since30 } }),
+    Comment.countDocuments({ pin: { $in: pinIds }, createdAt: { $gte: since30 } }),
+    Comment.distinct('authorGuest.email', { pin: { $in: pinIds }, 'authorGuest.email': { $ne: null } }),
+  ]);
+
+  // Projects per workspace (null = the default one)
+  const defaultWs = workspaces.find((w) => w.isDefault);
+  const wsProjectCount = {};
+  for (const p of projects) {
+    const key = String(p.workspace || defaultWs?._id || 'default');
+    wsProjectCount[key] = (wsProjectCount[key] || 0) + 1;
+  }
+
+  const lastActiveAt = members.reduce((max, m) => (m.lastSeen && (!max || m.lastSeen > max) ? m.lastSeen : max), null);
 
   res.json({
     organization: org,
+    status: lifecycleStatus(org, now),
+    mrr: monthlyRevenue(org, plans),
+    limits,
+    usage: {
+      projects: projects.filter((p) => p.status === 'active').length,
+      archivedProjects: projects.filter((p) => p.status === 'archived').length,
+      workspaces: workspaces.length,
+      members: members.filter((m) => m.role !== 'guest').length + invitations.filter((i) => i.role !== 'guest').length,
+      guests: members.filter((m) => m.role === 'guest').length + invitations.filter((i) => i.role === 'guest').length,
+      storageMB: Math.round(((org.storageUsedBytes || 0) / 1048576) * 10) / 10,
+    },
+    engagement: {
+      lastActiveAt,
+      activeMembers7d: members.filter((m) => m.lastSeen && m.lastSeen >= since7).length,
+      activeMembers30d: members.filter((m) => m.lastSeen && m.lastSeen >= since30).length,
+      pins30d,
+      comments30d,
+      guestReviewers: guestReviewers.length,
+      shareLinks: projects.filter((p) => p.shareSettings?.enabled).length + workspaces.filter((w) => w.shareSettings?.enabled).length,
+    },
     members,
     projects,
+    workspaces: workspaces.map((w) => ({
+      _id: w._id,
+      name: w.name,
+      isDefault: w.isDefault,
+      memberCount: w.members?.length || 0,
+      shared: !!w.shareSettings?.enabled,
+      projectCount: wsProjectCount[String(w._id)] || 0,
+    })),
+    invitations,
     pinStats: pinStats[0] || { total: 0, resolved: 0 },
     invoices,
+    notes,
+    activity,
   });
 });
 
@@ -223,10 +424,8 @@ exports.getUsers = asyncHandler(async (req, res) => {
   if (role) filter.role = role;
   if (orgId) filter.organization = orgId;
   if (search) {
-    filter.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
-    ];
+    const re = new RegExp(escapeRegex(String(search).slice(0, 100)), 'i');
+    filter.$or = [{ name: re }, { email: re }];
   }
 
   const [users, total] = await Promise.all([
@@ -371,7 +570,7 @@ exports.updatePlan = asyncHandler(async (req, res) => {
   // Display fields
   if (b.name !== undefined) $set.name = String(b.name).slice(0, 60);
   // price: accept null (= "Custom"); otherwise number
-  if (b.price !== undefined) $set.price = numOrNull(b.price);
+  if (b.price !== undefined) $set.price = planId === 'free' ? 0 : numOrNull(b.price);
   // INR price for Razorpay; null = derive from the USD price
   if (b.priceInr !== undefined) $set.priceInr = numOrNull(b.priceInr);
   if (b.priceLabel !== undefined) $set.priceLabel = String(b.priceLabel).slice(0, 40);
@@ -606,4 +805,52 @@ exports.refundInvoice = asyncHandler(async (req, res) => {
     invoiceId: String(invoice._id), amount: invoice.amount, currency: invoice.currency, actorRole: 'superadmin',
   });
   res.json({ invoice, downgraded: !!result.downgraded });
+});
+
+// ── Internal notes ───────────────────────────────────────────────
+
+exports.addOrganizationNote = asyncHandler(async (req, res) => {
+  const body = String(req.body?.body || '').trim();
+  if (!body) return res.status(400).json({ message: 'Write a note first' });
+  if (body.length > 4000) return res.status(400).json({ message: 'Notes can be up to 4000 characters' });
+  const org = await Organization.exists({ _id: req.params.id });
+  if (!org) return res.status(404).json({ message: 'Organization not found' });
+  const note = await AdminNote.create({ organization: req.params.id, author: req.user._id, body });
+  await note.populate('author', 'name email');
+  res.status(201).json({ note });
+});
+
+exports.updateOrganizationNote = asyncHandler(async (req, res) => {
+  const note = await AdminNote.findOneAndUpdate(
+    { _id: req.params.noteId, organization: req.params.id },
+    { $set: { pinned: !!req.body?.pinned } },
+    { returnDocument: 'after' },
+  ).populate('author', 'name email');
+  if (!note) return res.status(404).json({ message: 'Note not found' });
+  res.json({ note });
+});
+
+exports.deleteOrganizationNote = asyncHandler(async (req, res) => {
+  const result = await AdminNote.deleteOne({ _id: req.params.noteId, organization: req.params.id });
+  if (!result.deletedCount) return res.status(404).json({ message: 'Note not found' });
+  res.json({ message: 'Note deleted' });
+});
+
+// ── Admin action log ─────────────────────────────────────────────
+
+exports.getAuditLog = asyncHandler(async (req, res) => {
+  const { page, limit } = parsePaging(req.query);
+  const filter = { 'metadata.actorRole': 'superadmin' };
+  if (req.query.orgId) filter.organization = req.query.orgId;
+  const [entries, total] = await Promise.all([
+    Activity.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('actor', 'name email')
+      .populate('organization', 'name plan')
+      .lean(),
+    Activity.countDocuments(filter),
+  ]);
+  res.json({ entries, total, page, totalPages: Math.ceil(total / limit) });
 });
