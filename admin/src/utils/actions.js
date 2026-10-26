@@ -3,6 +3,11 @@ import { formatDate, formatMoney } from './formatters';
 
 const plan = (p) => PLAN_LABELS[p] || p;
 
+// Who did it: an admin panel user, a customer, or a guest reviewer
+export function actorName(a, fallback = 'Someone') {
+  return a.adminActor?.name || a.metadata?.adminName || a.actor?.name || a.actorGuest?.name || fallback;
+}
+
 // Plain-language description of an Activity entry, without the actor's name
 export function describeAction(a) {
   const m = a.metadata || {};
@@ -53,6 +58,11 @@ export function describeAction(a) {
     case 'workspace.share_disabled': return 'turned off a workspace review link';
     case 'integration.connected': return `connected ${m.type || 'an integration'}`;
     case 'integration.disconnected': return `disconnected ${m.type || 'an integration'}`;
+    case 'admin.invited': return `invited ${m.name || m.email} to the admin team`;
+    case 'admin.disabled': return `disabled the admin account of ${m.name || m.email}`;
+    case 'admin.enabled': return `turned the admin account of ${m.name || m.email} back on`;
+    case 'admin.removed': return `removed ${m.name || m.email} from the admin team`;
+    case 'admin.two_factor_reset': return `reset two-step sign-in for ${m.name || m.email}`;
     default: return a.action.replace(/[._]/g, ' ');
   }
 }

@@ -126,7 +126,6 @@ app.use(globalLimiter);
 // requests using Authorization: Bearer (header auth isn't CSRF-able).
 const PUBLIC_AUTH_PATHS = new Set([
   "/api/auth/login",
-  "/api/auth/login/2fa",
   "/api/auth/signup",
   "/api/auth/validate-email",
   "/api/auth/send-otp",
@@ -138,6 +137,8 @@ app.use((req, res, next) => {
   // signed-in actions under /api/auth (profile, password, account and
   // workspace deletion) are CSRF-protected like everything else.
   if (PUBLIC_AUTH_PATHS.has(req.path) || req.path.startsWith("/api/auth/reset-password/")) return next();
+  // Admin panel auth uses Bearer tokens only, never cookies, so CSRF can't apply
+  if (req.path.startsWith("/api/admin-auth/")) return next();
   // Guest share-link endpoints use no cookie auth (share token + X-Guest-Access
   // header), so CSRF doesn't apply; the guest client sends no CSRF header.
   if (req.path.startsWith("/api/guest/")) return next();
@@ -189,6 +190,7 @@ app.use("/api/email", require("./routes/email.routes"));
 app.use("/api/support", require("./routes/support.routes"));
 app.use("/api/projects", versionRoutes);
 app.use("/api/integrations", integrationRoutes);
+app.use("/api/admin-auth", authLimiter, require("./routes/adminAuth.routes"));
 app.use("/api/admin", adminLimiter, adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/workspaces", require("./routes/workspace.routes"));

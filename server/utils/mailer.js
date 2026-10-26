@@ -98,6 +98,10 @@ async function sendPasswordResetEmail(toEmail, resetUrl, expiresIn) {
   await send(toEmail, templates.passwordReset({ resetUrl, expiresIn }));
 }
 
+async function sendAdminInviteEmail(toEmail, { name, inviterName, setPasswordUrl }) {
+  await send(toEmail, templates.adminInvite({ name, inviterName, setPasswordUrl }));
+}
+
 async function sendEmailVerificationOtp(toEmail, otp) {
   await send(toEmail, templates.verificationOtp({ otp }));
 }
@@ -152,6 +156,7 @@ module.exports = {
   sendPinStatusEmail,
   sendDigestEmail,
   sendPasswordResetEmail,
+  sendAdminInviteEmail,
   sendInvoiceCreatedEmail,
   sendPaymentReminderEmail,
   sendUrgentPaymentReminderEmail,

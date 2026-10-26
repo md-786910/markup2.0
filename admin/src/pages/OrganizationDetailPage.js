@@ -20,7 +20,7 @@ import { Avatar, Button, Card, DefinitionList, Field, PageHeader, Tabs, UsageBar
 import { InvoiceStatusBadge, PlanBadge, Pill, RoleBadge, StatusBadge } from '../components/common/StatusBadge';
 import { formatDate, formatDateTime, formatLocation, formatMoney, formatUsd, relativeDays, timeAgo } from '../utils/formatters';
 import { PLAN_LABELS } from '../config/plans';
-import { describeAction } from '../utils/actions';
+import { actorName, describeAction } from '../utils/actions';
 import { toast, toastError } from '../utils/toast';
 import { confirmDialog } from '../utils/confirm';
 
@@ -430,12 +430,12 @@ function ActivityTab({ data }) {
           const byAdmin = a.metadata?.actorRole === 'superadmin';
           return (
             <li key={a._id} className="flex items-start gap-3 px-5 py-3">
-              <Avatar name={a.actor?.name || a.actorGuest?.name || '?'} size="sm" />
+              <Avatar name={actorName(a, '?')} size="sm" />
               <div className="min-w-0 flex-1 text-sm">
                 <p className="text-gray-700">
-                  <span className="font-medium text-gray-900">{a.actor?.name || a.actorGuest?.name || 'Someone'}</span>
+                  <span className="font-medium text-gray-900">{actorName(a)}</span>
                   {byAdmin && <span className="ml-1.5"><Pill tone="red">Admin</Pill></span>}
-                  {a.actorGuest?.name && !a.actor && <span className="ml-1.5"><Pill>Guest</Pill></span>}{' '}
+                  {a.actorGuest?.name && !a.actor && !a.adminActor && <span className="ml-1.5"><Pill>Guest</Pill></span>}{' '}
                   {describeAction(a)}
                   {a.project?.name && <span className="text-gray-500"> in {a.project.name}</span>}
                 </p>

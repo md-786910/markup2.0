@@ -18,6 +18,12 @@ const activitySchema = new Schema({
     ref: 'User',
     default: null,
   },
+  // Admin panel user who did it (admin actions); actor stays null then
+  adminActor: {
+    type: Schema.Types.ObjectId,
+    ref: 'AdminUser',
+    default: null,
+  },
   actorGuest: {
     name: { type: String, default: null },
     email: { type: String, default: null },
@@ -45,6 +51,8 @@ const activitySchema = new Schema({
       'workspace.members_updated', 'workspace.share_enabled', 'workspace.share_disabled',
       'integration.connected', 'integration.disconnected',
       'billing.payment_succeeded',
+      // Admin team (organization is null)
+      'admin.invited', 'admin.disabled', 'admin.enabled', 'admin.removed', 'admin.two_factor_reset',
     ],
     required: true,
   },

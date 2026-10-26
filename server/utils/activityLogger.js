@@ -92,4 +92,19 @@ function logOrgActivity(organizationId, actorId, action, metadata = {}) {
   });
 }
 
-module.exports = { logActivity, logGuestActivity, logOrgActivity };
+// Something an admin panel user did, for the action log. organizationId is
+// null for changes to the admin team itself.
+function logAdminAction(organizationId, admin, action, metadata = {}) {
+  Activity.create({
+    organization: organizationId || null,
+    project: null,
+    actor: null,
+    adminActor: admin._id,
+    action,
+    metadata: { ...metadata, actorRole: 'superadmin', adminName: admin.name },
+  }).catch((err) => {
+    console.error('Failed to log admin action:', err.message);
+  });
+}
+
+module.exports = { logActivity, logGuestActivity, logOrgActivity, logAdminAction };

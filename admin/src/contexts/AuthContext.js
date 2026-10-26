@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { TOKEN_KEY } from '../utils/constants';
-import { loginApi, loginTwoFactorApi, getMeApi } from '../services/authService';
+import { loginApi, loginTwoFactorApi, getMeApi, logoutApi } from '../services/authService';
 
 export const AuthContext = createContext(null);
 
@@ -16,12 +16,7 @@ export function AuthProvider({ children }) {
     }
     try {
       const { data } = await getMeApi();
-      if (data.user.role !== 'superadmin') {
-        localStorage.removeItem(TOKEN_KEY);
-        setUser(null);
-      } else {
-        setUser(data.user);
-      }
+      setUser(data.admin);
     } catch {
       localStorage.removeItem(TOKEN_KEY);
       setUser(null);
@@ -34,11 +29,8 @@ export function AuthProvider({ children }) {
   // Stores a session from any response that issues one (sign-in, password
   // change, turning on 2FA: the server rotates the session on those)
   const applySession = useCallback((data) => {
-    if (data?.user && data.user.role !== 'superadmin') {
-      throw new Error('This account is not an admin account.');
-    }
     if (data?.token) localStorage.setItem(TOKEN_KEY, data.token);
-    if (data?.user) setUser(data.user);
+    if (data?.admin) setUser(data.admin);
   }, []);
 
   // Step 1. Returns { twoFactorRequired, challengeToken } when a code is needed
@@ -56,7 +48,9 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const logout = () => {
+  // Ends the session on the server too, so the token can't be reused
+  const logout = async () => {
+    try { await logoutApi(); } catch { /* signed out locally either way */ }
     localStorage.removeItem(TOKEN_KEY);
     setUser(null);
   };

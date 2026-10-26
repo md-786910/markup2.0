@@ -6,7 +6,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Avatar, Card, EmptyState, PageHeader } from '../components/common/ui';
 import { PlanBadge } from '../components/common/StatusBadge';
 import { formatDateTime, timeAgo } from '../utils/formatters';
-import { describeAction } from '../utils/actions';
+import { actorName, describeAction } from '../utils/actions';
 
 const PAGE_SIZE = 30;
 
@@ -42,10 +42,10 @@ export default function AuditLogPage() {
             <ol className="divide-y divide-gray-100">
               {data.entries.map((a) => (
                 <li key={a._id} className="flex items-start gap-3 px-5 py-3.5">
-                  <Avatar name={a.actor?.name || 'Admin'} size="sm" />
+                  <Avatar name={actorName(a, 'Admin')} size="sm" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-gray-700">
-                      <span className="font-medium text-gray-900">{a.actor?.name || 'Admin'}</span> {describeAction(a)}
+                      <span className="font-medium text-gray-900">{actorName(a, 'Admin')}</span> {describeAction(a)}
                     </p>
                     {a.organization && (
                       <Link to={`/organizations/${a.organization._id}`} className="mt-1 inline-flex items-center gap-2 text-sm text-gray-600 hover:text-blue-700">

@@ -17,7 +17,7 @@ const {
   getProviderStatus,
   clearPaymentSettingsCache,
 } = require('../payments');
-const { logOrgActivity } = require('../utils/activityLogger');
+const { logAdminAction } = require('../utils/activityLogger');
 const { clearBillingLock } = require('../utils/orgUtils');
 const { addMonthsUTC } = require('../utils/billingDates');
 const { applyRefund } = require('../payments/refundInvoice');
@@ -150,6 +150,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     Activity.find({ 'metadata.actorRole': 'superadmin' })
       .sort({ createdAt: -1 }).limit(8)
       .populate('actor', 'name email')
+      .populate('adminActor', 'name email')
       .populate('organization', 'name')
       .lean(),
     Project.countDocuments(),
@@ -318,6 +319,7 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
     Activity.find({ organization: org._id })
       .sort({ createdAt: -1 }).limit(50)
       .populate('actor', 'name email')
+      .populate('adminActor', 'name email')
       .populate('project', 'name').lean(),
     getEffectiveLimitsAsync(org),
     getPlansWithOverrides(),
@@ -393,10 +395,7 @@ exports.lockOrganization = asyncHandler(async (req, res) => {
     { returnDocument: 'after' },
   );
   if (!org) return res.status(404).json({ message: 'Organization not found' });
-  logOrgActivity(org._id, req.user._id, 'org.locked', {
-    reason: org.lockedReason,
-    actorRole: 'superadmin',
-  });
+  logAdminAction(org._id, req.admin, 'org.locked', { reason: org.lockedReason });
   res.json({ organization: org });
 });
 
@@ -407,9 +406,7 @@ exports.unlockOrganization = asyncHandler(async (req, res) => {
     { returnDocument: 'after' },
   );
   if (!org) return res.status(404).json({ message: 'Organization not found' });
-  logOrgActivity(org._id, req.user._id, 'org.unlocked', {
-    actorRole: 'superadmin',
-  });
+  logAdminAction(org._id, req.admin, 'org.unlocked');
   res.json({ organization: org });
 });
 
@@ -728,7 +725,7 @@ exports.setOrganizationPlan = asyncHandler(async (req, res) => {
     await Invoice.updateMany({ organization: org._id, status: 'pending' }, { $set: { status: 'void' } });
   }
 
-  logOrgActivity(org._id, req.user._id, 'org.plan_set_by_admin', { from: previousPlan, to: plan, actorRole: 'superadmin' });
+  logAdminAction(org._id, req.admin, 'org.plan_set_by_admin', { from: previousPlan, to: plan });
   res.json({ organization: org });
 });
 
@@ -751,7 +748,7 @@ exports.extendTrial = asyncHandler(async (req, res) => {
   clearBillingLock(org);
   await org.save();
 
-  logOrgActivity(org._id, req.user._id, 'org.trial_extended', { days, trialEndsAt: org.trialEndsAt, actorRole: 'superadmin' });
+  logAdminAction(org._id, req.admin, 'org.trial_extended', { days, trialEndsAt: org.trialEndsAt });
   res.json({ organization: org });
 });
 
@@ -775,7 +772,7 @@ exports.setOrganizationLimits = asyncHandler(async (req, res) => {
   }
   org.limitOverrides = overrides;
   await org.save();
-  logOrgActivity(org._id, req.user._id, 'org.limits_overridden', { overrides, actorRole: 'superadmin' });
+  logAdminAction(org._id, req.admin, 'org.limits_overridden', { overrides });
   res.json({ organization: org });
 });
 
@@ -801,8 +798,8 @@ exports.refundInvoice = asyncHandler(async (req, res) => {
     return res.status(502).json({ message: `The payment provider rejected the refund: ${err.message}` });
   }
   const result = await applyRefund(invoice, invoice.amount);
-  logOrgActivity(invoice.organization, req.user._id, 'org.invoice_refunded', {
-    invoiceId: String(invoice._id), amount: invoice.amount, currency: invoice.currency, actorRole: 'superadmin',
+  logAdminAction(invoice.organization, req.admin, 'org.invoice_refunded', {
+    invoiceId: String(invoice._id), amount: invoice.amount, currency: invoice.currency,
   });
   res.json({ invoice, downgraded: !!result.downgraded });
 });
@@ -815,7 +812,7 @@ exports.addOrganizationNote = asyncHandler(async (req, res) => {
   if (body.length > 4000) return res.status(400).json({ message: 'Notes can be up to 4000 characters' });
   const org = await Organization.exists({ _id: req.params.id });
   if (!org) return res.status(404).json({ message: 'Organization not found' });
-  const note = await AdminNote.create({ organization: req.params.id, author: req.user._id, body });
+  const note = await AdminNote.create({ organization: req.params.id, author: req.admin._id, body });
   await note.populate('author', 'name email');
   res.status(201).json({ note });
 });
@@ -848,6 +845,7 @@ exports.getAuditLog = asyncHandler(async (req, res) => {
       .skip((page - 1) * limit)
       .limit(limit)
       .populate('actor', 'name email')
+      .populate('adminActor', 'name email')
       .populate('organization', 'name plan')
       .lean(),
     Activity.countDocuments(filter),

@@ -167,6 +167,11 @@ connectDB()
       console.log(`Server running on port ${PORT}`);
     });
 
+    // Admin accounts that predate AdminUser move out of the customer users
+    require("./utils/migrateAdmins").migrateLegacyAdmins().catch((err) =>
+      console.error("[admins] moving legacy admin accounts failed:", err),
+    );
+
     // Background jobs: email batches (Redis only) and daily billing/trials
     startEmailWorker();
     startBillingScheduler().catch((err) =>

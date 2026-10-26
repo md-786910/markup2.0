@@ -1,16 +1,16 @@
 /**
- * Turn off two-step sign-in for an account that lost its authenticator and
- * recovery codes. Run on the server after confirming who is asking.
+ * Turn off two-step sign-in for an admin who lost their authenticator and
+ * recovery codes, when no other admin can do it from Settings → Admin team.
  * Usage: node scripts/resetTwoFactor.js <email>
- * The person signs in with their password and sets up 2FA again (admins are
- * asked to right away when ADMIN_REQUIRE_2FA is on).
+ * They sign in with their password and set up 2FA again.
  */
 
 require('../config/env');
 const mongoose = require('mongoose');
-const crypto = require('crypto');
-const User = require('../models/User');
+const AdminUser = require('../models/AdminUser');
 const connectDB = require('../config/db');
+const { newSessionToken } = require('../utils/adminSession');
+const { TWO_FACTOR_OFF } = require('../controllers/adminAuth.controller');
 
 async function main() {
   const [,, email] = process.argv;
@@ -19,16 +19,15 @@ async function main() {
     process.exit(1);
   }
   await connectDB();
-  const user = await User.findOne({ email: email.toLowerCase().trim() });
-  if (!user) {
-    console.error(`No account with the email ${email}.`);
+  const admin = await AdminUser.findOne({ email: email.toLowerCase().trim() });
+  if (!admin) {
+    console.error(`No admin account with the email ${email}.`);
     process.exit(1);
   }
-  user.twoFactor = { enabled: false, enabledAt: null, secret: null, pendingSecret: null, pendingCreatedAt: null, lastUsedStep: 0, recoveryCodes: [] };
-  // Sign out every session too
-  user.sessionToken = crypto.randomBytes(32).toString('hex');
-  await user.save({ validateBeforeSave: false });
-  console.log(`Two-step sign-in is off for ${user.email}, and all their sessions are signed out.`);
+  admin.twoFactor = { ...TWO_FACTOR_OFF };
+  admin.sessionToken = newSessionToken(); // signs out every session
+  await admin.save({ validateBeforeSave: false });
+  console.log(`Two-step sign-in is off for ${admin.email}, and all their sessions are signed out.`);
   await mongoose.disconnect();
 }
 

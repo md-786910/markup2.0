@@ -67,7 +67,7 @@ function check(name, cond, extra = '') {
   const base = `http://127.0.0.1:${server.address().port}`;
   const call = async (method, url, { user, token, body, headers = {} } = {}) => {
     const h = { ...headers };
-    if (user) h.Authorization = `Bearer ${tok(user)}`;
+    if (user) h.Authorization = `Bearer ${user._adminToken || tok(user)}`;
     if (token) h.Authorization = `Bearer ${token}`;
     if (body) h['Content-Type'] = 'application/json';
     const res = await fetch(base + url, { method, headers: h, body: body ? JSON.stringify(body) : undefined });
@@ -339,15 +339,35 @@ function check(name, cond, extra = '') {
   check('invalid Indian GSTIN rejected', (await call('PUT', '/api/billing/details', { user: billOwner, body: { country: 'India', taxId: 'NOTAGSTIN' } })).status === 400);
   check('valid billing details saved', (await call('PUT', '/api/billing/details', { user: billOwner, body: { legalName: 'Bill Co LLP', country: 'India', state: 'Karnataka', taxId: '29AAACB1234C1Z5' } })).status === 200);
 
-  // admin tools
-  const superadmin = await mkUser('superadmin', 'superadmin');
+  // admin tools: admin panel accounts are AdminUser, with their own sessions
+  const AdminUser = r('models/AdminUser');
+  const { signAdminToken } = r('utils/adminSession');
+  const mkAdmin = (name, extra = {}) => AdminUser.create({ name, email: `${name}@admin.e2e.test`, passwordHash: 'a-long-test-password', status: 'active', sessionToken: `${name}-s`, twoFactor: { enabled: true }, ...extra });
+  const adminOne = await mkAdmin('adminone');
+  const adminToken = signAdminToken(adminOne);
+  // `call(..., { user: superadmin })` signs a customer token; admin calls pass the admin token instead
+  const superadmin = { _adminToken: adminToken };
+  const adminCall = (method, url, opts = {}) => call(method, url, { ...opts, user: undefined, token: adminToken });
+  check('customer token cannot open the admin API', [401, 403].includes((await call('GET', '/api/admin/stats', { user: billOwner })).status));
+  check('admin token cannot open the customer API', (await call('GET', '/api/auth/me', { token: adminToken })).status === 401);
+  const no2fa = await mkAdmin('notwofactor', { twoFactor: { enabled: false } });
+  const no2faStats = await call('GET', '/api/admin/stats', { token: signAdminToken(no2fa) });
+  check('admin without 2FA is sent to set it up', no2faStats.status === 403 && no2faStats.data?.code === 'TWO_FACTOR_SETUP_REQUIRED', String(no2faStats.status));
+  check('admin without 2FA can still reach their account', (await call('GET', '/api/admin-auth/2fa', { token: signAdminToken(no2fa) })).status === 200);
+  const invite = await adminCall('POST', '/api/admin/admins', { body: { name: 'New Admin', email: 'newadmin@admin.e2e.test' } });
+  check('admins can invite another admin', invite.status === 201 && invite.data?.admin?.status === 'invited' && sentMail.some((m) => m.startsWith('sendAdminInviteEmail')));
+  check('an admin cannot remove themselves', (await adminCall('DELETE', `/api/admin/admins/${adminOne._id}`)).status === 400);
+  await adminCall('PATCH', `/api/admin/admins/${no2fa._id}`, { body: { status: 'disabled' } });
+  check('a disabled admin is signed out', (await call('GET', '/api/admin-auth/me', { token: signAdminToken(no2fa) })).status === 401);
+  const loginAsInvited = await call('POST', '/api/admin-auth/login', { body: { email: 'newadmin@admin.e2e.test', password: 'anything-at-all' } });
+  check('an invited admin cannot sign in before setting a password', loginAsInvited.status === 401, String(loginAsInvited.status) + ' ' + JSON.stringify(loginAsInvited.data));
   const setPlan = await call('PATCH', `/api/admin/organizations/${billOrg._id}/plan`, { user: superadmin, body: { plan: 'enterprise' } });
   check('admin can set enterprise plan', setPlan.status === 200 && (await Organization.findById(billOrg._id)).plan === 'enterprise', String(setPlan.status));
   await call('PATCH', `/api/admin/organizations/${billOrg._id}/plan`, { user: superadmin, body: { plan: 'starter' } });
   await call('PATCH', `/api/admin/organizations/${billOrg._id}/limits`, { user: superadmin, body: { maxProjects: 77, hasVersionHistory: true } });
   const planView = await call('GET', '/api/billing/plan', { user: billOwner });
   check('per-org limit overrides apply', planView.data?.limits?.maxProjects === 77 && planView.data?.limits?.hasVersionHistory === true, JSON.stringify(planView.data?.limits));
-  check('non-admin cannot use admin tools', (await call('PATCH', `/api/admin/organizations/${billOrg._id}/plan`, { user: billOwner, body: { plan: 'pro' } })).status === 403);
+  check('non-admin cannot use admin tools', [401, 403].includes((await call('PATCH', `/api/admin/organizations/${billOrg._id}/plan`, { user: billOwner, body: { plan: 'pro' } })).status));
   await call('PATCH', `/api/admin/organizations/${billOrg._id}/plan`, { user: superadmin, body: { plan: 'trial' } });
   const trialBefore = new Date((await Organization.findById(billOrg._id)).trialEndsAt);
   await call('POST', `/api/admin/organizations/${billOrg._id}/extend-trial`, { user: superadmin, body: { days: 10 } });

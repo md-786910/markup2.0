@@ -32,6 +32,14 @@ export const getPlansApi = () => api.get('/admin/plans');
 export const updatePlanApi = (planId, data) => api.patch(`/admin/plans/${planId}`, data);
 export const togglePlanApi = (planId) => api.patch(`/admin/plans/${planId}/toggle`);
 
+// Admin team
+export const getAdminsApi = () => api.get('/admin/admins');
+export const inviteAdminApi = (data) => api.post('/admin/admins', data);
+export const resendAdminInviteApi = (id) => api.post(`/admin/admins/${id}/resend`);
+export const setAdminStatusApi = (id, status) => api.patch(`/admin/admins/${id}`, { status });
+export const removeAdminApi = (id) => api.delete(`/admin/admins/${id}`);
+export const resetAdminTwoFactorApi = (id) => api.post(`/admin/admins/${id}/reset-2fa`);
+
 // Payment provider settings
 export const getPaymentSettingsApi = () => api.get('/admin/payment-settings');
 export const updatePaymentSettingsApi = (data) => api.patch('/admin/payment-settings', data);

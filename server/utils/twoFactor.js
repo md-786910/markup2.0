@@ -10,20 +10,21 @@ const CHALLENGE_TTL = '5m';
 const RECOVERY_CODE_COUNT = 10;
 const RECOVERY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I
 
-// Signed with its own key so a challenge can never pass as a session token
-const challengeKey = () => `${process.env.JWT_SECRET}:2fa-challenge`;
+// Signed with its own key per scope ('admin' for the admin panel), so a
+// challenge can never pass as a session token or cross between the two apps
+const challengeKey = (scope) => `${process.env.JWT_SECRET}:2fa-challenge:${scope}`;
 
 // Ties a challenge to the current password: a reset invalidates open challenges
 const passwordFingerprint = (user) => crypto.createHash('sha256').update(String(user.passwordHash)).digest('hex').slice(0, 16);
 
-function issueChallenge(user) {
-  return jwt.sign({ id: String(user._id), purpose: '2fa', pf: passwordFingerprint(user) }, challengeKey(), { expiresIn: CHALLENGE_TTL, algorithm: 'HS256' });
+function issueChallenge(user, scope) {
+  return jwt.sign({ id: String(user._id), purpose: '2fa', pf: passwordFingerprint(user) }, challengeKey(scope), { expiresIn: CHALLENGE_TTL, algorithm: 'HS256' });
 }
 
 // The decoded challenge, or null; the caller still checks pf against the user
-function readChallenge(token) {
+function readChallenge(token, scope) {
   try {
-    const decoded = jwt.verify(String(token || ''), challengeKey(), { algorithms: ['HS256'] });
+    const decoded = jwt.verify(String(token || ''), challengeKey(scope), { algorithms: ['HS256'] });
     return decoded.purpose === '2fa' ? decoded : null;
   } catch {
     return null;
@@ -44,7 +45,7 @@ function generateRecoveryCodes() {
 }
 
 /**
- * Check an authenticator code or a recovery code for a user loaded with
+ * Check an authenticator code or a recovery code for an account loaded with
  * SECOND_FACTOR_FIELDS. On success it records the use on `user` (the caller
  * saves) and returns 'totp' or 'recovery'; otherwise null.
  */
@@ -68,11 +69,10 @@ function checkSecondFactor(user, code) {
   return 'recovery';
 }
 
-// Admin accounts must use two-step sign-in: on by default in production,
-// ADMIN_REQUIRE_2FA=true|false overrides
+// Admin accounts must use two-step sign-in; only ADMIN_REQUIRE_2FA=false
+// (e.g. on a local machine) turns the rule off
 function adminRequiresTwoFactor() {
-  if (process.env.ADMIN_REQUIRE_2FA) return process.env.ADMIN_REQUIRE_2FA === 'true';
-  return process.env.NODE_ENV === 'production';
+  return process.env.ADMIN_REQUIRE_2FA !== 'false';
 }
 
 const SECOND_FACTOR_FIELDS = '+twoFactor.secret +twoFactor.lastUsedStep +twoFactor.recoveryCodes';

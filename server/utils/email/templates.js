@@ -217,6 +217,24 @@ function digest({ projectName, events }) {
 
 // ── Account ─────────────────────────────────────────────────────────────────
 
+function adminInvite({ name, inviterName, setPasswordUrl }) {
+  return {
+    subject: `${inviterName} added you to the Kommently admin team`,
+    ...renderEmail({
+      preheader: 'Set your password to open the admin panel. The link works for 72 hours.',
+      eyebrow: 'Admin team',
+      tone: 'neutral',
+      title: `Welcome to the admin team, ${name}`,
+      blocks: [
+        { type: 'p', text: `**${inviterName}** gave you access to the Kommently admin panel, where we manage customers, plans and billing.` },
+        { type: 'button', label: 'Set your password', url: setPasswordUrl, fallback: true },
+        { type: 'note', text: 'This link works for **72 hours**. After setting your password you will turn on two-step sign-in with an authenticator app on your phone.' },
+      ],
+    }),
+  };
+}
+
+
 function passwordReset({ resetUrl, expiresIn = '1 hour' }) {
   return {
     subject: 'Reset your Kommently password',
@@ -511,6 +529,7 @@ module.exports = {
   pinStatus,
   digest,
   passwordReset,
+  adminInvite,
   verificationOtp,
   invoiceCreated,
   paymentReminder,

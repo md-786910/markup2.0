@@ -1,8 +1,10 @@
 const router = require('express').Router();
-const superadmin = require('../middleware/superadmin');
+const adminAuth = require('../middleware/adminAuth');
 const ctrl = require('../controllers/admin.controller');
+const team = require('../controllers/adminUsers.controller');
 
-router.use(superadmin);
+// Admin panel users (AdminUser) only, with two-step sign-in on
+router.use(adminAuth());
 
 // Dashboard
 router.get('/stats', ctrl.getDashboardStats);
@@ -32,6 +34,14 @@ router.get('/projects', ctrl.getProjects);
 router.get('/plans', ctrl.getPlans);
 router.patch('/plans/:planId', ctrl.updatePlan);
 router.patch('/plans/:planId/toggle', ctrl.togglePlan);
+
+// Admin team
+router.get('/admins', team.listAdmins);
+router.post('/admins', team.inviteAdmin);
+router.post('/admins/:adminId/resend', team.resendInvite);
+router.patch('/admins/:adminId', team.setAdminStatus);
+router.delete('/admins/:adminId', team.removeAdmin);
+router.post('/admins/:adminId/reset-2fa', team.resetAdminTwoFactor);
 
 // Payment provider settings
 router.get('/payment-settings', ctrl.getPaymentSettings);

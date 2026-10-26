@@ -7,7 +7,7 @@ import { PlanBadge } from '../components/common/StatusBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { formatMoney, formatUsd, relativeDays, timeAgo } from '../utils/formatters';
 import { PLAN_LABELS } from '../config/plans';
-import { describeAction } from '../utils/actions';
+import { actorName, describeAction } from '../utils/actions';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -219,7 +219,7 @@ export default function DashboardPage() {
               {data.recentAdminActions.map((a) => (
                 <div key={a._id} className="px-5 py-3">
                   <p className="text-sm text-gray-700">
-                    <span className="font-medium text-gray-900">{a.actor?.name || 'Admin'}</span> {describeAction(a)}
+                    <span className="font-medium text-gray-900">{actorName(a, 'Admin')}</span> {describeAction(a)}
                     {a.organization && (
                       <> · <Link to={`/organizations/${a.organization._id}`} className="font-medium text-gray-900 hover:text-blue-700">{a.organization.name}</Link></>
                     )}

@@ -26,7 +26,7 @@ export default function LoginPage() {
         setChallenge(data.challengeToken);
         setPassword('');
       } else {
-        navigate('/dashboard', { replace: true });
+        navigate(data.setupTwoFactor ? '/account?setup=2fa' : '/dashboard', { replace: true });
       }
     } catch (err) {
       setError(message(err, 'Could not sign in.'));

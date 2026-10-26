@@ -32,7 +32,7 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const url = error.config?.url || "";
     // A wrong password or code on the sign-in screens is not an expired session
-    const signInCall = /^\/auth\/(login|forgot-password|reset-password)/.test(url);
+    const signInCall = /^\/admin-auth\/(login|forgot-password|reset-password)/.test(url);
     if (status === 401 && !signInCall) {
       localStorage.removeItem(TOKEN_KEY);
       if (window.location.pathname !== "/login") {

@@ -5,7 +5,7 @@ const { Schema } = mongoose;
 // Kept out of the Organization document so they can never reach customers.
 const adminNoteSchema = new Schema({
   organization: { type: Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
-  author: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  author: { type: Schema.Types.ObjectId, ref: 'AdminUser', required: true },
   body: { type: String, required: true, maxlength: 4000, trim: true },
   pinned: { type: Boolean, default: false },
 }, { timestamps: true });
