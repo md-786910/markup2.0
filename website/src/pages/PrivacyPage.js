@@ -171,7 +171,7 @@ export default function PrivacyPage() {
               4.1 Service Providers
             </h3>
             <p className="text-slate-600 leading-relaxed mb-4">
-              We work with third-party service providers (sub-processors) who help us operate the Service: cloud hosting and infrastructure, email delivery, Cloudflare (used to load the live websites you add for review), Razorpay and PayPal (payment processing — we never see or store your full card details), and error monitoring. These providers may only use your data to perform services on our behalf. A current list of sub-processors is available on request at the contact address below.
+              We work with third-party service providers (sub-processors) who help us operate the Service: cloud hosting and infrastructure, email delivery, Cloudflare (used to load the live websites you add for review), Razorpay and PayPal (payment processing — we never see or store your full card details), Crisp (live chat, only when you open a chat), and error monitoring. These providers may only use your data to perform services on our behalf. A current list of sub-processors is available on request at the contact address below.
             </p>
 
             <h3 className="font-display text-lg font-semibold text-[#0f172a] mt-6 mb-2">

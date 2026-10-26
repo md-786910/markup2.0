@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import CtaSection from '../components/CtaSection';
 import { TRIAL_NOTE } from '../data/pricing';
 import PlanCards from '../components/PlanCards';
-import { CheckIcon, XIcon, ZapIcon } from '../components/icons';
+import { CheckIcon, XIcon } from '../components/icons';
+import Accordion from '../components/Accordion';
 
 
 // Same limits as server/config/plans.js
@@ -42,14 +43,13 @@ const COMPARE_ROWS = [
 ];
 
 const FAQ = [
-  ['Can I try Kommently for free before paying?', 'Yes. Every new workspace starts with a 30-day free trial with all Pro features, and no credit card is required. We email you before the trial ends so you can choose a plan.'],
+  ['Can I try Kommently for free before paying?', 'Yes. Every new account starts with a 30-day free trial with all Pro features, and no credit card is required. We email you before the trial ends so you can choose a plan.'],
   ['Do client reviewers count as members?', 'No. Guests have their own allowance (2 on Free, 10 on Starter, 50 on Pro) and review through a share link without joining your workspace.'],
   ['What happens if we outgrow our plan?', 'Upgrade any time from Settings → Billing when you need more projects, guests, or storage. Enterprise covers custom limits, terms, and onboarding.'],
   ['Can we cancel monthly plans?', 'Yes. Cancel any time from Settings → Billing. You keep your plan until the end of the period you already paid for, and you are not charged again.'],
 ];
 
 export default function PricingPage() {
-  const [openFaq, setOpenFaq] = useState(0);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -67,7 +67,7 @@ export default function PricingPage() {
               Simple pricing that grows with your reviews.
             </h1>
             <p className="body-large mx-auto mt-6 max-w-2xl">
-              Every workspace starts with a 30-day Pro trial. No credit card, no setup fee, cancel any time.
+              Every new account starts with a 30-day Pro trial. No credit card, no setup fee, cancel any time.
             </p>
           </div>
         </section>
@@ -155,22 +155,13 @@ export default function PricingPage() {
               Features and limits differ between tools, so compare the plans that fit how you work. All product names are trademarks of their owners.
             </p>
 
-            <div className="mt-14">
-              <div className="text-center">
-                <ZapIcon className="mx-auto h-7 w-7 text-[#003dff]" />
-                <h2 className="section-heading mt-4 text-3xl lg:text-4xl">Pricing questions</h2>
+            <div className="mt-20 grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+              <div className="lg:sticky lg:top-28 lg:self-start">
+                <span className="eyebrow">Pricing questions</span>
+                <h2 className="section-heading mt-5">Before you choose.</h2>
+                <p className="body-large mt-4">Anything else? <a href="/support" className="font-medium text-[#003dff] hover:underline">Ask us</a>.</p>
               </div>
-              <div className="mx-auto mt-8 max-w-3xl space-y-3">
-                {FAQ.map(([question, answer], index) => (
-                  <div key={question} className="rounded-2xl border border-slate-200 bg-white">
-                    <button type="button" className="flex w-full items-center justify-between gap-4 p-5 text-left font-semibold text-[#0f172a]" onClick={() => setOpenFaq(openFaq === index ? -1 : index)}>
-                      {question}
-                      <span className="text-[#003dff]">{openFaq === index ? '-' : '+'}</span>
-                    </button>
-                    {openFaq === index ? <p className="px-5 pb-5 text-sm leading-7 text-slate-600">{answer}</p> : null}
-                  </div>
-                ))}
-              </div>
+              <Accordion items={FAQ.map(([question, answer]) => ({ question, answer }))} idPrefix="pricing-faq" />
             </div>
           </div>
         </section>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import CookieBanner from './CookieBanner';
+import ChatLauncher from './ChatLauncher';
 import CookiePreferencesModal from './CookiePreferencesModal';
 import {
   createConsentPayload,
@@ -88,6 +89,7 @@ export default function CookieConsentManager() {
 
   return (
     <>
+      <ChatLauncher hidden={bannerVisible || modalOpen} />
       <CookieBanner
         visible={bannerVisible}
         onAccept={handleAcceptAll}

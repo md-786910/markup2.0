@@ -94,6 +94,13 @@ export default function CookiePolicyPage() {
               Marketing cookies are used only where permitted to understand campaign effectiveness, attribution, and related landing-page performance. They are optional and can be rejected without affecting core website functionality.
             </p>
 
+            <h3 className="mb-2 mt-6 font-display text-lg font-semibold text-[#0f172a]">
+              2.5 Live Chat Cookies
+            </h3>
+            <p className="mb-4 leading-relaxed text-slate-600">
+              Our live chat is provided by Crisp. It loads only when you choose to open a chat, and then sets cookies that keep your conversation available across pages and visits. If you never open the chat, no chat cookies are set.
+            </p>
+
             <h2 id="lawful-basis" className="mb-4 mt-12 font-display text-2xl font-bold text-[#0f172a]">
               3. Consent and Lawful Basis
             </h2>

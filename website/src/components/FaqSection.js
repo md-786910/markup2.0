@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRightIcon, ChevronDownIcon } from './icons';
+import { ArrowRightIcon } from './icons';
+import Accordion from './Accordion';
 import useScrollReveal from '../hooks/useScrollReveal';
 
 const FAQ_ITEMS = [
@@ -42,43 +42,8 @@ const FAQ_ITEMS = [
   },
 ];
 
-function FaqItem({ item, isOpen, onToggle, id }) {
-  return (
-    <div className="border-b border-slate-200 last:border-b-0">
-      <h3>
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={isOpen}
-          aria-controls={id}
-          className="flex w-full items-center justify-between gap-6 py-5 text-left"
-        >
-          <span className="text-base font-semibold text-slate-950 sm:text-[17px]">{item.question}</span>
-          <ChevronDownIcon className={`h-5 w-5 flex-none text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-[#003dff]' : ''}`} />
-        </button>
-      </h3>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            id={id}
-            key="content"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <p className="max-w-[65ch] pb-6 text-[15px] leading-7 text-slate-600">{item.answer}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 export default function FaqSection() {
   const ref = useScrollReveal();
-  const [openIndex, setOpenIndex] = useState(0);
 
   return (
     <section id="faq" className="section-pad scroll-mt-24" ref={ref}>
@@ -92,16 +57,8 @@ export default function FaqSection() {
             <ArrowRightIcon className="h-4 w-4" />
           </Link>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white px-6 sm:px-8" data-reveal data-delay="1">
-          {FAQ_ITEMS.map((item, index) => (
-            <FaqItem
-              key={item.question}
-              id={`faq-${index}`}
-              item={item}
-              isOpen={openIndex === index}
-              onToggle={() => setOpenIndex(openIndex === index ? -1 : index)}
-            />
-          ))}
+        <div data-reveal data-delay="1">
+          <Accordion items={FAQ_ITEMS} idPrefix="faq" />
         </div>
       </div>
     </section>
