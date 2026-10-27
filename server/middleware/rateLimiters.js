@@ -136,6 +136,18 @@ function challengeUserId(req) {
   }
 }
 
+// New support requests: per signed-in user, so one person can't flood the inbox
+const supportTicketLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `u:${req.user?._id}`,
+  message: { message: 'You sent several requests in a short time. Please wait a little or add to an open request.' },
+  store: store('support-ticket'),
+  ...shared,
+});
+
 const loginEmailLimiter = emailLimiter('login', FIFTEEN_MIN, 10, { skipSuccessfulRequests: true });
 const passwordResetEmailLimiter = emailLimiter('reset', 60 * 60 * 1000, 3);
 const otpEmailLimiter = emailLimiter('otp', 60 * 60 * 1000, 6);
@@ -147,6 +159,7 @@ module.exports = {
   globalLimiter,
   loginEmailLimiter,
   twoFactorLimiter,
+  supportTicketLimiter,
   passwordResetEmailLimiter,
   otpEmailLimiter,
 };

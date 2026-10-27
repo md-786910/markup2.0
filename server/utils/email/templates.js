@@ -287,6 +287,58 @@ function supportRequest({ name, email, topic, message }) {
   };
 }
 
+const CATEGORY_LABELS = { question: 'Question', bug: 'Something is broken', billing: 'Billing', feature: 'Feature idea', account: 'Account' };
+const PRIORITY_LABELS = { normal: 'Normal', high: 'High', urgent: 'Urgent' };
+
+// To the support inbox: a new request, or the customer's reply to one
+function supportTicketForTeam({ number, subject, category, priority, orgName, planName, requesterName, requesterEmail, message, isReply, ticketUrl, dueAt }) {
+  const tag = priority === 'urgent' ? '[Urgent] ' : priority === 'high' ? '[High] ' : '';
+  return {
+    subject: `${tag}#${number} ${isReply ? 'New reply: ' : ''}${subject}`,
+    ...renderEmail({
+      preheader: `${requesterName} (${orgName}) ${isReply ? 'replied' : 'opened a request'}.`,
+      eyebrow: isReply ? 'Support reply' : 'New support request',
+      tone: 'neutral',
+      title: subject,
+      blocks: [
+        { type: 'details', rows: [
+          ['Request', `#${number}`],
+          ['From', `${requesterName} · ${requesterEmail}`],
+          ['Organization', `${orgName} (${planName})`],
+          ['Category', CATEGORY_LABELS[category] || category],
+          ['Priority', PRIORITY_LABELS[priority] || priority],
+          ...(dueAt && !isReply ? [['Reply by', formatDate(dueAt)]] : []),
+        ] },
+        { type: 'quote', author: requesterName, meta: orgName, html: esc(message).replace(/\n/g, '<br>'), text: message },
+        { type: 'button', label: 'Open in the admin panel', url: ticketUrl },
+        { type: 'note', text: 'Reply from the admin panel so the answer is kept with the request.' },
+      ],
+    }),
+  };
+}
+
+// To the customer: our reply, or a note that the request is resolved
+function supportReply({ number, subject, adminName, message, resolved, ticketUrl }) {
+  return {
+    subject: resolved ? `Resolved: #${number} ${subject}` : `Re: #${number} ${subject}`,
+    ...renderEmail({
+      preheader: resolved ? 'We marked your request as resolved.' : `${adminName} from Kommently support replied.`,
+      eyebrow: 'Kommently support',
+      tone: resolved ? 'success' : 'neutral',
+      title: resolved ? 'Your request is resolved' : `${adminName} replied to your request`,
+      blocks: [
+        ...(message ? [{ type: 'quote', author: adminName, meta: 'Kommently support', html: esc(message).replace(/\n/g, '<br>'), text: message }] : []),
+        { type: 'p', text: resolved
+          ? 'If something is still not right, reply in the app and the request opens again.'
+          : 'Reply in the app to continue the conversation.' },
+        { type: 'button', label: 'View your request', url: ticketUrl },
+      ],
+    }),
+  };
+}
+
+const supportTicketUrl = (ticketId) => `${dashboardUrl()}?support=${ticketId}`;
+
 // ── Billing ─────────────────────────────────────────────────────────────────
 
 const billingFooter = (orgName) => ({
@@ -530,6 +582,9 @@ module.exports = {
   digest,
   passwordReset,
   adminInvite,
+  supportTicketForTeam,
+  supportReply,
+  supportTicketUrl,
   verificationOtp,
   invoiceCreated,
   paymentReminder,

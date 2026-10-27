@@ -1,18 +1,19 @@
 const router = require('express').Router();
+const mongoose = require('mongoose');
 const asyncHandler = require('../utils/asyncHandler');
-const { supportLimiter } = require('../middleware/rateLimiters');
+const { supportLimiter, supportTicketLimiter } = require('../middleware/rateLimiters');
+const auth = require('../middleware/auth');
+const uploadDocument = require('../middleware/uploadDocument');
+const { enforceStorageQuota } = require('../utils/storage');
+const tickets = require('../controllers/supportTicket.controller');
 const { sendSupportRequest } = require('../utils/mailer');
+const { supportInbox } = require('../utils/support');
 
 // Public website contact form (no session). Emails the support inbox
 // (SUPPORT_EMAIL, else the SMTP sender) with the sender as reply-to.
 const TOPICS = ['Product support', 'Billing', 'Integrations', 'Security', 'Sales', 'Other'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function supportInbox() {
-  const raw = process.env.SUPPORT_EMAIL || process.env.SMTP_FROM || process.env.SMTP_USER || '';
-  const match = raw.match(/<([^>]+)>/);
-  return (match ? match[1] : raw).trim();
-}
 
 router.post('/contact', supportLimiter, asyncHandler(async (req, res) => {
   const body = req.body || {};
@@ -40,5 +41,16 @@ router.post('/contact', supportLimiter, asyncHandler(async (req, res) => {
   }
   res.status(201).json({ sent: true });
 }));
+
+// In-app support requests (signed-in customers; plan rules in the controller).
+// Locked organizations can still reach us, so no lock check here.
+// Malformed ticket ids in the URL are simply not found
+router.param('ticketId', (req, res, next, id) => (mongoose.isValidObjectId(id) ? next() : res.status(404).json({ message: 'Request not found.' })));
+const signedIn = [auth, tickets.requireSupportAccess];
+router.get('/tickets', signedIn, tickets.listTickets);
+router.post('/tickets', signedIn, supportTicketLimiter, uploadDocument.array('attachments', 3), enforceStorageQuota, tickets.createTicket);
+router.get('/tickets/:ticketId', signedIn, tickets.getTicket);
+router.post('/tickets/:ticketId/messages', signedIn, uploadDocument.array('attachments', 3), enforceStorageQuota, tickets.replyToTicket);
+router.post('/tickets/:ticketId/resolve', signedIn, tickets.resolveTicket);
 
 module.exports = router;

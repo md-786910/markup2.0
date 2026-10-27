@@ -3,12 +3,10 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import TrialBadge from '../common/TrialBadge';
 import BrandMark from '../common/BrandMark';
-import { chatAvailable, openChat } from '../../utils/supportChat';
+import { openSupport } from '../../utils/supportPanel';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 import { uploadUrl } from '../../utils/uploadUrl';
 
-const SITE_URL = process.env.REACT_APP_SITE_URL || 'https://kommently.app';
-const SUPPORT_EMAIL = 'hello@kommently.app';
 
 const navItems = [
   {
@@ -177,36 +175,15 @@ export default function AppSidebar({ collapsed, onToggle, onNavigate }) {
                 </svg>
                 Profile
               </button>
-              {chatAvailable && (
-                <button
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    openChat({
-                      email: user?.email,
-                      name: user?.name,
-                      data: { organization: user?.orgName, plan: user?.orgPlan, role: user?.role },
-                    }).catch(() => { window.location.href = `mailto:${SUPPORT_EMAIL}`; });
-                  }}
-                  className="w-full text-left px-3.5 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700/60 flex items-center gap-2.5 transition-colors"
-                >
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h8M8 14h5m-9 6l2.6-2.6A2 2 0 018 17h10a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14z" />
-                  </svg>
-                  Chat with support
-                </button>
-              )}
-              <a
-                href={`${SITE_URL}/support`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setUserMenuOpen(false)}
+              <button
+                onClick={() => { setUserMenuOpen(false); openSupport(); }}
                 className="w-full text-left px-3.5 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700/60 flex items-center gap-2.5 transition-colors"
               >
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3m.1 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Help center
-              </a>
+                Help &amp; support
+              </button>
               <div className="border-t border-gray-700 my-1" />
               <button
                 onClick={() => { setUserMenuOpen(false); logout(); }}

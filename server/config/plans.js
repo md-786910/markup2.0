@@ -13,7 +13,10 @@ const PLANS = {
       '2 guests',
       '200 MB storage',
       'Basic feedback tools',
+      'Email support',
     ],
+    // tickets: in-app requests; chat: live chat; replyHours: first-reply target
+    support: { tickets: false, chat: false, priority: 'normal', replyHours: null },
     badgeColor: 'gray',
     order: 0,
   },
@@ -33,7 +36,9 @@ const PLANS = {
       'Guest review links',
       'Slack, Jira, Discord & Teams integrations',
       'Activity log',
+      'In-app support',
     ],
+    support: { tickets: true, chat: false, priority: 'normal', replyHours: 48 },
     badgeColor: 'blue',
     order: 1,
     razorpayPlanId: process.env.RAZORPAY_STARTER_PLAN_ID || null,
@@ -53,11 +58,12 @@ const PLANS = {
       'Unlimited members',
       '50 guests',
       '25 GB storage',
-      'Priority support',
+      'Priority support and live chat',
       'Slack, Jira, Discord & Teams integrations',
       'Activity log & version history',
       'Guest review links',
     ],
+    support: { tickets: true, chat: true, priority: 'high', replyHours: 24 },
     badgeColor: 'purple',
     order: 2,
   },
@@ -75,6 +81,7 @@ const PLANS = {
       'Custom integrations',
       'Custom terms & onboarding',
     ],
+    support: { tickets: true, chat: true, priority: 'urgent', replyHours: 8 },
     badgeColor: 'amber',
     order: 3,
   },
@@ -114,6 +121,12 @@ async function _getOverrides() {
 function clearPlanCache() {
   _overrideCache = null;
   _overrideCacheTime = 0;
+}
+
+// Support channels for a plan; trials get Pro's
+function getSupportForPlan(planId) {
+  const plan = PLANS[planId === 'trial' ? 'pro' : planId] || PLANS.free;
+  return { ...plan.support };
 }
 
 function getLimitsForPlan(planId) {
@@ -202,4 +215,4 @@ async function getEffectiveLimitsAsync(org) {
   return { ...base, ...overrides };
 }
 
-module.exports = { getEffectiveLimitsAsync, PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache };
+module.exports = { getSupportForPlan, getEffectiveLimitsAsync, PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache };

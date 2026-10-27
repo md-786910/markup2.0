@@ -24,9 +24,13 @@ const jwt = require('jsonwebtoken');
 // destructures mailer functions at load time (e.g. scripts/runBilling.js).
 const mailer = r('utils/mailer');
 const sentMail = [];
+const sentMailArgs = []; // full arguments, for tests that follow an emailed link
 for (const name of Object.keys(mailer)) {
   if (typeof mailer[name] === 'function') {
-    mailer[name] = async (to, org, arg) => { sentMail.push(`${name}:${org}:${typeof arg === 'number' ? arg : ''}`); };
+    mailer[name] = async (to, org, arg) => {
+      sentMail.push(`${name}:${org}:${typeof arg === 'number' ? arg : ''}`);
+      sentMailArgs.push({ name, to, args: [org, arg] });
+    };
   }
 }
 
@@ -534,6 +538,259 @@ function check(name, cond, extra = '') {
   const badMsg = await call('POST', '/api/support/contact', { body: { ...goodMsg, email: 'nope' } });
   const botMsg = await call('POST', '/api/support/contact', { body: { ...goodMsg, website: 'http://spam' } });
   check('contact form rejects invalid input and silently drops bots', badMsg.status === 400 && botMsg.status === 200 && supportMail().length === 1);
+
+  // --- Phase 1: admin panel sign-in, 2FA, passwords, data and team (regression)
+  {
+    const totp = r('utils/totp');
+    const { migrateLegacyAdmins } = r('utils/migrateAdmins');
+    // Each sign-in check gets its own client IP so the per-IP auth limiter
+    // doesn't trip on the deliberate failures below
+    let ipCounter = 0;
+    const authCall = (method, url, { token, body } = {}) => call(method, url, { token, body, headers: { 'X-Forwarded-For': `10.77.0.${++ipCounter % 250}` } });
+    const lastMail = (name) => [...sentMailArgs].reverse().find((m) => m.name === name);
+    const PW = 'correct-horse-battery';
+    const flowAdmin = await AdminUser.create({ name: 'Flow Admin', email: 'flow@admin.e2e.test', passwordHash: PW, status: 'active' });
+
+    // sign-in without 2FA
+    check('admin sign-in refuses a wrong password', (await authCall('POST', '/api/admin-auth/login', { body: { email: 'flow@admin.e2e.test', password: 'wrong-password-123' } })).status === 401);
+    let res = await authCall('POST', '/api/admin-auth/login', { body: { email: 'FLOW@admin.e2e.test', password: PW } });
+    check('admin sign-in works (email case-insensitive) and asks for 2FA setup', res.status === 200 && res.data?.token && res.data?.setupTwoFactor === true, String(res.status));
+    let token = res.data?.token;
+    check('admin API is closed until 2FA is on', (await authCall('GET', '/api/admin/stats', { token })).data?.code === 'TWO_FACTOR_SETUP_REQUIRED');
+
+    // 2FA setup
+    check('2FA setup needs the password', (await authCall('POST', '/api/admin-auth/2fa/setup', { token, body: { password: 'nope-nope-nope' } })).status === 400);
+    res = await authCall('POST', '/api/admin-auth/2fa/setup', { token, body: { password: PW } });
+    check('2FA setup returns a QR code and key', res.status === 200 && res.data?.qr?.startsWith('data:image/png') && res.data?.otpauthUrl?.startsWith('otpauth://totp/'));
+    const secret = String(res.data?.secret || '').replace(/\s/g, '');
+    check('2FA enable refuses a wrong code', (await authCall('POST', '/api/admin-auth/2fa/enable', { token, body: { code: '000000' } })).status === 400);
+    const enableStep = totp.currentStep();
+    res = await authCall('POST', '/api/admin-auth/2fa/enable', { token, body: { code: totp.codeForStep(secret, enableStep) } });
+    check('2FA enable gives 10 recovery codes and a new session', res.status === 200 && res.data?.recoveryCodes?.length === 10 && res.data?.token && res.data.token !== token);
+    const codes = res.data?.recoveryCodes || [];
+    check('turning on 2FA ends the old session', (await authCall('GET', '/api/admin-auth/me', { token })).status === 401);
+    token = res.data?.token;
+    check('admin API opens once 2FA is on', (await authCall('GET', '/api/admin/stats', { token })).status === 200);
+    const stored = await AdminUser.findById(flowAdmin._id).select('+twoFactor.secret +twoFactor.recoveryCodes').lean();
+    check('2FA secret is stored encrypted and codes hashed', stored.twoFactor.secret.startsWith('v1.') && !stored.twoFactor.secret.includes(secret) && !stored.twoFactor.recoveryCodes.includes(codes[0]));
+
+    // sign-in with 2FA
+    res = await authCall('POST', '/api/admin-auth/login', { body: { email: 'flow@admin.e2e.test', password: PW } });
+    check('password alone gives only a challenge', res.data?.twoFactorRequired === true && !res.data?.token && res.data?.challengeToken);
+    const challenge = res.data?.challengeToken;
+    check('a challenge is not a session', (await authCall('GET', '/api/admin-auth/me', { token: challenge })).status === 401);
+    check('wrong code is refused', (await authCall('POST', '/api/admin-auth/login/2fa', { body: { challengeToken: challenge, code: '123456' } })).status === 401);
+    check('a used code cannot be replayed', (await authCall('POST', '/api/admin-auth/login/2fa', { body: { challengeToken: challenge, code: totp.codeForStep(secret, enableStep) } })).status === 401);
+    res = await authCall('POST', '/api/admin-auth/login/2fa', { body: { challengeToken: challenge, code: codes[0].toLowerCase() } });
+    check('a recovery code signs in (any case)', res.status === 200 && res.data?.token);
+    token = res.data?.token;
+    check('a recovery code works only once', (await authCall('POST', '/api/admin-auth/login/2fa', { body: { challengeToken: challenge, code: codes[0] } })).status === 401);
+    check('9 recovery codes left', (await authCall('GET', '/api/admin-auth/2fa', { token })).data?.recoveryCodesLeft === 9);
+    check('2FA cannot be turned off while it is required', (await authCall('POST', '/api/admin-auth/2fa/disable', { token, body: { password: PW, code: codes[1] } })).status === 400);
+    check('a customer 2FA challenge key cannot finish admin sign-in', (await authCall('POST', '/api/admin-auth/login/2fa', { body: { challengeToken: r('utils/twoFactor').issueChallenge({ _id: flowAdmin._id, passwordHash: 'x' }, 'customer'), code: '123456' } })).status === 401);
+    res = await authCall('POST', '/api/admin-auth/2fa/recovery-codes', { token, body: { password: PW, code: codes[1] } });
+    check('new recovery codes replace the old ones', res.status === 200 && res.data?.recoveryCodes?.length === 10);
+    check('old recovery codes stop working', (await authCall('POST', '/api/admin-auth/2fa/recovery-codes', { token, body: { password: PW, code: codes[2] } })).status === 400);
+
+    // passwords
+    check('wrong current password is a 400, not a sign-out', (await authCall('PATCH', '/api/admin-auth/password', { token, body: { currentPassword: 'wrong-wrong-wrong', newPassword: 'another-long-password' } })).status === 400);
+    check('admin passwords need 12+ characters', (await authCall('PATCH', '/api/admin-auth/password', { token, body: { currentPassword: PW, newPassword: 'short-pw' } })).status === 400);
+    const PW2 = 'a-brand-new-long-password';
+    res = await authCall('PATCH', '/api/admin-auth/password', { token, body: { currentPassword: PW, newPassword: PW2 } });
+    check('password change keeps this device signed in', res.status === 200 && res.data?.token);
+    check('password change ends the previous session', (await authCall('GET', '/api/admin-auth/me', { token })).status === 401);
+    token = res.data?.token;
+    check('forgot password answers the same for unknown emails', (await authCall('POST', '/api/admin-auth/forgot-password', { body: { email: 'nobody@admin.e2e.test' } })).status === 200);
+    await authCall('POST', '/api/admin-auth/forgot-password', { body: { email: 'flow@admin.e2e.test' } });
+    const resetMail = lastMail('sendPasswordResetEmail');
+    const resetUrl = String(resetMail?.args?.[0] || '');
+    check('admin reset link points to the admin app and lasts 30 minutes', resetUrl.includes('/reset-password/') && resetMail?.args?.[1] === '30 minutes', resetUrl.replace(/[a-f0-9]{64}/, '<token>'));
+    const resetToken = resetUrl.split('/reset-password/')[1];
+    check('reset refuses a short password', (await authCall('POST', `/api/admin-auth/reset-password/${resetToken}`, { body: { password: 'short' } })).status === 400);
+    check('reset with the emailed link works', (await authCall('POST', `/api/admin-auth/reset-password/${resetToken}`, { body: { password: 'reset-to-a-long-password' } })).status === 200);
+    check('a reset link works only once', (await authCall('POST', `/api/admin-auth/reset-password/${resetToken}`, { body: { password: 'reset-to-a-long-password' } })).status === 400);
+    check('reset signs out every session', (await authCall('GET', '/api/admin-auth/me', { token })).status === 401);
+    check('2FA stays on after a reset', (await authCall('POST', '/api/admin-auth/login', { body: { email: 'flow@admin.e2e.test', password: 'reset-to-a-long-password' } })).data?.twoFactorRequired === true);
+
+    // invite → set password → sign in
+    const inviteRes = await adminCall('POST', '/api/admin/admins', { body: { name: 'Invited Person', email: 'invited@admin.e2e.test' } });
+    const inviteUrl = String(lastMail('sendAdminInviteEmail')?.args?.[0]?.setPasswordUrl || '');
+    check('invite email carries a set-password link', inviteRes.status === 201 && inviteUrl.includes('/reset-password/') && inviteUrl.endsWith('?invite=1'));
+    check('inviting an existing admin email is refused', (await adminCall('POST', '/api/admin/admins', { body: { name: 'Dup', email: 'INVITED@admin.e2e.test' } })).status === 400);
+    const inviteToken = inviteUrl.split('/reset-password/')[1].split('?')[0];
+    check('invited admin sets a password with the link', (await authCall('POST', `/api/admin-auth/reset-password/${inviteToken}`, { body: { password: 'invited-long-password' } })).data?.invited === true);
+    res = await authCall('POST', '/api/admin-auth/login', { body: { email: 'invited@admin.e2e.test', password: 'invited-long-password' } });
+    check('invited admin can then sign in and is asked to set up 2FA', res.status === 200 && res.data?.setupTwoFactor === true);
+    const invitedId = inviteRes.data?.admin?.id;
+    check('resending an invite to someone who set a password is refused', (await adminCall('POST', `/api/admin/admins/${invitedId}/resend`)).status === 400);
+    check('an admin cannot reset their own 2FA from the team page', (await adminCall('POST', `/api/admin/admins/${adminOne._id}/reset-2fa`)).status === 400);
+    check('an admin cannot disable themselves', (await adminCall('PATCH', `/api/admin/admins/${adminOne._id}`, { body: { status: 'disabled' } })).status === 400);
+    check('another admin can be removed', (await adminCall('DELETE', `/api/admin/admins/${invitedId}`)).status === 200);
+    const team = await adminCall('GET', '/api/admin/admins');
+    check('team list marks you and hides secrets', team.data?.admins?.some((a) => a.isYou) && !JSON.stringify(team.data).includes('passwordHash') && !JSON.stringify(team.data).includes('secret'));
+
+    // logout
+    res = await authCall('POST', '/api/admin-auth/login', { body: { email: 'adminone@admin.e2e.test', password: 'a-long-test-password' } });
+    check('sign-in with 2FA on returns a challenge for seeded admins too', res.data?.twoFactorRequired === true);
+    const logoutAdmin = await AdminUser.create({ name: 'Logout', email: 'logout@admin.e2e.test', passwordHash: PW, status: 'active' });
+    const logoutToken = (await authCall('POST', '/api/admin-auth/login', { body: { email: 'logout@admin.e2e.test', password: PW } })).data?.token;
+    await authCall('POST', '/api/admin-auth/logout', { token: logoutToken });
+    check('logout ends the session on the server', (await authCall('GET', '/api/admin-auth/me', { token: logoutToken })).status === 401);
+    await AdminUser.deleteOne({ _id: logoutAdmin._id });
+
+    // legacy superadmins move into AdminUser
+    const bcrypt = require('bcryptjs');
+    const legacy = await User.collection.insertOne({ name: 'Legacy Admin', email: 'legacy@admin.e2e.test', role: 'superadmin', passwordHash: await bcrypt.hash('legacy-long-password', 4), organization: null, createdAt: new Date() });
+    await r('models/Activity').create({ organization: billOrg._id, actor: legacy.insertedId, action: 'org.locked', metadata: { actorRole: 'superadmin' } });
+    await migrateLegacyAdmins();
+    await migrateLegacyAdmins(); // idempotent
+    const moved = await AdminUser.findOne({ email: 'legacy@admin.e2e.test' });
+    check('legacy superadmin moved to AdminUser and removed from users', !!moved && moved.status === 'active' && !(await User.exists({ _id: legacy.insertedId })));
+    check('legacy admin keeps their password', (await authCall('POST', '/api/admin-auth/login', { body: { email: 'legacy@admin.e2e.test', password: 'legacy-long-password' } })).status === 200);
+    check('legacy admin actions point to the new account', !!(await r('models/Activity').exists({ adminActor: moved._id, action: 'org.locked' })));
+
+    // admin data endpoints
+    const stats = await adminCall('GET', '/api/admin/stats');
+    check('overview returns KPIs, attention lists and recent actions', ['mrr', 'payingOrgs', 'activeTrials', 'activeOrgs7d', 'unpaidInvoices'].every((k) => k in (stats.data?.kpis || {})) && Array.isArray(stats.data?.attention?.trialsEnding) && Array.isArray(stats.data?.recentAdminActions));
+    const byOwner = await adminCall('GET', `/api/admin/organizations?search=${encodeURIComponent('billowner@e2e')}`);
+    check('organization search matches the owner email', byOwner.data?.organizations?.some((o) => String(o._id) === String(billOrg._id)));
+    check('organization search escapes regex characters', (await adminCall('GET', '/api/admin/organizations?search=' + encodeURIComponent('(.*'))).status === 200);
+    // Every status filter returns exactly the orgs whose row shows that status
+    let filtersMatch = true;
+    for (const st of ['trial', 'trial_ending', 'paying', 'free', 'cancelling', 'locked', 'deleting']) {
+      const list = await adminCall('GET', `/api/admin/organizations?status=${st}&limit=100`);
+      if (!list.data?.organizations?.every((o) => o.status === st)) { filtersMatch = false; console.log('  mismatch for', st, list.data?.organizations?.map((o) => o.status)); }
+    }
+    check('each status filter matches the status shown on the rows', filtersMatch);
+    const evilOrg = await Organization.create({ name: '=HYPERLINK("http://evil")', slug: 'evil-e2e', owner: ownerA._id, plan: 'free' });
+    const csv = await fetch(`${base}/api/admin/organizations?format=csv&search=HYPERLINK`, { headers: { Authorization: `Bearer ${adminToken}` } });
+    const csvText = await csv.text();
+    check('CSV export is a spreadsheet-safe file', csv.headers.get('content-type')?.includes('text/csv') && csvText.startsWith('"Organization"') && csvText.includes(`"'=HYPERLINK`));
+    await Organization.deleteOne({ _id: evilOrg._id });
+    const detail = await adminCall('GET', `/api/admin/organizations/${orgA._id}`);
+    check('organization page returns usage, limits, engagement, workspaces and notes', ['usage', 'limits', 'engagement', 'workspaces', 'notes', 'activity', 'invoices', 'status'].every((k) => k in (detail.data || {})));
+    check('unknown organization is a 404', (await adminCall('GET', `/api/admin/organizations/${new mongoose.Types.ObjectId()}`)).status === 404);
+
+    // notes
+    check('empty note refused', (await adminCall('POST', `/api/admin/organizations/${orgA._id}/notes`, { body: { body: '   ' } })).status === 400);
+    const note = await adminCall('POST', `/api/admin/organizations/${orgA._id}/notes`, { body: { body: 'Agreed a custom deal' } });
+    check('admin can add a note', note.status === 201 && note.data?.note?.author?.name === 'adminone');
+    const noteId = note.data?.note?._id;
+    check('a note cannot be edited through another organization', (await adminCall('PATCH', `/api/admin/organizations/${orgB._id}/notes/${noteId}`, { body: { pinned: true } })).status === 404);
+    check('admin can pin a note', (await adminCall('PATCH', `/api/admin/organizations/${orgA._id}/notes/${noteId}`, { body: { pinned: true } })).data?.note?.pinned === true);
+    const exportA = await call('GET', '/api/auth/organization/export', { user: ownerA });
+    check('customers never see admin notes', exportA.status === 200 && !JSON.stringify(exportA.data).includes('Agreed a custom deal'));
+    check('admin can delete a note', (await adminCall('DELETE', `/api/admin/organizations/${orgA._id}/notes/${noteId}`)).status === 200);
+
+    // lock / unlock and the action log
+    await adminCall('PATCH', `/api/admin/organizations/${orgB._id}/lock`, { body: { reason: 'Regression test' } });
+    const lockedWrite = await call('POST', '/api/projects', { user: ownerB, body: { name: 'blocked', projectType: 'website', websiteUrl: 'https://example.com' } });
+    check('a locked organization cannot create projects', lockedWrite.status === 403 && lockedWrite.data?.code === 'ORG_LOCKED', String(lockedWrite.status));
+    await adminCall('PATCH', `/api/admin/organizations/${orgB._id}/unlock`);
+    check('unlock lifts the lock', (await Organization.findById(orgB._id)).isLocked === false);
+    const audit = await adminCall('GET', '/api/admin/audit?limit=50');
+    const lockEntry = audit.data?.entries?.find((e) => e.action === 'org.locked' && String(e.organization?._id) === String(orgB._id));
+    check('the action log names the admin who acted', lockEntry?.adminActor?.name === 'adminone' && lockEntry?.metadata?.reason === 'Regression test');
+    check('the action log includes team changes', audit.data?.entries?.some((e) => e.action === 'admin.invited'));
+  }
+
+  // --- Phase 2: support by plan
+  {
+    process.env.SUPPORT_EMAIL = 'support@e2e.test';
+    const SupportTicket = r('models/SupportTicket');
+    const Notification = r('models/Notification');
+    const lastMail = (name) => [...sentMailArgs].reverse().find((m) => m.name === name);
+    const ticketBody = (extra = {}) => ({ subject: 'Pins do not save', category: 'bug', body: 'When I click Post nothing happens on the pricing page.', context: JSON.stringify({ url: 'https://app.test/project/1?token=secret#x', viewport: '1440x900' }), ...extra });
+
+    // a trial organization of its own (earlier tests change Org A's plan)
+    const supOwner = await mkUser('supowner', 'owner');
+    const supAdmin = await mkUser('supadmin', 'admin');
+    const supMember = await mkUser('supmember', 'member');
+    const supOrg = await Organization.create({ name: 'Support Co', slug: 'support-co-e2e', owner: supOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() + 9e8) });
+    for (const u of [supOwner, supAdmin, supMember]) { u.organization = supOrg._id; await u.save({ validateBeforeSave: false }); }
+
+    // plan rules
+    const freeOwner = await mkUser('freeowner', 'owner');
+    const freeOrg = await Organization.create({ name: 'Free Co', slug: 'free-co-e2e', owner: freeOwner._id, plan: 'free', subscription: { status: 'active' } });
+    freeOwner.organization = freeOrg._id; await freeOwner.save({ validateBeforeSave: false });
+    const freeTry = await call('POST', '/api/support/tickets', { user: freeOwner, body: ticketBody() });
+    check('free plan cannot open in-app requests', freeTry.status === 403 && freeTry.data?.code === 'FEATURE_NOT_AVAILABLE', String(freeTry.status));
+    const me = await call('GET', '/api/auth/me', { user: freeOwner });
+    check('session data tells the app which support the plan has', me.data?.user?.orgSupport?.tickets === false);
+    const guestUser = await mkUser('guestsupport', 'guest', { organization: supOrg._id });
+    check('guest reviewers cannot open requests', (await call('POST', '/api/support/tickets', { user: guestUser, body: ticketBody() })).status === 403);
+    check('a request needs a subject and details', (await call('POST', '/api/support/tickets', { user: supMember, body: ticketBody({ subject: 'x', body: 'short' }) })).status === 400);
+
+    // create (trial = Pro rules: high priority, 24 h)
+    const created = await call('POST', '/api/support/tickets', { user: supMember, body: ticketBody() });
+    const t = created.data?.ticket;
+    check('a trial member can open a request', created.status === 201 && t?.number > 1000 && t?.status === 'open', String(created.status));
+    const stored = await SupportTicket.findById(t?._id).lean();
+    check('priority and reply target come from the plan', stored?.priority === 'high' && Math.round((stored.dueAt - stored.createdAt) / 36e5) === 24);
+    check('page URLs are stored without query strings', stored?.context?.url === 'https://app.test/project/1');
+    const teamMail = lastMail('sendSupportTicketToTeam');
+    check('the support inbox gets an email with a link to the admin panel', teamMail?.to === 'support@e2e.test' && teamMail?.args?.[0]?.ticketUrl?.includes(`/support/${t?._id}`) && teamMail.args[0].priority === 'high');
+
+    // who can see it
+    const created2 = await call('POST', '/api/support/tickets', { user: supAdmin, body: ticketBody({ subject: 'Billing question' }) });
+    const memberList = await call('GET', '/api/support/tickets', { user: supMember });
+    check('members see only their own requests', memberList.data?.tickets?.length === 1 && String(memberList.data.tickets[0]._id) === String(t?._id));
+    const adminList = await call('GET', '/api/support/tickets', { user: supAdmin });
+    check('owners and admins see every request of the organization', adminList.data?.tickets?.length === 2);
+    check('a member cannot open a colleague\'s request', (await call('GET', `/api/support/tickets/${created2.data?.ticket?._id}`, { user: supMember })).status === 404);
+    check('another organization cannot open the request', (await call('GET', `/api/support/tickets/${t?._id}`, { user: ownerB })).status === 404);
+
+    // admin inbox
+    const inbox = await adminCall('GET', '/api/admin/support/tickets?view=open');
+    check('the admin inbox lists open requests with the organization', inbox.data?.tickets?.some((x) => String(x._id) === String(t?._id) && x.organization?.name === 'Support Co'));
+    const stats = await adminCall('GET', '/api/admin/support/stats');
+    check('support stats count open and unassigned requests', stats.data?.open >= 2 && stats.data?.unassigned >= 2);
+    check('a customer token cannot read the admin inbox', [401, 403].includes((await call('GET', '/api/admin/support/tickets', { user: supOwner })).status));
+    const adminView = await adminCall('GET', `/api/admin/support/tickets/${t?._id}`);
+    check('the admin view includes the customer context', adminView.status === 200 && 'openPins' in (adminView.data?.customer || {}) && Array.isArray(adminView.data?.admins));
+
+    // internal note, then a reply
+    await adminCall('POST', `/api/admin/support/tickets/${t?._id}/messages`, { body: { body: 'Customer is on a slow network, check proxy logs', internal: true } });
+    let view = await call('GET', `/api/support/tickets/${t?._id}`, { user: supMember });
+    check('internal notes never reach the customer', !JSON.stringify(view.data).includes('slow network'));
+    check('an internal note does not count as our first reply', !(await SupportTicket.findById(t?._id).lean()).firstResponseAt);
+    const reply = await adminCall('POST', `/api/admin/support/tickets/${t?._id}/messages`, { body: { body: 'Thanks, we fixed it. Can you try again?' } });
+    check('a reply waits on the customer and records the first response', reply.data?.ticket?.status === 'waiting_on_customer' && !!reply.data?.ticket?.firstResponseAt);
+    const replyMail = lastMail('sendSupportReplyEmail');
+    check('the customer gets the reply by email with a link into the app', replyMail?.to === 'supmember@e2e.test' && replyMail?.args?.[0]?.ticketUrl?.includes(`/dashboard?support=${t?._id}`) && replyMail.args[0].resolved === false);
+    const notif = await Notification.findOne({ recipient: supMember._id, type: 'support_reply' }).lean();
+    check('the customer gets an in-app notification', notif?.metadata?.ticketId === String(t?._id) && notif.project === null);
+    view = await call('GET', '/api/support/tickets', { user: supMember });
+    check('the reply shows as unread until opened', view.data?.tickets?.[0]?.unread === true);
+    view = await call('GET', `/api/support/tickets/${t?._id}`, { user: supMember });
+    check('admin names show as "First (Kommently)" to customers', view.data?.ticket?.messages?.some((m) => m.authorType === 'admin' && m.authorName === 'adminone (Kommently)'));
+    check('opening it marks the reply read', (await call('GET', '/api/support/tickets', { user: supMember })).data?.tickets?.[0]?.unread === false);
+    const custReply = await call('POST', `/api/support/tickets/${t?._id}/messages`, { user: supMember, body: { body: 'Still broken on Safari' } });
+    check('a customer reply reopens the request', custReply.status === 201 && custReply.data?.ticket?.status === 'open' && lastMail('sendSupportTicketToTeam')?.args?.[0]?.isReply === true);
+
+    // assign, priority, resolve
+    check('requests can only be assigned to active admins', (await adminCall('PATCH', `/api/admin/support/tickets/${t?._id}`, { body: { assignee: String(new mongoose.Types.ObjectId()) } })).status === 400);
+    const upd = await adminCall('PATCH', `/api/admin/support/tickets/${t?._id}`, { body: { priority: 'urgent', assignee: String(adminOne._id) } });
+    check('admins can change priority and assignee', upd.data?.ticket?.priority === 'urgent' && upd.data?.ticket?.priorityRank === 0 && upd.data?.ticket?.assignee?.name === 'adminone');
+    const urgentFirst = await adminCall('GET', '/api/admin/support/tickets?view=open');
+    check('urgent requests come first in the inbox', String(urgentFirst.data?.tickets?.[0]?._id) === String(t?._id));
+    await adminCall('PATCH', `/api/admin/support/tickets/${t?._id}`, { body: { status: 'resolved' } });
+    check('resolving emails the customer once', lastMail('sendSupportReplyEmail')?.args?.[0]?.resolved === true);
+    check('resolving is in the action log', !!(await r('models/Activity').exists({ action: 'support.resolved', organization: supOrg._id })));
+    check('search finds a request by number', (await adminCall('GET', `/api/admin/support/tickets?view=all&search=%23${t?.number}`)).data?.tickets?.length === 1);
+
+    // overdue + overview
+    await SupportTicket.updateOne({ _id: created2.data?.ticket?._id }, { $set: { dueAt: new Date(Date.now() - 3600e3) } });
+    const overview = await adminCall('GET', '/api/admin/stats');
+    check('the overview shows open and overdue requests', overview.data?.kpis?.openTickets >= 1 && overview.data?.kpis?.overdueTickets >= 1 && overview.data?.attention?.overdueTickets?.length >= 1);
+    check('the overdue filter lists late first replies', (await adminCall('GET', '/api/admin/support/tickets?overdue=1')).data?.tickets?.some((x) => String(x._id) === String(created2.data?.ticket?._id)));
+
+    // customer closes, export, purge
+    check('a customer can mark their request resolved', (await call('POST', `/api/support/tickets/${created2.data?.ticket?._id}/resolve`, { user: supAdmin })).data?.ticket?.status === 'resolved');
+    const exp = await call('GET', '/api/auth/organization/export', { user: supOwner });
+    check('the data export includes support requests without internal notes', exp.data?.supportRequests?.length === 2 && !JSON.stringify(exp.data).includes('slow network'));
+    delete process.env.SUPPORT_EMAIL;
+  }
 
   // --- health
   const health = await call('GET', '/api/health');

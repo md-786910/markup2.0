@@ -59,6 +59,7 @@ module.exports = {
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',
         'slide-in': 'slideIn 0.2s ease-out',
+        'slide-in-right': 'slideInRight 0.2s ease-out',
         'scale-in': 'scaleIn 0.15s ease-out',
         'page-enter': 'pageEnter 0.25s ease-out',
       },
@@ -66,6 +67,10 @@ module.exports = {
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
+        },
+        slideInRight: {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(0)' },
         },
         slideIn: {
           '0%': { transform: 'translateX(-100%)' },

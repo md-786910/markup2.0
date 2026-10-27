@@ -32,6 +32,13 @@ export const getPlansApi = () => api.get('/admin/plans');
 export const updatePlanApi = (planId, data) => api.patch(`/admin/plans/${planId}`, data);
 export const togglePlanApi = (planId) => api.patch(`/admin/plans/${planId}/toggle`);
 
+// Support inbox
+export const getSupportStatsApi = () => api.get('/admin/support/stats');
+export const getSupportTicketsApi = (params) => api.get('/admin/support/tickets', { params });
+export const getSupportTicketApi = (id) => api.get(`/admin/support/tickets/${id}`);
+export const replySupportTicketApi = (id, data) => api.post(`/admin/support/tickets/${id}/messages`, data);
+export const updateSupportTicketApi = (id, data) => api.patch(`/admin/support/tickets/${id}`, data);
+
 // Admin team
 export const getAdminsApi = () => api.get('/admin/admins');
 export const inviteAdminApi = (data) => api.post('/admin/admins', data);

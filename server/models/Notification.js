@@ -17,10 +17,11 @@ const notificationSchema = new Schema({
     name: { type: String, default: null },
     email: { type: String, default: null },
   },
+  // null for account-level notifications (e.g. a support reply)
   project: {
     type: Schema.Types.ObjectId,
     ref: 'Project',
-    required: true,
+    default: null,
     index: true,
   },
   pin: {
@@ -45,6 +46,7 @@ const notificationSchema = new Schema({
       'pin_deleted',
       'member_invited',
       'member_removed',
+      'support_reply',
     ],
     required: true,
   },

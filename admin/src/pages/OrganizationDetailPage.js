@@ -23,6 +23,8 @@ import { PLAN_LABELS } from '../config/plans';
 import { actorName, describeAction } from '../utils/actions';
 import { toast, toastError } from '../utils/toast';
 import { confirmDialog } from '../utils/confirm';
+import { getSupportTicketsApi } from '../services/adminService';
+import { PriorityPill, TicketStatusPill } from '../components/support/supportBadges';
 
 const LIMIT_FIELDS = [
   ['maxProjects', 'Projects'],
@@ -421,6 +423,36 @@ function BillingTab({ data, onRefund, busy }) {
   );
 }
 
+// Support requests from this organization
+function SupportTab({ orgId }) {
+  const [tickets, setTickets] = useState(null);
+  useEffect(() => {
+    getSupportTicketsApi({ orgId, view: 'all', limit: 50 })
+      .then(({ data }) => setTickets(data.tickets))
+      .catch(() => setTickets([]));
+  }, [orgId]);
+  if (!tickets) return <Card><p className="py-6 text-center text-sm text-gray-400">Loading…</p></Card>;
+  if (!tickets.length) return <Card><p className="py-6 text-center text-sm text-gray-500">No support requests from this organization.</p></Card>;
+  return (
+    <Card padded={false}>
+      <ul className="divide-y divide-gray-100">
+        {tickets.map((t) => (
+          <li key={t._id}>
+            <Link to={`/support/${t._id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-gray-900">{t.subject}</span>
+                <span className="block text-xs text-gray-500">#{t.number} · {t.requester?.name || '—'} · {timeAgo(t.createdAt)}</span>
+              </span>
+              <PriorityPill priority={t.priority} />
+              <TicketStatusPill status={t.status} />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 function ActivityTab({ data }) {
   if (!data.activity.length) return <Card><p className="py-6 text-center text-sm text-gray-500">No activity yet.</p></Card>;
   return (
@@ -596,6 +628,7 @@ export default function OrganizationDetailPage() {
     { id: 'people', label: 'People', count: data.members.length },
     { id: 'projects', label: 'Projects', count: data.projects.length },
     { id: 'billing', label: 'Billing', count: data.invoices.length },
+    { id: 'support', label: 'Support' },
     { id: 'activity', label: 'Activity' },
     { id: 'notes', label: 'Notes', count: data.notes.length || null },
   ];
@@ -649,6 +682,7 @@ export default function OrganizationDetailPage() {
       {tab === 'projects' && <ProjectsTab data={data} />}
       {tab === 'billing' && <BillingTab data={data} onRefund={handleRefund} busy={busy} />}
       {tab === 'activity' && <ActivityTab data={data} />}
+      {tab === 'support' && <SupportTab orgId={org._id} />}
       {tab === 'notes' && <NotesTab data={data} onChange={fetchData} />}
 
       {dialog === 'plan' && <ChangePlanDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}

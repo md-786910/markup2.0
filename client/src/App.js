@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import Toaster from './components/common/Toaster';
+import SupportPanel from './components/support/SupportPanel';
 import ConfirmHost from './components/common/ConfirmHost';
 import PrivateRoute from './components/common/PrivateRoute';
 import AppLayout from './components/layout/AppLayout';
@@ -65,6 +66,7 @@ function App() {
           </Suspense>
           <Toaster />
           <ConfirmHost />
+          <SupportPanel />
         </NotificationProvider>
         </WorkspaceProvider>
       </AuthProvider>

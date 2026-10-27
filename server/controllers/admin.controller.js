@@ -9,6 +9,7 @@ const Comment = require('../models/Comment');
 const Workspace = require('../models/Workspace');
 const Invitation = require('../models/Invitation');
 const AdminNote = require('../models/AdminNote');
+const SupportTicket = require('../models/SupportTicket');
 const PaymentSettings = require('../models/PaymentSettings');
 const asyncHandler = require('../utils/asyncHandler');
 const { PLANS, getPlansWithOverrides, clearPlanCache, getLimitsForPlanAsync, getEffectiveLimitsAsync } = require('../config/plans');
@@ -72,17 +73,21 @@ async function engagementByOrg(orgIds) {
   return new Map(rows.map((r) => [String(r._id), r]));
 }
 
-// Mongo filter for the customer list's status filter
+// Mongo filter for the customer list's status filter. Mirrors lifecycleStatus:
+// deletion and lock come first, so the other statuses exclude those orgs.
 async function statusFilter(status) {
   const now = new Date();
+  const notDeleting = { deletionScheduledAt: null };
+  const live = { ...notDeleting, isLocked: { $ne: true } };
+  const inSevenDays = new Date(now.getTime() + 7 * DAY_MS);
   switch (status) {
-    case 'locked': return { isLocked: true };
-    case 'trial': return { plan: 'trial' };
-    case 'trial_ending': return { plan: 'trial', trialEndsAt: { $lte: new Date(now.getTime() + 7 * DAY_MS) } };
-    case 'paying': return { plan: { $in: [...PRICED_PLANS, 'enterprise'] }, 'subscription.status': 'active' };
-    case 'cancelling': return { 'subscription.cancelAtPeriodEnd': true };
-    case 'free': return { plan: 'free' };
     case 'deleting': return { deletionScheduledAt: { $ne: null } };
+    case 'locked': return { ...notDeleting, isLocked: true };
+    case 'trial': return { ...live, plan: 'trial', $or: [{ trialEndsAt: null }, { trialEndsAt: { $gt: inSevenDays } }] };
+    case 'trial_ending': return { ...live, plan: 'trial', trialEndsAt: { $lte: inSevenDays } };
+    case 'cancelling': return { ...live, plan: { $ne: 'trial' }, 'subscription.cancelAtPeriodEnd': true };
+    case 'free': return { ...live, plan: 'free', 'subscription.cancelAtPeriodEnd': { $ne: true } };
+    case 'paying': return { ...live, plan: { $in: [...PRICED_PLANS, 'enterprise'] }, 'subscription.status': 'active', 'subscription.cancelAtPeriodEnd': { $ne: true } };
     case 'unpaid': return { _id: { $in: await Invoice.distinct('organization', { status: 'pending' }) } };
     default: return {};
   }
@@ -159,6 +164,15 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
   // Last active per org in the trials-ending list
   const engagement = await engagementByOrg(trialsEnding.map((o) => o._id));
 
+  // Support: open requests and the ones past their first-reply target
+  const overdueTicketFilter = { status: 'open', firstResponseAt: null, dueAt: { $lt: now } };
+  const [openTickets, overdueTicketCount, overdueTickets] = await Promise.all([
+    SupportTicket.countDocuments({ status: 'open' }),
+    SupportTicket.countDocuments(overdueTicketFilter),
+    SupportTicket.find(overdueTicketFilter).sort({ priorityRank: 1, dueAt: 1 }).limit(5)
+      .select('number subject priority dueAt organization').populate('organization', 'name').lean(),
+  ]);
+
   const planMap = {};
   for (const p of planBreakdown) planMap[p._id || 'none'] = p.count;
 
@@ -176,6 +190,8 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
       totalProjects,
       lockedOrgs: await Organization.countDocuments({ isLocked: true }),
       unpaidInvoices: unpaid.map((u) => ({ currency: u._id, count: u.count, amount: u.amount })),
+      openTickets,
+      overdueTickets: overdueTicketCount,
     },
     planBreakdown: planMap,
     monthlySignups,
@@ -186,6 +202,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
       })),
       overdueInvoices,
       lockedOrgs,
+      overdueTickets,
     },
     recentSignups,
     recentAdminActions,

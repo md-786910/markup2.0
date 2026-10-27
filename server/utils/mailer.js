@@ -94,6 +94,16 @@ async function sendSupportRequest(toEmail, request) {
   await send(toEmail, templates.supportRequest(request), { replyTo: { name: request.name, address: request.email } });
 }
 
+// Support tickets: to the support inbox (new request or customer reply)
+async function sendSupportTicketToTeam(toEmail, data) {
+  await send(toEmail, templates.supportTicketForTeam(data), { replyTo: { name: data.requesterName, address: data.requesterEmail } });
+}
+
+// Support tickets: our reply (or "resolved") to the customer
+async function sendSupportReplyEmail(toEmail, data) {
+  await send(toEmail, templates.supportReply(data));
+}
+
 async function sendPasswordResetEmail(toEmail, resetUrl, expiresIn) {
   await send(toEmail, templates.passwordReset({ resetUrl, expiresIn }));
 }
@@ -149,6 +159,8 @@ async function sendSubscriptionCanceledEmail(toEmail, orgName, planName, endsAt,
 module.exports = {
   getTransporter,
   sendSupportRequest,
+  sendSupportTicketToTeam,
+  sendSupportReplyEmail,
   sendInvitationEmail,
   sendPinNotificationEmail,
   sendCommentNotificationEmail,

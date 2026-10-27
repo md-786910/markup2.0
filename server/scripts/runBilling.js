@@ -60,6 +60,15 @@ function daysSince(date) {
   return Math.floor((Date.now() - new Date(date).getTime()) / DAY_MS);
 }
 
+// Support requests of a purged organization, with their attachments
+async function deleteSupportTickets(orgId) {
+  const SupportTicket = require('../models/SupportTicket');
+  const { deleteStoredFiles } = require('../utils/storage');
+  const tickets = await SupportTicket.find({ organization: orgId }).select('messages.attachments').lean();
+  deleteStoredFiles(tickets.flatMap((t) => t.messages.flatMap((m) => (m.attachments || []).map((a) => `uploads/documents/${a.filename}`))));
+  await SupportTicket.deleteMany({ organization: orgId });
+}
+
 async function safeSend(label, fn) {
   try {
     await fn();
@@ -377,6 +386,7 @@ async function phaseOrgDeletion() {
       Activity.deleteMany({ organization: org._id }),
       require('../models/Workspace').deleteMany({ organization: org._id }),
       require('../models/AdminNote').deleteMany({ organization: org._id }),
+      deleteSupportTickets(org._id),
       Project.updateMany({ members: { $in: userIds } }, { $pull: { members: { $in: userIds } } }),
     ]);
     await User.deleteMany({ _id: { $in: userIds } });

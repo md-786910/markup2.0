@@ -99,7 +99,8 @@ export default function DashboardPage() {
   const { kpis, attention } = data;
   const unpaid = kpis.unpaidInvoices || [];
   const unpaidCount = unpaid.reduce((n, u) => n + u.count, 0);
-  const attentionCount = attention.trialsEnding.length + attention.overdueInvoices.length + attention.lockedOrgs.length;
+  const overdueTickets = attention.overdueTickets || [];
+  const attentionCount = attention.trialsEnding.length + attention.overdueInvoices.length + attention.lockedOrgs.length + overdueTickets.length;
 
   return (
     <div className="animate-fade-in">
@@ -136,7 +137,13 @@ export default function DashboardPage() {
         <StatCard label="New organizations" value={kpis.newOrgs30d} hint="Last 30 days" />
         <StatCard label="People" value={kpis.totalUsers} hint={`${kpis.activeUsers} active in the last 7 days`} to="/users" />
         <StatCard label="Projects" value={kpis.totalProjects} to="/projects" />
-        <StatCard label="Locked organizations" value={kpis.lockedOrgs} tone={kpis.lockedOrgs ? 'warn' : 'default'} to="/organizations?status=locked" />
+        <StatCard
+          label="Open support requests"
+          value={kpis.openTickets ?? 0}
+          hint={kpis.overdueTickets ? `${kpis.overdueTickets} past the reply target` : 'All within the reply target'}
+          tone={kpis.overdueTickets ? 'bad' : 'default'}
+          to="/support"
+        />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -151,7 +158,7 @@ export default function DashboardPage() {
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Card
           title="Needs attention"
-          description={attentionCount ? 'Trials ending soon, overdue invoices and locked accounts' : undefined}
+          description={attentionCount ? 'Late replies, overdue invoices, trials ending soon and locked accounts' : undefined}
           padded={false}
         >
           {attentionCount === 0 ? (
@@ -174,6 +181,15 @@ export default function DashboardPage() {
                   title={org.name}
                   detail={`Trial ends ${relativeDays(org.trialEndsAt)} · last active ${timeAgo(org.lastActiveAt)}`}
                   badge={<span className="shrink-0 text-xs font-medium text-amber-600">Trial ending</span>}
+                />
+              ))}
+              {overdueTickets.map((tk) => (
+                <AttentionRow
+                  key={tk._id}
+                  to={`/support/${tk._id}`}
+                  title={`#${tk.number} ${tk.subject}`}
+                  detail={`${tk.organization?.name || 'Organization'} · first reply was due ${relativeDays(tk.dueAt)}`}
+                  badge={<span className="shrink-0 text-xs font-medium text-red-600">Reply overdue</span>}
                 />
               ))}
               {attention.lockedOrgs.map((org) => (

@@ -10,6 +10,8 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
 const AdminTeamPage = lazy(() => import('./pages/AdminTeamPage'));
+const SupportInboxPage = lazy(() => import('./pages/SupportInboxPage'));
+const SupportTicketPage = lazy(() => import('./pages/SupportTicketPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const OrganizationsPage = lazy(() => import('./pages/OrganizationsPage'));
 const OrganizationDetailPage = lazy(() => import('./pages/OrganizationDetailPage'));
@@ -50,6 +52,8 @@ function App() {
                 <Route path="/audit" element={<AuditLogPage />} />
                 <Route path="/account" element={<AccountPage />} />
                 <Route path="/admins" element={<AdminTeamPage />} />
+                <Route path="/support" element={<SupportInboxPage />} />
+                <Route path="/support/:ticketId" element={<SupportTicketPage />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" />} />

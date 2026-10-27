@@ -52,6 +52,7 @@ const activitySchema = new Schema({
       'integration.connected', 'integration.disconnected',
       'billing.payment_succeeded',
       // Admin team (organization is null)
+      'support.resolved',
       'admin.invited', 'admin.disabled', 'admin.enabled', 'admin.removed', 'admin.two_factor_reset',
     ],
     required: true,

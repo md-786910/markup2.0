@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { updateProjectEmailNotificationsApi } from '../../services/projectService';
 import { uploadUrl } from '../../utils/uploadUrl';
 import { toastError } from '../../utils/toast';
+import { openSupport } from '../../utils/supportPanel';
 
 const AVATAR_COLORS = [
   { bg: 'bg-blue-100', text: 'text-blue-700' },
@@ -82,6 +83,7 @@ const BADGES = {
   pin_reopened: { className: 'bg-amber-500', path: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' },
   pin_deleted: { className: 'bg-gray-500', path: 'M6 18L18 6M6 6l12 12' },
   member_invited: { className: 'bg-blue-600', path: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z' },
+  support_reply: { className: 'bg-blue-600', path: 'M8 10h8M8 14h5m-9 6l2.6-2.6A2 2 0 018 17h10a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v14z' },
   member_removed: { className: 'bg-red-500', path: 'M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6' },
 };
 
@@ -115,6 +117,7 @@ function actionText(notif, actorName) {
     case 'pin_deleted': return <>deleted {pin || 'a pin'}</>;
     case 'member_invited': return fromTitle() || 'invited a member';
     case 'member_removed': return fromTitle() || 'removed a member';
+    case 'support_reply': return <>replied to your request <span className="font-medium text-gray-900">#{notif.metadata?.number}</span></>;
     default: return fromTitle() || 'made a change';
   }
 }
@@ -206,6 +209,12 @@ export default function NotificationBell({ className = '', variant, projectId, o
   const handleOpenNotification = (notif) => {
     if (!notif.read) markAsRead(notif._id);
     setIsOpen(false);
+
+    // Support replies open the conversation in the Help & support panel
+    if (notif.type === 'support_reply') {
+      openSupport({ ticketId: notif.metadata?.ticketId });
+      return;
+    }
 
     const targetProjectId = notif.project?._id || notif.project;
     const pinId = notif.pin?._id || notif.pin;
@@ -335,7 +344,8 @@ export default function NotificationBell({ className = '', variant, projectId, o
                   </p>
                   {section.items.map((notif) => {
                     const isGuest = !notif.actor && Boolean(notif.actorGuest?.name);
-                    const actorName = notif.actor?.name || notif.actorGuest?.name || 'Someone';
+                    const actorName = notif.actor?.name || notif.actorGuest?.name
+                      || (notif.type === 'support_reply' ? `${notif.metadata?.adminName || 'Support'} (Kommently)` : 'Someone');
                     const actorColor = getAvatarColor(notif.actor?._id || notif.actorGuest?.email);
                     const projName = notif.project?.name || notif.metadata?.projectName;
                     const preview = cleanText(notif.message);

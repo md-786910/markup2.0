@@ -16,7 +16,7 @@ const Invoice = require("../models/Invoice");
 const asyncHandler = require("../utils/asyncHandler");
 const { sendPasswordResetEmail } = require("../utils/mailer");
 const { ROLE_HIERARCHY } = require("../middleware/roles");
-const { getLimitsForPlanAsync, getNewSignupPlanMode } = require("../config/plans");
+const { getLimitsForPlanAsync, getNewSignupPlanMode, getSupportForPlan } = require("../config/plans");
 const { generateCsrfToken, CSRF_COOKIE } = require("../middleware/csrf");
 const { validatePassword } = require("../utils/passwordPolicy");
 const { logOrgActivity, logActivity } = require("../utils/activityLogger");
@@ -78,6 +78,8 @@ const userResponse = (user, org, dynamicLimits) => ({
   orgPendingInvoice: org && org._pendingInvoice ? org._pendingInvoice : null,
   mutedProjectEmails: (user.mutedProjectEmails || []).map((id) => id.toString()),
   emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
+  // Support channels of the plan (config/plans.js)
+  orgSupport: org ? getSupportForPlan(org.plan) : null,
 });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -891,6 +893,10 @@ exports.exportOrganization = asyncHandler(async (req, res) => {
     Invoice.find({ organization: org._id, status: { $in: ["paid", "refunded"] } })
       .select("invoiceNumber plan amount currency status paidAt periodStart periodEnd refundAmount").lean(),
   ]);
+  // Support requests as the customer sees them (no internal notes)
+  const { forCustomer } = require("./supportTicket.controller");
+  const supportRequests = (await require("../models/SupportTicket").find({ organization: org._id }).lean()).map(forCustomer);
+
   // Share passwords/tokens are credentials, not customer content
   for (const p of projects) {
     if (p.shareSettings) {
@@ -906,7 +912,7 @@ exports.exportOrganization = asyncHandler(async (req, res) => {
     organization: {
       _id: org._id, name: org.name, plan: org.plan, createdAt: org.createdAt, billingDetails: org.billingDetails,
     },
-    users, workspaces, projects, pins, comments, versions, activity, invoices,
+    users, workspaces, projects, pins, comments, versions, activity, invoices, supportRequests,
     files: "Uploaded files (documents, screenshots, attachments) are referenced by their path in each record and can be downloaded from the app.",
   };
   logOrgActivity(org._id, req.user._id, "org.data_exported", {});
