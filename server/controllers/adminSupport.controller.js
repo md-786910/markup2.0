@@ -43,14 +43,17 @@ exports.listTickets = asyncHandler(async (req, res) => {
   if (assignee === 'me') filter.assignee = req.admin._id;
   else if (assignee === 'none') filter.assignee = null;
   else if (/^[a-f0-9]{24}$/.test(String(assignee || ''))) filter.assignee = assignee;
-  if (overdue === '1') { filter.dueAt = { $lt: new Date() }; filter.firstResponseAt = null; filter.status = 'open'; }
+  if (overdue === '1') { filter.dueAt = { $ne: null, $lt: new Date() }; filter.firstResponseAt = null; filter.status = 'open'; }
   if (/^[a-f0-9]{24}$/.test(String(orgId || ''))) filter.organization = orgId;
   if (search) {
-    const term = String(search).trim().slice(0, 100);
-    const re = new RegExp(escapeRegex(term.replace(/^#/, '')), 'i');
-    const orgs = await Organization.find({ name: re }).select('_id').limit(100).lean();
-    const number = parseInt(term.replace(/^#/, ''), 10);
-    filter.$or = [{ subject: re }, { organization: { $in: orgs.map((o) => o._id) } }, ...(Number.isFinite(number) ? [{ number }] : [])];
+    const raw = String(search).trim().slice(0, 100);
+    const cleaned = raw.replace(/^#/, '').trim();
+    if (cleaned) {
+      const re = new RegExp(escapeRegex(cleaned), 'i');
+      const orgs = await Organization.find({ name: re }).select('_id').limit(100).lean();
+      const number = parseInt(cleaned, 10);
+      filter.$or = [{ subject: re }, { organization: { $in: orgs.map((o) => o._id) } }, ...(Number.isFinite(number) ? [{ number }] : [])];
+    }
   }
 
   const sort = view === 'resolved' ? { resolvedAt: -1, updatedAt: -1 } : { priorityRank: 1, dueAt: 1, createdAt: 1 };
@@ -75,7 +78,7 @@ exports.getStats = asyncHandler(async (req, res) => {
   const [open, waiting, overdue, unassigned, mine] = await Promise.all([
     SupportTicket.countDocuments({ status: 'open' }),
     SupportTicket.countDocuments({ status: 'waiting_on_customer' }),
-    SupportTicket.countDocuments({ status: 'open', firstResponseAt: null, dueAt: { $lt: now } }),
+    SupportTicket.countDocuments({ status: 'open', firstResponseAt: null, dueAt: { $ne: null, $lt: now } }),
     SupportTicket.countDocuments({ status: 'open', assignee: null }),
     SupportTicket.countDocuments({ status: { $in: OPEN_STATUSES }, assignee: req.admin._id }),
   ]);

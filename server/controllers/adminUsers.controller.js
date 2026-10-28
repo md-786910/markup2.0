@@ -101,6 +101,8 @@ exports.removeAdmin = asyncHandler(async (req, res) => {
   if (!target) return;
   if (String(target._id) === String(req.admin._id)) return res.status(400).json({ message: "You can't remove yourself." });
   if (await isLastActiveAdmin(target)) return res.status(400).json({ message: "You can't remove the last active admin." });
+  const SupportTicket = require('../models/SupportTicket');
+  await SupportTicket.updateMany({ assignee: target._id }, { $set: { assignee: null } });
   await AdminUser.deleteOne({ _id: target._id });
   logAdminAction(null, req.admin, 'admin.removed', { email: target.email, name: target.name });
   res.json({ message: `${target.name} no longer has admin access.` });

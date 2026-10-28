@@ -165,7 +165,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
   const engagement = await engagementByOrg(trialsEnding.map((o) => o._id));
 
   // Support: open requests and the ones past their first-reply target
-  const overdueTicketFilter = { status: 'open', firstResponseAt: null, dueAt: { $lt: now } };
+  const overdueTicketFilter = { status: 'open', firstResponseAt: null, dueAt: { $ne: null, $lt: now } };
   const [openTickets, overdueTicketCount, overdueTickets] = await Promise.all([
     SupportTicket.countDocuments({ status: 'open' }),
     SupportTicket.countDocuments(overdueTicketFilter),

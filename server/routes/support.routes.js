@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const mongoose = require('mongoose');
 const asyncHandler = require('../utils/asyncHandler');
-const { supportLimiter, supportTicketLimiter } = require('../middleware/rateLimiters');
+const { supportLimiter, supportTicketLimiter, supportReplyLimiter } = require('../middleware/rateLimiters');
 const auth = require('../middleware/auth');
 const uploadDocument = require('../middleware/uploadDocument');
 const { enforceStorageQuota } = require('../utils/storage');
@@ -50,7 +50,7 @@ const signedIn = [auth, tickets.requireSupportAccess];
 router.get('/tickets', signedIn, tickets.listTickets);
 router.post('/tickets', signedIn, supportTicketLimiter, uploadDocument.array('attachments', 3), enforceStorageQuota, tickets.createTicket);
 router.get('/tickets/:ticketId', signedIn, tickets.getTicket);
-router.post('/tickets/:ticketId/messages', signedIn, uploadDocument.array('attachments', 3), enforceStorageQuota, tickets.replyToTicket);
+router.post('/tickets/:ticketId/messages', signedIn, supportReplyLimiter, uploadDocument.array('attachments', 3), enforceStorageQuota, tickets.replyToTicket);
 router.post('/tickets/:ticketId/resolve', signedIn, tickets.resolveTicket);
 
 module.exports = router;

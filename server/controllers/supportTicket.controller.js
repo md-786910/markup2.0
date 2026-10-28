@@ -1,4 +1,5 @@
 const SupportTicket = require('../models/SupportTicket');
+const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 const { nextSequence } = require('../models/Counter');
 const { getSupportForPlan, PLANS } = require('../config/plans');
@@ -122,28 +123,39 @@ exports.createTicket = asyncHandler(async (req, res) => {
 
   let context = {};
   try { context = typeof req.body.context === 'string' ? JSON.parse(req.body.context) : (req.body.context || {}); } catch { context = {}; }
+  let verifiedProject = null;
+  if (/^[a-f0-9]{24}$/.test(String(context.project || ''))) {
+    const exists = await Project.exists({ _id: context.project, organization: req.organization._id });
+    if (exists) verifiedProject = context.project;
+  }
   const now = new Date();
-  const ticket = await SupportTicket.create({
-    number: 1000 + await nextSequence('support_ticket'),
-    organization: req.organization._id,
-    requester: req.user._id,
-    subject,
-    category: TICKET_CATEGORIES.includes(req.body.category) ? req.body.category : 'question',
-    priority: support.priority,
-    dueAt: replyDueAt(support, now),
-    lastCustomerReplyAt: now,
-    customerLastReadAt: now,
-    context: {
-      // Page URLs only, without query strings (tokens live there)
-      url: cleanText(String(context.url || '').split(/[?#]/)[0], 500),
-      project: /^[a-f0-9]{24}$/.test(String(context.project || '')) ? context.project : null,
-      plan: req.organization.plan,
-      userAgent: cleanText(req.get('user-agent'), 300),
-      viewport: cleanText(context.viewport, 20),
-      appVersion: cleanText(context.appVersion, 40),
-    },
-    messages: [{ authorType: 'customer', author: req.user._id, authorName: req.user.name, body, attachments: attachmentsFrom(req) }],
-  });
+  let ticket;
+  try {
+    ticket = await SupportTicket.create({
+      number: 1000 + await nextSequence('support_ticket'),
+      organization: req.organization._id,
+      requester: req.user._id,
+      subject,
+      category: TICKET_CATEGORIES.includes(req.body.category) ? req.body.category : 'question',
+      priority: support.priority,
+      dueAt: replyDueAt(support, now),
+      lastCustomerReplyAt: now,
+      customerLastReadAt: now,
+      context: {
+        // Page URLs only, without query strings (tokens live there)
+        url: cleanText(String(context.url || '').split(/[?#]/)[0], 500),
+        project: verifiedProject,
+        plan: req.organization.plan,
+        userAgent: cleanText(req.get('user-agent'), 300),
+        viewport: cleanText(context.viewport, 20),
+        appVersion: cleanText(context.appVersion, 40),
+      },
+      messages: [{ authorType: 'customer', author: req.user._id, authorName: req.user.name, body, attachments: attachmentsFrom(req) }],
+    });
+  } catch (err) {
+    await dropUploads(req);
+    throw err;
+  }
   notifyTeam(req, ticket, body, false);
   res.status(201).json({ ticket: forCustomer(ticket) });
 });
@@ -161,6 +173,10 @@ exports.getTicket = asyncHandler(async (req, res) => {
 exports.replyToTicket = asyncHandler(async (req, res) => {
   const ticket = await findForUser(req, req.params.ticketId);
   if (!ticket) { await dropUploads(req); return res.status(404).json({ message: 'Request not found.' }); }
+  if (ticket.status === 'closed') {
+    await dropUploads(req);
+    return res.status(400).json({ message: 'This request has been closed. Please open a new request if you need further help.' });
+  }
   const body = cleanText(req.body.body, MAX_BODY);
   if (!body) { await dropUploads(req); return res.status(400).json({ message: 'Write a message first.' }); }
 
@@ -171,7 +187,12 @@ exports.replyToTicket = asyncHandler(async (req, res) => {
   // A reply reopens a resolved request and hands it back to us
   if (ticket.status !== 'open') ticket.status = 'open';
   ticket.resolvedAt = null;
-  await ticket.save();
+  try {
+    await ticket.save();
+  } catch (err) {
+    await dropUploads(req);
+    throw err;
+  }
   notifyTeam(req, ticket, body, true);
   res.status(201).json({ ticket: forCustomer(ticket) });
 });

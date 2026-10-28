@@ -148,6 +148,18 @@ const supportTicketLimiter = rateLimit({
   ...shared,
 });
 
+// Replies to existing requests: 30 per hour per user
+const supportReplyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `u:${req.user?._id}`,
+  message: { message: 'You have sent several replies recently. Please wait a moment before sending another message.' },
+  store: store('support-reply'),
+  ...shared,
+});
+
 const loginEmailLimiter = emailLimiter('login', FIFTEEN_MIN, 10, { skipSuccessfulRequests: true });
 const passwordResetEmailLimiter = emailLimiter('reset', 60 * 60 * 1000, 3);
 const otpEmailLimiter = emailLimiter('otp', 60 * 60 * 1000, 6);
@@ -160,6 +172,7 @@ module.exports = {
   loginEmailLimiter,
   twoFactorLimiter,
   supportTicketLimiter,
+  supportReplyLimiter,
   passwordResetEmailLimiter,
   otpEmailLimiter,
 };

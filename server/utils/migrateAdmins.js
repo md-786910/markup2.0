@@ -15,13 +15,15 @@ async function migrateLegacyAdmins() {
   const legacy = await User.collection.find({ role: 'superadmin' }).toArray();
   let moved = 0;
   for (const old of legacy) {
+    const email = String(old.email || '').toLowerCase().trim();
+    if (!email) continue;
     // Raw update: the stored hash must not be hashed again by the save hook
     await AdminUser.collection.updateOne(
-      { email: old.email },
+      { email },
       {
         $setOnInsert: {
           name: old.name,
-          email: old.email,
+          email,
           passwordHash: old.passwordHash,
           status: 'active',
           invitedBy: null,
@@ -36,12 +38,12 @@ async function migrateLegacyAdmins() {
       },
       { upsert: true },
     );
-    const admin = await AdminUser.findOne({ email: old.email }).select('_id');
+    const admin = await AdminUser.findOne({ email }).select('_id');
     await Activity.updateMany({ actor: old._id }, { $set: { adminActor: admin._id, actor: null } });
     await AdminNote.updateMany({ author: old._id }, { $set: { author: admin._id } });
     await User.deleteOne({ _id: old._id });
     moved += 1;
-    console.log(`[admins] moved ${old.email} to the admin accounts`);
+    console.log(`[admins] moved ${email} to the admin accounts`);
   }
   return moved;
 }
