@@ -69,6 +69,31 @@ function checkSecondFactor(user, code) {
   return 'recovery';
 }
 
+/**
+ * checkSecondFactor, then records the use in the database atomically, so the
+ * same code (or recovery code) can't pass for two requests sent at once.
+ * Model is the account's model (e.g. AdminUser).
+ */
+async function useSecondFactor(Model, user, code) {
+  const previousStep = user.twoFactor?.lastUsedStep || 0;
+  const used = checkSecondFactor(user, code);
+  if (used === 'totp') {
+    const step = user.twoFactor.lastUsedStep;
+    const claimed = await Model.updateOne(
+      { _id: user._id, $or: [{ 'twoFactor.lastUsedStep': { $lt: step } }, { 'twoFactor.lastUsedStep': null }] },
+      { $set: { 'twoFactor.lastUsedStep': step } },
+    );
+    if (!claimed.modifiedCount) { user.twoFactor.lastUsedStep = previousStep; return null; }
+    user.unmarkModified('twoFactor.lastUsedStep');
+  } else if (used === 'recovery') {
+    const hash = hashRecoveryCode(code);
+    const claimed = await Model.updateOne({ _id: user._id, 'twoFactor.recoveryCodes': hash }, { $pull: { 'twoFactor.recoveryCodes': hash } });
+    if (!claimed.modifiedCount) return null;
+    user.unmarkModified('twoFactor.recoveryCodes');
+  }
+  return used;
+}
+
 // Admin accounts must use two-step sign-in; only ADMIN_REQUIRE_2FA=false
 // (e.g. on a local machine) turns the rule off
 function adminRequiresTwoFactor() {
@@ -83,6 +108,7 @@ module.exports = {
   passwordFingerprint,
   generateRecoveryCodes,
   checkSecondFactor,
+  useSecondFactor,
   adminRequiresTwoFactor,
   SECOND_FACTOR_FIELDS,
 };

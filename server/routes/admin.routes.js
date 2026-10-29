@@ -8,6 +8,10 @@ const support = require('../controllers/adminSupport.controller');
 // Admin panel users (AdminUser) only, with two-step sign-in on
 router.use(adminAuth());
 
+// Malformed ids in the URL are simply not found (instead of a cast error)
+const notFoundUnlessId = (req, res, next, id) => (mongoose.isValidObjectId(id) ? next() : res.status(404).json({ message: 'Not found' }));
+for (const name of ['id', 'noteId', 'adminId']) router.param(name, notFoundUnlessId);
+
 // Dashboard
 router.get('/stats', ctrl.getDashboardStats);
 

@@ -48,9 +48,9 @@ router.post('/contact', supportLimiter, asyncHandler(async (req, res) => {
 router.param('ticketId', (req, res, next, id) => (mongoose.isValidObjectId(id) ? next() : res.status(404).json({ message: 'Request not found.' })));
 const signedIn = [auth, tickets.requireSupportAccess];
 router.get('/tickets', signedIn, tickets.listTickets);
-router.post('/tickets', signedIn, supportTicketLimiter, uploadDocument.array('attachments', 3), enforceStorageQuota, tickets.createTicket);
+router.post('/tickets', signedIn, supportTicketLimiter, uploadDocument.supportAttachments.array('attachments', 3), enforceStorageQuota, tickets.createTicket);
 router.get('/tickets/:ticketId', signedIn, tickets.getTicket);
-router.post('/tickets/:ticketId/messages', signedIn, supportReplyLimiter, uploadDocument.array('attachments', 3), enforceStorageQuota, tickets.replyToTicket);
+router.post('/tickets/:ticketId/messages', signedIn, supportReplyLimiter, uploadDocument.supportAttachments.array('attachments', 3), enforceStorageQuota, tickets.replyToTicket);
 router.post('/tickets/:ticketId/resolve', signedIn, tickets.resolveTicket);
 
 module.exports = router;

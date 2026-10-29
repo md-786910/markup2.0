@@ -6,10 +6,12 @@ const pinoHttp = require('pino-http');
 //   LOG_LEVEL=debug|info|warn|error   (default info)
 //   LOG_FORMAT=pretty|json            (default pretty; json for log collectors)
 
-// Tokens travel in query strings (proxy ?token=, relay ?rt=, reset links);
-// never write them to the log.
+// Tokens travel in query strings (proxy ?token=, relay ?rt=) and in paths
+// (share links, invitations, password resets and admin invites); never write
+// them to the log.
 const SECRET_PARAMS = /([?&](?:token|rt|key|password|code|otp|signature|sig|access_token)=)[^&#]*/gi;
-const scrubUrl = (url = '') => String(url).replace(SECRET_PARAMS, '$1[redacted]');
+const SECRET_PATHS = /(\/api\/(?:guest\/workspace|guest|invitations|auth\/reset-password|admin-auth\/reset-password)\/)[^/?#\s]+/gi;
+const scrubUrl = (url = '') => String(url).replace(SECRET_PARAMS, '$1[redacted]').replace(SECRET_PATHS, '$1[redacted]');
 
 function prettyTransport() {
   if (process.env.LOG_FORMAT === 'json') return undefined;
@@ -89,7 +91,7 @@ const httpLogger = pinoHttp({
     };
   },
   serializers: {
-    req: (req) => ({ id: req.id, method: req.method, url: scrubUrl(req.url), ip: req.raw.ip, userAgent: req.headers['user-agent'] }),
+    req: (req) => ({ id: req.id, method: req.method, url: scrubUrl(req.raw.originalUrl || req.url), ip: req.raw.ip, userAgent: req.headers['user-agent'] }),
     res: (res) => ({ statusCode: res.statusCode }),
   },
 });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { Link, useNavigate } from 'react-router-dom';
+import { takeReturnTo } from '../../utils/returnTo';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -26,7 +27,7 @@ export default function LoginForm() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/dashboard');
+      navigate(takeReturnTo(), { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {

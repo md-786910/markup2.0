@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
 const Project = require('../models/Project');
@@ -180,7 +181,8 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     kpis: {
       mrr: payingOrgs.reduce((sum, org) => sum + monthlyRevenue(org, plans), 0),
       payingOrgs: payingOrgs.length,
-      activeTrials: planMap.trial || 0,
+      // Trials still running: expired trials stay on plan 'trial' but are locked
+      activeTrials: await Organization.countDocuments({ plan: 'trial', isLocked: { $ne: true }, deletionScheduledAt: null, $or: [{ trialEndsAt: null }, { trialEndsAt: { $gt: now } }] }),
       trialsEnding7d: await Organization.countDocuments({ plan: 'trial', trialEndsAt: { $gte: now, $lte: inSevenDays } }),
       activeOrgs7d: activeOrgIds.length,
       totalOrgs,
@@ -188,7 +190,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
       totalUsers,
       activeUsers,
       totalProjects,
-      lockedOrgs: await Organization.countDocuments({ isLocked: true }),
+      lockedOrgs: await Organization.countDocuments({ isLocked: true, deletionScheduledAt: null }),
       unpaidInvoices: unpaid.map((u) => ({ currency: u._id, count: u.count, amount: u.amount })),
       openTickets,
       overdueTickets: overdueTicketCount,
@@ -229,20 +231,33 @@ exports.getOrganizations = asyncHandler(async (req, res) => {
   if (search) {
     const re = new RegExp(escapeRegex(String(search).slice(0, 100)), 'i');
     const owners = await User.find({ $or: [{ email: re }, { name: re }] }).select('_id').limit(200).lean();
-    filter.$or = [
+    // In $and: the trial status filter has an $or of its own
+    filter.$and = [{ $or: [
       { name: re },
       { slug: re },
       { owner: { $in: owners.map((u) => u._id) } },
-    ];
+    ] }];
   }
 
-  const [orgs, total, plans] = await Promise.all([
-    Organization.find(filter)
+  // An ascending sort puts organizations without a trial end first; those go last
+  const findOrgs = () => (sort === 'trial_end'
+    ? Organization.aggregate([
+      { $match: filter },
+      { $addFields: { noTrialEnd: { $cond: [{ $ifNull: ['$trialEndsAt', false] }, 0, 1] } } },
+      { $sort: { noTrialEnd: 1, trialEndsAt: 1, _id: 1 } },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: { noTrialEnd: 0 } },
+    ]).then((rows) => Organization.populate(rows, { path: 'owner', select: 'name email' }))
+    : Organization.find(filter)
       .sort(ORG_SORTS[sort] || ORG_SORTS.newest)
       .skip(skip)
       .limit(limit)
       .populate('owner', 'name email')
-      .lean(),
+      .lean());
+
+  const [orgs, total, plans] = await Promise.all([
+    findOrgs(),
     Organization.countDocuments(filter),
     getPlansWithOverrides(),
   ]);
@@ -436,7 +451,10 @@ exports.getUsers = asyncHandler(async (req, res) => {
 
   const filter = { role: { $ne: 'superadmin' } };
   if (role) filter.role = role;
-  if (orgId) filter.organization = orgId;
+  if (orgId) {
+    if (!mongoose.isValidObjectId(orgId)) return res.status(400).json({ message: 'Invalid organization id' });
+    filter.organization = orgId;
+  }
   if (search) {
     const re = new RegExp(escapeRegex(String(search).slice(0, 100)), 'i');
     filter.$or = [{ name: re }, { email: re }];
@@ -613,6 +631,7 @@ exports.updatePlan = asyncHandler(async (req, res) => {
     { $set },
     { upsert: true, returnDocument: 'after' },
   );
+  logAdminAction(null, req.admin, 'plan.updated', { planId, changes: $set });
 
   clearPlanCache();
   const plans = await getPlansWithOverrides();
@@ -634,6 +653,7 @@ exports.togglePlan = asyncHandler(async (req, res) => {
     { $set: { enabled: newEnabled } },
     { upsert: true },
   );
+  logAdminAction(null, req.admin, 'plan.toggled', { planId, enabled: newEnabled });
 
   clearPlanCache();
   const plans = await getPlansWithOverrides();
@@ -693,6 +713,7 @@ exports.updatePaymentSettings = asyncHandler(async (req, res) => {
     { $set },
     { upsert: true, returnDocument: 'after' }
   );
+  logAdminAction(null, req.admin, 'payment_settings.updated', { changes: $set });
 
   clearPaymentSettingsCache();
   const status = await getProviderStatus();
@@ -831,6 +852,7 @@ exports.addOrganizationNote = asyncHandler(async (req, res) => {
   if (!org) return res.status(404).json({ message: 'Organization not found' });
   const note = await AdminNote.create({ organization: req.params.id, author: req.admin._id, body });
   await note.populate('author', 'name email');
+  logAdminAction(req.params.id, req.admin, 'org.note_added');
   res.status(201).json({ note });
 });
 
@@ -847,6 +869,7 @@ exports.updateOrganizationNote = asyncHandler(async (req, res) => {
 exports.deleteOrganizationNote = asyncHandler(async (req, res) => {
   const result = await AdminNote.deleteOne({ _id: req.params.noteId, organization: req.params.id });
   if (!result.deletedCount) return res.status(404).json({ message: 'Note not found' });
+  logAdminAction(req.params.id, req.admin, 'org.note_deleted');
   res.json({ message: 'Note deleted' });
 });
 
@@ -855,7 +878,10 @@ exports.deleteOrganizationNote = asyncHandler(async (req, res) => {
 exports.getAuditLog = asyncHandler(async (req, res) => {
   const { page, limit } = parsePaging(req.query);
   const filter = { 'metadata.actorRole': 'superadmin' };
-  if (req.query.orgId) filter.organization = req.query.orgId;
+  if (req.query.orgId) {
+    if (!mongoose.isValidObjectId(req.query.orgId)) return res.status(400).json({ message: 'Invalid organization id' });
+    filter.organization = req.query.orgId;
+  }
   const [entries, total] = await Promise.all([
     Activity.find(filter)
       .sort({ createdAt: -1 })

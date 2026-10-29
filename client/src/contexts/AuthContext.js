@@ -3,6 +3,7 @@ import { TOKEN_KEY } from '../utils/constants';
 import { loginApi, signupApi, getMeApi } from '../services/authService';
 import { setSentryUser } from '../monitoring/sentry';
 import { identifyUser } from '../monitoring/analytics';
+import { signingOutOnPurpose } from '../utils/returnTo';
 
 export const AuthContext = createContext(null);
 
@@ -49,6 +50,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
+    signingOutOnPurpose();
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setUser(null);

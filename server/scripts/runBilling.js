@@ -383,7 +383,8 @@ async function phaseOrgDeletion() {
       Notification.deleteMany({ recipient: { $in: userIds } }),
       Invitation.deleteMany({ organization: org._id }),
       Integration.deleteMany({ organization: org._id }),
-      Activity.deleteMany({ organization: org._id }),
+      // The admin action log about this organization stays (audit trail)
+      Activity.deleteMany({ organization: org._id, 'metadata.actorRole': { $ne: 'superadmin' } }),
       require('../models/Workspace').deleteMany({ organization: org._id }),
       require('../models/AdminNote').deleteMany({ organization: org._id }),
       deleteSupportTickets(org._id),
@@ -395,7 +396,8 @@ async function phaseOrgDeletion() {
   }
 }
 
-// Retention: notifications 180 days, activity 365 days, invitations 30 days past expiry
+// Retention: notifications 180 days, activity 365 days (not the admin action
+// log, which is the audit trail), invitations 30 days past expiry
 const RETENTION = { notificationsDays: 180, activityDays: 365, expiredInvitationDays: 30 };
 
 async function phaseRetention() {
@@ -405,7 +407,7 @@ async function phaseRetention() {
   const ago = (days) => new Date(Date.now() - days * DAY_MS);
   const [n, a, i] = await Promise.all([
     Notification.deleteMany({ createdAt: { $lt: ago(RETENTION.notificationsDays) } }),
-    Activity.deleteMany({ createdAt: { $lt: ago(RETENTION.activityDays) } }),
+    Activity.deleteMany({ createdAt: { $lt: ago(RETENTION.activityDays) }, 'metadata.actorRole': { $ne: 'superadmin' } }),
     Invitation.deleteMany({ expiresAt: { $lt: ago(RETENTION.expiredInvitationDays) } }),
   ]);
   console.log(`[billing] retention: removed ${n.deletedCount} notifications, ${a.deletedCount} activity entries, ${i.deletedCount} invitations`);
@@ -462,4 +464,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { runBilling };
+module.exports = { runBilling, phaseRetention };

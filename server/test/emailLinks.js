@@ -1,5 +1,6 @@
 // Email link check: runs real flows (forgot password, invitation, comment
-// notification, trial reminder, payment receipt) and verifies every link in
+// notification, trial reminder, payment receipt, support request and reply)
+// and verifies every link in
 // every email points to the configured environment and to a page that exists.
 //   node test/emailLinks.js live|local      (part of npm test)
 // Uses a throwaway database (dropped) and captures email instead of sending it.
@@ -25,6 +26,8 @@ const jwt = require('jsonwebtoken');
 // Client routes (client/src/App.js) and the query params each page reads
 const CLIENT_ROUTES = [/^\/reset-password\/[^/]+$/, /^\/signup$/, /^\/project\/[a-f0-9]{24}$/, /^\/settings$/, /^\/dashboard$/, /^\/login$/, /^\/?$/];
 const SETTINGS_TABS = ['workspace', 'billing', 'invoices', 'activity'];
+// Admin panel routes (admin/src/App.js) linked from team emails
+const ADMIN_ROUTES = [/^\/support\/[a-f0-9]{24}$/];
 let pass = 0, fail = 0;
 const check = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS' : 'FAIL'}  ${n}${x ? '  [' + x + ']' : ''}`); };
 
@@ -38,7 +41,7 @@ function linksOf(mail) {
 
 // Every link must go to the app or the API of THIS environment (customer pages excepted)
 function verifyMail(mail, externalOk = []) {
-  const { APP_URL, API_URL } = ENVS[MODE];
+  const { APP_URL, API_URL, ADMIN_URL } = ENVS[MODE];
   for (const link of linksOf(mail)) {
     if (externalOk.some((e) => link.startsWith(e))) continue;
     const u = new URL(link);
@@ -46,6 +49,8 @@ function verifyMail(mail, externalOk = []) {
       const okRoute = CLIENT_ROUTES.some((re) => re.test(u.pathname));
       const okTab = u.pathname !== '/settings' || SETTINGS_TABS.includes(u.searchParams.get('tab'));
       check(`"${mail.subject.slice(0, 48)}" → app ${u.pathname}${u.search.slice(0, 12)}`, okRoute && okTab, okRoute ? '' : 'no such page');
+    } else if (link.startsWith(ADMIN_URL + '/')) {
+      check(`"${mail.subject.slice(0, 48)}" → admin ${u.pathname}`, ADMIN_ROUTES.some((re) => re.test(u.pathname)), 'no such admin page');
     } else if (link.startsWith(API_URL + '/')) {
       check(`"${mail.subject.slice(0, 48)}" → api ${u.pathname}`, u.pathname === '/api/email/unsubscribe');
     } else {
@@ -119,6 +124,28 @@ function verifyMail(mail, externalOk = []) {
   const receipt = take();
   check('payment receipt email sent', receipt.some((m) => /payment received/i.test(m.subject)));
   for (const m of receipt) verifyMail(m);
+
+  // 6. Support request → team email opens it in the admin panel; our reply →
+  //    customer email opens it in the app (/dashboard?support=<id>)
+  process.env.SUPPORT_EMAIL = 'support@links.test';
+  const created = await (await call('POST', '/api/support/tickets', { subject: 'Pins do not save', category: 'bug', body: 'Clicking Post does nothing on the pricing page.' }, member)).json();
+  const ticketId = created.ticket?._id;
+  await wait(300);
+  const teamMail = take().find((m) => m.to === 'support@links.test');
+  check('support request email sent to the team', !!teamMail);
+  if (teamMail) verifyMail(teamMail);
+  check('team email opens the request in the admin panel', !!teamMail && linksOf(teamMail).some((l) => l === `${ENVS[MODE].ADMIN_URL}/support/${ticketId}`));
+  const AdminUser = r('models/AdminUser');
+  const admin = await AdminUser.create({ name: 'Links Admin', email: 'admin@links.test', passwordHash: 'a-long-test-password', status: 'active', sessionToken: 'links-admin', twoFactor: { enabled: true } });
+  const adminToken = r('utils/adminSession').signAdminToken(admin);
+  await fetch(`${base}/api/admin/support/tickets/${ticketId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` }, body: JSON.stringify({ body: 'Fixed, please try again.' }) });
+  await wait(300);
+  const replyMail = take().find((m) => m.to === 'member@links.test');
+  check('support reply email sent to the customer', !!replyMail);
+  if (replyMail) verifyMail(replyMail);
+  const replyLink = replyMail && linksOf(replyMail).find((l) => l.includes('support='));
+  check('reply link opens the request in the app', !!replyLink && new URL(replyLink).pathname === '/dashboard' && new URL(replyLink).searchParams.get('support') === String(ticketId));
+  delete process.env.SUPPORT_EMAIL;
 
   console.log(`\n${MODE}: ${pass} passed, ${fail} failed`);
   srv.close(); await mongoose.connection.dropDatabase(); await mongoose.disconnect();

@@ -1,6 +1,7 @@
 import axios from "axios";
 import { TOKEN_KEY } from "../utils/constants";
 import { toast } from "../utils/toast";
+import { rememberReturnTo } from "../utils/returnTo";
 
 const baseUrl = process.env.REACT_APP_BASE_URL || "http://localhost:5000/api";
 const api = axios.create({
@@ -65,6 +66,7 @@ api.interceptors.response.use(
         sessionStorage.setItem("session_replaced", "true");
       }
 
+      rememberReturnTo(window.location.pathname + window.location.search);
       window.location.href = "/login";
     }
     return Promise.reject(error);

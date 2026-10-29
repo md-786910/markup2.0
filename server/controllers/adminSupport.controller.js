@@ -8,7 +8,8 @@ const Notification = require('../models/Notification');
 const asyncHandler = require('../utils/asyncHandler');
 const { supportTicketUrl } = require('../utils/email/templates');
 const { sendSupportReplyEmail } = require('../utils/mailer');
-const { attachmentUrl, cleanText } = require('../utils/support');
+const mongoose = require('mongoose');
+const { attachmentUrl, cleanText, replyDueAt, REPLY_HOURS_BY_PRIORITY } = require('../utils/support');
 const { logAdminAction } = require('../utils/activityLogger');
 
 // The admin Support inbox: every customer request, sorted by priority and
@@ -153,6 +154,7 @@ exports.replyToTicket = asyncHandler(async (req, res) => {
   const body = cleanText(req.body?.body, 10000);
   if (!body) return res.status(400).json({ message: 'Write a reply first.' });
   const internal = !!req.body?.internal;
+  const wasResolved = ['resolved', 'closed'].includes(ticket.status);
 
   const now = new Date();
   ticket.messages.push({ authorType: 'admin', author: req.admin._id, authorName: req.admin.name, body, internal });
@@ -169,6 +171,7 @@ exports.replyToTicket = asyncHandler(async (req, res) => {
   if (!internal) {
     notifyRequester(req, ticket, body);
     emailRequester(req, ticket, { message: body, resolved: ticket.status === 'resolved' });
+    if (!wasResolved && ticket.status === 'resolved') logAdminAction(ticket.organization, req.admin, 'support.resolved', { number: ticket.number });
   }
   res.status(201).json({ ticket: withUrls(ticket.toObject()) });
 });
@@ -179,6 +182,7 @@ exports.updateTicket = asyncHandler(async (req, res) => {
   if (!ticket) return res.status(404).json({ message: 'Request not found.' });
   const { status, priority, assignee } = req.body || {};
   const wasResolved = ['resolved', 'closed'].includes(ticket.status);
+  const before = { status: ticket.status, priority: ticket.priority, assignee: ticket.assignee ? String(ticket.assignee) : null };
 
   if (status !== undefined) {
     if (!['open', 'waiting_on_customer', 'resolved', 'closed'].includes(status)) return res.status(400).json({ message: 'Unknown status.' });
@@ -187,22 +191,34 @@ exports.updateTicket = asyncHandler(async (req, res) => {
   }
   if (priority !== undefined) {
     if (!['normal', 'high', 'urgent'].includes(priority)) return res.status(400).json({ message: 'Unknown priority.' });
-    ticket.priority = priority;
+    if (priority !== ticket.priority) {
+      ticket.priority = priority;
+      // The reply deadline follows the new priority
+      if (!ticket.firstResponseAt) ticket.dueAt = replyDueAt({ replyHours: REPLY_HOURS_BY_PRIORITY[priority] }, ticket.createdAt);
+    }
   }
   if (assignee !== undefined) {
     if (assignee === null || assignee === '') ticket.assignee = null;
     else {
-      const target = await AdminUser.findOne({ _id: assignee, status: 'active' }).select('_id');
+      const target = mongoose.isValidObjectId(assignee) && await AdminUser.findOne({ _id: assignee, status: 'active' }).select('_id');
       if (!target) return res.status(400).json({ message: 'Assign the request to an active admin.' });
       ticket.assignee = target._id;
     }
   }
   await ticket.save();
   // Resolving tells the customer, once
-  if (!wasResolved && ticket.status === 'resolved') {
+  const resolvedNow = !wasResolved && ticket.status === 'resolved';
+  if (resolvedNow) {
     emailRequester(req, ticket, { message: '', resolved: true });
-    logAdminAction(ticket.organization, req.admin, 'support.resolved', { number: ticket.number, subject: ticket.subject });
+    logAdminAction(ticket.organization, req.admin, 'support.resolved', { number: ticket.number });
   }
+  // Every other change (status, priority, assignee) goes to the action log too
+  const after = { status: ticket.status, priority: ticket.priority, assignee: ticket.assignee ? String(ticket.assignee) : null };
+  const changes = {};
+  for (const key of Object.keys(after)) {
+    if (after[key] !== before[key] && !(key === 'status' && resolvedNow)) changes[key] = { from: before[key], to: after[key] };
+  }
+  if (Object.keys(changes).length) logAdminAction(ticket.organization, req.admin, 'support.updated', { number: ticket.number, changes });
   const populated = await SupportTicket.findById(ticket._id).populate('assignee', 'name email').lean();
   res.json({ ticket: withUrls(populated) });
 });

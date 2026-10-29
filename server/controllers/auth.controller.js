@@ -79,7 +79,7 @@ const userResponse = (user, org, dynamicLimits) => ({
   mutedProjectEmails: (user.mutedProjectEmails || []).map((id) => id.toString()),
   emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
   // Support channels of the plan (config/plans.js)
-  orgSupport: org ? getSupportForPlan(org.plan) : null,
+  orgSupport: org ? getSupportForPlan(org.plan, org.trialEndsAt) : null,
 });
 
 const DAY_MS = 24 * 60 * 60 * 1000;

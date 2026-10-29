@@ -42,4 +42,19 @@ const uploadDocument = multer({
   limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
 });
 
+// Support request attachments: screenshots and PDFs only, up to 5 MB each
+const SUPPORT_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+uploadDocument.supportAttachments = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    if (!SUPPORT_TYPES.includes(file.mimetype)) {
+      const error = new Error('Attach images or PDF files only');
+      error.statusCode = 400;
+      return cb(error);
+    }
+    cb(null, true);
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
 module.exports = uploadDocument;

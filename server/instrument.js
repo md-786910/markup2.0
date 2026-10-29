@@ -5,7 +5,7 @@ const Sentry = require('@sentry/node');
 
 const SECRET_PARAMS = /([?&](?:token|rt|password|share|key|code|otp)=)[^&#\s]*/gi;
 // Path segments that are credentials: share links, invitations, password resets
-const SECRET_PATHS = /(\/api\/(?:guest|invitations|auth\/reset-password)\/)[^/?#\s]+/gi;
+const SECRET_PATHS = /(\/api\/(?:guest\/workspace|guest|invitations|auth\/reset-password|admin-auth\/reset-password)\/)[^/?#\s]+/gi;
 const SECRET_HEADERS = ['authorization', 'cookie', 'x-csrf-token', 'x-guest-access'];
 
 function redactUrl(url) {

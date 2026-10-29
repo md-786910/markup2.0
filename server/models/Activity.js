@@ -51,9 +51,11 @@ const activitySchema = new Schema({
       'workspace.members_updated', 'workspace.share_enabled', 'workspace.share_disabled',
       'integration.connected', 'integration.disconnected',
       'billing.payment_succeeded',
-      // Admin team (organization is null)
-      'support.resolved',
-      'admin.invited', 'admin.disabled', 'admin.enabled', 'admin.removed', 'admin.two_factor_reset',
+      // Admin panel: support requests and notes (organization set)
+      'support.resolved', 'support.updated', 'org.note_added', 'org.note_deleted',
+      // Admin panel: platform settings and the admin team (organization is null)
+      'plan.updated', 'plan.toggled', 'payment_settings.updated',
+      'admin.invite_resent', 'admin.invited', 'admin.disabled', 'admin.enabled', 'admin.removed', 'admin.two_factor_reset',
     ],
     required: true,
   },

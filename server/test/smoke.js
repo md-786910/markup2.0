@@ -789,7 +789,120 @@ function check(name, cond, extra = '') {
     check('a customer can mark their request resolved', (await call('POST', `/api/support/tickets/${created2.data?.ticket?._id}/resolve`, { user: supAdmin })).data?.ticket?.status === 'resolved');
     const exp = await call('GET', '/api/auth/organization/export', { user: supOwner });
     check('the data export includes support requests without internal notes', exp.data?.supportRequests?.length === 2 && !JSON.stringify(exp.data).includes('slow network'));
+
+    // launch fixes: reading, closed requests, attachments, deadlines, audit
+    const memberTicketId = t?._id;
+    await adminCall('POST', `/api/admin/support/tickets/${memberTicketId}/messages`, { body: { body: 'One more thing to check.' } });
+    const beforeRead = await SupportTicket.findById(memberTicketId).lean();
+    await call('GET', `/api/support/tickets/${memberTicketId}`, { user: supOwner });
+    const afterOwnerRead = await SupportTicket.findById(memberTicketId).lean();
+    check("an owner opening a member's request leaves it unread for the member", String(afterOwnerRead.customerLastReadAt) === String(beforeRead.customerLastReadAt));
+    await call('GET', `/api/support/tickets/${memberTicketId}`, { user: supMember });
+    const afterMemberRead = await SupportTicket.findById(memberTicketId).lean();
+    check('reading a request marks it read without changing updatedAt', afterMemberRead.customerLastReadAt > beforeRead.customerLastReadAt && String(afterMemberRead.updatedAt) === String(beforeRead.updatedAt));
+    await adminCall('PATCH', `/api/admin/support/tickets/${memberTicketId}`, { body: { status: 'closed' } });
+    check('a customer cannot turn a closed request back into resolved', (await call('POST', `/api/support/tickets/${memberTicketId}/resolve`, { user: supMember })).status === 400 && (await SupportTicket.findById(memberTicketId).lean()).status === 'closed');
+    check('a closed request takes no more customer replies', (await call('POST', `/api/support/tickets/${memberTicketId}/messages`, { user: supMember, body: { body: 'Hello again' } })).status === 400);
+    const Activity = r('models/Activity');
+    check('status, priority and assignee changes are in the action log', !!(await Activity.exists({ action: 'support.updated', organization: supOrg._id, 'metadata.changes.priority.to': 'urgent' })) && !!(await Activity.exists({ action: 'support.updated', 'metadata.changes.status.to': 'closed' })));
+    check('a malformed assignee id is refused, not a server error', (await adminCall('PATCH', `/api/admin/support/tickets/${memberTicketId}`, { body: { assignee: 'not-an-id' } })).status === 400);
+    const unanswered = created2.data?.ticket?._id;
+    await adminCall('PATCH', `/api/admin/support/tickets/${unanswered}`, { body: { priority: 'urgent' } });
+    const reprioritised = await SupportTicket.findById(unanswered).lean();
+    check('changing the priority moves the reply deadline', Math.round((reprioritised.dueAt - reprioritised.createdAt) / 36e5) === 8);
+
+    const uploadSupport = async (type, name, bytes = 1024) => {
+      const fd = new FormData();
+      fd.append('subject', 'With a file'); fd.append('category', 'bug'); fd.append('body', 'Please see the attached file for details.');
+      fd.append('attachments', new Blob([Buffer.alloc(bytes, 1)], { type }), name);
+      const res2 = await fetch(`${base}/api/support/tickets`, { method: 'POST', headers: { Authorization: `Bearer ${tok(supOwner)}` }, body: fd });
+      return res2.status;
+    };
+    check('support attachments must be images or PDFs', (await uploadSupport('text/plain', 'notes.txt')) === 400);
+    check('support attachments are capped at 5 MB', (await uploadSupport('image/png', 'big.png', 5.5 * 1024 * 1024)) === 400);
+    check('a screenshot can be attached', (await uploadSupport('image/png', 'shot.png')) === 201);
+    for (const tk of await SupportTicket.find({ organization: supOrg._id, subject: 'With a file' }).lean()) {
+      for (const m of tk.messages) for (const a of m.attachments || []) require('fs').unlink(require('path').join(__dirname, '..', 'uploads', 'documents', a.filename), () => {});
+    }
+
+    const { getSupportForPlan } = r('config/plans');
+    const expiredSupport = getSupportForPlan('trial', new Date(Date.now() - 864e5));
+    check('an expired trial keeps in-app requests at Starter level, without chat', expiredSupport.tickets === true && expiredSupport.chat === false && expiredSupport.priority === 'normal' && getSupportForPlan('trial', new Date(Date.now() + 864e5)).priority === 'high');
     delete process.env.SUPPORT_EMAIL;
+  }
+
+  // --- Launch fixes for Phase 1: logs, action log, migration, admin lists, 2FA races
+  {
+    const { scrubUrl } = r('utils/logger');
+    const scrubbed = ['/api/admin-auth/reset-password/SECRET1', '/api/auth/reset-password/SECRET2', '/api/guest/workspace/SECRET3', '/api/guest/SECRET4/pins', '/api/invitations/SECRET5'].map(scrubUrl);
+    check('tokens in URL paths never reach the request log', scrubbed.every((u) => !u.includes('SECRET') && u.includes('[redacted]')), scrubbed.join(' '));
+
+    const Activity = r('models/Activity');
+    await adminCall('PATCH', '/api/admin/plans/starter', { body: { popular: false } });
+    check('plan changes are in the action log', !!(await Activity.exists({ action: 'plan.updated', 'metadata.planId': 'starter', adminActor: adminOne._id })));
+    await adminCall('PATCH', '/api/admin/plans/enterprise/toggle');
+    await adminCall('PATCH', '/api/admin/plans/enterprise/toggle');
+    check('turning a plan off and on is in the action log', (await Activity.countDocuments({ action: 'plan.toggled', 'metadata.planId': 'enterprise' })) === 2);
+    const ps = await adminCall('GET', '/api/admin/payment-settings');
+    await adminCall('PATCH', '/api/admin/payment-settings', { body: { allowDowngrades: !!ps.data?.allowDowngrades } });
+    check('payment settings changes are in the action log', !!(await Activity.exists({ action: 'payment_settings.updated' })));
+
+    const noteOrg = await Organization.findOne({ slug: 'support-co-e2e' });
+    const note = await adminCall('POST', `/api/admin/organizations/${noteOrg._id}/notes`, { body: { body: 'Called them about the renewal.' } });
+    await adminCall('DELETE', `/api/admin/organizations/${noteOrg._id}/notes/${note.data?.note?._id}`);
+    check('adding and deleting notes is in the action log', !!(await Activity.exists({ action: 'org.note_added', organization: noteOrg._id })) && !!(await Activity.exists({ action: 'org.note_deleted', organization: noteOrg._id })));
+
+    const old = new Date(Date.now() - 400 * 864e5);
+    const [oldAdminEntry, oldCustomerEntry] = await Activity.create([
+      { organization: noteOrg._id, adminActor: adminOne._id, action: 'org.locked', metadata: { actorRole: 'superadmin' }, createdAt: old },
+      { organization: noteOrg._id, action: 'org.name_updated', createdAt: old },
+    ]);
+    await r('scripts/runBilling').phaseRetention();
+    check('retention keeps the admin action log and clears old customer activity', !!(await Activity.exists({ _id: oldAdminEntry._id })) && !(await Activity.exists({ _id: oldCustomerEntry._id })));
+
+    check('a malformed organization id is not found, not a server error', (await adminCall('GET', '/api/admin/organizations/not-an-id')).status === 404);
+    check('a malformed admin id is not found', (await adminCall('POST', '/api/admin/admins/nope/resend')).status === 404);
+    check('a malformed orgId filter is refused', (await adminCall('GET', '/api/admin/users?orgId=nope')).status === 400 && (await adminCall('GET', '/api/admin/audit?orgId=nope')).status === 400);
+
+    // trial filter + search, trial-end sort
+    const soonOwner = await mkUser('soonowner', 'owner');
+    await Organization.create({ name: 'Support Soon', slug: 'support-soon-e2e', owner: soonOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() + 2 * 864e5) });
+    const trialSearch = await adminCall('GET', '/api/admin/organizations?status=trial&search=Support&limit=100');
+    const names = (trialSearch.data?.organizations || []).map((o) => o.name);
+    check('searching within "Trial" keeps the trial filter', names.includes('Support Co') && !names.includes('Support Soon'), names.join(', '));
+    const byTrialEnd = await adminCall('GET', '/api/admin/organizations?sort=trial_end&limit=100');
+    const rows = byTrialEnd.data?.organizations || [];
+    const firstNull = rows.findIndex((o) => !o.trialEndsAt);
+    check('"Trial ends soonest" lists organizations without a trial end last', rows.length > 1 && !!rows[0].trialEndsAt && (firstNull === -1 || rows.slice(firstNull).every((o) => !o.trialEndsAt)) && rows[0].owner?.email !== undefined);
+    const expiredOwner = await mkUser('expiredowner', 'owner');
+    await Organization.create({ name: 'Expired Trial Co', slug: 'expired-trial-e2e', owner: expiredOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() - 864e5), isLocked: true, lockedReason: 'Trial expired' });
+    const kpis = (await adminCall('GET', '/api/admin/stats')).data?.kpis;
+    const runningTrials = await Organization.countDocuments({ plan: 'trial', isLocked: { $ne: true }, deletionScheduledAt: null, $or: [{ trialEndsAt: null }, { trialEndsAt: { $gt: new Date() } }] });
+    check('"Active trials" leaves out expired, locked trials', kpis?.activeTrials === runningTrials && runningTrials < await Organization.countDocuments({ plan: 'trial' }));
+
+    // a customer who had been promoted to superadmin keeps their account
+    const promoted = await User.collection.insertOne({ name: 'Promoted Owner', email: 'promoted@e2e.test', role: 'superadmin', passwordHash: 'x', createdAt: new Date() });
+    const promotedOrg = await Organization.create({ name: 'Promoted Co', slug: 'promoted-co-e2e', owner: promoted.insertedId, plan: 'free' });
+    await User.collection.updateOne({ _id: promoted.insertedId }, { $set: { organization: promotedOrg._id } });
+    await r('utils/migrateAdmins').migrateLegacyAdmins();
+    const kept = await User.findById(promoted.insertedId).lean();
+    check('the admin move keeps a promoted customer as the org owner', kept?.role === 'owner' && !!(await AdminUser.exists({ email: 'promoted@e2e.test' })));
+
+    // the same 2FA code or recovery code can't pass twice at once
+    const { seal } = r('utils/secretBox');
+    const totp = r('utils/totp');
+    const { generateRecoveryCodes, useSecondFactor, SECOND_FACTOR_FIELDS } = r('utils/twoFactor');
+    const secret = totp.generateSecret();
+    const { codes, hashes } = generateRecoveryCodes();
+    const raceAdmin = await mkAdmin('raceadmin', { twoFactor: { enabled: true, secret: seal(secret), lastUsedStep: 0, recoveryCodes: hashes } });
+    const load = () => AdminUser.findById(raceAdmin._id).select(SECOND_FACTOR_FIELDS);
+    const code = totp.codeForStep(secret, totp.currentStep());
+    const [a1, a2] = await Promise.all([load(), load()]);
+    const totpResults = await Promise.all([useSecondFactor(AdminUser, a1, code), useSecondFactor(AdminUser, a2, code)]);
+    check('one authenticator code works for only one of two parallel sign-ins', totpResults.filter(Boolean).length === 1, JSON.stringify(totpResults));
+    const [b1, b2] = await Promise.all([load(), load()]);
+    const recResults = await Promise.all([useSecondFactor(AdminUser, b1, codes[0]), useSecondFactor(AdminUser, b2, codes[0])]);
+    check('one recovery code works for only one of two parallel sign-ins', recResults.filter(Boolean).length === 1 && (await load()).twoFactor.recoveryCodes.length === codes.length - 1, JSON.stringify(recResults));
   }
 
   // --- health

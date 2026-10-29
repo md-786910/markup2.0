@@ -123,9 +123,12 @@ function clearPlanCache() {
   _overrideCacheTime = 0;
 }
 
-// Support channels for a plan; trials get Pro's
-function getSupportForPlan(planId) {
-  const plan = PLANS[planId === 'trial' ? 'pro' : planId] || PLANS.free;
+// Support channels for a plan; running trials get Pro's. An expired trial
+// keeps in-app requests (to sort out billing) at Starter's level.
+function getSupportForPlan(planId, trialEndsAt = null) {
+  let id = planId === 'trial' ? 'pro' : planId;
+  if (planId === 'trial' && trialEndsAt && new Date(trialEndsAt) < new Date()) id = 'starter';
+  const plan = PLANS[id] || PLANS.free;
   return { ...plan.support };
 }
 

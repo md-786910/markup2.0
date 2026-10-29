@@ -8,7 +8,7 @@ const { validatePassword } = require('../utils/passwordPolicy');
 const { generateSecret, verifyCode, otpauthUrl } = require('../utils/totp');
 const { seal, open } = require('../utils/secretBox');
 const {
-  issueChallenge, readChallenge, passwordFingerprint, checkSecondFactor,
+  issueChallenge, readChallenge, passwordFingerprint, useSecondFactor,
   generateRecoveryCodes, adminRequiresTwoFactor, SECOND_FACTOR_FIELDS,
 } = require('../utils/twoFactor');
 const { sendPasswordResetEmail } = require('../utils/mailer');
@@ -65,7 +65,7 @@ exports.loginTwoFactor = asyncHandler(async (req, res) => {
   const admin = await AdminUser.findById(challenge.id).select(`+passwordHash ${SECOND_FACTOR_FIELDS}`);
   if (!admin || admin.status !== 'active' || challenge.pf !== passwordFingerprint(admin) || !admin.twoFactor?.enabled) return expired();
 
-  const used = checkSecondFactor(admin, code);
+  const used = await useSecondFactor(AdminUser, admin, code);
   if (!used) return res.status(401).json({ message: "That code didn't work. Check your authenticator app and try again." });
   if (used === 'recovery') {
     req.log.warn({ adminId: String(admin._id), left: admin.twoFactor.recoveryCodes.length }, 'admin signed in with a recovery code');
@@ -210,7 +210,7 @@ async function confirmIdentity(req, res, admin) {
     res.status(400).json({ message: 'That password is not correct.' });
     return false;
   }
-  if (!checkSecondFactor(admin, req.body?.code)) {
+  if (!(await useSecondFactor(AdminUser, admin, req.body?.code))) {
     res.status(400).json({ message: "That code didn't work. Use a current code from your authenticator app or a recovery code." });
     return false;
   }

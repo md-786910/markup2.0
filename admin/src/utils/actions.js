@@ -63,6 +63,14 @@ export function describeAction(a) {
     case 'admin.enabled': return `turned the admin account of ${m.name || m.email} back on`;
     case 'admin.removed': return `removed ${m.name || m.email} from the admin team`;
     case 'admin.two_factor_reset': return `reset two-step sign-in for ${m.name || m.email}`;
+    case 'admin.invite_resent': return `sent the admin invitation to ${m.name || m.email} again`;
+    case 'plan.updated': return `changed the ${plan(m.planId)} plan`;
+    case 'plan.toggled': return `${m.enabled ? 'turned on' : 'turned off'} the ${plan(m.planId)} plan`;
+    case 'payment_settings.updated': return 'changed the payment settings';
+    case 'org.note_added': return 'added an internal note';
+    case 'org.note_deleted': return 'deleted an internal note';
+    case 'support.resolved': return `resolved support request${m.number ? ` #${m.number}` : ''}`;
+    case 'support.updated': return `updated support request${m.number ? ` #${m.number}` : ''}`;
     default: return a.action.replace(/[._]/g, ' ');
   }
 }

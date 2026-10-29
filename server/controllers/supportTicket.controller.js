@@ -105,13 +105,13 @@ exports.listTickets = asyncHandler(async (req, res) => {
       ...t,
       unread: !!t.lastAdminReplyAt && (!t.customerLastReadAt || t.lastAdminReplyAt > t.customerLastReadAt),
     })),
-    support: getSupportForPlan(req.organization.plan),
+    support: getSupportForPlan(req.organization.plan, req.organization.trialEndsAt),
   });
 });
 
 // POST /support/tickets { subject, category, body, context } + attachments
 exports.createTicket = asyncHandler(async (req, res) => {
-  const support = getSupportForPlan(req.organization.plan);
+  const support = getSupportForPlan(req.organization.plan, req.organization.trialEndsAt);
   if (!support.tickets) {
     await dropUploads(req);
     return res.status(403).json({ message: 'In-app support starts on the Starter plan. Email us in the meantime.', code: 'FEATURE_NOT_AVAILABLE' });
@@ -160,12 +160,15 @@ exports.createTicket = asyncHandler(async (req, res) => {
   res.status(201).json({ ticket: forCustomer(ticket) });
 });
 
-// GET /support/tickets/:ticketId (marks our replies as read)
+// GET /support/tickets/:ticketId (the requester reading it marks our replies
+// as read; reading isn't an update, so updatedAt stays)
 exports.getTicket = asyncHandler(async (req, res) => {
   const ticket = await findForUser(req, req.params.ticketId);
   if (!ticket) return res.status(404).json({ message: 'Request not found.' });
-  ticket.customerLastReadAt = new Date();
-  await ticket.save();
+  if (String(ticket.requester) === String(req.user._id)) {
+    ticket.customerLastReadAt = new Date();
+    await SupportTicket.updateOne({ _id: ticket._id }, { $set: { customerLastReadAt: ticket.customerLastReadAt } }, { timestamps: false });
+  }
   res.json({ ticket: forCustomer(ticket) });
 });
 
@@ -201,6 +204,7 @@ exports.replyToTicket = asyncHandler(async (req, res) => {
 exports.resolveTicket = asyncHandler(async (req, res) => {
   const ticket = await findForUser(req, req.params.ticketId);
   if (!ticket) return res.status(404).json({ message: 'Request not found.' });
+  if (ticket.status === 'closed') return res.status(400).json({ message: 'This request has been closed.' });
   ticket.status = 'resolved';
   ticket.resolvedAt = new Date();
   await ticket.save();

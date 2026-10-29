@@ -13,6 +13,7 @@ import { chatAvailable, openChat } from '../../utils/supportChat';
 import { OPEN_SUPPORT_EVENT, SUPPORT_EMAIL } from '../../utils/supportPanel';
 import { fileUrl } from '../../utils/uploadUrl';
 import { toast, toastError } from '../../utils/toast';
+import { track } from '../../monitoring/analytics';
 
 const SITE_URL = process.env.REACT_APP_SITE_URL || 'https://kommently.app';
 
@@ -305,6 +306,9 @@ function ThreadView({ ticketId, onChanged }) {
         <div ref={endRef} />
       </div>
 
+      {ticket.status === 'closed' ? (
+        <p className="border-t border-gray-100 p-4 text-center text-sm text-gray-500">This request is closed. Start a new request if you need more help.</p>
+      ) : (
       <form onSubmit={reply} className="space-y-2 border-t border-gray-100 p-4">
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={10000} placeholder={isOpen ? 'Write a reply…' : 'Reply to open this request again…'} className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20" />
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -315,6 +319,7 @@ function ThreadView({ ticketId, onChanged }) {
           </div>
         </div>
       </form>
+      )}
     </div>
   );
 }
@@ -365,6 +370,7 @@ export default function SupportPanel() {
   }, [location.search, location.pathname, navigate, user]);
 
   useEffect(() => { if (open && view === 'home') refresh(); }, [open, view, refresh]);
+  useEffect(() => { if (open) track('support_panel_opened'); }, [open]);
   useEscape(() => setOpen(false), open);
 
   if (!user || !open) return null;
@@ -372,6 +378,7 @@ export default function SupportPanel() {
   const title = view === 'new' ? 'New request' : view === 'thread' ? 'Your request' : 'Help & support';
   const startChat = async () => {
     try {
+      track('support_chat_opened');
       const ok = await openChat({ email: user.email, name: user.name, data: { organization: user.orgName, plan: user.orgPlan } });
       if (ok) setOpen(false);
     } catch {

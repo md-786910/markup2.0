@@ -13,6 +13,17 @@
 - GDPR export includes support requests (no internal notes); the org purge deletes them with their files.
 - Tests: 35 smoke checks ("Phase 2" section) plus a browser end-to-end run (customer request with attachment → admin note and reply → notification and email link → customer reply → resolve).
 
+### Launch review fixes (October 2026)
+- Attachments are checked on the server: images and PDFs only, 5 MB each (`uploadDocument.supportAttachments`).
+- Email links survive sign-in: a signed-out visitor (or an expired session) is sent back to the page they opened after login (`client/src/utils/returnTo.js`), so `/dashboard?support=<id>` opens the request.
+- A closed request can't be marked resolved (and so reopened) by the customer; the panel shows it as closed without a reply box.
+- Opening a request no longer bumps `updatedAt`, and only the requester's own reading marks replies read.
+- An expired trial keeps in-app requests at Starter level (no chat, normal priority) instead of Pro.
+- Changing a request's priority moves its reply deadline (until the first reply); priority, assignee and status changes and "reply and resolve" are in the action log.
+- Analytics `support_panel_opened`, `support_chat_opened`; the client's fallback plan list has the support lines.
+- Tests: support emails in `test/emailLinks.js` (team email → admin `/support/<id>`, reply → `/dashboard?support=<id>`), plus smoke checks for the fixes above.
+- Still open (not bugs): per-org support overrides, in-panel FAQ for "Quick answers", MRR/activity on the admin customer card, the support address in the app is fixed (`client/src/utils/supportPanel.js`).
+
 ## Original spec
 
 **Size: M (about 1.5 weeks)**

@@ -75,6 +75,7 @@ exports.resendInvite = asyncHandler(async (req, res) => {
     req.log.error({ err }, 'admin invite email failed to send');
     return res.status(502).json({ message: 'The invitation email could not be sent.' });
   }
+  logAdminAction(null, req.admin, 'admin.invite_resent', { email: target.email, name: target.name });
   res.json({ message: `Invitation sent again to ${target.email}.` });
 });
 

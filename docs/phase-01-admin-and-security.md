@@ -27,6 +27,15 @@
 - `server/test/smoke.js` → "Phase 1" section (62 checks): admin sign-in, forced 2FA setup, TOTP and recovery codes (single use, replay refused, regenerate), password change and reset (30-minute admin link, single use, signs out sessions, 2FA stays on), invite → set password → sign in, team safeguards, logout, legacy superadmin move, overview/list/CSV/detail endpoints, every status filter matching the row status, notes (scoped to the org, never in customer exports), lock/unlock and the action log.
 - Found and fixed during regression: the Organizations status filters now exclude locked and deleting organizations, exactly like the status shown on each row.
 
+## Launch review fixes (October 2026)
+- Tokens in URL paths (admin and customer reset links, invitations, share links incl. `/api/guest/workspace/<token>`) are redacted in the request log and Sentry; the log line uses `originalUrl`.
+- The action log now covers plan edits and on/off (`plan.updated`, `plan.toggled`), payment settings (`payment_settings.updated`), notes added/deleted, admin invite resends and support request changes (`support.updated`). Admin entries are kept by the 365-day retention and by the org purge (no customer text in their metadata).
+- The legacy admin move keeps a customer who had been promoted to superadmin (back to owner/admin of their org) instead of deleting them.
+- 2FA codes and recovery codes are claimed atomically (`useSecondFactor`), so one code can't pass two parallel requests.
+- Organizations: search no longer drops the Trial filter; "Trial ends soonest" lists orgs without a trial end last. Overview: "Active trials" leaves out expired/locked trials; "Locked" leaves out orgs being deleted.
+- Malformed ids in admin URLs return 404 (`router.param`), malformed `orgId` filters 400.
+- Tests: "Launch fixes for Phase 1" section in `server/test/smoke.js`.
+
 ## Follow-ups carried into later phases
 - Plans & pricing and Payment settings full redesign → Phase 6.
 - Engagement data from PostHog (time spent, sessions) → Phase 5.
