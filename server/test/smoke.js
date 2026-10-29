@@ -828,6 +828,22 @@ function check(name, cond, extra = '') {
     const { getSupportForPlan } = r('config/plans');
     const expiredSupport = getSupportForPlan('trial', new Date(Date.now() - 864e5));
     check('an expired trial keeps in-app requests at Starter level, without chat', expiredSupport.tickets === true && expiredSupport.chat === false && expiredSupport.priority === 'normal' && getSupportForPlan('trial', new Date(Date.now() + 864e5)).priority === 'high');
+
+    // per-organization support overrides (admin panel → Custom limits)
+    check('a support override must use a known priority', (await adminCall('PATCH', `/api/admin/organizations/${freeOrg._id}/limits`, { body: { supportPriority: 'asap' } })).status === 400);
+    await adminCall('PATCH', `/api/admin/organizations/${freeOrg._id}/limits`, { body: { supportTickets: true, supportPriority: 'urgent', supportReplyHours: 4 } });
+    const freeMe = await call('GET', '/api/auth/me', { user: freeOwner });
+    check('support overrides reach the app', freeMe.data?.user?.orgSupport?.tickets === true && freeMe.data.user.orgSupport.priority === 'urgent' && freeMe.data.user.orgSupport.chat === false);
+    check('the app gets the support address from SUPPORT_EMAIL', freeMe.data?.user?.supportEmail === 'support@e2e.test');
+    const freeTicket = await call('POST', '/api/support/tickets', { user: freeOwner, body: ticketBody() });
+    const freeStored = await SupportTicket.findById(freeTicket.data?.ticket?._id).lean();
+    check('a free organization with in-app support turned on can open a request', freeTicket.status === 201 && freeStored?.priority === 'urgent' && Math.round((freeStored.dueAt - freeStored.createdAt) / 36e5) === 4);
+    const freeDetail = await adminCall('GET', `/api/admin/organizations/${freeOrg._id}`);
+    check('the organization page shows the support it has and its plan\'s', freeDetail.data?.support?.tickets === true && freeDetail.data?.planSupport?.tickets === false && !('supportTickets' in (freeDetail.data?.limits || {})));
+
+    // customer context on the admin request page
+    const ctx = await adminCall('GET', `/api/admin/support/tickets/${freeTicket.data?.ticket?._id}`);
+    check('the admin request page shows status, revenue and recent activity', ctx.data?.customer?.status === 'free' && ctx.data.customer.mrr === 0 && Array.isArray(ctx.data.customer.recentActivity) && ctx.data.customer.recentActivity.every((a) => a.metadata?.actorRole !== 'superadmin'));
     delete process.env.SUPPORT_EMAIL;
   }
 
@@ -860,6 +876,10 @@ function check(name, cond, extra = '') {
     await r('scripts/runBilling').phaseRetention();
     check('retention keeps the admin action log and clears old customer activity', !!(await Activity.exists({ _id: oldAdminEntry._id })) && !(await Activity.exists({ _id: oldCustomerEntry._id })));
 
+    const csvAll = await fetch(`${base}/api/admin/organizations?format=csv`, { headers: { Authorization: `Bearer ${adminToken}` } });
+    const csvRows = (await csvAll.text()).trim().split('\n').length - 1;
+    check('the CSV export lists every organization', csvRows === await Organization.countDocuments({}), `${csvRows} rows`);
+    check('admin sign-in with an unknown email is refused like a wrong password', (await adminCall('POST', '/api/admin-auth/login', { body: { email: 'nobody@admin.e2e.test', password: 'whatever-long-pass' } })).status === 401);
     check('a malformed organization id is not found, not a server error', (await adminCall('GET', '/api/admin/organizations/not-an-id')).status === 404);
     check('a malformed admin id is not found', (await adminCall('POST', '/api/admin/admins/nope/resend')).status === 404);
     check('a malformed orgId filter is refused', (await adminCall('GET', '/api/admin/users?orgId=nope')).status === 400 && (await adminCall('GET', '/api/admin/audit?orgId=nope')).status === 400);

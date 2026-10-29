@@ -38,6 +38,14 @@ const FEATURE_FIELDS = [
   ['hasActivityLogs', 'Activity log'],
   ['hasVersionHistory', 'Version history'],
 ];
+const PRIORITY_LABELS = { normal: 'Normal', high: 'High', urgent: 'Urgent' };
+
+// "In-app + chat · high priority · 24 h" for a support rule set
+function describeSupport(s) {
+  if (!s) return '—';
+  const channels = s.tickets ? (s.chat ? 'In-app + chat' : 'In-app requests') : 'Email only';
+  return [channels, `${(PRIORITY_LABELS[s.priority] || s.priority).toLowerCase()} priority`, s.replyHours ? `${s.replyHours} h` : null].filter(Boolean).join(' · ');
+}
 
 // ── Dialogs ──────────────────────────────────────────────────────
 
@@ -113,11 +121,16 @@ function ExtendTrialDialog({ org, onClose, onDone }) {
   );
 }
 
-function LimitsDialog({ org, limits, onClose, onDone }) {
+function LimitsDialog({ org, limits, planSupport, onClose, onDone }) {
   const o = org.limitOverrides || {};
+  const yesNo = (v) => (v == null ? '' : String(v));
   const [form, setForm] = useState(() => Object.fromEntries([
     ...LIMIT_FIELDS.map(([k]) => [k, o[k] ?? '']),
-    ...FEATURE_FIELDS.map(([k]) => [k, o[k] == null ? '' : String(o[k])]),
+    ...FEATURE_FIELDS.map(([k]) => [k, yesNo(o[k])]),
+    ['supportTickets', yesNo(o.supportTickets)],
+    ['supportChat', yesNo(o.supportChat)],
+    ['supportPriority', o.supportPriority || ''],
+    ['supportReplyHours', o.supportReplyHours ?? ''],
   ]));
   const [saving, setSaving] = useState(false);
 
@@ -125,7 +138,9 @@ function LimitsDialog({ org, limits, onClose, onDone }) {
     setSaving(true);
     const toNum = (v) => (v === '' || v == null ? null : Number(v));
     const body = Object.fromEntries(LIMIT_FIELDS.map(([k]) => [k, toNum(form[k])]));
-    for (const [k] of FEATURE_FIELDS) if (form[k] !== '') body[k] = form[k] === 'true';
+    for (const k of [...FEATURE_FIELDS.map(([key]) => key), 'supportTickets', 'supportChat']) if (form[k] !== '') body[k] = form[k] === 'true';
+    if (form.supportPriority) body.supportPriority = form.supportPriority;
+    body.supportReplyHours = toNum(form.supportReplyHours);
     try {
       await setOrganizationLimitsApi(org._id, body);
       toast.success('Custom limits saved.');
@@ -161,6 +176,36 @@ function LimitsDialog({ org, limits, onClose, onDone }) {
             </select>
           </Field>
         ))}
+      </div>
+      <h3 className="mb-1 mt-6 text-sm font-semibold text-gray-900">Support</h3>
+      <p className="mb-4 text-sm text-gray-500">The plan gives: {describeSupport(planSupport)}.</p>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        {[['supportTickets', 'In-app requests'], ['supportChat', 'Live chat']].map(([key, label]) => (
+          <Field key={key} label={label}>
+            <select value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} className={inputClass}>
+              <option value="">Plan default</option>
+              <option value="true">On</option>
+              <option value="false">Off</option>
+            </select>
+          </Field>
+        ))}
+        <Field label="Priority">
+          <select value={form.supportPriority} onChange={(e) => setForm({ ...form, supportPriority: e.target.value })} className={inputClass}>
+            <option value="">Plan default</option>
+            {Object.entries(PRIORITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </Field>
+        <Field label="Reply target (hours)">
+          <input
+            type="number"
+            min="1"
+            max="720"
+            value={form.supportReplyHours}
+            placeholder={planSupport?.replyHours ? String(planSupport.replyHours) : 'None'}
+            onChange={(e) => setForm({ ...form, supportReplyHours: e.target.value })}
+            className={inputClass}
+          />
+        </Field>
       </div>
       <div className="mt-6 flex justify-end gap-2">
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -256,6 +301,7 @@ function OverviewTab({ data, onOpenNotes }) {
               sub.currentPeriodEnd && [sub.cancelAtPeriodEnd ? 'Ends on' : 'Renews on', formatDate(sub.currentPeriodEnd)],
               sub.provider && ['Paid with', sub.provider === 'razorpay' ? 'Razorpay' : sub.provider === 'paypal' ? 'PayPal' : sub.provider],
               ['Monthly revenue', data.mrr ? formatUsd(data.mrr) : '—'],
+              ['Support', `${describeSupport(data.support)}${['supportTickets', 'supportChat', 'supportPriority', 'supportReplyHours'].some((k) => org.limitOverrides?.[k] != null) ? ' (custom)' : ''}`],
               org.billingDetails?.legalName && ['Billed to', org.billingDetails.legalName],
               org.billingDetails?.taxId && ['GSTIN / VAT', org.billingDetails.taxId],
               org.billingDetails?.country && ['Country', [org.billingDetails.state, org.billingDetails.country].filter(Boolean).join(', ')],
@@ -687,7 +733,7 @@ export default function OrganizationDetailPage() {
 
       {dialog === 'plan' && <ChangePlanDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
       {dialog === 'trial' && <ExtendTrialDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
-      {dialog === 'limits' && <LimitsDialog org={org} limits={data.limits} onClose={() => setDialog(null)} onDone={closeAndReload} />}
+      {dialog === 'limits' && <LimitsDialog org={org} limits={data.limits} planSupport={data.planSupport} onClose={() => setDialog(null)} onDone={closeAndReload} />}
       {dialog === 'lock' && <LockDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
     </div>
   );

@@ -14,6 +14,7 @@ import { OPEN_SUPPORT_EVENT, SUPPORT_EMAIL } from '../../utils/supportPanel';
 import { fileUrl } from '../../utils/uploadUrl';
 import { toast, toastError } from '../../utils/toast';
 import { track } from '../../monitoring/analytics';
+import { SUPPORT_FAQ } from './supportFaq';
 
 const SITE_URL = process.env.REACT_APP_SITE_URL || 'https://kommently.app';
 
@@ -92,7 +93,7 @@ function FilePicker({ files, setFiles }) {
   );
 }
 
-function HomeView({ support, tickets, loading, onNew, onOpen, onChat }) {
+function HomeView({ support, email, tickets, loading, onNew, onOpen, onChat }) {
   const unread = tickets.filter((t) => t.unread).length;
   return (
     <div className="space-y-6 p-5">
@@ -104,7 +105,7 @@ function HomeView({ support, tickets, loading, onNew, onOpen, onChat }) {
             {support.chat && chatAvailable ? (
               <button type="button" onClick={onChat} className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Chat with us</button>
             ) : (
-              <a href={`mailto:${SUPPORT_EMAIL}`} className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-50">Email us</a>
+              <a href={`mailto:${email}`} className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-50">Email us</a>
             )}
           </div>
         </div>
@@ -112,16 +113,31 @@ function HomeView({ support, tickets, loading, onNew, onOpen, onChat }) {
         <div className="rounded-xl border border-gray-200 p-4">
           <p className="text-sm font-medium text-gray-900">Email us</p>
           <p className="mt-1 text-sm text-gray-600">
-            Write to <a href={`mailto:${SUPPORT_EMAIL}`} className="font-medium text-blue-600 hover:text-blue-700">{SUPPORT_EMAIL}</a> and we'll get back to you.
+            Write to <a href={`mailto:${email}`} className="font-medium text-blue-600 hover:text-blue-700">{email}</a> and we'll get back to you.
           </p>
           <p className="mt-3 text-xs text-gray-500">In-app requests with reply times start on the Starter plan; Pro adds live chat.</p>
         </div>
       )}
 
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-gray-900">Quick answers</h3>
+        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200">
+          {SUPPORT_FAQ.map((item) => (
+            <details key={item.question} className="group px-4 py-3">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-sm font-medium text-gray-900 [&::-webkit-details-marker]:hidden">
+                {item.question}
+                <svg className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </summary>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600">{item.answer}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+
       <a href={`${SITE_URL}/support`} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 text-sm hover:bg-gray-50">
         <span>
           <span className="block font-medium text-gray-900">Help center</span>
-          <span className="block text-gray-500">Quick answers to common questions</span>
+          <span className="block text-gray-500">More answers on our website</span>
         </span>
         <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
       </a>
@@ -405,6 +421,7 @@ export default function SupportPanel() {
           {view === 'home' && (
             <HomeView
               support={support}
+              email={user.supportEmail || SUPPORT_EMAIL}
               tickets={tickets}
               loading={loading}
               onNew={() => setView('new')}

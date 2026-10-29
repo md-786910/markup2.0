@@ -132,6 +132,18 @@ function getSupportForPlan(planId, trialEndsAt = null) {
   return { ...plan.support };
 }
 
+// Support for one organization: its plan's, then the org's own overrides
+// (limitOverrides.support*, set in the admin panel)
+const SUPPORT_OVERRIDES = { supportTickets: 'tickets', supportChat: 'chat', supportPriority: 'priority', supportReplyHours: 'replyHours' };
+function getSupportForOrg(org) {
+  const support = getSupportForPlan(org.plan, org.trialEndsAt);
+  const o = org.limitOverrides || {};
+  for (const [key, field] of Object.entries(SUPPORT_OVERRIDES)) {
+    if (o[key] !== undefined && o[key] !== null) support[field] = o[key];
+  }
+  return support;
+}
+
 function getLimitsForPlan(planId) {
   // Trials get Pro features so teams experience everything before choosing a plan
   if (planId === 'trial') return { ...PLANS.pro.limits };
@@ -214,8 +226,9 @@ async function getNewSignupPlanMode() {
 async function getEffectiveLimitsAsync(org) {
   const base = await getLimitsForPlanAsync(org.plan);
   const raw = org.limitOverrides ? (org.limitOverrides.toObject ? org.limitOverrides.toObject() : org.limitOverrides) : {};
-  const overrides = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined && v !== null));
+  // Support overrides are not limits (getSupportForOrg reads them)
+  const overrides = Object.fromEntries(Object.entries(raw).filter(([k, v]) => v !== undefined && v !== null && !(k in SUPPORT_OVERRIDES)));
   return { ...base, ...overrides };
 }
 
-module.exports = { getSupportForPlan, getEffectiveLimitsAsync, PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache };
+module.exports = { getSupportForPlan, getSupportForOrg, getEffectiveLimitsAsync, PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache };

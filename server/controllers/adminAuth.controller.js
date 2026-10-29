@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const QRCode = require('qrcode');
 const AdminUser = require('../models/AdminUser');
 const asyncHandler = require('../utils/asyncHandler');
@@ -40,13 +41,18 @@ async function startSession(req, res, admin, extra) {
   respondWithSession(res, admin, extra);
 }
 
+// Compared against when the email is unknown, so a wrong email takes as long
+// as a wrong password (the timing doesn't reveal who is an admin)
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 12);
+
 // POST /admin-auth/login { email, password }
 exports.login = asyncHandler(async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ message: 'Email and password are required.' });
 
   const admin = await AdminUser.findOne({ email: String(email).toLowerCase().trim() }).select('+passwordHash');
-  if (!admin || admin.status !== 'active' || !(await admin.comparePassword(password))) {
+  const passwordOk = admin ? await admin.comparePassword(password) : await bcrypt.compare(String(password), DUMMY_HASH).then(() => false);
+  if (!admin || admin.status !== 'active' || !passwordOk) {
     return res.status(401).json({ message: 'Wrong email or password.' });
   }
   // With 2FA on, the password alone only earns a short-lived challenge
@@ -116,11 +122,9 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
     admin.resetPasswordToken = hashToken(raw);
     admin.resetPasswordExpires = new Date(Date.now() + RESET_TTL_MS);
     await admin.save({ validateBeforeSave: false });
-    try {
-      await sendPasswordResetEmail(admin.email, `${URLS.admin}/reset-password/${raw}`, '30 minutes');
-    } catch (err) {
-      req.log.error({ err }, 'admin password reset email failed to send');
-    }
+    // Not awaited: waiting for the send would make real admins answer slower
+    sendPasswordResetEmail(admin.email, `${URLS.admin}/reset-password/${raw}`, '30 minutes')
+      .catch((err) => req.log.error({ err }, 'admin password reset email failed to send'));
   }
   // Same answer either way, so the form doesn't reveal who is an admin
   res.json({ message: 'If that is an admin account, we sent a reset link.' });

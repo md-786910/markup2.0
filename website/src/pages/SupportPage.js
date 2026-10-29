@@ -5,7 +5,8 @@ import Accordion from '../components/Accordion';
 import { chatAvailable, openChat } from '../utils/supportChat';
 import { ArrowRightIcon, ChatIcon, ClipboardIcon, ClockIcon, MailIcon, ShieldIcon, UsersIcon } from '../components/icons';
 
-// Short, accurate answers to the questions support gets most
+// Short, accurate answers to the questions support gets most. The app's
+// Help & support panel shows the same list (client/src/components/support/supportFaq.js).
 const HELP_ITEMS = [
   {
     question: 'How do I invite a client to review?',

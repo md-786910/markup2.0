@@ -94,6 +94,11 @@ const organizationSchema = new mongoose.Schema({
     hasIntegrations: { type: Boolean },
     hasActivityLogs: { type: Boolean },
     hasVersionHistory: { type: Boolean },
+    // Support channels (config/plans.js getSupportForOrg); unset keys use the plan's
+    supportTickets: { type: Boolean },
+    supportChat: { type: Boolean },
+    supportPriority: { type: String, enum: ['normal', 'high', 'urgent'] },
+    supportReplyHours: { type: Number },
   },
   // Owner requested deletion: the org is locked and purged by the daily job at this time
   deletionScheduledAt: { type: Date, default: null },

@@ -13,7 +13,8 @@ const AdminNote = require('../models/AdminNote');
 const SupportTicket = require('../models/SupportTicket');
 const PaymentSettings = require('../models/PaymentSettings');
 const asyncHandler = require('../utils/asyncHandler');
-const { PLANS, getPlansWithOverrides, clearPlanCache, getLimitsForPlanAsync, getEffectiveLimitsAsync } = require('../config/plans');
+const { PLANS, getPlansWithOverrides, clearPlanCache, getLimitsForPlanAsync, getEffectiveLimitsAsync, getSupportForOrg, getSupportForPlan } = require('../config/plans');
+const { PRICED_PLANS, monthlyRevenue, lifecycleStatus } = require('../utils/orgStatus');
 const {
   getProvider,
   getProviderStatus,
@@ -32,29 +33,9 @@ function parsePaging(query) {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-// Plans billed monthly at a list price; enterprise is a custom deal
-const PRICED_PLANS = ['starter', 'pro'];
 
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// Monthly revenue of an org at its plan's list price (USD), 0 unless it pays
-function monthlyRevenue(org, plans) {
-  if (!PRICED_PLANS.includes(org.plan) || org.subscription?.status !== 'active') return 0;
-  return Number(plans[org.plan]?.price) || 0;
-}
-
-// One lifecycle status per org, most important first
-function lifecycleStatus(org, now = Date.now()) {
-  if (org.deletionScheduledAt) return 'deleting';
-  if (org.isLocked) return 'locked';
-  if (org.plan === 'trial') {
-    return org.trialEndsAt && new Date(org.trialEndsAt).getTime() - now < 7 * DAY_MS ? 'trial_ending' : 'trial';
-  }
-  if (org.subscription?.cancelAtPeriodEnd) return 'cancelling';
-  if (org.plan === 'free') return 'free';
-  return 'paying';
 }
 
 // Last activity and active people per org, from the members' lastSeen
@@ -213,18 +194,18 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
 
 // ── Organizations ────────────────────────────────────────────────
 
+// _id breaks ties, so pages (and CSV batches) never repeat or skip a row
 const ORG_SORTS = {
-  newest: { createdAt: -1 },
-  oldest: { createdAt: 1 },
-  name: { name: 1 },
-  trial_end: { trialEndsAt: 1 },
+  newest: { createdAt: -1, _id: -1 },
+  oldest: { createdAt: 1, _id: 1 },
+  name: { name: 1, _id: 1 },
+  trial_end: { trialEndsAt: 1, _id: 1 },
 };
 
 exports.getOrganizations = asyncHandler(async (req, res) => {
   const { plan, status, search, sort, format } = req.query;
   const csv = format === 'csv';
-  const { page, limit } = csv ? { page: 1, limit: 5000 } : parsePaging(req.query);
-  const skip = (page - 1) * limit;
+  const { page, limit } = parsePaging(req.query);
 
   const filter = { ...(await statusFilter(status)) };
   if (plan) filter.plan = String(plan);
@@ -240,7 +221,7 @@ exports.getOrganizations = asyncHandler(async (req, res) => {
   }
 
   // An ascending sort puts organizations without a trial end first; those go last
-  const findOrgs = () => (sort === 'trial_end'
+  const findOrgs = (skip, limit) => (sort === 'trial_end'
     ? Organization.aggregate([
       { $match: filter },
       { $addFields: { noTrialEnd: { $cond: [{ $ifNull: ['$trialEndsAt', false] }, 0, 1] } } },
@@ -256,12 +237,36 @@ exports.getOrganizations = asyncHandler(async (req, res) => {
       .populate('owner', 'name email')
       .lean());
 
-  const [orgs, total, plans] = await Promise.all([
-    findOrgs(),
-    Organization.countDocuments(filter),
-    getPlansWithOverrides(),
-  ]);
+  const plans = await getPlansWithOverrides();
 
+  // CSV: every matching organization, read in batches
+  if (csv) {
+    const BATCH = 500;
+    const rows = [];
+    for (let skip = 0; ; skip += BATCH) {
+      const batch = await findOrgs(skip, BATCH);
+      rows.push(...(await describeOrgs(batch, plans)));
+      if (batch.length < BATCH) break;
+    }
+    return sendOrganizationsCsv(res, rows);
+  }
+
+  const [orgs, total] = await Promise.all([
+    findOrgs((page - 1) * limit, limit),
+    Organization.countDocuments(filter),
+  ]);
+  const data = await describeOrgs(orgs, plans);
+
+  res.json({
+    organizations: data,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  });
+});
+
+// Rows of the customer list: engagement, project counts, unpaid invoices
+async function describeOrgs(orgs, plans) {
   const orgIds = orgs.map((o) => o._id);
   const [engagement, projectCounts, unpaidOrgIds] = await Promise.all([
     engagementByOrg(orgIds),
@@ -275,7 +280,7 @@ exports.getOrganizations = asyncHandler(async (req, res) => {
   const unpaidSet = new Set(unpaidOrgIds.map(String));
 
   const now = Date.now();
-  const data = orgs.map((org) => {
+  return orgs.map((org) => {
     const e = engagement.get(String(org._id));
     return {
       _id: org._id,
@@ -297,31 +302,24 @@ exports.getOrganizations = asyncHandler(async (req, res) => {
       hasUnpaidInvoice: unpaidSet.has(String(org._id)),
     };
   });
+}
 
-  if (csv) {
-    const cell = (v) => {
-      const s = v == null ? '' : String(v);
-      // Quote, and defuse spreadsheet formulas in customer-entered text
-      return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
-    };
-    const iso = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
-    const header = ['Organization', 'Owner', 'Owner email', 'Plan', 'Status', 'Members', 'Active members (7d)', 'Projects', 'MRR (USD)', 'Last active', 'Trial ends', 'Created'];
-    const lines = data.map((o) => [
-      o.name, o.owner?.name, o.owner?.email, o.plan, o.status, o.memberCount, o.activeMembers7d,
-      o.projectCount, o.mrr, iso(o.lastActiveAt), iso(o.trialEndsAt), iso(o.createdAt),
-    ].map(cell).join(','));
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="kommently-customers-${new Date().toISOString().slice(0, 10)}.csv"`);
-    return res.send([header.map(cell).join(','), ...lines].join('\n'));
-  }
-
-  res.json({
-    organizations: data,
-    total,
-    page,
-    totalPages: Math.ceil(total / limit),
-  });
-});
+function sendOrganizationsCsv(res, data) {
+  const cell = (v) => {
+    const s = v == null ? '' : String(v);
+    // Quote, and defuse spreadsheet formulas in customer-entered text
+    return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+  };
+  const iso = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
+  const header = ['Organization', 'Owner', 'Owner email', 'Plan', 'Status', 'Members', 'Active members (7d)', 'Projects', 'MRR (USD)', 'Last active', 'Trial ends', 'Created'];
+  const lines = data.map((o) => [
+    o.name, o.owner?.name, o.owner?.email, o.plan, o.status, o.memberCount, o.activeMembers7d,
+    o.projectCount, o.mrr, iso(o.lastActiveAt), iso(o.trialEndsAt), iso(o.createdAt),
+  ].map(cell).join(','));
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="kommently-customers-${new Date().toISOString().slice(0, 10)}.csv"`);
+  return res.send([header.map(cell).join(','), ...lines].join('\n'));
+}
 
 exports.getOrganizationDetail = asyncHandler(async (req, res) => {
   const org = await Organization.findById(req.params.id).populate('owner', 'name email');
@@ -384,6 +382,9 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
     status: lifecycleStatus(org, now),
     mrr: monthlyRevenue(org, plans),
     limits,
+    // Support the org has (custom overrides applied) and what its plan gives
+    support: getSupportForOrg(org),
+    planSupport: getSupportForPlan(org.plan, org.trialEndsAt),
     usage: {
       projects: projects.filter((p) => p.status === 'active').length,
       archivedProjects: projects.filter((p) => p.status === 'archived').length,
@@ -805,8 +806,17 @@ exports.setOrganizationLimits = asyncHandler(async (req, res) => {
     if (!Number.isInteger(n) || n < 0) return res.status(400).json({ message: `${key} must be a whole number` });
     overrides[key] = n;
   }
-  for (const key of ['hasIntegrations', 'hasActivityLogs', 'hasVersionHistory']) {
+  for (const key of ['hasIntegrations', 'hasActivityLogs', 'hasVersionHistory', 'supportTickets', 'supportChat']) {
     if (typeof b[key] === 'boolean') overrides[key] = b[key];
+  }
+  if (b.supportPriority) {
+    if (!['normal', 'high', 'urgent'].includes(b.supportPriority)) return res.status(400).json({ message: 'Support priority must be normal, high or urgent' });
+    overrides.supportPriority = b.supportPriority;
+  }
+  if (b.supportReplyHours !== null && b.supportReplyHours !== '' && b.supportReplyHours !== undefined) {
+    const n = Number(b.supportReplyHours);
+    if (!Number.isInteger(n) || n < 1 || n > 720) return res.status(400).json({ message: 'Reply target must be 1 to 720 hours' });
+    overrides.supportReplyHours = n;
   }
   org.limitOverrides = overrides;
   await org.save();

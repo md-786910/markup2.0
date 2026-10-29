@@ -16,7 +16,8 @@ const Invoice = require("../models/Invoice");
 const asyncHandler = require("../utils/asyncHandler");
 const { sendPasswordResetEmail } = require("../utils/mailer");
 const { ROLE_HIERARCHY } = require("../middleware/roles");
-const { getLimitsForPlanAsync, getNewSignupPlanMode, getSupportForPlan } = require("../config/plans");
+const { getLimitsForPlanAsync, getNewSignupPlanMode, getSupportForOrg } = require("../config/plans");
+const { supportInbox } = require("../utils/support");
 const { generateCsrfToken, CSRF_COOKIE } = require("../middleware/csrf");
 const { validatePassword } = require("../utils/passwordPolicy");
 const { logOrgActivity, logActivity } = require("../utils/activityLogger");
@@ -79,7 +80,9 @@ const userResponse = (user, org, dynamicLimits) => ({
   mutedProjectEmails: (user.mutedProjectEmails || []).map((id) => id.toString()),
   emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
   // Support channels of the plan (config/plans.js)
-  orgSupport: org ? getSupportForPlan(org.plan, org.trialEndsAt) : null,
+  orgSupport: org ? getSupportForOrg(org) : null,
+  // Where to email us (SUPPORT_EMAIL; shown in the Help & support panel)
+  supportEmail: supportInbox() || null,
 });
 
 const DAY_MS = 24 * 60 * 60 * 1000;

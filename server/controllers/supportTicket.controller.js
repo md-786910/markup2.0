@@ -2,7 +2,7 @@ const SupportTicket = require('../models/SupportTicket');
 const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 const { nextSequence } = require('../models/Counter');
-const { getSupportForPlan, PLANS } = require('../config/plans');
+const { getSupportForOrg, PLANS } = require('../config/plans');
 const { URLS } = require('../config/env');
 const { TICKET_CATEGORIES, supportInbox, replyDueAt, attachmentUrl, cleanText } = require('../utils/support');
 const { sendSupportTicketToTeam } = require('../utils/mailer');
@@ -105,13 +105,13 @@ exports.listTickets = asyncHandler(async (req, res) => {
       ...t,
       unread: !!t.lastAdminReplyAt && (!t.customerLastReadAt || t.lastAdminReplyAt > t.customerLastReadAt),
     })),
-    support: getSupportForPlan(req.organization.plan, req.organization.trialEndsAt),
+    support: getSupportForOrg(req.organization),
   });
 });
 
 // POST /support/tickets { subject, category, body, context } + attachments
 exports.createTicket = asyncHandler(async (req, res) => {
-  const support = getSupportForPlan(req.organization.plan, req.organization.trialEndsAt);
+  const support = getSupportForOrg(req.organization);
   if (!support.tickets) {
     await dropUploads(req);
     return res.status(403).json({ message: 'In-app support starts on the Starter plan. Email us in the meantime.', code: 'FEATURE_NOT_AVAILABLE' });

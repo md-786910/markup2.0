@@ -5,12 +5,15 @@ const Organization = require('../models/Organization');
 const Project = require('../models/Project');
 const Pin = require('../models/Pin');
 const Notification = require('../models/Notification');
+const Activity = require('../models/Activity');
 const asyncHandler = require('../utils/asyncHandler');
 const { supportTicketUrl } = require('../utils/email/templates');
 const { sendSupportReplyEmail } = require('../utils/mailer');
 const mongoose = require('mongoose');
 const { attachmentUrl, cleanText, replyDueAt, REPLY_HOURS_BY_PRIORITY } = require('../utils/support');
 const { logAdminAction } = require('../utils/activityLogger');
+const { getPlansWithOverrides } = require('../config/plans');
+const { monthlyRevenue, lifecycleStatus } = require('../utils/orgStatus');
 
 // The admin Support inbox: every customer request, sorted by priority and
 // reply deadline, with the customer's context next to it.
@@ -89,7 +92,7 @@ exports.getStats = asyncHandler(async (req, res) => {
 // GET /admin/support/tickets/:ticketId: thread (with internal notes) + customer context
 exports.getTicket = asyncHandler(async (req, res) => {
   const ticket = await SupportTicket.findById(req.params.ticketId)
-    .populate('organization', 'name plan trialEndsAt isLocked lockedReason subscription createdAt')
+    .populate('organization', 'name plan trialEndsAt isLocked lockedReason subscription deletionScheduledAt createdAt')
     .populate('requester', 'name email role lastSeen createdAt')
     .populate('assignee', 'name email')
     .populate('context.project', 'name projectType websiteUrl')
@@ -97,18 +100,28 @@ exports.getTicket = asyncHandler(async (req, res) => {
   if (!ticket) return res.status(404).json({ message: 'Request not found.' });
 
   const orgId = ticket.organization?._id;
-  const [members, projectIds, otherTickets, admins] = await Promise.all([
+  const [members, projectIds, otherTickets, admins, recentActivity, plans] = await Promise.all([
     orgId ? User.find({ organization: orgId }).select('lastSeen').lean() : [],
     orgId ? Project.find({ organization: orgId, status: 'active' }).distinct('_id') : [],
     orgId ? SupportTicket.find({ organization: orgId, _id: { $ne: ticket._id } }).sort({ createdAt: -1 }).limit(5).select('number subject status createdAt').lean() : [],
     AdminUser.find({ status: 'active' }).select('name').sort({ name: 1 }).lean(),
+    // What the customer did lately (not our own admin actions)
+    orgId ? Activity.find({ organization: orgId, 'metadata.actorRole': { $ne: 'superadmin' } })
+      .sort({ createdAt: -1 }).limit(5)
+      .select('action actor actorGuest metadata project createdAt')
+      .populate('actor', 'name').populate('project', 'name').lean() : [],
+    getPlansWithOverrides(),
   ]);
   const openPins = projectIds.length ? await Pin.countDocuments({ project: { $in: projectIds }, status: { $ne: 'resolved' } }) : 0;
   const lastActiveAt = members.reduce((max, m) => (m.lastSeen && (!max || m.lastSeen > max) ? m.lastSeen : max), null);
 
   res.json({
     ticket: withUrls(ticket),
-    customer: { members: members.length, activeProjects: projectIds.length, openPins, lastActiveAt, otherTickets },
+    customer: {
+      members: members.length, activeProjects: projectIds.length, openPins, lastActiveAt, otherTickets, recentActivity,
+      status: ticket.organization ? lifecycleStatus(ticket.organization) : null,
+      mrr: ticket.organization ? monthlyRevenue(ticket.organization, plans) : 0,
+    },
     admins,
   });
 });

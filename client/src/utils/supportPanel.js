@@ -3,6 +3,7 @@
 // components/support/SupportPanel.js.
 export const OPEN_SUPPORT_EVENT = 'kommently:open-support';
 
+// Fallback only: the app shows the server's SUPPORT_EMAIL (user.supportEmail)
 export const SUPPORT_EMAIL = 'hello@kommently.app';
 
 // view: 'home' | 'new'; ticketId opens that request

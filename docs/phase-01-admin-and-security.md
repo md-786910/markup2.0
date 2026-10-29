@@ -34,6 +34,8 @@
 - 2FA codes and recovery codes are claimed atomically (`useSecondFactor`), so one code can't pass two parallel requests.
 - Organizations: search no longer drops the Trial filter; "Trial ends soonest" lists orgs without a trial end last. Overview: "Active trials" leaves out expired/locked trials; "Locked" leaves out orgs being deleted.
 - Malformed ids in admin URLs return 404 (`router.param`), malformed `orgId` filters 400.
+- The customer CSV export includes every matching organization (read in batches of 500; sorts break ties on `_id`).
+- Admin sign-in compares a dummy hash for unknown emails and forgot-password doesn't wait for the send, so timing doesn't reveal who is an admin.
 - Tests: "Launch fixes for Phase 1" section in `server/test/smoke.js`.
 
 ## Follow-ups carried into later phases

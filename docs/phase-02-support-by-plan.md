@@ -22,7 +22,10 @@
 - Changing a request's priority moves its reply deadline (until the first reply); priority, assignee and status changes and "reply and resolve" are in the action log.
 - Analytics `support_panel_opened`, `support_chat_opened`; the client's fallback plan list has the support lines.
 - Tests: support emails in `test/emailLinks.js` (team email → admin `/support/<id>`, reply → `/dashboard?support=<id>`), plus smoke checks for the fixes above.
-- Still open (not bugs): per-org support overrides, in-panel FAQ for "Quick answers", MRR/activity on the admin customer card, the support address in the app is fixed (`client/src/utils/supportPanel.js`).
+- Per-organization support overrides: Custom limits in the admin panel takes in-app requests, live chat, priority and reply target (`limitOverrides.support*`, `getSupportForOrg` in `config/plans.js`); the org page shows the support it has and its plan's.
+- "Quick answers" in the panel: the website Support page's questions (`client/src/components/support/supportFaq.js`, keep in sync with `website/src/pages/SupportPage.js`).
+- The admin request page's customer card shows status, monthly revenue and the customer's recent activity (`utils/orgStatus.js` shared with the org pages).
+- The panel's email address comes from the server's `SUPPORT_EMAIL` (`user.supportEmail`).
 
 ## Original spec
 

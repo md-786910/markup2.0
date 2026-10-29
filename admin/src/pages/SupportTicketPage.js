@@ -3,9 +3,10 @@ import { Link, useParams } from 'react-router-dom';
 import { getSupportTicketApi, replySupportTicketApi, updateSupportTicketApi } from '../services/adminService';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { Avatar, Button, Card, DefinitionList, PageHeader, inputClass } from '../components/common/ui';
-import { PlanBadge } from '../components/common/StatusBadge';
+import { PlanBadge, StatusBadge } from '../components/common/StatusBadge';
 import { CATEGORY_LABELS, PriorityPill, TicketStatusPill, dueLabel } from '../components/support/supportBadges';
-import { formatDateTime, timeAgo } from '../utils/formatters';
+import { formatDateTime, formatUsd, timeAgo } from '../utils/formatters';
+import { actorName, describeAction } from '../utils/actions';
 import { toast, toastError } from '../utils/toast';
 
 const SERVER_URL = (process.env.REACT_APP_SERVER_URL || 'http://localhost:5000').replace(/\/+$/, '');
@@ -192,12 +193,28 @@ export default function SupportTicketPage() {
                 ['From', t.requester ? <Link to={`/users/${t.requester._id}`} className="hover:text-blue-700">{t.requester.name}</Link> : '—'],
                 ['Email', t.requester?.email],
                 ['Role', t.requester?.role],
+                customer.status && ['Status', <StatusBadge status={customer.status} trialEndsAt={org?.trialEndsAt} />],
+                ['Monthly revenue', customer.mrr ? formatUsd(customer.mrr) : '—'],
                 ['Last active', timeAgo(customer.lastActiveAt)],
                 ['Members', customer.members],
                 ['Open pins', customer.openPins],
               ]}
             />
           </Card>
+
+          {customer.recentActivity?.length > 0 && (
+            <Card title="Recent activity">
+              <ul className="space-y-2.5">
+                {customer.recentActivity.map((a) => (
+                  <li key={a._id} className="text-sm">
+                    <span className="font-medium text-gray-900">{actorName(a)}</span>{' '}
+                    <span className="text-gray-600">{describeAction(a)}{a.project?.name ? ` in ${a.project.name}` : ''}</span>
+                    <span className="block text-xs text-gray-400">{timeAgo(a.createdAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
 
           <Card title="Context">
             <DefinitionList
