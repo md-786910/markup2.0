@@ -101,7 +101,7 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
   const { shareToken } = req.params;
   const { password } = req.query;
 
-  const found = await findShared(shareToken, 'name projectType websiteUrl documents shareSettings projectStatus workspace');
+  const found = await findShared(shareToken, 'name projectType websiteUrl documents shareSettings projectStatus workspace review');
   if (!found.project) {
     return res.status(found.status).json({
       message: found.status === 404 ? 'Review link not found or has been disabled.' : found.message,
@@ -142,6 +142,7 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
       documents: project.documents,
       projectStatus: project.projectStatus,
       allowComments: share.allowComments,
+      review: project.review,
     },
   });
 });
@@ -279,6 +280,15 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Guest commenting is disabled for this project.' });
   }
 
+  if (project.review?.deadlineAt && new Date() > new Date(project.review.deadlineAt)) {
+    discardUploads(req);
+    return res.status(423).json({
+      code: 'FEEDBACK_CLOSED',
+      message: project.review.deadlineMessage || 'Feedback has closed for this review round.',
+      deadlineAt: project.review.deadlineAt,
+    });
+  }
+
   const {
     guestName, guestEmail, pageUrl, xPercent, yPercent,
     selector, elementOffsetX, elementOffsetY,
@@ -366,6 +376,15 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Guest commenting is disabled for this project.' });
   }
 
+  if (project.review?.deadlineAt && new Date() > new Date(project.review.deadlineAt)) {
+    discardUploads(req);
+    return res.status(423).json({
+      code: 'FEEDBACK_CLOSED',
+      message: project.review.deadlineMessage || 'Feedback has closed for this review round.',
+      deadlineAt: project.review.deadlineAt,
+    });
+  }
+
   const { guestName, guestEmail } = req.body;
   const body = sanitizeCommentBody(req.body.body);
 
@@ -421,4 +440,144 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
 
   metric('comment.created', { source: 'guest' });
   res.status(201).json({ comment });
+});
+
+/**
+ * POST /api/guest/:shareToken/decision
+ * Public endpoint — guest approves or requests changes for the current review round.
+ */
+exports.recordGuestDecision = asyncHandler(async (req, res) => {
+  const project = await loadSharedProject(req, res, { write: true });
+  if (!project) return;
+
+  if (!req.share.allowComments) {
+    return res.status(403).json({ message: 'Guest commenting is disabled for this project.' });
+  }
+
+  const { decision, note, name, email } = req.body || {};
+  if (!['approved', 'changes_requested'].includes(decision)) {
+    return res.status(400).json({ message: 'Valid decision ("approved" or "changes_requested") is required.' });
+  }
+  if (!name || !email) {
+    return res.status(400).json({ message: 'Reviewer name and email are required.' });
+  }
+
+  // Check if approvals are enabled on this project
+  if (project.review?.approvalsEnabled === false) {
+    return res.status(403).json({ message: 'Approvals are not enabled for this project.' });
+  }
+
+  // If deadline is set and passed:
+  if (project.review?.deadlineAt && new Date() > new Date(project.review.deadlineAt)) {
+    return res.status(423).json({
+      code: 'FEEDBACK_CLOSED',
+      message: project.review.deadlineMessage || 'Feedback has closed for this review round.',
+      deadlineAt: project.review.deadlineAt,
+    });
+  }
+
+  const Version = require('../models/Version');
+  const Approval = require('../models/Approval');
+
+  // Find latest version (round). If none, null represents current round.
+  const latestVersion = await Version.findOne({ project: project._id })
+    .sort({ versionNumber: -1 })
+    .select('_id versionNumber');
+  const currentVersionId = latestVersion?._id || null;
+
+  // Open pins count for this round (unresolved pins)
+  const pinQuery = { project: project._id, status: { $ne: 'resolved' } };
+  if (currentVersionId) {
+    pinQuery.version = currentVersionId;
+  } else {
+    pinQuery.version = null;
+  }
+  const openPinsAtDecision = await Pin.countDocuments(pinQuery);
+
+  if (project.review?.requireAllResolved && decision === 'approved' && openPinsAtDecision > 0) {
+    return res.status(400).json({
+      code: 'PINS_NOT_RESOLVED',
+      message: `All pins must be resolved before this round can be approved (${openPinsAtDecision} open pins remaining).`,
+      openPinsAtDecision,
+    });
+  }
+
+  const cleanEmail = String(email).trim().toLowerCase();
+  const cleanName = String(name).trim().slice(0, 80);
+
+  // One decision per reviewer email per round (latest wins)
+  let approval = await Approval.findOne({
+    project: project._id,
+    version: currentVersionId,
+    'reviewer.guestEmail': cleanEmail,
+  });
+
+  if (approval) {
+    approval.decision = decision;
+    approval.note = (note || '').slice(0, 2000);
+    approval.reviewer.guestName = cleanName;
+    approval.openPinsAtDecision = openPinsAtDecision;
+    approval.ip = req.ip;
+    approval.userAgent = req.headers['user-agent'] || null;
+    await approval.save();
+  } else {
+    approval = await Approval.create({
+      project: project._id,
+      organization: project.organization,
+      version: currentVersionId,
+      decision,
+      note: (note || '').slice(0, 2000),
+      reviewer: {
+        user: null,
+        guestName: cleanName,
+        guestEmail: cleanEmail,
+      },
+      openPinsAtDecision,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'] || null,
+    });
+  }
+
+  // Update project status: if approved, set 'approved'; if changes_requested, set 'in_review'
+  const newStatus = decision === 'approved' ? 'approved' : 'in_review';
+  await Project.updateOne({ _id: project._id }, { $set: { projectStatus: newStatus } });
+
+  // Log activity
+  logGuestActivity(
+    project._id,
+    cleanName,
+    cleanEmail,
+    decision === 'approved' ? 'review.approved' : 'review.changes_requested',
+    {
+      decision,
+      openPinsAtDecision,
+      round: latestVersion ? `Version ${latestVersion.versionNumber}` : 'Current round',
+    }
+  );
+
+  // In-app notifications to project members
+  createProjectNotifications({
+    io: req.app.get('io'),
+    projectId: project._id,
+    actorGuest: { name: cleanName, email: cleanEmail },
+    type: 'review_decision',
+    metadata: {
+      decision,
+      reviewerName: cleanName,
+      openPinsAtDecision,
+      note: (note || '').slice(0, 200),
+    },
+  }).catch(() => {});
+
+  // Socket emit
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`project:${project._id}`).emit('project:review_decision', {
+      approval,
+      projectStatus: newStatus,
+    });
+  }
+
+  metric('review.decision', { decision, source: 'guest' });
+  res.status(201).json({ approval, projectStatus: newStatus });
 });

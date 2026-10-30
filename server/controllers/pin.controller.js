@@ -38,7 +38,14 @@ exports.createPin = asyncHandler(async (req, res) => {
     size: req.file.size,
   } : null;
 
-  const projectDoc = await Project.findById(projectId).select('name organization settings');
+  const projectDoc = await Project.findById(projectId).select('name organization settings review');
+  if (projectDoc?.review?.deadlineAt && new Date() > new Date(projectDoc.review.deadlineAt)) {
+    return res.status(423).json({
+      code: 'FEEDBACK_CLOSED',
+      message: projectDoc.review.deadlineMessage || 'Feedback has closed for this review round.',
+      deadlineAt: projectDoc.review.deadlineAt,
+    });
+  }
 
   // Get next incremental pin number for this project
   const lastPin = await Pin.findOne({ project: projectId })

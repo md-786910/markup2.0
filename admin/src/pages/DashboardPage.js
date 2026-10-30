@@ -100,7 +100,8 @@ export default function DashboardPage() {
   const unpaid = kpis.unpaidInvoices || [];
   const unpaidCount = unpaid.reduce((n, u) => n + u.count, 0);
   const overdueTickets = attention.overdueTickets || [];
-  const attentionCount = attention.trialsEnding.length + attention.overdueInvoices.length + attention.lockedOrgs.length + overdueTickets.length;
+  const atRisk = attention.atRiskOrgs || [];
+  const attentionCount = (attention.trialsEnding?.length || 0) + (attention.overdueInvoices?.length || 0) + (attention.lockedOrgs?.length || 0) + overdueTickets.length + atRisk.length;
 
   return (
     <div className="animate-fade-in">
@@ -165,6 +166,15 @@ export default function DashboardPage() {
             <p className="px-5 py-8 text-center text-sm text-gray-500">Nothing needs attention right now.</p>
           ) : (
             <div className="divide-y divide-gray-100">
+              {atRisk.map((org) => (
+                <AttentionRow
+                  key={org._id}
+                  to={`/organizations/${org._id}`}
+                  title={org.name}
+                  detail={`Health score ${org.health?.score != null ? org.health.score : 0}/100 · ${org.health?.reasons?.[0] || 'At risk of churn'}`}
+                  badge={<span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">At risk</span>}
+                />
+              ))}
               {attention.overdueInvoices.map((inv) => (
                 <AttentionRow
                   key={inv._id}
@@ -247,6 +257,41 @@ export default function DashboardPage() {
           )}
         </Card>
       </div>
+
+      {data.activationFunnel && data.activationFunnel.steps && (
+        <div className="mt-6">
+          <Card
+            title="Signup-to-activation funnel"
+            description="30-day cohort progression from workspace signup through first project, pin, team invite, guest link, and paid plan"
+          >
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+              {data.activationFunnel.steps.map((step, idx) => (
+                <div key={step.key} className="relative rounded-lg border border-gray-100 bg-gray-50 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                    Step {idx + 1}
+                  </div>
+                  <div className="mt-1 text-sm font-medium text-gray-900 truncate" title={step.label}>
+                    {step.label}
+                  </div>
+                  <div className="mt-2 text-2xl font-bold text-gray-900">
+                    {step.count}
+                  </div>
+                  <div className="mt-1 flex items-center text-xs font-medium text-gray-500">
+                    <span className="font-semibold text-blue-600">{step.conversionRate}%</span>
+                    <span className="ml-1 text-gray-400">conversion</span>
+                  </div>
+                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                    <div
+                      className="h-full rounded-full bg-blue-600 transition-all duration-300"
+                      style={{ width: `${Math.min(100, Math.max(0, step.conversionRate))}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

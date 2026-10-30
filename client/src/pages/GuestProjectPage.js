@@ -7,6 +7,7 @@ import {
   getGuestCommentsApi,
   createGuestPinApi,
   createGuestCommentApi,
+  recordGuestDecisionApi,
 } from '../services/guestService';
 import renderCommentBody from '../utils/renderCommentBody';
 import AttachmentChip from '../components/project/AttachmentChip';
@@ -111,6 +112,51 @@ export default function GuestProjectPage() {
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
   const [currentDocPage, setCurrentDocPage] = useState(1);
   const iframeState = useIframeMessages();
+
+  const [decisionModalOpen, setDecisionModalOpen] = useState(false);
+  const [decisionType, setDecisionType] = useState('approved');
+  const [decisionNote, setDecisionNote] = useState('');
+  const [submittingDecision, setSubmittingDecision] = useState(false);
+
+  const isFeedbackClosed = Boolean(
+    project?.review?.deadlineAt && new Date() > new Date(project.review.deadlineAt)
+  );
+  const openPinsCount = pins.filter((p) => p.status !== 'resolved').length;
+  const isRequireResolvedBlocked = Boolean(
+    project?.review?.requireAllResolved && openPinsCount > 0
+  );
+
+  const handleGuestDecisionSubmit = async (e) => {
+    e?.preventDefault();
+    if (submittingDecision) return;
+    if (!guestName.trim() || !guestEmail.trim()) {
+      toastError(null, 'Please enter your name and email.');
+      return;
+    }
+    if (decisionType === 'approved' && isRequireResolvedBlocked) {
+      toastError(null, `Cannot approve: all ${openPinsCount} pins must be resolved first.`);
+      return;
+    }
+    setSubmittingDecision(true);
+    try {
+      localStorage.setItem('guest_name', guestName.trim());
+      localStorage.setItem('guest_email', guestEmail.trim());
+      const res = await recordGuestDecisionApi(shareToken, {
+        decision: decisionType,
+        note: decisionNote.trim(),
+        name: guestName.trim(),
+        email: guestEmail.trim(),
+      });
+      toast.success(decisionType === 'approved' ? 'Round approved! The team has been notified.' : 'Changes requested recorded.');
+      setProject((prev) => ({ ...prev, projectStatus: res.data.projectStatus }));
+      setDecisionModalOpen(false);
+      setDecisionNote('');
+    } catch (err) {
+      toastError(err, 'Failed to submit decision.');
+    } finally {
+      setSubmittingDecision(false);
+    }
+  };
 
   // Derived data
   const filteredPins = useMemo(() => {
@@ -243,7 +289,7 @@ export default function GuestProjectPage() {
   const { lastClick, clearLastClick } = iframeState;
   useEffect(() => {
     if (!lastClick) return;
-    if (commentMode && !draft) {
+    if (commentMode && !draft && !isFeedbackClosed) {
       const env = getClientEnvironment();
       const combinedContext = {
         ...env,
@@ -259,10 +305,10 @@ export default function GuestProjectPage() {
       setDraftBody('');
     }
     clearLastClick();
-  }, [lastClick, clearLastClick, commentMode, draft, iframeState.currentPageUrl]);
+  }, [lastClick, clearLastClick, commentMode, draft, iframeState.currentPageUrl, isFeedbackClosed]);
 
   const handleDocumentClick = useCallback((clickData) => {
-    if (!draft) {
+    if (!draft && !isFeedbackClosed) {
       const env = getClientEnvironment();
       setDraft({
         ...clickData,
@@ -273,7 +319,7 @@ export default function GuestProjectPage() {
       });
       setDraftBody('');
     }
-  }, [draft]);
+  }, [draft, isFeedbackClosed]);
 
   const savedPinRef = useRef(null);
   const handlePostPin = async () => {
@@ -818,68 +864,195 @@ export default function GuestProjectPage() {
         </div>
 
         {/* ─── Main content area ─── */}
-        <div className={`${mobilePane === 'page' ? 'block' : 'hidden'} md:block flex-1 min-w-0 relative bg-gray-50`}>
-          {isDocument ? (
-            <React.Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" /></div>}>
-              <DocumentViewer
-                documents={project.documents || []}
-                currentDocIndex={currentDocIndex}
-                currentPage={currentDocPage}
-                onPageChange={setCurrentDocPage}
-                onDocIndexChange={(i) => { setCurrentDocIndex(i); setCurrentDocPage(1); }}
+        <div className={`${mobilePane === 'page' ? 'block' : 'hidden'} md:block flex-1 min-w-0 relative bg-gray-50 flex flex-col`}>
+          {isFeedbackClosed && (
+            <div className="bg-amber-50/95 border-b border-amber-200 px-4 py-2.5 text-xs text-amber-900 flex items-center justify-between z-20 shrink-0">
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <span>
+                  <strong>Feedback closed:</strong> {project?.review?.deadlineMessage || `Feedback has closed for this review round (${new Date(project.review.deadlineAt).toLocaleDateString()}).`}
+                </span>
+              </div>
+              <span className="font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-[10px]">Read-only mode</span>
+            </div>
+          )}
+
+          <div className="flex-1 min-w-0 relative">
+            {isDocument ? (
+              <React.Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" /></div>}>
+                <DocumentViewer
+                  documents={project.documents || []}
+                  currentDocIndex={currentDocIndex}
+                  currentPage={currentDocPage}
+                  onPageChange={setCurrentDocPage}
+                  onDocIndexChange={(i) => { setCurrentDocIndex(i); setCurrentDocPage(1); }}
+                  pinMode={commentMode}
+                  pins={pagePins}
+                  selectedPinId={selectedPin?._id}
+                  onDocumentClick={handleDocumentClick}
+                  onPinClick={handlePinClick}
+                  onScreenshot={() => {}}
+                  viewportWidth={1440}
+                />
+              </React.Suspense>
+            ) : project.websiteUrl ? (
+              <IframeContainer
+                proxyUrl={`${API_BASE}/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}&guest=true`}
+                targetUrl={project.websiteUrl}
                 pinMode={commentMode}
                 pins={pagePins}
                 selectedPinId={selectedPin?._id}
-                onDocumentClick={handleDocumentClick}
-                onPinClick={handlePinClick}
-                onScreenshot={() => {}}
-                viewportWidth={1440}
+                loading={iframeLoading && !iframeState.ready}
+                onLoad={() => setTimeout(() => setIframeLoading(false), 500)}
               />
-            </React.Suspense>
-          ) : project.websiteUrl ? (
-            <IframeContainer
-              proxyUrl={`${API_BASE}/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}&guest=true`}
-              targetUrl={project.websiteUrl}
-              pinMode={commentMode}
-              pins={pagePins}
-              selectedPinId={selectedPin?._id}
-              loading={iframeLoading && !iframeState.ready}
-              onLoad={() => setTimeout(() => setIframeLoading(false), 500)}
-            />
-          ) : null}
+            ) : null}
 
-          {/* New comment on the clicked spot */}
-          {draft && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-[min(420px,calc(100%-2rem))] rounded-2xl border border-gray-200 bg-white p-4 shadow-xl">
-              <p className="text-[13px] font-semibold text-gray-900 mb-2">New comment</p>
-              <textarea
-                autoFocus
-                rows={3}
-                value={draftBody}
-                onChange={(e) => setDraftBody(e.target.value)}
-                placeholder="What should change here?"
-                className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
-              />
-              {!hasIdentity && (
-                <p className="mt-2 text-[12px] text-gray-500">You'll be asked for your name and email before posting.</p>
-              )}
-              <div className="mt-3 flex justify-end gap-2">
-                <button type="button" onClick={() => setDraft(null)} className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">
+            {/* New comment on the clicked spot */}
+            {draft && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-[min(420px,calc(100%-2rem))] rounded-2xl border border-gray-200 bg-white p-4 shadow-xl">
+                <p className="text-[13px] font-semibold text-gray-900 mb-2">New comment</p>
+                <textarea
+                  autoFocus
+                  rows={3}
+                  value={draftBody}
+                  onChange={(e) => setDraftBody(e.target.value)}
+                  placeholder="What should change here?"
+                  className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
+                />
+                {!hasIdentity && (
+                  <p className="mt-2 text-[12px] text-gray-500">You'll be asked for your name and email before posting.</p>
+                )}
+                <div className="mt-3 flex justify-end gap-2">
+                  <button type="button" onClick={() => setDraft(null)} className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePostPin}
+                    disabled={!draftBody.trim() || postingPin}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {postingPin ? 'Posting…' : 'Post'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Sticky "Your Decision" Bar */}
+            {project?.review?.approvalsEnabled !== false && !isFeedbackClosed && project?.allowComments && (
+              <div className="fixed bottom-4 right-6 z-40 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/90 px-4 py-3 flex items-center gap-4 animate-slide-up">
+                <div>
+                  <div className="text-xs font-semibold text-gray-900 flex items-center gap-2">
+                    <span>Review Decision</span>
+                    {openPinsCount === 0 ? (
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">
+                        All pins resolved
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50">
+                        {openPinsCount} open {openPinsCount === 1 ? 'pin' : 'pins'}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-500">Sign off on this round or request changes</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setDecisionType('changes_requested'); setDecisionModalOpen(true); }}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+                  >
+                    Request changes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setDecisionType('approved'); setDecisionModalOpen(true); }}
+                    disabled={isRequireResolvedBlocked}
+                    title={isRequireResolvedBlocked ? `All pins must be resolved before approval (${openPinsCount} open)` : ''}
+                    className="px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-sm transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>✓</span> Approve round
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Guest Decision Modal */}
+      {decisionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100">
+            <h3 className="text-base font-semibold text-gray-900 mb-1">
+              {decisionType === 'approved' ? 'Approve Review Round' : 'Request Changes'}
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+              {decisionType === 'approved'
+                ? 'Sign off on this review round to notify the project team.'
+                : 'Request further updates or corrections from the project team.'}
+            </p>
+
+            <form onSubmit={handleGuestDecisionSubmit} className="space-y-3.5">
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Your Name</label>
+                <input
+                  type="text"
+                  required
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="e.g. Sarah Connor"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Your Email</label>
+                <input
+                  type="email"
+                  required
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  placeholder="e.g. sarah@example.com"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Feedback Note (optional)</label>
+                <textarea
+                  rows={3}
+                  maxLength={2000}
+                  value={decisionNote}
+                  onChange={(e) => setDecisionNote(e.target.value)}
+                  placeholder="Add any sign-off notes or required updates..."
+                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDecisionModalOpen(false)}
+                  className="px-3.5 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                >
                   Cancel
                 </button>
                 <button
-                  type="button"
-                  onClick={handlePostPin}
-                  disabled={!draftBody.trim() || postingPin}
-                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                  type="submit"
+                  disabled={submittingDecision}
+                  className={`px-4 py-2 text-xs font-semibold text-white rounded-lg shadow-sm transition-colors cursor-pointer ${
+                    decisionType === 'approved' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'
+                  } disabled:opacity-50`}
                 >
-                  {postingPin ? 'Posting…' : 'Post'}
+                  {submittingDecision ? 'Submitting...' : 'Confirm Sign-Off'}
                 </button>
               </div>
-            </div>
-          )}
+            </form>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Phones: switch between the page and the comments */}
       <nav className="md:hidden grid grid-cols-2 border-t border-gray-200 bg-white shrink-0" aria-label="View">

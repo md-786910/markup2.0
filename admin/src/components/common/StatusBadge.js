@@ -58,3 +58,29 @@ const INVOICE_TONES = { paid: 'green', pending: 'amber', failed: 'red', refunded
 export function InvoiceStatusBadge({ status }) {
   return <Pill tone={INVOICE_TONES[status] || 'gray'}>{status ? status[0].toUpperCase() + status.slice(1) : '—'}</Pill>;
 }
+
+const HEALTH_TONES = { healthy: 'green', watch: 'amber', at_risk: 'red' };
+const HEALTH_LABELS = { healthy: 'Healthy', watch: 'Watch', at_risk: 'At risk' };
+
+export function HealthBadge({ health }) {
+  if (!health) return <span className="text-gray-400">—</span>;
+  const score = health.score != null ? health.score : 50;
+  const band = health.band || 'watch';
+  const tooltip = (health.reasons && health.reasons.length > 0)
+    ? `${score}/100 · ${health.reasons.join(', ')}`
+    : `${score}/100`;
+
+  return (
+    <span title={tooltip} className="cursor-help inline-block">
+      <Pill tone={HEALTH_TONES[band] || 'gray'} dot>
+        {score} · {HEALTH_LABELS[band] || band}
+      </Pill>
+    </span>
+  );
+}
+
+export const HEALTH_OPTIONS = [
+  { value: 'healthy', label: 'Healthy (75+)' },
+  { value: 'watch', label: 'Watch (40–74)' },
+  { value: 'at_risk', label: 'At risk (<40)' },
+];

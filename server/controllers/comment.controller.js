@@ -37,6 +37,17 @@ exports.createComment = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Pin not found' });
   }
 
+  if (req.project?.review?.deadlineAt && new Date() > new Date(req.project.review.deadlineAt)) {
+    const isManageReply = req.access === 'manage' && !!parentComment;
+    if (!isManageReply) {
+      return res.status(423).json({
+        code: 'FEEDBACK_CLOSED',
+        message: req.project.review.deadlineMessage || 'Feedback has closed for this review round.',
+        deadlineAt: req.project.review.deadlineAt,
+      });
+    }
+  }
+
   // Parse mentioned user IDs from body (supports @[Name](userId) and Quill HTML <span class="mention" data-id="...">)
   const mentionedUserIds = await filterMentionsToProject(extractMentionedUserIds(body), req.project);
 

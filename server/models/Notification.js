@@ -47,6 +47,7 @@ const notificationSchema = new Schema({
       'member_invited',
       'member_removed',
       'support_reply',
+      'review_decision',
     ],
     required: true,
   },

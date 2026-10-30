@@ -35,6 +35,7 @@ const organizationSchema = new mongoose.Schema({
     hasIntegrations: { type: Boolean, default: false },
     hasActivityLogs: { type: Boolean, default: false },
     hasVersionHistory: { type: Boolean, default: false },
+    hasApprovals: { type: Boolean, default: false },
   },
   trialDays: {
     type: Number,
@@ -94,6 +95,7 @@ const organizationSchema = new mongoose.Schema({
     hasIntegrations: { type: Boolean },
     hasActivityLogs: { type: Boolean },
     hasVersionHistory: { type: Boolean },
+    hasApprovals: { type: Boolean },
     // Support channels (config/plans.js getSupportForOrg); unset keys use the plan's
     supportTickets: { type: Boolean },
     supportChat: { type: Boolean },
@@ -111,6 +113,13 @@ const organizationSchema = new mongoose.Schema({
     country: { type: String, trim: true, default: '' },
     state: { type: String, trim: true, default: '' }, // Indian state, decides CGST+SGST vs IGST
     taxId: { type: String, trim: true, default: '' }, // GSTIN / VAT number
+  },
+  // Customer Health Score (Phase 5)
+  health: {
+    score: { type: Number, min: 0, max: 100, default: 50 },
+    band: { type: String, enum: ['healthy', 'watch', 'at_risk'], default: 'watch', index: true },
+    reasons: [{ type: String }],
+    computedAt: { type: Date, default: null },
   },
 }, { timestamps: true });
 

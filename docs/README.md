@@ -12,9 +12,9 @@ Read [`CLAUDE.md`](../CLAUDE.md) first for how the codebase works. These docs de
 |---|---|---|---|---|
 | 1 | [Admin panel and admin security](phase-01-admin-and-security.md) | Done | — | See and act on every customer; secure staff access |
 | 2 | [Support by plan](phase-02-support-by-plan.md) | Done | M | Every customer can reach us through the channel their plan includes |
-| 3 | [Developer-ready reports](phase-03-developer-ready-reports.md) | Next | S | Browser, OS, console errors on every pin; closes Marker.io's main edge |
-| 4 | [Client approvals and feedback deadlines](phase-04-client-approvals.md) | Planned | M | Formal sign-off is the agency selling point |
-| 5 | [Engagement and customer health](phase-05-engagement-and-health.md) | Planned | M | Know which customers are active, stuck or at risk |
+| 3 | [Developer-ready reports](phase-03-developer-ready-reports.md) | Done | S | Browser, OS, console errors on every pin; closes Marker.io's main edge |
+| 4 | [Client approvals and feedback deadlines](phase-04-client-approvals.md) | Done | M | Formal sign-off is the agency selling point |
+| 5 | [Engagement and customer health](phase-05-engagement-and-health.md) | Done | M | Know which customers are active, stuck or at risk |
 | 6 | [Pricing and revenue](phase-06-pricing-and-revenue.md) | Planned | M | Plan editor, revenue view, renewals and unpaid invoices |
 | 7 | [Launch hardening](phase-07-launch-hardening.md) | Planned | S | Alerts, support-agent role, tests, runbooks |
 

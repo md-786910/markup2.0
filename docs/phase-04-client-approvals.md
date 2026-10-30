@@ -1,6 +1,6 @@
 # Phase 4: Client approvals and feedback deadlines
 
-**Status: Planned · Size: M (about 1.5 weeks)**
+**Status: Done (Shipped October 2026) · Size: M (about 1.5 weeks)**
 
 ## Goal
 A client can formally approve a review round (or request changes) from the review link, the team gets a dated record of who approved what, and the team can close a round to new feedback on a deadline.

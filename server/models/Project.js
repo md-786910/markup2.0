@@ -80,6 +80,12 @@ const projectSchema = new Schema({
     captureConsoleErrors: { type: Boolean, default: true },
     guestConsoleCapture: { type: Boolean, default: false },
   },
+  review: {
+    approvalsEnabled: { type: Boolean, default: true },
+    requireAllResolved: { type: Boolean, default: false },
+    deadlineAt: { type: Date, default: null },
+    deadlineMessage: { type: String, default: '' },
+  },
 }, {
   timestamps: true,
   toJSON: {

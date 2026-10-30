@@ -10,6 +10,7 @@ import ActivitySidebar from "./ActivitySidebar";
 import VersionSidebar from "./VersionSidebar";
 import InviteMemberModal from "./InviteMemberModal";
 import ShareProjectModal from "./ShareProjectModal";
+import ApprovalsModal from "./ApprovalsModal";
 import NewPinCommentPopup from "./NewPinCommentPopup";
 import NotificationBell from "../common/NotificationBell";
 import MembersPresencePopover from "./MembersPresencePopover";
@@ -69,6 +70,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const [pinMode, setPinMode] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showApprovals, setShowApprovals] = useState(false);
   const [pendingPinData, setPendingPinData] = useState(null);
   // Saved pins still waiting for their screenshot: clickId -> pinId
   const pinsAwaitingShotRef = useRef(new Map());
@@ -637,6 +639,36 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           </button>
           <div className="w-px h-6 bg-gray-200/80 shrink-0"></div>
           <h2 className="min-w-0 max-w-[160px] truncate font-semibold text-gray-900 text-[14px] tracking-tight sm:max-w-[220px] xl:max-w-none xl:shrink-0" title={project.name}>{project.name}</h2>
+          {project.projectStatus === 'approved' && (
+            <button
+              onClick={() => setShowApprovals(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/60 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
+              title="Click to view sign-off details"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Approved
+            </button>
+          )}
+          {project.projectStatus === 'in_review' && (
+            <button
+              onClick={() => setShowApprovals(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/60 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
+              title="Click to view review progress"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              In review
+            </button>
+          )}
+          {project.projectStatus === 'changes_requested' && (
+            <button
+              onClick={() => setShowApprovals(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/60 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
+              title="Click to view requested changes"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              Changes requested
+            </button>
+          )}
           <div className="hidden xl:flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 hover:bg-gray-100/60 transition-colors cursor-default" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
             {isDocumentProject ? (
               <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -695,6 +727,18 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           <NotificationBell variant="detailed" projectId={project?._id} onSelectPin={handlePinNavigate} />
 
           <div className="hidden md:block w-px h-6 bg-gray-200/80"></div>
+
+          <button
+            onClick={() => setShowApprovals(true)}
+            className="flex items-center gap-1.5 px-2.5 lg:px-3 py-2 text-gray-600 text-[13px] font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            title="Review approvals & sign-off history"
+            aria-label="Approvals"
+          >
+            <svg className="w-3.5 h-3.5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="hidden lg:inline">Approvals</span>
+          </button>
 
           {canManageProject && (
             <button
@@ -928,6 +972,16 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           setShowInvite(false);
         }}
         onProjectUpdate={onProjectUpdate}
+      />
+
+      {/* Approvals modal */}
+      <ApprovalsModal
+        isOpen={showApprovals}
+        onClose={() => setShowApprovals(false)}
+        project={project}
+        onProjectUpdate={onProjectUpdate}
+        pins={allPins}
+        canManage={canManageProject}
       />
     </div>
   );

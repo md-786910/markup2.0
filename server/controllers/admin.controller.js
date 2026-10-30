@@ -24,6 +24,7 @@ const { logAdminAction } = require('../utils/activityLogger');
 const { clearBillingLock } = require('../utils/orgUtils');
 const { addMonthsUTC } = require('../utils/billingDates');
 const { applyRefund } = require('../payments/refundInvoice');
+const { getOrgPosthogData } = require('../utils/posthog');
 
 // Page/limit from the query string, clamped so a request can't pull a whole collection
 function parsePaging(query) {
@@ -158,6 +159,71 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
   const planMap = {};
   for (const p of planBreakdown) planMap[p._id || 'none'] = p.count;
 
+  // At-risk paying/trial organizations needing retention attention
+  const atRiskOrgs = await Organization.find({
+    'health.band': 'at_risk',
+    plan: { $in: [...PRICED_PLANS, 'enterprise', 'trial'] },
+    deletionScheduledAt: null,
+    isLocked: { $ne: true },
+  })
+    .sort({ 'health.score': 1, createdAt: -1 })
+    .limit(8)
+    .select('name plan health owner createdAt')
+    .populate('owner', 'name email')
+    .lean();
+
+  // 30-day signup to activation funnel
+  const recentOrgs = await Organization.find({ createdAt: { $gte: thirtyDaysAgo } }).select('_id plan').lean();
+  const recentOrgIds = recentOrgs.map((o) => o._id);
+  const signedUp = recentOrgIds.length;
+
+  let createdProject = 0;
+  let droppedPin = 0;
+  let invitedMember = 0;
+  let sharedLink = 0;
+  let convertedPaid = 0;
+
+  if (recentOrgIds.length > 0) {
+    const [projectOrgIds, memberAgg, sharedOrgIds, paidCount] = await Promise.all([
+      Project.distinct('organization', { organization: { $in: recentOrgIds } }),
+      User.aggregate([
+        { $match: { organization: { $in: recentOrgIds } } },
+        { $group: { _id: '$organization', count: { $sum: 1 } } },
+        { $match: { count: { $gt: 1 } } },
+      ]),
+      Project.distinct('organization', { organization: { $in: recentOrgIds }, 'shareSettings.enabled': true }),
+      Organization.countDocuments({
+        _id: { $in: recentOrgIds },
+        plan: { $in: [...PRICED_PLANS, 'enterprise'] },
+      }),
+    ]);
+
+    createdProject = projectOrgIds.length;
+    invitedMember = memberAgg.length;
+    sharedLink = sharedOrgIds.length;
+    convertedPaid = paidCount;
+
+    if (projectOrgIds.length > 0) {
+      const projectsForOrgs = await Project.find({ organization: { $in: recentOrgIds } }).select('_id organization').lean();
+      const projToOrg = new Map(projectsForOrgs.map((p) => [String(p._id), String(p.organization)]));
+      const pinProjects = await Pin.distinct('project', { project: { $in: projectsForOrgs.map((p) => p._id) } });
+      const pinOrgSet = new Set(pinProjects.map((pId) => projToOrg.get(String(pId))).filter(Boolean));
+      droppedPin = pinOrgSet.size;
+    }
+  }
+
+  const activationFunnel = {
+    periodDays: 30,
+    steps: [
+      { key: 'signed_up', label: 'Signed up', count: signedUp, conversionRate: 100 },
+      { key: 'created_project', label: 'Created project', count: createdProject, conversionRate: signedUp ? Math.round((createdProject / signedUp) * 100) : 0 },
+      { key: 'dropped_pin', label: 'Dropped first pin', count: droppedPin, conversionRate: signedUp ? Math.round((droppedPin / signedUp) * 100) : 0 },
+      { key: 'invited_member', label: 'Invited team member', count: invitedMember, conversionRate: signedUp ? Math.round((invitedMember / signedUp) * 100) : 0 },
+      { key: 'shared_link', label: 'Shared guest link', count: sharedLink, conversionRate: signedUp ? Math.round((sharedLink / signedUp) * 100) : 0 },
+      { key: 'converted_paid', label: 'Converted to paid', count: convertedPaid, conversionRate: signedUp ? Math.round((convertedPaid / signedUp) * 100) : 0 },
+    ],
+  };
+
   res.json({
     kpis: {
       mrr: payingOrgs.reduce((sum, org) => sum + monthlyRevenue(org, plans), 0),
@@ -179,6 +245,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     planBreakdown: planMap,
     monthlySignups,
     attention: {
+      atRiskOrgs,
       trialsEnding: trialsEnding.map((o) => ({
         ...o,
         lastActiveAt: engagement.get(String(o._id))?.lastActiveAt || null,
@@ -187,6 +254,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
       lockedOrgs,
       overdueTickets,
     },
+    activationFunnel,
     recentSignups,
     recentAdminActions,
   });
@@ -200,15 +268,20 @@ const ORG_SORTS = {
   oldest: { createdAt: 1, _id: 1 },
   name: { name: 1, _id: 1 },
   trial_end: { trialEndsAt: 1, _id: 1 },
+  health: { 'health.score': 1, _id: 1 },
+  health_desc: { 'health.score': -1, _id: -1 },
 };
 
 exports.getOrganizations = asyncHandler(async (req, res) => {
-  const { plan, status, search, sort, format } = req.query;
+  const { plan, status, health, search, sort, format } = req.query;
   const csv = format === 'csv';
   const { page, limit } = parsePaging(req.query);
 
   const filter = { ...(await statusFilter(status)) };
   if (plan) filter.plan = String(plan);
+  if (health && ['healthy', 'watch', 'at_risk'].includes(health)) {
+    filter['health.band'] = health;
+  }
   if (search) {
     const re = new RegExp(escapeRegex(String(search).slice(0, 100)), 'i');
     const owners = await User.find({ $or: [{ email: re }, { name: re }] }).select('_id').limit(200).lean();
@@ -300,6 +373,7 @@ async function describeOrgs(orgs, plans) {
       projectCount: projectMap.get(String(org._id)) || 0,
       mrr: monthlyRevenue(org, plans),
       hasUnpaidInvoice: unpaidSet.has(String(org._id)),
+      health: org.health || { score: 50, band: 'watch', reasons: [] },
     };
   });
 }
@@ -311,9 +385,9 @@ function sendOrganizationsCsv(res, data) {
     return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
   };
   const iso = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
-  const header = ['Organization', 'Owner', 'Owner email', 'Plan', 'Status', 'Members', 'Active members (7d)', 'Projects', 'MRR (USD)', 'Last active', 'Trial ends', 'Created'];
+  const header = ['Organization', 'Owner', 'Owner email', 'Plan', 'Status', 'Health', 'Score', 'Members', 'Active members (7d)', 'Projects', 'MRR (USD)', 'Last active', 'Trial ends', 'Created'];
   const lines = data.map((o) => [
-    o.name, o.owner?.name, o.owner?.email, o.plan, o.status, o.memberCount, o.activeMembers7d,
+    o.name, o.owner?.name, o.owner?.email, o.plan, o.status, o.health?.band || 'watch', o.health?.score != null ? o.health.score : 50, o.memberCount, o.activeMembers7d,
     o.projectCount, o.mrr, iso(o.lastActiveAt), iso(o.trialEndsAt), iso(o.createdAt),
   ].map(cell).join(','));
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -329,7 +403,7 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
   const since7 = new Date(now - 7 * DAY_MS);
   const since30 = new Date(now - 30 * DAY_MS);
 
-  const [members, projects, workspaces, invoices, invitations, notes, activity, limits, plans] = await Promise.all([
+  const [members, projects, workspaces, invoices, invitations, notes, activity, limits, plans, posthog] = await Promise.all([
     User.find({ organization: org._id })
       .select('name email role lastSeen avatar createdAt lastLoginLocation')
       .sort({ createdAt: 1 }).lean(),
@@ -353,6 +427,7 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
       .populate('project', 'name').lean(),
     getEffectiveLimitsAsync(org),
     getPlansWithOverrides(),
+    getOrgPosthogData(org._id),
   ]);
 
   const projectIds = projects.map((p) => p._id);
@@ -402,6 +477,8 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
       guestReviewers: guestReviewers.length,
       shareLinks: projects.filter((p) => p.shareSettings?.enabled).length + workspaces.filter((w) => w.shareSettings?.enabled).length,
     },
+    health: org.health || { score: 50, band: 'watch', reasons: [] },
+    posthog,
     members,
     projects,
     workspaces: workspaces.map((w) => ({

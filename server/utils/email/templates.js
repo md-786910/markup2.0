@@ -572,12 +572,42 @@ function trialExpired({ orgName, planUrl }) {
   };
 }
 
+function reviewDecision({ actorName, projectName, decision, note, openPins, projectUrl }) {
+  const approved = decision === 'approved';
+  const actionText = approved ? 'approved' : 'requested changes on';
+  const subject = `[${projectName}] Review round ${approved ? 'approved' : 'changes requested'} by ${actorName}`;
+  return {
+    subject,
+    ...renderEmail({
+      preheader: `${actorName} ${actionText} ${projectName}.`,
+      eyebrow: 'Client Review',
+      tone: approved ? 'brand' : 'warning',
+      title: approved ? 'Review round approved' : 'Changes requested',
+      blocks: [
+        {
+          type: 'p',
+          text: `**${esc(actorName)}** has ${approved ? 'approved' : 'requested changes on'} the review round for **${esc(projectName)}**.`,
+        },
+        note ? { type: 'callout', tone: 'neutral', text: esc(note) } : null,
+        {
+          type: 'note',
+          text: `Snapshot at decision: **${openPins || 0}** open ${plural(openPins || 0, 'pin')}.`,
+        },
+        { type: 'button', label: 'View project & history', url: projectUrl },
+      ].filter(Boolean),
+      ...projectFooter(projectName),
+    }),
+  };
+}
+
 module.exports = {
   supportRequest,
   invitation,
   newPin,
   comment,
   mention,
+  pinStatus,
+  reviewDecision,
   pinStatus,
   digest,
   passwordReset,

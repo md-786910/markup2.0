@@ -54,3 +54,6 @@ export const createGuestPinApi = (shareToken, data) =>
 
 export const createGuestCommentApi = (shareToken, pinId, data) =>
   guestApi.post(`/guest/${shareToken}/pins/${pinId}/comments`, data);
+
+export const recordGuestDecisionApi = (shareToken, data) =>
+  guestApi.post(`/guest/${shareToken}/decision`, data);

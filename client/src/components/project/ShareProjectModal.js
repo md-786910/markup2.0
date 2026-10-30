@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { enableShareApi, updateShareApi, updateProjectApi } from '../../services/projectService';
+import { enableShareApi, updateShareApi, updateProjectApi, updateReviewSettingsApi } from '../../services/projectService';
 import useEscape from '../../hooks/useEscape';
 
 export default function ShareProjectModal({ isOpen, onClose, project, onProjectUpdate }) {
@@ -11,6 +11,10 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
   const [allowComments, setAllowComments] = useState(true);
   const [captureConsoleErrors, setCaptureConsoleErrors] = useState(true);
   const [guestConsoleCapture, setGuestConsoleCapture] = useState(false);
+  const [approvalsEnabled, setApprovalsEnabled] = useState(true);
+  const [requireAllResolved, setRequireAllResolved] = useState(false);
+  const [deadlineAt, setDeadlineAt] = useState('');
+  const [deadlineMessage, setDeadlineMessage] = useState('');
   const [shareUrl, setShareUrl] = useState('');
   const autoEnableProjectRef = useRef(null);
 
@@ -28,6 +32,12 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
     if (project?.settings) {
       setCaptureConsoleErrors(project.settings.captureConsoleErrors !== false);
       setGuestConsoleCapture(!!project.settings.guestConsoleCapture);
+    }
+    if (project?.review) {
+      setApprovalsEnabled(project.review.approvalsEnabled !== false);
+      setRequireAllResolved(!!project.review.requireAllResolved);
+      setDeadlineAt(project.review.deadlineAt ? new Date(project.review.deadlineAt).toISOString().slice(0, 16) : '');
+      setDeadlineMessage(project.review.deadlineMessage || '');
     }
   }, [project]);
 
@@ -78,10 +88,17 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
           guestConsoleCapture,
         },
       });
+      const reviewRes = await updateReviewSettingsApi(project._id, {
+        approvalsEnabled,
+        requireAllResolved,
+        deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : null,
+        deadlineMessage,
+      });
       onProjectUpdate({
         ...project,
         shareSettings: shareRes.data.shareSettings,
         settings: projRes.data.project?.settings || { ...project.settings, captureConsoleErrors, guestConsoleCapture },
+        review: reviewRes.data.review,
       });
       onClose();
     } catch (err) {
@@ -214,6 +231,69 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
                 />
               </div>
             </label>
+
+            <div className="pt-2 border-t border-gray-100">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">
+                Review & Approvals Policy
+              </span>
+
+              {/* Approvals enabled toggle */}
+              <label className="flex items-center justify-between cursor-pointer mb-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Enable client sign-off</p>
+                  <p className="text-xs text-gray-400">Reviewers can formally approve or request changes</p>
+                </div>
+                <div
+                  className={`relative w-11 h-6 rounded-full transition-colors ${approvalsEnabled ? 'bg-blue-600' : 'bg-gray-200'}`}
+                  onClick={() => setApprovalsEnabled(!approvalsEnabled)}
+                >
+                  <div
+                    className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${approvalsEnabled ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
+                  />
+                </div>
+              </label>
+
+              {/* Require all resolved toggle */}
+              <label className="flex items-center justify-between cursor-pointer mb-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Require all pins resolved</p>
+                  <p className="text-xs text-gray-400">Approval is locked until all pins are marked resolved</p>
+                </div>
+                <div
+                  className={`relative w-11 h-6 rounded-full transition-colors ${requireAllResolved ? 'bg-blue-600' : 'bg-gray-200'}`}
+                  onClick={() => setRequireAllResolved(!requireAllResolved)}
+                >
+                  <div
+                    className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${requireAllResolved ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
+                  />
+                </div>
+              </label>
+
+              {/* Feedback deadline */}
+              <div className="space-y-1.5 mb-3">
+                <label className="text-sm font-medium text-gray-700 block">Feedback deadline (optional)</label>
+                <p className="text-xs text-gray-400">New feedback is politely refused after this time</p>
+                <input
+                  type="datetime-local"
+                  value={deadlineAt}
+                  onChange={(e) => setDeadlineAt(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+              </div>
+
+              {deadlineAt && (
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-gray-700 block">Closed feedback notice</label>
+                  <input
+                    type="text"
+                    value={deadlineMessage}
+                    onChange={(e) => setDeadlineMessage(e.target.value)}
+                    placeholder="e.g. Feedback for this round closed on 30 Oct."
+                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              )}
+            </div>
           </div>}
 
           {error && (

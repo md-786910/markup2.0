@@ -789,3 +789,180 @@ exports.updateProjectEmailNotifications = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * POST /api/projects/:projectId/decision
+ * Authenticated member records an approval or changes request for the current review round.
+ */
+exports.recordMemberDecision = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const { decision, note } = req.body || {};
+
+  if (!['approved', 'changes_requested'].includes(decision)) {
+    return res.status(400).json({ message: 'Valid decision ("approved" or "changes_requested") is required.' });
+  }
+
+  if (project.review?.approvalsEnabled === false) {
+    return res.status(403).json({ message: 'Approvals are not enabled for this project.' });
+  }
+
+  // If deadline passed:
+  if (project.review?.deadlineAt && new Date() > new Date(project.review.deadlineAt)) {
+    return res.status(423).json({
+      code: 'FEEDBACK_CLOSED',
+      message: project.review.deadlineMessage || 'Feedback has closed for this review round.',
+      deadlineAt: project.review.deadlineAt,
+    });
+  }
+
+  const Version = require('../models/Version');
+  const Approval = require('../models/Approval');
+  const Pin = require('../models/Pin');
+
+  const latestVersion = await Version.findOne({ project: project._id })
+    .sort({ versionNumber: -1 })
+    .select('_id versionNumber');
+  const currentVersionId = latestVersion?._id || null;
+
+  const pinQuery = { project: project._id, status: { $ne: 'resolved' } };
+  if (currentVersionId) {
+    pinQuery.version = currentVersionId;
+  } else {
+    pinQuery.version = null;
+  }
+  const openPinsAtDecision = await Pin.countDocuments(pinQuery);
+
+  if (project.review?.requireAllResolved && decision === 'approved' && openPinsAtDecision > 0) {
+    return res.status(400).json({
+      code: 'PINS_NOT_RESOLVED',
+      message: `All pins must be resolved before this round can be approved (${openPinsAtDecision} open pins remaining).`,
+      openPinsAtDecision,
+    });
+  }
+
+  // One decision per user per round (latest wins)
+  let approval = await Approval.findOne({
+    project: project._id,
+    version: currentVersionId,
+    'reviewer.user': req.user._id,
+  });
+
+  if (approval) {
+    approval.decision = decision;
+    approval.note = (note || '').slice(0, 2000);
+    approval.openPinsAtDecision = openPinsAtDecision;
+    approval.ip = req.ip;
+    approval.userAgent = req.headers['user-agent'] || null;
+    await approval.save();
+  } else {
+    approval = await Approval.create({
+      project: project._id,
+      organization: project.organization,
+      version: currentVersionId,
+      decision,
+      note: (note || '').slice(0, 2000),
+      reviewer: {
+        user: req.user._id,
+        guestName: null,
+        guestEmail: null,
+      },
+      openPinsAtDecision,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'] || null,
+    });
+  }
+
+  const newStatus = decision === 'approved' ? 'approved' : 'in_review';
+  await Project.updateOne({ _id: project._id }, { $set: { projectStatus: newStatus } });
+
+  logActivity(
+    project._id,
+    req.user._id,
+    decision === 'approved' ? 'review.approved' : 'review.changes_requested',
+    {
+      decision,
+      openPinsAtDecision,
+      round: latestVersion ? `Version ${latestVersion.versionNumber}` : 'Current round',
+    }
+  );
+
+  createProjectNotifications({
+    io: req.app.get('io'),
+    projectId: project._id,
+    actor: req.user,
+    type: 'review_decision',
+    metadata: {
+      decision,
+      reviewerName: req.user.name,
+      openPinsAtDecision,
+      note: (note || '').slice(0, 200),
+    },
+  }).catch(() => {});
+
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`project:${project._id}`).emit('project:review_decision', {
+      approval,
+      projectStatus: newStatus,
+    });
+  }
+
+  metric('review.decision', { decision, source: 'member' });
+  const populated = await Approval.findById(approval._id).populate('reviewer.user', 'name email avatar');
+  res.status(201).json({ approval: populated, projectStatus: newStatus });
+});
+
+/**
+ * GET /api/projects/:projectId/approvals
+ * Retrieve approval and change request history for a project.
+ */
+exports.getApprovals = asyncHandler(async (req, res) => {
+  const Approval = require('../models/Approval');
+  const approvals = await Approval.find({ project: req.project._id })
+    .populate('reviewer.user', 'name email avatar')
+    .populate('version', 'versionNumber name')
+    .sort({ createdAt: -1 });
+
+  res.json({ approvals });
+});
+
+/**
+ * PATCH /api/projects/:projectId/review
+ * Update review & approval settings (approvalsEnabled, requireAllResolved, deadlineAt, deadlineMessage).
+ */
+exports.updateReviewSettings = asyncHandler(async (req, res) => {
+  const { approvalsEnabled, requireAllResolved, deadlineAt, deadlineMessage } = req.body;
+  const project = req.project;
+
+  project.review = project.review || {};
+
+  if (approvalsEnabled !== undefined) {
+    project.review.approvalsEnabled = Boolean(approvalsEnabled);
+  }
+  if (requireAllResolved !== undefined) {
+    project.review.requireAllResolved = Boolean(requireAllResolved);
+  }
+  if (deadlineAt !== undefined) {
+    project.review.deadlineAt = deadlineAt ? new Date(deadlineAt) : null;
+  }
+  if (deadlineMessage !== undefined) {
+    project.review.deadlineMessage = String(deadlineMessage || '').slice(0, 500);
+  }
+
+  await project.save();
+
+  logActivity(project._id, req.user._id, 'project.updated', {
+    updatedFields: ['review'],
+    deadlineAt: project.review.deadlineAt,
+    approvalsEnabled: project.review.approvalsEnabled,
+  });
+
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`project:${project._id}`).emit('project:review_updated', {
+      review: project.review,
+    });
+  }
+
+  res.json({ review: project.review });
+});
+

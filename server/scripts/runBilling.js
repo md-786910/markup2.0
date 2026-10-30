@@ -438,6 +438,13 @@ async function runBilling() {
     await phaseOrgDeletion();
 
     await phaseRetention();
+    try {
+      const { computeHealthForAllOrgs } = require('../utils/customerHealth');
+      const healthSummary = await computeHealthForAllOrgs();
+      console.log('[billing] updated customer health:', healthSummary);
+    } catch (err) {
+      console.error('[billing] customer health update failed:', err.message);
+    }
     console.log('[billing] done');
   } finally {
     running = false;

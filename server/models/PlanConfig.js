@@ -20,6 +20,7 @@ const planConfigSchema = new mongoose.Schema({
     hasIntegrations: { type: Boolean, default: null },
     hasActivityLogs: { type: Boolean, default: null },
     hasVersionHistory: { type: Boolean, default: null },
+    hasApprovals: { type: Boolean, default: null },
   },
   name: { type: String, default: null },
   price: { type: Number, default: null },

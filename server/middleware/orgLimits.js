@@ -184,6 +184,22 @@ const checkVersionHistoryLimit = asyncHandler(async (req, res, next) => {
   next();
 });
 
+/**
+ * Block approvals configuration if plan does not allow it.
+ */
+const checkApprovalsLimit = asyncHandler(async (req, res, next) => {
+  const org = req.organization;
+  if (!org) return next();
+
+  if (org.limits.hasApprovals === false) {
+    return res.status(403).json({
+      message: 'Client approvals are not available on your current plan. Upgrade your plan to enable client approvals.',
+      code: 'FEATURE_NOT_AVAILABLE',
+    });
+  }
+  next();
+});
+
 module.exports = {
   checkWorkspaceLimit,
   seatLimitError,
@@ -195,4 +211,5 @@ module.exports = {
   checkIntegrationsLimit,
   checkActivityLogsLimit,
   checkVersionHistoryLimit,
+  checkApprovalsLimit,
 };

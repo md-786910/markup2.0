@@ -1,6 +1,9 @@
 # Phase 5: Engagement and customer health
 
-**Status: Planned · Size: M (about 1.5 weeks)**
+**Status: Done (Shipped October 2026) · Size: M (about 1.5 weeks)**
+
+> [!NOTE]
+> Shipped: 7-signal automated customer health scoring, daily computation job (`computeHealth.js` + `runBilling.js`), PostHog HogQL API telemetry integration with 15-minute caching and safe fallback, Admin dashboard at-risk organizations list and 30-day signup-to-activation funnel, Customer directory Health column and filter, and expanded product telemetry events. Verified with 26/26 unit/integration tests and 271/271 smoke suite.
 
 ## Goal
 In the admin panel, see how much each customer uses the product, who is at risk, and where new signups drop off, from our own data plus PostHog.

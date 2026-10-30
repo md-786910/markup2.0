@@ -17,7 +17,7 @@ import Modal from '../components/common/Modal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import StatCard from '../components/common/StatCard';
 import { Avatar, Button, Card, DefinitionList, Field, PageHeader, Tabs, UsageBar, inputClass } from '../components/common/ui';
-import { InvoiceStatusBadge, PlanBadge, Pill, RoleBadge, StatusBadge } from '../components/common/StatusBadge';
+import { InvoiceStatusBadge, PlanBadge, Pill, RoleBadge, StatusBadge, HealthBadge } from '../components/common/StatusBadge';
 import { formatDate, formatDateTime, formatLocation, formatMoney, formatUsd, relativeDays, timeAgo } from '../utils/formatters';
 import { PLAN_LABELS } from '../config/plans';
 import { actorName, describeAction } from '../utils/actions';
@@ -271,7 +271,32 @@ function OverviewTab({ data, onOpenNotes }) {
           </div>
         </Card>
 
-        <Card title="Engagement" description="From sign-ins and activity in the app">
+        <Card title="Customer Health & Engagement" description="7-signal scoring and in-app usage activity">
+          <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Overall Health Score</span>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-gray-900">{data.health?.score != null ? data.health.score : 50}/100</span>
+                  <HealthBadge health={data.health} />
+                </div>
+              </div>
+              {data.health?.calculatedAt && (
+                <span className="text-xs text-gray-400">Calculated {timeAgo(data.health.calculatedAt)}</span>
+              )}
+            </div>
+            {data.health?.reasons?.length > 0 && (
+              <div className="mt-3 border-t border-gray-200 pt-2">
+                <span className="text-xs font-medium text-gray-500">Risk signals & deductions:</span>
+                <ul className="mt-1 list-disc pl-5 text-xs text-red-600 space-y-0.5">
+                  {data.health.reasons.map((r, i) => (
+                    <li key={i}>{r}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
             {[
               ['Last active', timeAgo(engagement.lastActiveAt)],
@@ -289,6 +314,53 @@ function OverviewTab({ data, onOpenNotes }) {
             ))}
           </div>
         </Card>
+
+        {data.posthog && (
+          <Card
+            title="Product Analytics (PostHog)"
+            description="30-day user session duration and telemetry"
+          >
+            {data.posthog.available ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                    <p className="text-xs text-gray-500">Active users (30d)</p>
+                    <p className="mt-1 text-xl font-bold text-gray-900">{data.posthog.activeUsers30d || 0}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                    <p className="text-xs text-gray-500">Total sessions (30d)</p>
+                    <p className="mt-1 text-xl font-bold text-gray-900">{data.posthog.sessionCount30d || 0}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                    <p className="text-xs text-gray-500">Time in app (30d)</p>
+                    <p className="mt-1 text-xl font-bold text-gray-900">
+                      {Math.round((data.posthog.totalTimeSpentMinutes30d || 0) / 60)}h {(data.posthog.totalTimeSpentMinutes30d || 0) % 60}m
+                    </p>
+                  </div>
+                </div>
+
+                {data.posthog.topEvents?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Top In-App Interactions</p>
+                    <div className="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-100">
+                      {data.posthog.topEvents.map((evt, idx) => (
+                        <div key={idx} className="flex items-center justify-between px-3 py-2 text-xs">
+                          <span className="font-medium text-gray-700">{evt.event}</span>
+                          <span className="font-semibold text-gray-900">{evt.count} times</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-center">
+                <p className="text-xs text-gray-500">{data.posthog.reason || 'PostHog analytics credentials not configured.'}</p>
+                <p className="mt-1 text-[11px] text-gray-400">Configure POSTHOG_PROJECT_ID and POSTHOG_PERSONAL_API_KEY in the environment to view HogQL product analytics.</p>
+              </div>
+            )}
+          </Card>
+        )}
       </div>
 
       <div className="space-y-6">
@@ -689,6 +761,7 @@ export default function OrganizationDetailPage() {
             <span>{org.name}</span>
             <PlanBadge plan={org.plan} />
             <StatusBadge status={data.status} trialEndsAt={org.trialEndsAt} />
+            <HealthBadge health={data.health} />
           </span>
         }
         actions={

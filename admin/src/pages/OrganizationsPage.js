@@ -6,7 +6,7 @@ import Pagination from '../components/common/Pagination';
 import SearchInput from '../components/common/SearchInput';
 import FilterDropdown from '../components/common/FilterDropdown';
 import { Avatar, Button, PageHeader } from '../components/common/ui';
-import { PlanBadge, StatusBadge, STATUS_OPTIONS } from '../components/common/StatusBadge';
+import { PlanBadge, StatusBadge, STATUS_OPTIONS, HealthBadge, HEALTH_OPTIONS } from '../components/common/StatusBadge';
 import { formatDate, formatUsd, timeAgo } from '../utils/formatters';
 import { PLAN_LABELS } from '../config/plans';
 import { toastError } from '../utils/toast';
@@ -16,6 +16,8 @@ const SORT_OPTIONS = [
   { value: 'oldest', label: 'Oldest first' },
   { value: 'name', label: 'Name A–Z' },
   { value: 'trial_end', label: 'Trial ends soonest' },
+  { value: 'health', label: 'Health (lowest first)' },
+  { value: 'health_desc', label: 'Health (highest first)' },
 ];
 
 export default function OrganizationsPage() {
@@ -24,6 +26,7 @@ export default function OrganizationsPage() {
   const search = params.get('search') || '';
   const plan = params.get('plan');
   const status = params.get('status');
+  const health = params.get('health');
   const sort = params.get('sort');
   const page = Number(params.get('page')) || 1;
 
@@ -48,9 +51,10 @@ export default function OrganizationsPage() {
     if (search) q.search = search;
     if (plan) q.plan = plan;
     if (status) q.status = status;
+    if (health) q.health = health;
     if (sort) q.sort = sort;
     return q;
-  }, [search, plan, status, sort]);
+  }, [search, plan, status, health, sort]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +87,7 @@ export default function OrganizationsPage() {
     setExporting(false);
   };
 
-  const hasFilters = Boolean(search || plan || status);
+  const hasFilters = Boolean(search || plan || status || health);
 
   const columns = [
     {
@@ -109,6 +113,11 @@ export default function OrganizationsPage() {
           {row.hasUnpaidInvoice && <span className="text-xs font-medium text-red-600">Unpaid invoice</span>}
         </div>
       ),
+    },
+    {
+      key: 'health',
+      label: 'Health',
+      render: (row) => <HealthBadge health={row.health} />,
     },
     {
       key: 'members',
@@ -158,6 +167,12 @@ export default function OrganizationsPage() {
             onChange={(v) => setParam('status', v)}
             placeholder="Any status"
             options={[...STATUS_OPTIONS, { value: 'unpaid', label: 'Unpaid invoice' }]}
+          />
+          <FilterDropdown
+            value={health}
+            onChange={(v) => setParam('health', v)}
+            placeholder="All health"
+            options={HEALTH_OPTIONS}
           />
           <FilterDropdown value={sort} onChange={(v) => setParam('sort', v)} placeholder="Newest first" label="Sort" options={SORT_OPTIONS} />
           {hasFilters && (

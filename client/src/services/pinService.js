@@ -19,7 +19,12 @@ export const createPinApi = (projectId, data) =>
   });
 
 export const updatePinApi = (projectId, pinId, data) =>
-  api.patch(`/projects/${projectId}/pins/${pinId}`, data);
+  api.patch(`/projects/${projectId}/pins/${pinId}`, data).then((res) => {
+    if (data && data.status === 'resolved') {
+      track('pin_resolved', { projectId, pinId });
+    }
+    return res;
+  });
 
 export const uploadPinScreenshotApi = (projectId, pinId, formData) =>
   api.patch(`/projects/${projectId}/pins/${pinId}/screenshot`, formData);
