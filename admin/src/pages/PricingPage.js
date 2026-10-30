@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../components/common/ui';
-import { getPlansApi, updatePlanApi, togglePlanApi, getPlanUsageImpactApi } from '../services/adminService';
+import { getPlansApi, updatePlanApi, togglePlanApi, getPlanUsageImpactApi, getTrialSettingsApi } from '../services/adminService';
 import Modal from '../components/common/Modal';
 import Badge from '../components/common/Badge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { PLAN_COLORS } from '../config/plans';
+import GlobalTrialConfigCard from '../components/pricing/GlobalTrialConfigCard';
 
 const BADGE_COLOR_OPTIONS = ['gray', 'blue', 'purple', 'amber'];
 
@@ -41,6 +42,7 @@ function emptyForm() {
 
 export default function PricingPage() {
   const [plans, setPlans] = useState(null);
+  const [trialSettings, setTrialSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editModal, setEditModal] = useState(null);
   const [form, setForm] = useState(emptyForm());
@@ -51,8 +53,12 @@ export default function PricingPage() {
 
   const fetchPlans = async () => {
     try {
-      const { data } = await getPlansApi();
-      setPlans(data.plans);
+      const [plansRes, trialRes] = await Promise.all([
+        getPlansApi(),
+        getTrialSettingsApi().catch(() => ({ data: { defaultDays: 14, activeTrialOrgsCount: 0 } })),
+      ]);
+      setPlans(plansRes.data.plans);
+      if (trialRes?.data) setTrialSettings(trialRes.data);
     } catch {}
     setLoading(false);
   };
@@ -211,6 +217,11 @@ export default function PricingPage() {
         description="Changes apply right away to the in-app billing page and the website's pricing."
       />
 
+      <GlobalTrialConfigCard
+        trialSettings={trialSettings}
+        onSettingsUpdated={fetchPlans}
+      />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {planOrder.map((key) => {
           const plan = plans[key];
@@ -265,7 +276,7 @@ export default function PricingPage() {
                     <div>
                       <p className="text-xs font-semibold text-emerald-900">Auto-assign to new signups</p>
                       <p className="text-[10.5px] text-emerald-700 leading-snug mt-0.5">
-                        On: new orgs start on Free.<br />Off: new orgs get a 30-day trial.
+                        On: new orgs start on Free.<br />Off: new orgs get a {trialSettings?.defaultDays || 14}-day trial.
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">

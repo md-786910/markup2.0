@@ -21,6 +21,12 @@ const paymentSettingsSchema = new mongoose.Schema({
   },
   // When false, workspace owners cannot move to a lower-tier plan.
   allowDowngrades: { type: Boolean, default: false },
+  // Global trial configuration across all workspaces
+  trial: {
+    defaultDays: { type: Number, default: 14, min: 1, max: 365 },
+    updatedAt: { type: Date, default: Date.now },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser', default: null },
+  },
 }, { timestamps: true });
 
 paymentSettingsSchema.statics.getSingleton = async function () {
@@ -33,7 +39,17 @@ paymentSettingsSchema.statics.getSingleton = async function () {
         razorpay: { enabled: true },
         paypal: { enabled: false },
       },
+      trial: {
+        defaultDays: 14,
+        updatedAt: new Date(),
+      },
     });
+  } else if (!doc.trial || !doc.trial.defaultDays) {
+    doc.trial = {
+      defaultDays: 14,
+      updatedAt: new Date(),
+    };
+    await doc.save();
   }
   return doc;
 };

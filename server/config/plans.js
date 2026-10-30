@@ -100,7 +100,31 @@ const UPGRADEABLE_PLANS = ['starter', 'pro'];
 // In-memory cache for plan overrides (5-minute TTL)
 let _overrideCache = null;
 let _overrideCacheTime = 0;
+let _trialDaysCache = null;
+let _trialDaysCacheTime = 0;
 const CACHE_TTL = 5 * 60 * 1000;
+
+async function getDefaultTrialDaysAsync() {
+  const now = Date.now();
+  if (_trialDaysCache != null && now - _trialDaysCacheTime < CACHE_TTL) {
+    return _trialDaysCache;
+  }
+  try {
+    const PaymentSettings = require('../models/PaymentSettings');
+    const settings = await PaymentSettings.getSingleton();
+    const days = settings?.trial?.defaultDays || 14;
+    _trialDaysCache = days;
+    _trialDaysCacheTime = now;
+    return days;
+  } catch {
+    return DEFAULT_TRIAL_DAYS || 14;
+  }
+}
+
+function clearTrialCache() {
+  _trialDaysCache = null;
+  _trialDaysCacheTime = 0;
+}
 
 async function _getOverrides() {
   const now = Date.now();
@@ -123,6 +147,7 @@ async function _getOverrides() {
 function clearPlanCache() {
   _overrideCache = null;
   _overrideCacheTime = 0;
+  clearTrialCache();
 }
 
 // Support channels for a plan; running trials get Pro's. An expired trial
@@ -245,4 +270,4 @@ async function getEffectiveLimitsAsync(org) {
   return { ...base, ...overrides };
 }
 
-module.exports = { getSupportForPlan, getSupportForOrg, getEffectiveLimitsAsync, PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache };
+module.exports = { getSupportForPlan, getSupportForOrg, getEffectiveLimitsAsync, PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache, getDefaultTrialDaysAsync, clearTrialCache };

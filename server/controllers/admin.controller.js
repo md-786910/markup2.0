@@ -14,7 +14,7 @@ const AdminUser = require('../models/AdminUser');
 const SupportTicket = require('../models/SupportTicket');
 const PaymentSettings = require('../models/PaymentSettings');
 const asyncHandler = require('../utils/asyncHandler');
-const { PLANS, getPlansWithOverrides, clearPlanCache, getLimitsForPlanAsync, getEffectiveLimitsAsync, getSupportForOrg, getSupportForPlan } = require('../config/plans');
+const { PLANS, getPlansWithOverrides, clearPlanCache, clearTrialCache, getDefaultTrialDaysAsync, getLimitsForPlanAsync, getEffectiveLimitsAsync, getSupportForOrg, getSupportForPlan } = require('../config/plans');
 const { PRICED_PLANS, monthlyRevenue, lifecycleStatus } = require('../utils/orgStatus');
 const {
   getProvider,
@@ -957,6 +957,90 @@ exports.extendTrial = asyncHandler(async (req, res) => {
 
   logAdminAction(org._id, req.admin, 'org.trial_extended', { days, trialEndsAt: org.trialEndsAt });
   res.json({ organization: org });
+});
+
+/**
+ * GET /api/admin/trial-settings
+ * Returns global trial configuration and active trial count.
+ */
+exports.getTrialSettings = asyncHandler(async (req, res) => {
+  const settings = await PaymentSettings.getSingleton();
+  const activeTrialOrgsCount = await Organization.countDocuments({
+    plan: 'trial',
+    isLocked: false,
+  });
+  res.json({
+    defaultDays: settings?.trial?.defaultDays || 14,
+    updatedAt: settings?.trial?.updatedAt || null,
+    updatedBy: settings?.trial?.updatedBy || null,
+    activeTrialOrgsCount,
+  });
+});
+
+/**
+ * PATCH /api/admin/trial-settings  { defaultDays, syncActiveTrials, reason }
+ * Configure trial duration globally across all workspaces.
+ */
+exports.updateTrialSettings = asyncHandler(async (req, res) => {
+  const { defaultDays, syncActiveTrials, reason } = req.body;
+  const days = parseInt(defaultDays, 10);
+  if (!Number.isFinite(days) || days < 1 || days > 365) {
+    return res.status(400).json({ message: 'defaultDays must be an integer between 1 and 365' });
+  }
+
+  const settings = await PaymentSettings.getSingleton();
+  settings.trial = {
+    defaultDays: days,
+    updatedAt: new Date(),
+    updatedBy: req.admin?._id || null,
+  };
+  await settings.save();
+  clearTrialCache();
+
+  let affectedCount = 0;
+  if (syncActiveTrials) {
+    const activeOrgs = await Organization.find({ plan: 'trial', isLocked: false });
+    const now = new Date();
+    for (const org of activeOrgs) {
+      const base = org.createdAt ? new Date(org.createdAt) : now;
+      let newEndsAt = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+      newEndsAt.setUTCHours(23, 59, 59, 999);
+
+      // If recalculated date is in the past or under 2 days, grant at least 2 days grace period
+      if (newEndsAt <= now) {
+        newEndsAt = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+        newEndsAt.setUTCHours(23, 59, 59, 999);
+      }
+      org.trialDays = days;
+      org.trialEndsAt = newEndsAt;
+
+      const daysLeft = Math.ceil((newEndsAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      org.trialReminders = {
+        day7Sent: daysLeft <= 7,
+        day3Sent: daysLeft <= 3,
+        day1Sent: daysLeft <= 1,
+        expiredSent: false,
+      };
+      await org.save({ validateBeforeSave: false });
+      affectedCount++;
+    }
+  }
+
+  logAdminAction(null, req.admin, 'admin.trial_settings_updated', {
+    defaultDays: days,
+    syncActiveTrials: !!syncActiveTrials,
+    affectedCount,
+    reason: reason ? String(reason).trim() : undefined,
+  });
+
+  res.json({
+    defaultDays: days,
+    updatedAt: settings.trial.updatedAt,
+    affectedCount,
+    message: syncActiveTrials
+      ? `Global trial set to ${days} days and synced across ${affectedCount} active trial workspaces.`
+      : `Global trial set to ${days} days for new signups.`,
+  });
 });
 
 /**

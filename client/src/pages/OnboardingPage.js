@@ -121,12 +121,12 @@ export default function OnboardingPage() {
             popular: !!p.popular,
           }));
         if (res.data?.signupMode === TRIAL_PLAN_ID) {
-          const days = res.data?.trialDays || 30;
+          const days = res.data?.trialDays ?? 14;
           list.unshift({
             id: TRIAL_PLAN_ID,
             name: 'Free trial',
             price: 0,
-            priceLabel: `${days} days free`,
+            priceLabel: `${days} ${days === 1 ? 'day' : 'days'} free`,
             period: '',
             features: ['All Pro features', 'No credit card required', 'Choose a plan any time before the trial ends'],
             popular: false,

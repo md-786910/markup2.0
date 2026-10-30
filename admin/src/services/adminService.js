@@ -57,3 +57,7 @@ export const resetAdminTwoFactorApi = (id) => api.post(`/admin/admins/${id}/rese
 // Payment provider settings
 export const getPaymentSettingsApi = () => api.get('/admin/payment-settings');
 export const updatePaymentSettingsApi = (data) => api.patch('/admin/payment-settings', data);
+
+// Global trial settings
+export const getTrialSettingsApi = () => api.get('/admin/trial-settings');
+export const updateTrialSettingsApi = (data) => api.patch('/admin/trial-settings', data);

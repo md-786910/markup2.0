@@ -214,18 +214,19 @@ app.get("/api/site-notice", require("./controllers/siteNotice.controller").getPu
 // No auth: pricing is public.
 app.get("/api/plans", async (req, res) => {
   try {
-    const { getPlansWithOverrides, getNewSignupPlanMode, DEFAULT_TRIAL_DAYS } = require("./config/plans");
+    const { getPlansWithOverrides, getNewSignupPlanMode, getDefaultTrialDaysAsync } = require("./config/plans");
     const { getProviderStatus } = require("./payments");
-    const [plans, status, signupMode] = await Promise.all([
+    const [plans, status, signupMode, trialDays] = await Promise.all([
       getPlansWithOverrides(),
       getProviderStatus(),
       getNewSignupPlanMode(),
+      getDefaultTrialDaysAsync(),
     ]);
     const planList = Object.values(plans).sort(
       (a, b) => (a.order ?? 0) - (b.order ?? 0),
     );
     // signupMode: what a new workspace starts on ('trial' = no card required)
-    res.json({ plans, planList, allowDowngrades: !!status.allowDowngrades, signupMode, trialDays: DEFAULT_TRIAL_DAYS });
+    res.json({ plans, planList, allowDowngrades: !!status.allowDowngrades, signupMode, trialDays });
   } catch (err) {
     res.status(500).json({ message: "Failed to load plans" });
   }

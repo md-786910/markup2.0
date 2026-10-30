@@ -74,4 +74,8 @@ router.patch('/payment-settings', requireAdminRole('superadmin'), ctrl.updatePay
 router.get('/site-notice', requireAdminRole('superadmin'), notice.getAdminNotice);
 router.patch('/site-notice', requireAdminRole('superadmin'), notice.updateAdminNotice);
 
+// Global trial settings (Superadmin only for updates)
+router.get('/trial-settings', ctrl.getTrialSettings);
+router.patch('/trial-settings', requireAdminRole('superadmin'), ctrl.updateTrialSettings);
+
 module.exports = router;

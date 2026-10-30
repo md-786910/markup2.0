@@ -27,8 +27,8 @@ const { URLS, SECURE_COOKIES } = require('../config/env');
 
 // Build the plan-related fields for a freshly-created Organization.
 // When admin has flipped Free as the default for new signups, skip the trial
-// and start the org on Free with an active subscription. Otherwise fall
-// through to schema defaults (plan='trial', trialEndsAt=+30d).
+// and start the org on Free with an active subscription. Otherwise use the
+// globally configured trial days (default 14 days, normalized to 23:59:59 UTC).
 async function buildSignupPlanFields() {
   const mode = await getNewSignupPlanMode();
   if (mode === 'free') {
@@ -38,7 +38,15 @@ async function buildSignupPlanFields() {
       subscription: { status: 'active', currentPeriodEnd: null },
     };
   }
-  return {};
+  const { getDefaultTrialDaysAsync } = require('../config/plans');
+  const trialDays = await getDefaultTrialDaysAsync();
+  const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
+  trialEndsAt.setUTCHours(23, 59, 59, 999);
+  return {
+    plan: 'trial',
+    trialDays,
+    trialEndsAt,
+  };
 }
 
 const generateSessionToken = () => crypto.randomBytes(32).toString("hex");
