@@ -69,6 +69,8 @@ export default function OnboardingPage() {
   // Payment
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [livePlans, setLivePlans] = useState(null); // null = still loading
+  const [trialDays, setTrialDays] = useState(14);
+  const [signupMode, setSignupMode] = useState('trial');
 
   // Setting-up state shown after Start is clicked on the Payment step
   const [phase, setPhase] = useState('idle'); // 'idle' | 'setting-up' | 'paypal-checkout' | 'retry'
@@ -101,14 +103,18 @@ export default function OnboardingPage() {
     return () => clearTimeout(t);
   }, [resendCooldown]);
 
-  // Fetch live plans once we approach the Payment step
+  // Fetch live plans immediately on mount
   useEffect(() => {
     if (livePlans !== null) return;
-    if (step < 1) return; // pre-fetch from the account step so the plan step does not wait
     let alive = true;
     getPublicPlansApi()
       .then((res) => {
         if (!alive) return;
+        const days = res.data?.trialDays ?? 14;
+        const mode = res.data?.signupMode || 'trial';
+        setTrialDays(days);
+        setSignupMode(mode);
+
         const list = (res.data?.planList || [])
           .filter((p) => p.enabled !== false && p.id !== 'enterprise' && p.id !== TRIAL_PLAN_ID)
           .map((p) => ({
@@ -120,8 +126,7 @@ export default function OnboardingPage() {
             features: p.features || [],
             popular: !!p.popular,
           }));
-        if (res.data?.signupMode === TRIAL_PLAN_ID) {
-          const days = res.data?.trialDays ?? 14;
+        if (mode === TRIAL_PLAN_ID) {
           list.unshift({
             id: TRIAL_PLAN_ID,
             name: 'Free trial',
@@ -141,7 +146,7 @@ export default function OnboardingPage() {
         if (alive) setLivePlans([]);
       });
     return () => { alive = false; };
-  }, [step, livePlans]);
+  }, [livePlans]);
 
   // Already authenticated AND not mid-onboarding → go to dashboard.
   // During the setup/checkout/retry phases the user becomes authenticated by
@@ -478,8 +483,17 @@ export default function OnboardingPage() {
       {/* ===== STEP 1: ORGANIZATION ===== */}
       {currentStep === 'organization' && (
         <>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Set up your workspace</h2>
-          <p className="text-sm text-gray-500 mb-8">This is your team's shared space for all projects.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">Set up your workspace</h2>
+          <p className="text-sm text-gray-500 mb-4">This is your team's shared space for all projects.</p>
+
+          {signupMode === TRIAL_PLAN_ID && (
+            <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/70 p-3 text-xs text-blue-900 shadow-sm">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">✓</span>
+              <span>
+                Includes a <strong>{trialDays} {trialDays === 1 ? 'day' : 'days'} free trial</strong> with full Pro features. No credit card required.
+              </span>
+            </div>
+          )}
 
           <div className="mb-5">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace name <span className="text-red-500">*</span></label>
@@ -525,7 +539,16 @@ export default function OnboardingPage() {
       {currentStep === 'account' && (
         <>
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Create your account</h2>
-          <p className="text-sm text-gray-500 mb-8">Set up your account for {orgName}</p>
+          <p className="text-sm text-gray-500 mb-4">Set up your account for {orgName}</p>
+
+          {signupMode === TRIAL_PLAN_ID && (
+            <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/70 p-3 text-xs text-blue-900 shadow-sm">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">✓</span>
+              <span>
+                Your workspace starts with a <strong>{trialDays} {trialDays === 1 ? 'day' : 'days'} free trial</strong>. No card needed to begin.
+              </span>
+            </div>
+          )}
 
           {emailError && (
             <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-5 text-sm flex items-center gap-2">
@@ -772,7 +795,7 @@ export default function OnboardingPage() {
               {loading
                 ? 'Setting up your workspace...'
                 : (() => {
-                    if (selectedPlan === TRIAL_PLAN_ID) return 'Start free trial';
+                    if (selectedPlan === TRIAL_PLAN_ID) return `Start ${trialDays}-day free trial`;
                     const p = (livePlans || []).find((x) => x.id === selectedPlan);
                     const isFree = p && (p.price === 0 || p.price == null);
                     return isFree ? 'Start with Free' : 'Continue to payment';
@@ -783,7 +806,7 @@ export default function OnboardingPage() {
           <p className="text-center mt-4 text-xs text-gray-400">
             {(() => {
               if (selectedPlan === TRIAL_PLAN_ID) {
-                return "No credit card required. We'll email you before the trial ends so you can pick a plan in Settings → Billing.";
+                return `No credit card required. We'll email you before your ${trialDays}-day trial ends so you can pick a plan in Settings → Billing.`;
               }
               const p = (livePlans || []).find((x) => x.id === selectedPlan);
               const isFree = p && (p.price === 0 || p.price == null);

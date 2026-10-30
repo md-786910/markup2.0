@@ -946,16 +946,34 @@ exports.extendTrial = asyncHandler(async (req, res) => {
   }
   const org = await Organization.findById(req.params.id);
   if (!org) return res.status(404).json({ message: 'Organization not found' });
-  if (org.plan !== 'trial') return res.status(400).json({ message: 'Organization is not on a trial' });
+  if (org.plan !== 'trial' && org.plan !== 'free') {
+    return res.status(400).json({ message: 'Organization must be on a trial or free plan to extend trial' });
+  }
+
+  const previousPlan = org.plan;
+  if (org.plan === 'free') {
+    org.plan = 'trial';
+    org.limits = await getLimitsForPlanAsync('trial');
+    if (!org.subscription) org.subscription = {};
+    org.subscription.status = 'none';
+    org.subscription.currentPeriodEnd = null;
+  }
 
   const from = org.trialEndsAt && org.trialEndsAt > new Date() ? org.trialEndsAt : new Date();
-  org.trialEndsAt = new Date(from.getTime() + days * 24 * 60 * 60 * 1000);
+  const newEndsAt = new Date(from.getTime() + days * 24 * 60 * 60 * 1000);
+  org.trialEndsAt = newEndsAt;
+  org.trialDays = days;
   // Re-arm reminder emails for the new end date and lift a trial-expiry lock
   org.trialReminders = { day7Sent: false, day3Sent: false, day1Sent: false, expiredSent: false };
   clearBillingLock(org);
   await org.save();
 
-  logAdminAction(org._id, req.admin, 'org.trial_extended', { days, trialEndsAt: org.trialEndsAt });
+  logAdminAction(org._id, req.admin, 'org.trial_extended', {
+    days,
+    trialEndsAt: org.trialEndsAt,
+    previousPlan: previousPlan !== 'trial' ? previousPlan : undefined,
+    reason: req.body?.reason ? String(req.body.reason).trim() : undefined,
+  });
   res.json({ organization: org });
 });
 
@@ -1004,12 +1022,10 @@ exports.updateTrialSettings = asyncHandler(async (req, res) => {
     for (const org of activeOrgs) {
       const base = org.createdAt ? new Date(org.createdAt) : now;
       let newEndsAt = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
-      newEndsAt.setUTCHours(23, 59, 59, 999);
 
-      // If recalculated date is in the past or under 2 days, grant at least 2 days grace period
+      // If recalculated date is in the past, grant at least `days` from now
       if (newEndsAt <= now) {
-        newEndsAt = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-        newEndsAt.setUTCHours(23, 59, 59, 999);
+        newEndsAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
       }
       org.trialDays = days;
       org.trialEndsAt = newEndsAt;

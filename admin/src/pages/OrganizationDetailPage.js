@@ -91,17 +91,31 @@ function ChangePlanDialog({ org, onClose, onDone }) {
   );
 }
 
+const TRIAL_EXTEND_PRESETS = [3, 7, 14, 30, 60];
+
 function ExtendTrialDialog({ org, onClose, onDone }) {
-  const [days, setDays] = useState(14);
+  const isFreePlan = org.plan === 'free';
+  const hasActiveTrial = org.plan === 'trial' && org.trialEndsAt && new Date(org.trialEndsAt) > new Date();
+  const [selectedPreset, setSelectedPreset] = useState(null);
+  const [customDays, setCustomDays] = useState('');
+  const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
-  const from = org.trialEndsAt && new Date(org.trialEndsAt) > new Date() ? new Date(org.trialEndsAt) : new Date();
-  const until = new Date(from.getTime() + (Number(days) || 0) * 86400000);
+
+  const effectiveDays = selectedPreset === 'custom' ? Number(customDays) : (selectedPreset || 0);
+  const isValidDays = Number.isInteger(effectiveDays) && effectiveDays >= 1 && effectiveDays <= 365;
+
+  const from = hasActiveTrial ? new Date(org.trialEndsAt) : new Date();
+  const until = new Date(from.getTime() + (isValidDays ? effectiveDays : 0) * 86400000);
 
   const save = async () => {
+    if (!isValidDays) {
+      toast.error('Please select or enter the number of extra days between 1 and 365.');
+      return;
+    }
     setSaving(true);
     try {
-      await extendTrialApi(org._id, Number(days));
-      toast.success(`Trial extended by ${days} days.`);
+      await extendTrialApi(org._id, effectiveDays, reason.trim() || undefined);
+      toast.success(isFreePlan ? `Free trial granted for ${effectiveDays} days.` : `Trial extended by ${effectiveDays} days.`);
       onDone();
     } catch (err) {
       toastError(err, 'Could not extend the trial.');
@@ -109,14 +123,115 @@ function ExtendTrialDialog({ org, onClose, onDone }) {
     }
   };
 
+  const title = isFreePlan ? 'Grant free trial' : 'Extend trial';
+
   return (
-    <Modal isOpen onClose={onClose} title="Extend trial" size="sm">
-      <Field label="Extra days" hint={`The trial will end on ${formatDate(until)}. Reminder emails are sent again before the new date.`}>
-        <input type="number" min="1" max="365" value={days} onChange={(e) => setDays(e.target.value)} className={inputClass} />
-      </Field>
-      <div className="mt-6 flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="primary" onClick={save} disabled={saving || !(days >= 1 && days <= 365)}>{saving ? 'Saving…' : 'Extend trial'}</Button>
+    <Modal isOpen onClose={onClose} title={title} maxWidth="max-w-md">
+      <div className="space-y-4">
+        {/* Current Trial Info Banner */}
+        <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3.5 text-xs text-gray-700">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-500 font-medium">Workspace:</span>
+            <span className="font-semibold text-gray-900">{org.name}</span>
+          </div>
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/70">
+            <span className="text-gray-500 font-medium">Current Status:</span>
+            <span className="font-semibold text-blue-700">
+              {hasActiveTrial
+                ? `Trial ends on ${formatDate(org.trialEndsAt)} (${relativeDays(org.trialEndsAt)})`
+                : isFreePlan
+                  ? 'Free plan (No active trial)'
+                  : 'Trial expired'}
+            </span>
+          </div>
+        </div>
+
+        {/* Extra days selector */}
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-2">
+            Add Extra Days (Extend By)
+          </label>
+          <div className="grid grid-cols-6 gap-1.5">
+            {TRIAL_EXTEND_PRESETS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setSelectedPreset(p)}
+                className={`py-2 px-1 text-center text-xs font-bold rounded-lg border transition-all ${
+                  selectedPreset === p
+                    ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                    : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                +{p}d
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setSelectedPreset('custom')}
+              className={`py-2 px-1 text-center text-xs font-bold rounded-lg border transition-all ${
+                selectedPreset === 'custom'
+                  ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Custom
+            </button>
+          </div>
+        </div>
+
+        {selectedPreset === 'custom' && (
+          <Field label="Custom Days to Add" hint="Enter the number of extra days to extend (1 to 365).">
+            <input
+              type="number"
+              min="1"
+              max="365"
+              value={customDays}
+              onChange={(e) => setCustomDays(e.target.value)}
+              className={inputClass}
+              placeholder="e.g. 5"
+              autoFocus
+            />
+          </Field>
+        )}
+
+        {/* Calculation Result */}
+        {isValidDays ? (
+          <div className="rounded-xl bg-emerald-50/80 border border-emerald-200 p-3.5 text-xs text-emerald-950">
+            <div className="flex items-center justify-between font-semibold">
+              <span className="text-emerald-800">Additional Extension:</span>
+              <span className="text-emerald-700 font-bold">+{effectiveDays} extra days</span>
+            </div>
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-emerald-200/60">
+              <span className="text-emerald-800 font-medium">New Trial Expiration:</span>
+              <span className="font-bold text-emerald-900">
+                {formatDate(until)} ({relativeDays(until)})
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-emerald-700">Reminder emails and access are automatically updated.</p>
+          </div>
+        ) : (
+          <div className="rounded-xl bg-gray-50 border border-gray-200/70 p-3 text-xs text-gray-500 text-center">
+            Select an extension preset (+3d, +7d, +14d, +30d) or enter custom days to add.
+          </div>
+        )}
+
+        <Field label="Reason (Optional)" hint="Logged in the audit history for administrative transparency.">
+          <input
+            type="text"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g., Client requested extra evaluation time"
+            className={inputClass}
+          />
+        </Field>
+
+        <div className="mt-6 flex justify-end gap-2 pt-2">
+          <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="primary" onClick={save} disabled={saving || !selectedPreset || !isValidDays}>
+            {saving ? 'Saving…' : (isFreePlan ? 'Grant trial' : 'Extend trial')}
+          </Button>
+        </div>
       </div>
     </Modal>
   );
@@ -884,33 +999,43 @@ export default function OrganizationDetailPage() {
 
   return (
     <div className="animate-fade-in">
-      <PageHeader
-        back={{ to: '/organizations', label: 'Organizations' }}
-        title={
-          <span className="flex flex-wrap items-center gap-3">
+      <div className="mb-6">
+        <Link to="/organizations" className="mb-3 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          Organizations
+        </Link>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3.5 min-w-0">
             <Avatar name={org.name} size="lg" square />
-            <span>{org.name}</span>
-            <PlanBadge plan={org.plan} />
-            <StatusBadge status={data.status} trialEndsAt={org.trialEndsAt} />
-            <HealthBadge health={data.health} />
-          </span>
-        }
-        actions={
-          <>
-            <Button onClick={() => setDialog('plan')}>Change plan</Button>
-            {org.plan === 'trial' && <Button onClick={() => setDialog('trial')}>Extend trial</Button>}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-2xl font-bold tracking-tight text-gray-900 leading-tight">{org.name}</h1>
+                <PlanBadge plan={org.plan} />
+                <StatusBadge status={data.status} trialEndsAt={org.trialEndsAt} />
+                <HealthBadge health={data.health} />
+              </div>
+              <p className="mt-1.5 text-sm text-gray-500">
+                {org.owner ? <>Owner <Link to={`/users/${org.owner._id}`} className="font-medium text-gray-700 hover:text-blue-700">{org.owner.name}</Link> · {org.owner.email}</> : 'No owner'}
+                {' · '}Customer since {formatDate(org.createdAt)}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {/* <Button onClick={() => setDialog('plan')}>Change plan</Button> */}
+            {(org.plan === 'trial' || org.plan === 'free') && (
+              <Button onClick={() => setDialog('trial')}>
+                {org.plan === 'trial' ? 'Extend trial' : 'Extend free trial'}
+              </Button>
+            )}
             <Button onClick={() => setDialog('limits')}>Custom limits</Button>
             {org.isLocked
               ? <Button variant="secondary" onClick={handleUnlock} disabled={busy}>Unlock</Button>
               : <Button variant="danger-soft" onClick={() => setDialog('lock')}>Lock</Button>}
-          </>
-        }
-      >
-        <p className="mt-2 text-sm text-gray-500">
-          {org.owner ? <>Owner <Link to={`/users/${org.owner._id}`} className="font-medium text-gray-700 hover:text-blue-700">{org.owner.name}</Link> · {org.owner.email}</> : 'No owner'}
-          {' · '}Customer since {formatDate(org.createdAt)}
-        </p>
-      </PageHeader>
+          </div>
+        </div>
+      </div>
 
       {org.isLocked && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

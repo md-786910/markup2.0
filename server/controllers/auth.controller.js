@@ -41,7 +41,6 @@ async function buildSignupPlanFields() {
   const { getDefaultTrialDaysAsync } = require('../config/plans');
   const trialDays = await getDefaultTrialDaysAsync();
   const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
-  trialEndsAt.setUTCHours(23, 59, 59, 999);
   return {
     plan: 'trial',
     trialDays,

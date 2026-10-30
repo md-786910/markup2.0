@@ -9,7 +9,7 @@ export const getOrganizationDetailApi = (id) => api.get(`/admin/organizations/${
 export const lockOrganizationApi = (id, reason) => api.patch(`/admin/organizations/${id}/lock`, { reason });
 export const unlockOrganizationApi = (id) => api.patch(`/admin/organizations/${id}/unlock`);
 export const setOrganizationPlanApi = (id, data) => api.patch(`/admin/organizations/${id}/plan`, data);
-export const extendTrialApi = (id, days) => api.post(`/admin/organizations/${id}/extend-trial`, { days });
+export const extendTrialApi = (id, days, reason) => api.post(`/admin/organizations/${id}/extend-trial`, { days, reason });
 export const setOrganizationLimitsApi = (id, data) => api.patch(`/admin/organizations/${id}/limits`, data);
 export const setOrganizationDealApi = (id, data) => api.patch(`/admin/organizations/${id}/deal`, data);
 export const addOrganizationNoteApi = (id, body) => api.post(`/admin/organizations/${id}/notes`, { body });
