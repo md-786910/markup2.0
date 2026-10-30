@@ -92,7 +92,7 @@ exports.getStats = asyncHandler(async (req, res) => {
 // GET /admin/support/tickets/:ticketId: thread (with internal notes) + customer context
 exports.getTicket = asyncHandler(async (req, res) => {
   const ticket = await SupportTicket.findById(req.params.ticketId)
-    .populate('organization', 'name plan trialEndsAt isLocked lockedReason subscription deletionScheduledAt createdAt')
+    .populate('organization', 'name plan trialEndsAt isLocked lockedReason subscription deal deletionScheduledAt createdAt')
     .populate('requester', 'name email role lastSeen createdAt')
     .populate('assignee', 'name email')
     .populate('context.project', 'name projectType websiteUrl')

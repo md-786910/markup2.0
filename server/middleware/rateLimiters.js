@@ -160,12 +160,25 @@ const supportReplyLimiter = rateLimit({
   ...shared,
 });
 
+// Approve / request changes from a public review link: per visitor, so a leaked
+// link can't be used to flood the team with decisions and notifications
+const guestDecisionLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many decisions in a short time. Please wait a little and try again.' },
+  store: store('guest-decision'),
+  ...shared,
+});
+
 const loginEmailLimiter = emailLimiter('login', FIFTEEN_MIN, 10, { skipSuccessfulRequests: true });
 const passwordResetEmailLimiter = emailLimiter('reset', 60 * 60 * 1000, 3);
 const otpEmailLimiter = emailLimiter('otp', 60 * 60 * 1000, 6);
 
 module.exports = {
   authLimiter,
+  guestDecisionLimiter,
   supportLimiter,
   adminLimiter,
   globalLimiter,

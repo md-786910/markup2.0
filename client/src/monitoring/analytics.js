@@ -60,7 +60,8 @@ export function identifyUser(user) {
   const id = String(user.id || user._id);
   posthog.identify(id, { role: user.role, plan: user.orgPlan || null });
   if (user.organization) {
-    posthog.group('organization', String(user.organization), { name: user.orgName || undefined, plan: user.orgPlan || undefined });
+    // Plan only: organization names are customer data and stay out of analytics
+    posthog.group('organization', String(user.organization), { plan: user.orgPlan || undefined });
   }
 }
 

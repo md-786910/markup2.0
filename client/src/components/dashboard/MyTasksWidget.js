@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMyTasksApi } from '../../services/pinService';
+import { formatDueDate, isPastDue } from '../../utils/dueDate';
 
 const PRIORITY_BADGE = {
   urgent: 'bg-rose-100 text-rose-700 border-rose-200',
@@ -134,7 +135,7 @@ export default function MyTasksWidget() {
       {!isCollapsed && (
         <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayTasks.map((task) => {
-            const isOverdue = task.dueAt && new Date(task.dueAt) < new Date();
+            const isOverdue = isPastDue(task.dueAt);
             const priorityCls = PRIORITY_BADGE[task.priority] || PRIORITY_BADGE.normal;
             const statusCls = STATUS_BADGE[task.status] || STATUS_BADGE.open;
             const statusLabel =
@@ -202,7 +203,7 @@ export default function MyTasksWidget() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       {isOverdue ? 'Overdue: ' : 'Due: '}
-                      {new Date(task.dueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                      {formatDueDate(task.dueAt)}
                     </span>
                   ) : (
                     <span className="text-[10px] text-gray-400">No due date</span>

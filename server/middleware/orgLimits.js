@@ -200,7 +200,29 @@ const checkApprovalsLimit = asyncHandler(async (req, res, next) => {
   next();
 });
 
+// Status and assignee are on every plan; priority, due dates, labels and board
+// order need the task workflow (Starter and up). Clearing a value stays allowed,
+// so an org that moved down a plan can tidy up its pins.
+const checkTaskWorkflowFields = asyncHandler(async (req, res, next) => {
+  const org = req.organization;
+  if (!org || org.limits.hasTaskWorkflow !== false) return next();
+  const b = req.body || {};
+  const setsTaskField = (b.priority != null && b.priority !== '' && b.priority !== 'normal')
+    || !!b.dueAt
+    || (Array.isArray(b.labels) && b.labels.length > 0)
+    || b.position != null
+    || Array.isArray(b.moves);
+  if (setsTaskField) {
+    return res.status(403).json({
+      message: 'Priority, due dates, labels and the task board are not available on your current plan. Upgrade your plan to use them.',
+      code: 'FEATURE_NOT_AVAILABLE',
+    });
+  }
+  next();
+});
+
 module.exports = {
+  checkTaskWorkflowFields,
   checkWorkspaceLimit,
   seatLimitError,
   checkShareLinksAllowed,

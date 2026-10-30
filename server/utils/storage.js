@@ -77,6 +77,13 @@ function deleteStoredFiles(relativePaths) {
   }
 }
 
+/** Undo reserveStorage for a request rejected afterwards: delete its files and give the quota back. */
+async function releaseUploads(orgId, req) {
+  const bytes = uploadedFiles(req).reduce((sum, f) => sum + (f.size || 0), 0);
+  discardUploads(req);
+  await releaseStorage(orgId, bytes);
+}
+
 /** Express middleware (after multer) for routes where req.organization is set. */
 async function enforceStorageQuota(req, res, next) {
   try {
@@ -88,4 +95,4 @@ async function enforceStorageQuota(req, res, next) {
   }
 }
 
-module.exports = { reserveStorage, releaseStorage, deleteStoredFiles, enforceStorageQuota, discardUploads };
+module.exports = { reserveStorage, releaseStorage, releaseUploads, deleteStoredFiles, enforceStorageQuota, discardUploads };

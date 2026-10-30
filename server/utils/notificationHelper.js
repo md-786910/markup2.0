@@ -134,6 +134,8 @@ async function createProjectNotifications({
         title = `${actorName} resolved pin #${pinNumber || ''}`;
       } else if (notifType === 'pin_reopened') {
         title = `${actorName} reopened pin #${pinNumber || ''}`;
+      } else if (notifType === 'pin_status_changed') {
+        title = `${actorName} moved pin #${pinNumber || ''} to ${metadata?.statusLabel || 'a new status'}`;
       } else if (notifType === 'pin_deleted') {
         title = `${actorName} deleted pin #${pinNumber || ''}`;
       } else if (notifType === 'member_invited') {

@@ -36,6 +36,7 @@ const organizationSchema = new mongoose.Schema({
     hasActivityLogs: { type: Boolean, default: false },
     hasVersionHistory: { type: Boolean, default: false },
     hasApprovals: { type: Boolean, default: false },
+    hasTaskWorkflow: { type: Boolean, default: false },
   },
   trialDays: {
     type: Number,

@@ -176,16 +176,16 @@ export default function RevenuePage() {
           hint="Razorpay domestic subscriptions"
         />
         <StatCard
-          label="New MRR (30 days)"
+          label="New MRR (this month)"
           value={formatUsd(kpis.newMrr30d?.usd || 0)}
-          hint={`${kpis.newMrr30d?.count || 0} conversions / upgrades`}
+          hint={`${kpis.newMrr30d?.inr ? `+ ₹${kpis.newMrr30d.inr.toLocaleString()} · ` : ''}${kpis.newMrr30d?.count || 0} conversions / upgrades`}
           tone="default"
         />
         <StatCard
-          label="Churned MRR (30 days)"
+          label="Churned MRR (this month)"
           value={formatUsd(kpis.churnedMrr30d?.usd || 0)}
-          hint={`${kpis.churnedMrr30d?.count || 0} cancellations`}
-          tone={kpis.churnedMrr30d?.usd > 0 ? 'warn' : 'default'}
+          hint={`${kpis.churnedMrr30d?.inr ? `+ ₹${kpis.churnedMrr30d.inr.toLocaleString()} · ` : ''}${kpis.churnedMrr30d?.count || 0} cancellations`}
+          tone={kpis.churnedMrr30d?.usd > 0 || kpis.churnedMrr30d?.inr > 0 ? 'warn' : 'default'}
         />
       </div>
 

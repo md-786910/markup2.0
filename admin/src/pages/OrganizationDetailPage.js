@@ -38,6 +38,7 @@ const FEATURE_FIELDS = [
   ['hasIntegrations', 'Integrations'],
   ['hasActivityLogs', 'Activity log'],
   ['hasVersionHistory', 'Version history'],
+  ['hasApprovals', 'Client approvals'],
 ];
 const PRIORITY_LABELS = { normal: 'Normal', high: 'High', urgent: 'Urgent' };
 
@@ -491,8 +492,10 @@ function OverviewTab({ data, onOpenNotes }) {
                   <HealthBadge health={data.health} />
                 </div>
               </div>
-              {data.health?.calculatedAt && (
-                <span className="text-xs text-gray-400">Calculated {timeAgo(data.health.calculatedAt)}</span>
+              {data.health?.computedAt ? (
+                <span className="text-xs text-gray-400">Calculated {timeAgo(data.health.computedAt)}</span>
+              ) : (
+                <span className="text-xs text-gray-400">Not scored yet (the daily job computes it)</span>
               )}
             </div>
             {data.health?.reasons?.length > 0 && (
@@ -539,15 +542,31 @@ function OverviewTab({ data, onOpenNotes }) {
                   </div>
                   <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
                     <p className="text-xs text-gray-500">Total sessions (30d)</p>
-                    <p className="mt-1 text-xl font-bold text-gray-900">{data.posthog.sessionCount30d || 0}</p>
+                    <p className="mt-1 text-xl font-bold text-gray-900">{data.posthog.sessions || 0}</p>
                   </div>
                   <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
                     <p className="text-xs text-gray-500">Time in app (30d)</p>
                     <p className="mt-1 text-xl font-bold text-gray-900">
-                      {Math.round((data.posthog.totalTimeSpentMinutes30d || 0) / 60)}h {(data.posthog.totalTimeSpentMinutes30d || 0) % 60}m
+                      {data.posthog.totalTimeMinutes30d == null
+                        ? '—'
+                        : `${Math.floor(data.posthog.totalTimeMinutes30d / 60)}h ${data.posthog.totalTimeMinutes30d % 60}m`}
                     </p>
                   </div>
                 </div>
+
+                {data.posthog.topPages?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">Top pages</p>
+                    <div className="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-100">
+                      {data.posthog.topPages.map((page, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+                          <span className="truncate font-medium text-gray-700">{page.url || '—'}</span>
+                          <span className="shrink-0 font-semibold text-gray-900">{page.views} views</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {data.posthog.topEvents?.length > 0 && (
                   <div>

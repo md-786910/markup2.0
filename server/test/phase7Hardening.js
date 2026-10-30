@@ -1,5 +1,6 @@
 // Tests for Phase 7: Launch Hardening
 process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_smoke_test';
+if (!/_test(\?|$)/.test(process.env.MONGODB_URI)) { console.error('Refusing to run: the test database name must end in _test'); process.exit(1); }
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'phase7-test-secret-'.padEnd(48, 'x');
 
 const path = require('path');
@@ -96,13 +97,35 @@ function check(name, cond, extra = '') {
     );
     check('Support agent cannot extend trial by 30 days (>14)', supportDeniedRes.getCode() === 400);
 
-    // Support agent trying 14 days -> must succeed
-    const supportOkRes = mockRes();
+    // Support agent: the 14 days cap the trial end (now + 14), not each request
+    const supportCapRes = mockRes();
     await adminController.extendTrial(
       { params: { id: trialOrg._id }, body: { days: 14 }, admin: supportAgent },
+      supportCapRes
+    );
+    check('Support agent cannot push a trial past 14 days from today', supportCapRes.getCode() === 400);
+
+    const supportOkRes = mockRes();
+    await adminController.extendTrial(
+      { params: { id: trialOrg._id }, body: { days: 8 }, admin: supportAgent },
       supportOkRes
     );
-    check('Support agent can extend trial by 14 days', supportOkRes.getCode() === 200);
+    check('Support agent can extend a trial up to 14 days from today', supportOkRes.getCode() === 200);
+
+    const supportAgainRes = mockRes();
+    await adminController.extendTrial(
+      { params: { id: trialOrg._id }, body: { days: 5 }, admin: supportAgent },
+      supportAgainRes
+    );
+    check('Repeated support extensions stay within the 14-day cap', supportAgainRes.getCode() === 400);
+
+    const freeOrg = await Organization.create({ name: 'Phase7 Free Org', owner: dummyOwner, plan: 'free' });
+    const supportFreeRes = mockRes();
+    await adminController.extendTrial(
+      { params: { id: freeOrg._id }, body: { days: 7 }, admin: supportAgent },
+      supportFreeRes
+    );
+    check('Support agent cannot move a free org onto a trial', supportFreeRes.getCode() === 403);
 
     // Superadmin trying 60 days -> must succeed
     const superOkRes = mockRes();

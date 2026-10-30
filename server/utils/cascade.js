@@ -69,6 +69,8 @@ async function deleteProjectCascade(project) {
 
   await Promise.all([
     Version.deleteMany({ project: project._id }),
+    // Approval records hold reviewer names, emails, IPs and browsers
+    require('../models/Approval').deleteMany({ project: project._id }),
     Activity.deleteMany({ project: project._id }),
     Notification.deleteMany({ project: project._id }),
     Invitation.deleteMany({ project: project._id }),

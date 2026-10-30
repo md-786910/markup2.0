@@ -46,7 +46,7 @@ router.post('/:projectId/share', projectAccess, requireAccess('manage'), checkOr
 router.patch('/:projectId/share', projectAccess, requireAccess('manage'), checkOrgNotLocked, updateShare);
 router.delete('/:projectId/share', projectAccess, requireAccess('manage'), disableShare);
 router.patch('/:projectId/review', projectAccess, requireAccess('manage'), checkOrgNotLocked, checkApprovalsLimit, updateReviewSettings);
-router.post('/:projectId/decision', projectAccess, requireAccess('comment'), checkOrgNotLocked, recordMemberDecision);
+router.post('/:projectId/decision', projectAccess, requireAccess('comment'), checkOrgNotLocked, checkApprovalsLimit, recordMemberDecision);
 router.get('/:projectId/approvals', projectAccess, requireAccess('manage'), getApprovals);
 
 module.exports = router;

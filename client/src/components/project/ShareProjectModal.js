@@ -1,8 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { enableShareApi, updateShareApi, updateProjectApi, updateReviewSettingsApi } from '../../services/projectService';
 import useEscape from '../../hooks/useEscape';
+import { useAuth } from '../../hooks/useAuth';
+import LockedFeature from '../common/LockedFeature';
+
+// A date as the value of a datetime-local input (local time, minutes)
+function toLocalInputValue(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
 
 export default function ShareProjectModal({ isOpen, onClose, project, onProjectUpdate }) {
+  const { user } = useAuth();
+  // Client sign-off and deadlines are on Starter and up
+  const hasApprovals = user?.orgLimits?.hasApprovals !== false;
   useEscape(onClose, isOpen);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,7 +48,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
     if (project?.review) {
       setApprovalsEnabled(project.review.approvalsEnabled !== false);
       setRequireAllResolved(!!project.review.requireAllResolved);
-      setDeadlineAt(project.review.deadlineAt ? new Date(project.review.deadlineAt).toISOString().slice(0, 16) : '');
+      setDeadlineAt(toLocalInputValue(project.review.deadlineAt));
       setDeadlineMessage(project.review.deadlineMessage || '');
     }
   }, [project]);
@@ -88,17 +100,20 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
           guestConsoleCapture,
         },
       });
-      const reviewRes = await updateReviewSettingsApi(project._id, {
+      const reviewRes = hasApprovals ? await updateReviewSettingsApi(project._id, {
         approvalsEnabled,
         requireAllResolved,
-        deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : null,
+        // datetime-local values are local time; send the deadline only when it changed
+        ...(deadlineAt !== toLocalInputValue(project.review?.deadlineAt)
+          ? { deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : null }
+          : {}),
         deadlineMessage,
-      });
+      }) : null;
       onProjectUpdate({
         ...project,
         shareSettings: shareRes.data.shareSettings,
         settings: projRes.data.project?.settings || { ...project.settings, captureConsoleErrors, guestConsoleCapture },
-        review: reviewRes.data.review,
+        review: reviewRes ? reviewRes.data.review : project.review,
       });
       onClose();
     } catch (err) {
@@ -204,7 +219,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
             <label className="flex items-center justify-between cursor-pointer">
               <div>
                 <p className="text-sm font-medium text-gray-700">Capture team console errors</p>
-                <p className="text-xs text-gray-400">Collect browser errors and network logs for pins created by team</p>
+                <p className="text-xs text-gray-400">Save browser console errors with pins created by the team</p>
               </div>
               <div
                 className={`relative w-11 h-6 rounded-full transition-colors ${captureConsoleErrors ? 'bg-blue-600' : 'bg-gray-200'}`}
@@ -220,7 +235,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
             <label className="flex items-center justify-between cursor-pointer">
               <div>
                 <p className="text-sm font-medium text-gray-700">Capture guest console errors</p>
-                <p className="text-xs text-gray-400">Collect browser errors and network logs from guest reviewers</p>
+                <p className="text-xs text-gray-400">Save browser console errors with pins from guest reviewers</p>
               </div>
               <div
                 className={`relative w-11 h-6 rounded-full transition-colors ${guestConsoleCapture ? 'bg-blue-600' : 'bg-gray-200'}`}
@@ -232,6 +247,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
               </div>
             </label>
 
+            {hasApprovals ? (
             <div className="pt-2 border-t border-gray-100">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">
                 Review & Approvals Policy
@@ -294,6 +310,14 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
                 </div>
               )}
             </div>
+            ) : (
+              <LockedFeature
+                className="border-t border-gray-100"
+                title="Client sign-off and feedback deadlines"
+                plan="Starter"
+                description="Let reviewers approve a round or request changes, and close feedback at a set time."
+              />
+            )}
           </div>}
 
           {error && (

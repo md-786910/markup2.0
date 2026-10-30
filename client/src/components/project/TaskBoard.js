@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { formatDueDate, isPastDue } from '../../utils/dueDate';
 
 const COLUMNS = [
   { id: 'open', title: 'Open', color: 'border-amber-400', badge: 'bg-amber-100 text-amber-800' },
@@ -231,7 +232,7 @@ export default function TaskBoard({
                   </div>
                 ) : (
                   colPins.map((pin) => {
-                    const isOverdue = pin.dueAt && new Date(pin.dueAt) < new Date() && pin.status !== 'resolved';
+                    const isOverdue = isPastDue(pin.dueAt) && pin.status !== 'resolved';
                     const priorityCls = PRIORITY_THEME[pin.priority] || PRIORITY_THEME.normal;
 
                     return (
@@ -285,7 +286,7 @@ export default function TaskBoard({
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
                               {isOverdue && '! '}
-                              {new Date(pin.dueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                              {formatDueDate(pin.dueAt)}
                             </span>
                           ) : (
                             <span className="text-[10px] text-gray-400">No due date</span>

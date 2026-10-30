@@ -17,12 +17,14 @@ export default function ApprovalsModal({
   const [note, setNote] = useState('');
   const [showSignOff, setShowSignOff] = useState(false);
 
-  const openPinsCount = pins.filter((p) => p.status !== 'resolved').length;
+  // The open round is the pins not yet in a saved version (as the server counts them)
+  const openPinsCount = pins.filter((p) => p.status !== 'resolved' && !p.version).length;
   const isRequireResolvedBlocked = project?.review?.requireAllResolved && openPinsCount > 0;
   const isPastDeadline = project?.review?.deadlineAt && new Date() > new Date(project?.review?.deadlineAt);
 
   useEffect(() => {
-    if (!isOpen || !project?._id) return;
+    // The decision history is for people who manage the project
+    if (!isOpen || !project?._id || !canManage) return;
     setLoading(true);
     getApprovalsApi(project._id)
       .then((res) => {
@@ -32,7 +34,7 @@ export default function ApprovalsModal({
         toastError(err, 'Could not load approvals history.');
       })
       .finally(() => setLoading(false));
-  }, [isOpen, project?._id]);
+  }, [isOpen, project?._id, canManage]);
 
   if (!isOpen) return null;
 
@@ -286,7 +288,7 @@ export default function ApprovalsModal({
                           )}
                         </div>
                         <span className="text-[11px] text-gray-400">
-                          {new Date(appr.createdAt).toLocaleString()}
+                          {new Date(appr.updatedAt || appr.createdAt).toLocaleString()}
                         </span>
                       </div>
 

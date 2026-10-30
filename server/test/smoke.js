@@ -178,6 +178,18 @@ function check(name, cond, extra = '') {
   check('workspace link lists its projects', wsShare.status === 200 && portal.status === 200 && portal.data.projects.length === 1 && entry._id === wsProjId, JSON.stringify(portal.data));
   check('project opens through the workspace link', (await call('GET', `/api/guest/${entry.shareToken}`)).status === 200 && (await call('GET', `/api/guest/${entry.shareToken}/pins`)).status === 200);
   check('workspace link does not reach projects of other workspaces', (await call('GET', `/api/guest/${wsTok}.${PA._id}`)).status === 404);
+
+  // Phase 3 privacy: console messages are scrubbed; guests never get technical details
+  const ctxPin = await call('POST', `/api/projects/${wsProjId}/pins`, { user: adminA, body: { pageUrl: 'https://example.com/', xPercent: 3, yPercent: 3, context: {
+    browser: '<!channel> Chrome 130',
+    consoleErrors: [{ level: 'error', message: 'GET https://api.site.com/me?token=SECRET1 failed {"Authorization":"Bearer SECRET2"}' }],
+    failedRequests: [{ method: 'GET', url: 'https://u:SECRET3@api.site.com/me?key=SECRET4', status: 401 }],
+  } } });
+  const storedCtx = (await Pin.findById(ctxPin.data?.pin?._id).lean())?.context;
+  check('stored pin context has no tokens, query strings or markup', ctxPin.status === 201 && !JSON.stringify(storedCtx).includes('SECRET') && !storedCtx.browser.includes('<')
+    && storedCtx.consoleErrors[0].message.includes('https://api.site.com/me'), JSON.stringify(storedCtx));
+  const guestPinList = await call('GET', `/api/guest/${entry.shareToken}/pins`);
+  check('guests do not receive technical details of pins', guestPinList.status === 200 && guestPinList.data.pins.length > 0 && guestPinList.data.pins.every((p) => p.context === undefined));
   check('guest proxy accepts projects shared through their workspace', await r('utils/sharing').isProjectShared(await Project.findById(wsProjId)));
   await call('PATCH', `/api/workspaces/${wsId}/share`, { user: adminA, body: { password: 's3cret' } });
   const locked = await call('GET', `/api/guest/workspace/${wsTok}`);
@@ -717,6 +729,57 @@ function check(name, cond, extra = '') {
     check('free plan cannot open in-app requests', freeTry.status === 403 && freeTry.data?.code === 'FEATURE_NOT_AVAILABLE', String(freeTry.status));
     const me = await call('GET', '/api/auth/me', { user: freeOwner });
     check('session data tells the app which support the plan has', me.data?.user?.orgSupport?.tickets === false);
+
+    // Phase 8 plan rule: status works on Free; priority, due dates, labels and the board need Starter+
+    const freeProject = await Project.create({ name: 'Free P', projectType: 'website', websiteUrl: 'https://example.com', owner: freeOwner._id, organization: freeOrg._id, members: [freeOwner._id] });
+    const freePin = await Pin.create({ project: freeProject._id, pageUrl: 'https://example.com/', xPercent: 1, yPercent: 1, pinNumber: 1, createdBy: freeOwner._id });
+    const freeStatus = await call('PATCH', `/api/projects/${freeProject._id}/pins/${freePin._id}`, { user: freeOwner, body: { status: 'resolved' } });
+    check('free plan can still resolve pins', freeStatus.status === 200 && freeStatus.data?.pin?.status === 'resolved', String(freeStatus.status));
+    const freePriority = await call('PATCH', `/api/projects/${freeProject._id}/pins/${freePin._id}`, { user: freeOwner, body: { priority: 'urgent' } });
+    check('free plan cannot set task priority', freePriority.status === 403 && freePriority.data?.code === 'FEATURE_NOT_AVAILABLE', String(freePriority.status));
+    check('free plan cannot reorder the task board', (await call('PATCH', `/api/projects/${freeProject._id}/pins/reorder`, { user: freeOwner, body: { moves: [] } })).status === 403);
+    check('a malformed assignee filter is a 400, not a 500', (await call('GET', `/api/projects/${freeProject._id}/pins?assignee=xyz`, { user: freeOwner })).status === 400);
+
+    // Phase 4 fixes: review rounds, deadlines, guest decisions, plan rule, cleanup
+    {
+      const Approval = r('models/Approval');
+      const apOwner = await mkUser('apowner', 'owner');
+      const apMember = await mkUser('apmember', 'member');
+      const apOrg = await Organization.create({ name: 'Approve Co', slug: 'approve-co-e2e', owner: apOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() + 9e8) });
+      for (const u of [apOwner, apMember]) { u.organization = apOrg._id; await u.save({ validateBeforeSave: false }); }
+      const apProject = await Project.create({ name: 'Approve P', projectType: 'website', websiteUrl: 'https://example.com', owner: apOwner._id, createdBy: apOwner._id, organization: apOrg._id, members: [apOwner._id, apMember._id] });
+      const share = await call('POST', `/api/projects/${apProject._id}/share`, { user: apOwner, body: {} });
+      const apToken = String(share.data?.shareUrl || '').split('/review/')[1];
+      const decide = (body) => call('POST', `/api/guest/${apToken}/decision`, { body: { name: 'Client', email: 'client@e2e.test', decision: 'approved', ...body } });
+
+      // round 1 has an open pin; saving it as a version starts round 2 with nothing open
+      const r1Pin = await Pin.create({ project: apProject._id, pageUrl: 'https://example.com/', xPercent: 1, yPercent: 1, pinNumber: 1, createdBy: apOwner._id });
+      await call('PATCH', `/api/projects/${apProject._id}/review`, { user: apOwner, body: { requireAllResolved: true } });
+      check('approval waits for open pins of the current round', (await decide()).status === 400);
+      await call('POST', `/api/projects/${apProject._id}/versions`, { user: apOwner, body: { name: 'Round 1' } });
+      const r2 = await decide({ decision: 'changes_requested' });
+      check('a new round starts without the previous round\'s open pins', r2.status === 201 && r2.data?.approval?.openPinsAtDecision === 0, JSON.stringify(r2.data));
+      check('approving the new round is allowed', (await decide()).status === 201);
+      check('the client\'s latest decision for the round wins', (await Approval.countDocuments({ project: apProject._id, version: null })) === 1);
+      check('guest decisions need a valid email', (await decide({ email: 'not-an-email' })).status === 400);
+      check('a non-text note is stored as text, not a server error', (await decide({ note: 42 })).status === 201);
+
+      // deadline: closed for team members and guests, managers can still reply
+      check('an invalid deadline is refused', (await call('PATCH', `/api/projects/${apProject._id}/review`, { user: apOwner, body: { deadlineAt: 'soon' } })).status === 400);
+      await call('PATCH', `/api/projects/${apProject._id}/review`, { user: apOwner, body: { deadlineAt: new Date(Date.now() - 6e4).toISOString() } });
+      check('after the deadline a manager can still reply', (await call('POST', `/api/pins/${r1Pin._id}/comments`, { user: apOwner, body: { body: 'Noted, thanks' } })).status === 201);
+      check('after the deadline other members get feedback closed', (await call('POST', `/api/pins/${r1Pin._id}/comments`, { user: apMember, body: { body: 'One more thing' } })).status === 423);
+      await call('PATCH', `/api/projects/${apProject._id}/review`, { user: apOwner, body: { deadlineAt: null } });
+
+      // plan rule: a link left on after moving to Free can't record decisions
+      await Organization.updateOne({ _id: apOrg._id }, { $set: { plan: 'free' } });
+      const freeDecision = await decide();
+      check('guests cannot record decisions without the approvals feature', freeDecision.status === 403, String(freeDecision.status));
+      check('members cannot record decisions without the approvals feature', (await call('POST', `/api/projects/${apProject._id}/decision`, { user: apMember, body: { decision: 'approved' } })).status === 403);
+
+      await r('utils/cascade').deleteProjectCascade(await Project.findById(apProject._id));
+      check('deleting a project deletes its approval records', (await Approval.countDocuments({ project: apProject._id })) === 0);
+    }
     const guestUser = await mkUser('guestsupport', 'guest', { organization: supOrg._id });
     check('guest reviewers cannot open requests', (await call('POST', '/api/support/tickets', { user: guestUser, body: ticketBody() })).status === 403);
     check('a request needs a subject and details', (await call('POST', '/api/support/tickets', { user: supMember, body: ticketBody({ subject: 'x', body: 'short' }) })).status === 400);
@@ -862,6 +925,38 @@ function check(name, cond, extra = '') {
     const ps = await adminCall('GET', '/api/admin/payment-settings');
     await adminCall('PATCH', '/api/admin/payment-settings', { body: { allowDowngrades: !!ps.data?.allowDowngrades } });
     check('payment settings changes are in the action log', !!(await Activity.exists({ action: 'payment_settings.updated' })));
+
+    // Phase 6 fixes: plan editor validation, derived features, deal audit, trial default
+    check('a self-serve plan cannot lose its price', (await adminCall('PATCH', '/api/admin/plans/starter', { body: { price: null } })).status === 400);
+    check('zero or negative plan prices are refused', (await adminCall('PATCH', '/api/admin/plans/pro', { body: { price: -5 } })).status === 400
+      && (await adminCall('PATCH', '/api/admin/plans/pro', { body: { price: 0 } })).status === 400);
+    check('negative or fractional plan limits are refused', (await adminCall('PATCH', '/api/admin/plans/starter', { body: { maxProjects: -1 } })).status === 400
+      && (await adminCall('PATCH', '/api/admin/plans/starter', { body: { maxMembers: 2.5 } })).status === 400);
+    const derived = await adminCall('PATCH', '/api/admin/plans/starter', { body: { maxProjects: 16, deriveFeatures: true } });
+    check('plan features follow the limits when not edited by hand', derived.status === 200 && derived.data?.plans?.starter?.features?.includes('16 projects'), JSON.stringify(derived.data?.plans?.starter?.features));
+    await adminCall('PATCH', '/api/admin/plans/starter', { body: { maxProjects: 15, deriveFeatures: true } });
+    const impact = await adminCall('GET', '/api/admin/plans/pro/impact?maxProjects=1');
+    check('the plan impact check answers with counts per limit', impact.status === 200 && typeof impact.data?.totalOrgs === 'number');
+    const dealOrg = await Organization.findOne({ slug: 'support-co-e2e' });
+    check('a zero custom price is refused', (await adminCall('PATCH', `/api/admin/organizations/${dealOrg._id}/deal`, { body: { price: 0 } })).status === 400);
+    check('a custom price with a bad end date is refused', (await adminCall('PATCH', `/api/admin/organizations/${dealOrg._id}/deal`, { body: { price: 10, until: 'not-a-date' } })).status === 400);
+    await adminCall('PATCH', `/api/admin/organizations/${dealOrg._id}/deal`, { body: { price: 10, currency: 'USD' } });
+    await adminCall('PATCH', `/api/admin/organizations/${dealOrg._id}/deal`, { body: { price: null } });
+    await new Promise((res) => setTimeout(res, 200));
+    check('custom price changes are in the action log', (await Activity.countDocuments({ action: 'org.deal_updated', organization: dealOrg._id })) === 2);
+    check('a custom price on a non-paying org is not revenue', r('utils/orgStatus').monthlyRevenue({ plan: 'free', deal: { price: 500, currency: 'USD' } }, {}) === 0);
+    // Phase 7 fixes: alert emails are sent, escaped and link to the admin panel; site notice input
+    process.env.ADMIN_ALERTS_EMAIL = 'ops@e2e.test';
+    await r('utils/adminAlerts').alertNewUrgentTicket({ ticket: { _id: 'tkt1', number: 1, subject: '<b>help</b>' }, organization: { name: 'A&B', plan: 'pro' }, requester: { name: 'R', email: 'r@e2e.test' } });
+    delete process.env.ADMIN_ALERTS_EMAIL;
+    const alertMail = sentMailArgs.find((m) => m.name === 'sendAdminAlertEmail' && m.to === 'ops@e2e.test');
+    check('admin alerts are emailed, escaped, with an admin panel link', alertMail?.to === 'ops@e2e.test' && !alertMail.args[0].html.includes('<b>help</b>')
+      && alertMail.args[0].html.includes(`${r('config/env').URLS.admin}/support/tkt1`));
+    check('site notice links must be web addresses', (await adminCall('PATCH', '/api/admin/site-notice', { body: { link: 'javascript:alert(1)' } })).status === 400);
+    check('site notice dates are validated', (await adminCall('PATCH', '/api/admin/site-notice', { body: { startsAt: 'tomorrow-ish' } })).status === 400);
+
+    const trialSettings = await adminCall('GET', '/api/admin/trial-settings');
+    check('the default trial is 30 days', trialSettings.data?.defaultDays === r('config/plans').DEFAULT_TRIAL_DAYS && r('config/plans').DEFAULT_TRIAL_DAYS === 30, JSON.stringify(trialSettings.data));
 
     const noteOrg = await Organization.findOne({ slug: 'support-co-e2e' });
     const note = await adminCall('POST', `/api/admin/organizations/${noteOrg._id}/notes`, { body: { body: 'Called them about the renewal.' } });

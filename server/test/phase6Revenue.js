@@ -1,5 +1,6 @@
 // Tests for Phase 6: Pricing and Revenue
 process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_smoke_test';
+if (!/_test(\?|$)/.test(process.env.MONGODB_URI)) { console.error('Refusing to run: the test database name must end in _test'); process.exit(1); }
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'phase6-test-secret-'.padEnd(48, 'x');
 
 const path = require('path');
@@ -109,6 +110,7 @@ function check(name, cond, extra = '') {
       name: 'Phase6 Custom Deal Org',
       owner: dummyOwner,
       plan: 'enterprise',
+      subscription: { status: 'active' },
       deal: {
         price: 1500,
         currency: 'USD',
@@ -125,6 +127,7 @@ function check(name, cond, extra = '') {
       name: 'Phase6 INR Deal Org',
       owner: dummyOwner,
       plan: 'enterprise',
+      subscription: { status: 'active' },
       deal: {
         price: 84000,
         currency: 'INR',
@@ -149,6 +152,15 @@ function check(name, cond, extra = '') {
     });
     const fallbackRev = monthlyRevenue(expiredDealOrg, defaultPlans);
     check('Expired deal falls back to standard Pro pricing ($29)', fallbackRev === 29, `rev=${fallbackRev}`);
+
+    // A deal on an org that isn't paying (free, trial, cancelled) brings in nothing
+    const freeDealOrg = await Organization.create({
+      name: 'Phase6 Free Deal Org',
+      owner: dummyOwner,
+      plan: 'free',
+      deal: { price: 900, currency: 'USD', until: new Date(Date.now() + 30 * 86400000) },
+    });
+    check('Deal on a free org is not counted as revenue', monthlyRevenue(freeDealOrg, defaultPlans) === 0);
 
     // --- 4. Admin Controller Revenue & Invoices Endpoints ---
     console.log('\n--- 4. Admin Controller Endpoints ---');

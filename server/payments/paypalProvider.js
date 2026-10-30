@@ -15,6 +15,7 @@ const { settleInvoice } = require('./settleInvoice');
 const { PaymentVerificationError } = require('./errors');
 const { applyRefund } = require('./refundInvoice');
 const { URLS } = require('../config/env');
+const { USD_INR_RATE } = require('../config/plans');
 
 const CLIENT_ORIGIN = URLS.app;
 
@@ -23,8 +24,10 @@ async function notifyPaymentFailed(invoice) {
   try {
     const Organization = require('../models/Organization');
     const User = require('../models/User');
-    const org = await Organization.findById(invoice.organization).select('name');
+    const org = await Organization.findById(invoice.organization).select('name plan');
     const owner = await User.findOne({ organization: invoice.organization, role: 'owner' }).select('email');
+    // The team hears about every failed payment, even when the owner has no email on file
+    if (org) require('../utils/adminAlerts').alertPaymentFailed({ organization: org, invoice }).catch(() => {});
     if (!org || !owner?.email) return;
     await require('../utils/mailer').sendPaymentFailedEmail(
       owner.email, org.name, invoice.amount, invoice.currency, `${CLIENT_ORIGIN}/settings?tab=billing`,
@@ -80,7 +83,7 @@ async function createOrder({ org, plan, planConfig, invoiceMeta = {} }) {
   const dealActive = org.deal && org.deal.price != null && (!org.deal.until || new Date(org.deal.until) > now);
   let usd;
   if (dealActive) {
-    usd = org.deal.currency === 'USD' ? Number(org.deal.price) : Number(org.deal.price) / 84;
+    usd = org.deal.currency === 'USD' ? Number(org.deal.price) : Number(org.deal.price) / USD_INR_RATE;
   } else {
     usd = Number(planConfig.price);
   }

@@ -39,6 +39,11 @@ exports.createVersion = asyncHandler(async (req, res) => {
     { project: projectId, version: null },
     { version: version._id }
   );
+  // ...and the round's approval decisions, so the next round starts fresh
+  await require('../models/Approval').updateMany(
+    { project: projectId, version: null },
+    { $set: { version: version._id } }
+  );
 
   const populated = await Version.findById(version._id)
     .populate('createdBy', 'name email');

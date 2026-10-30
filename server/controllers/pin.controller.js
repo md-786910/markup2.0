@@ -7,9 +7,13 @@ const { emitToProject, emailProjectMembers, notifyIntegrations } = require('../u
 const { logActivity } = require('../utils/activityLogger');
 const { metric } = require('../instrument');
 const { extractMentionedUserIds } = require('../utils/mentionHelper');
-const { createProjectNotifications } = require('../utils/notificationHelper');
+const { createProjectNotifications, createSingleNotification } = require('../utils/notificationHelper');
+const { visibleProjectsQuery, projectLevelFor } = require('../utils/workspaces');
+const { atLeast } = require('../utils/access');
+const mongoose = require('mongoose');
 const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
 const { sanitizePinContext } = require('../utils/pinContext');
+const { releaseUploads } = require('../utils/storage');
 
 exports.createPin = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
@@ -40,6 +44,7 @@ exports.createPin = asyncHandler(async (req, res) => {
 
   const projectDoc = await Project.findById(projectId).select('name organization settings review');
   if (projectDoc?.review?.deadlineAt && new Date() > new Date(projectDoc.review.deadlineAt)) {
+    await releaseUploads(req.organization?._id, req);
     return res.status(423).json({
       code: 'FEEDBACK_CLOSED',
       message: projectDoc.review.deadlineMessage || 'Feedback has closed for this review round.',
@@ -128,23 +133,26 @@ exports.getPins = asyncHandler(async (req, res) => {
     filter.pageUrl = pageUrlFilter(pageUrl);
   }
   if (deviceMode) {
-    filter.deviceMode = deviceMode;
+    filter.deviceMode = String(deviceMode);
   }
   if (status) {
     if (status === 'open' || status === 'pending') {
       filter.status = { $in: ['open', 'pending'] };
     } else {
-      filter.status = status;
+      filter.status = String(status);
     }
   }
   if (assignee) {
+    if (assignee !== 'unassigned' && !mongoose.isValidObjectId(assignee)) {
+      return res.status(400).json({ message: 'Invalid assignee' });
+    }
     filter.assignee = assignee === 'unassigned' ? null : assignee;
   }
   if (priority) {
-    filter.priority = priority;
+    filter.priority = String(priority);
   }
   if (label) {
-    filter.labels = label;
+    filter.labels = String(label);
   }
 
   const pins = await Pin.find(filter)
@@ -238,36 +246,52 @@ exports.updatePin = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Pin not found' });
   }
 
-  const prevStatus = pin.status;
+  // Pins created before the task statuses still say 'pending' (= open)
+  const prevStatus = pin.status === 'pending' ? 'open' : pin.status;
   const prevAssignee = pin.assignee ? String(pin.assignee) : null;
 
   if (status) {
     const norm = status === 'pending' ? 'open' : status;
-    if (['open', 'in_progress', 'in_review', 'resolved'].includes(norm)) {
-      pin.status = norm;
+    if (!['open', 'in_progress', 'in_review', 'resolved'].includes(norm)) {
+      return res.status(400).json({ message: 'Invalid status' });
     }
+    pin.status = norm;
   }
 
   if (assignee !== undefined) {
     if (!assignee) {
       pin.assignee = null;
     } else {
-      // Validate that assignee is a project or workspace member in the same org
+      if (!mongoose.isValidObjectId(assignee)) {
+        return res.status(400).json({ message: 'Invalid assignee' });
+      }
+      // The assignee must be able to work on the pin: same org, comment access or more
       const User = require('../models/User');
-      const targetUser = await User.findById(assignee).select('organization');
+      const targetUser = await User.findById(assignee).select('organization role');
       if (!targetUser || String(targetUser.organization) !== String(req.organization._id)) {
         return res.status(400).json({ message: 'Assignee must belong to your organization.' });
+      }
+      const level = await projectLevelFor(targetUser, req.project);
+      if (!level || !atLeast(level, 'comment')) {
+        return res.status(400).json({ message: 'Assignee needs comment access to this project.' });
       }
       pin.assignee = assignee;
     }
   }
 
-  if (priority && ['low', 'normal', 'high', 'urgent'].includes(priority)) {
+  if (priority !== undefined && priority !== null && priority !== '') {
+    if (!['low', 'normal', 'high', 'urgent'].includes(priority)) {
+      return res.status(400).json({ message: 'Invalid priority' });
+    }
     pin.priority = priority;
   }
 
   if (dueAt !== undefined) {
-    pin.dueAt = dueAt ? new Date(dueAt) : null;
+    const due = dueAt ? new Date(dueAt) : null;
+    if (due && Number.isNaN(due.getTime())) {
+      return res.status(400).json({ message: 'Invalid due date' });
+    }
+    pin.dueAt = due;
   }
 
   if (Array.isArray(labels)) {
@@ -288,59 +312,64 @@ exports.updatePin = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   emitToProject(io, pin.project.toString(), 'pin:updated', { pin: populated });
 
-  // Notifications on assignment change
+  const projectIdStr = pin.project.toString();
+  const pinMeta = { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl, projectName: req.project.name };
+
+  // The new assignee hears about it (createSingleNotification skips self-assignment)
   if (pin.assignee && String(pin.assignee._id || pin.assignee) !== prevAssignee) {
-    const assigneeId = String(pin.assignee._id || pin.assignee);
-    if (assigneeId !== String(req.user._id)) {
-      createProjectNotifications({
-        io,
-        projectId: pin.project.toString(),
-        actor: req.user,
-        type: 'pin_assigned',
-        pin: populated,
-        targetUserId: assigneeId,
-        metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl },
-      }).catch(() => {});
-    }
-  }
-
-  // Notifications on status change to 'in_review' -> alert original creator
-  if (pin.status === 'in_review' && prevStatus !== 'in_review' && pin.createdBy) {
-    const creatorId = String(pin.createdBy._id || pin.createdBy);
-    if (creatorId !== String(req.user._id)) {
-      createProjectNotifications({
-        io,
-        projectId: pin.project.toString(),
-        actor: req.user,
-        type: 'pin_in_review',
-        pin: populated,
-        targetUserId: creatorId,
-        metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl },
-      }).catch(() => {});
-    }
-  }
-
-  // Activity log for status changes
-  if (status) {
-    const action = pin.status === 'resolved' ? 'pin.resolved' : (pin.status === 'open' && prevStatus === 'resolved' ? 'pin.reopened' : 'pin.status_changed');
-    logActivity(pin.project.toString(), req.user._id, action, { pinNumber: pin.pinNumber, status: pin.status });
-
-    createProjectNotifications({
+    createSingleNotification({
       io,
-      projectId: pin.project.toString(),
+      recipientId: String(pin.assignee._id || pin.assignee),
       actor: req.user,
-      type: pin.status === 'resolved' ? 'pin_resolved' : (pin.status === 'open' ? 'pin_reopened' : 'pin_status_changed'),
+      projectId: projectIdStr,
       pin: populated,
-      metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl, status: pin.status },
+      type: 'pin_assigned',
+      title: `${req.user.name} assigned pin #${pin.pinNumber} to you`,
+      metadata: pinMeta,
     }).catch(() => {});
   }
 
-  // Email + integration notifications for status changes (fire-and-forget)
-  if (status) {
+  const statusChanged = !!status && pin.status !== prevStatus;
+  const STATUS_LABELS = { open: 'Open', in_progress: 'In progress', in_review: 'In review', resolved: 'Resolved' };
+
+  if (statusChanged) {
+    const action = pin.status === 'resolved' ? 'pin.resolved' : (prevStatus === 'resolved' ? 'pin.reopened' : 'pin.status_changed');
+    logActivity(projectIdStr, req.user._id, action, { pinNumber: pin.pinNumber, status: pin.status });
+
+    if (pin.status === 'in_review') {
+      // Ready for review: tell the person who reported it
+      if (pin.createdBy) {
+        createSingleNotification({
+          io,
+          recipientId: String(pin.createdBy._id || pin.createdBy),
+          actor: req.user,
+          projectId: projectIdStr,
+          pin: populated,
+          type: 'pin_in_review',
+          title: `${req.user.name} moved pin #${pin.pinNumber} to review`,
+          metadata: { ...pinMeta, status: pin.status },
+        }).catch(() => {});
+      }
+    } else {
+      createProjectNotifications({
+        io,
+        projectId: projectIdStr,
+        actor: req.user,
+        type: pin.status === 'resolved' ? 'pin_resolved' : (prevStatus === 'resolved' ? 'pin_reopened' : 'pin_status_changed'),
+        pin: populated,
+        metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl, status: pin.status, statusLabel: STATUS_LABELS[pin.status] },
+      }).catch(() => {});
+    }
+  }
+
+  // Email + integrations keep their resolve / reopen meaning; moves between the
+  // working statuses (open, in progress, in review) stay in the app
+  const resolvedChanged = statusChanged && (pin.status === 'resolved' || prevStatus === 'resolved');
+  if (resolvedChanged) {
     const project = await Project.findById(pin.project).select('name organization');
     if (project) {
       notifyIntegrations(pin.project.toString(), project.organization, {
-        action: status === 'resolved' ? 'pin.resolved' : 'pin.reopened',
+        action: pin.status === 'resolved' ? 'pin.resolved' : 'pin.reopened',
         actorName: req.user.name,
         projectName: project.name,
         pinNumber: pin.pinNumber,
@@ -420,23 +449,29 @@ exports.deletePin = asyncHandler(async (req, res) => {
  */
 exports.reorderPins = asyncHandler(async (req, res) => {
   const { moves } = req.body; // array of { pinId, status, position }
-  if (!Array.isArray(moves)) {
-    return res.status(400).json({ message: 'moves array required' });
+  if (!Array.isArray(moves) || moves.length > 500) {
+    return res.status(400).json({ message: 'moves must be an array of at most 500 entries' });
   }
 
-  const bulkOps = moves.map((m) => {
+  // Skip entries without a valid pin id or anything to change (an empty $set is refused by MongoDB)
+  const validMoves = [];
+  const bulkOps = [];
+  for (const m of moves) {
+    if (!m || !mongoose.isValidObjectId(m.pinId)) continue;
     const update = {};
-    if (m.position != null) update.position = Number(m.position);
+    if (m.position != null && Number.isFinite(Number(m.position))) update.position = Number(m.position);
     if (m.status && ['open', 'in_progress', 'in_review', 'resolved'].includes(m.status)) {
       update.status = m.status;
     }
-    return {
+    if (!Object.keys(update).length) continue;
+    validMoves.push({ pinId: String(m.pinId), ...update });
+    bulkOps.push({
       updateOne: {
         filter: { _id: m.pinId, project: req.project._id },
         update: { $set: update },
       },
-    };
-  });
+    });
+  }
 
   if (bulkOps.length > 0) {
     await Pin.bulkWrite(bulkOps);
@@ -444,7 +479,7 @@ exports.reorderPins = asyncHandler(async (req, res) => {
 
   const io = req.app.get('io');
   if (io) {
-    emitToProject(io, req.project._id.toString(), 'pins:reordered', { moves });
+    emitToProject(io, req.project._id.toString(), 'pins:reordered', { moves: validMoves });
   }
 
   res.json({ success: true, count: bulkOps.length });
@@ -455,27 +490,28 @@ exports.reorderPins = asyncHandler(async (req, res) => {
  * Aggregates all open pins assigned to the current user across all accessible projects.
  */
 exports.getMyTasks = asyncHandler(async (req, res) => {
-  const Project = require('../models/Project');
-  const userOrgId = req.user.organization;
-
-  // Find all projects in user's org
-  const projects = await Project.find({
-    organization: userOrgId,
-    deletionScheduledAt: null,
-  }).select('_id name websiteUrl projectType').lean();
+  // Only active projects the user can still open (same rule as the project list)
+  const isOrgAdmin = req.user.role === 'admin' || req.user.role === 'owner';
+  const visible = isOrgAdmin ? { organization: req.user.organization } : await visibleProjectsQuery(req.user);
+  const projects = await Project.find({ ...visible, status: 'active' })
+    .select('_id name websiteUrl projectType').lean();
 
   const projectIds = projects.map((p) => p._id);
   const projectMap = new Map(projects.map((p) => [String(p._id), p]));
 
   const now = new Date();
-  const pins = await Pin.find({
+  const PRIORITY_RANK = { urgent: 0, high: 1, normal: 2, low: 3 };
+  const pins = (await Pin.find({
     project: { $in: projectIds },
     assignee: req.user._id,
     status: { $ne: 'resolved' },
   })
-    .populate('createdBy', 'name email')
-    .sort({ dueAt: 1, priority: -1, createdAt: -1 })
-    .lean();
+    .populate('createdBy', 'name')
+    .lean())
+    // Earliest due date first (no due date last), then priority, then newest
+    .sort((a, b) => (a.dueAt ? new Date(a.dueAt).getTime() : Infinity) - (b.dueAt ? new Date(b.dueAt).getTime() : Infinity)
+      || (PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2)
+      || new Date(b.createdAt) - new Date(a.createdAt));
 
   const overdue = [];
   const dueSoon = [];
@@ -485,7 +521,10 @@ exports.getMyTasks = asyncHandler(async (req, res) => {
 
   for (const p of pins) {
     p.projectInfo = projectMap.get(String(p.project)) || null;
-    if (p.dueAt && new Date(p.dueAt) < now) {
+    // The dashboard widget links and labels tasks with project._id / project.name
+    p.project = p.projectInfo || p.project;
+    // dueAt is the due calendar day at UTC midnight: overdue once that whole day is over
+    if (p.dueAt && new Date(p.dueAt).getTime() + 86400000 <= now.getTime()) {
       overdue.push(p);
     } else if (p.dueAt && new Date(p.dueAt) <= sevenDaysFromNow) {
       dueSoon.push(p);

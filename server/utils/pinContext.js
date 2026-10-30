@@ -21,8 +21,31 @@ function extractRealUrl(rawUrl) {
 function cleanUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
   const realUrl = extractRealUrl(rawUrl);
-  // Strip query parameters and hash fragments (where auth tokens / secrets often live)
-  return realUrl.split(/[?#]/)[0];
+  // Strip query parameters and hash fragments (where auth tokens / secrets often live),
+  // credentials in the authority (user:pass@) and ;jsessionid-style path parameters
+  return realUrl.split(/[?#]/)[0]
+    .replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@]*@/i, '$1')
+    .replace(/;[a-z_]*sess[a-z_]*id=[^/]*/gi, '');
+}
+
+const SENSITIVE_KEYS = 'access_token|refresh_token|id_token|token|rt|api[_-]?key|apikey|secret|client_secret|password|passwd|pwd|authorization|auth|session|sessionid|sid|jwt|cookie|signature|sig';
+
+/**
+ * Console messages and stack traces are free text: remove what can carry
+ * credentials (query strings and fragments of URLs, key=value / "key": "value"
+ * pairs with sensitive names, Bearer tokens, JWTs) before they are stored.
+ */
+function scrubText(text) {
+  if (!text) return '';
+  return String(text)
+    // URLs (also our own /api/proxy?url=…&token=… frames in stack traces): keep scheme, host and path
+    .replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'`<>()[\]{}]+|\/api\/proxy\?[^\s"'`<>()[\]{}]+/gi, (url) => {
+      const trailing = url.match(/[.,;:]+$/)?.[0] || '';
+      return cleanUrl(url.slice(0, url.length - trailing.length)) + trailing;
+    })
+    .replace(/\bBearer\s+[A-Za-z0-9\-._~+/]+=*/gi, 'Bearer [redacted]')
+    .replace(/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]+/g, '[redacted]')
+    .replace(new RegExp(`(["']?\\b(?:${SENSITIVE_KEYS})\\b["']?\\s*[=:]\\s*)("[^"]*"|'[^']*'|[^\\s,;&}\\]]+)`, 'gi'), '$1[redacted]');
 }
 
 function parseUserAgent(ua) {
@@ -88,8 +111,15 @@ function sanitizePinContext(rawContext, options = {}) {
 
   const { projectSettings = {}, isGuest = false, userAgent = '' } = options;
 
-  let browser = typeof ctx.browser === 'string' && ctx.browser.trim() ? ctx.browser.trim().slice(0, 100) : null;
-  let os = typeof ctx.os === 'string' && ctx.os.trim() ? ctx.os.trim().slice(0, 100) : null;
+  // Environment names only need plain characters; dropping the rest keeps markup
+  // (<!channel>, <url|text>, *bold*) out of Slack, Teams and Discord messages
+  const plain = (v, max) => {
+    if (typeof v !== 'string') return null;
+    const cleaned = v.replace(/[^\w .()/,+:-]/g, '').trim().slice(0, max);
+    return cleaned || null;
+  };
+  let browser = plain(ctx.browser, 100);
+  let os = plain(ctx.os, 100);
 
   if ((!browser || !os) && userAgent) {
     const parsed = parseUserAgent(userAgent);
@@ -113,8 +143,8 @@ function sanitizePinContext(rawContext, options = {}) {
 
   const pageTitle = typeof ctx.pageTitle === 'string' ? ctx.pageTitle.trim().slice(0, 200) : null;
   const elementText = typeof ctx.elementText === 'string' ? ctx.elementText.trim().slice(0, 120) : null;
-  const timeZone = typeof ctx.timeZone === 'string' ? ctx.timeZone.trim().slice(0, 100) : null;
-  const language = typeof ctx.language === 'string' ? ctx.language.trim().slice(0, 30) : null;
+  const timeZone = plain(ctx.timeZone, 100);
+  const language = plain(ctx.language, 30);
 
   // Process console errors
   let consoleErrors = [];
@@ -137,7 +167,8 @@ function sanitizePinContext(rawContext, options = {}) {
             rawMsg = String(err.message || '');
           }
         }
-        const message = rawMsg.slice(0, 500);
+        // Scrub before truncating so a cut can't leave half a token behind
+        const message = scrubText(rawMsg.slice(0, 2000)).slice(0, 500);
         let at = err.at ? new Date(err.at) : new Date();
         if (isNaN(at.getTime())) at = new Date();
         return { level, message, at };
@@ -151,9 +182,11 @@ function sanitizePinContext(rawContext, options = {}) {
       .filter((req) => req && typeof req === 'object')
       .slice(-20) // max 20
       .map((req) => {
-        const method = typeof req.method === 'string' ? req.method.toUpperCase().slice(0, 10) : 'GET';
+        const rawMethod = typeof req.method === 'string' ? req.method.toUpperCase() : '';
+        const method = /^[A-Z]{1,10}$/.test(rawMethod) ? rawMethod : 'GET';
         const url = cleanUrl(req.url).slice(0, 2000);
-        const status = Number(req.status) || 0;
+        const statusNum = Math.trunc(Number(req.status));
+        const status = statusNum >= 0 && statusNum <= 999 ? statusNum : 0;
         return { method, url, status };
       });
   }
@@ -174,6 +207,7 @@ function sanitizePinContext(rawContext, options = {}) {
 module.exports = {
   extractRealUrl,
   cleanUrl,
+  scrubText,
   parseUserAgent,
   sanitizePinContext,
 };

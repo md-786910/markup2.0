@@ -800,6 +800,7 @@ exports.recordMemberDecision = asyncHandler(async (req, res) => {
   if (!['approved', 'changes_requested'].includes(decision)) {
     return res.status(400).json({ message: 'Valid decision ("approved" or "changes_requested") is required.' });
   }
+  const cleanNote = String(note ?? '').slice(0, 2000);
 
   if (project.review?.approvalsEnabled === false) {
     return res.status(403).json({ message: 'Approvals are not enabled for this project.' });
@@ -818,17 +819,15 @@ exports.recordMemberDecision = asyncHandler(async (req, res) => {
   const Approval = require('../models/Approval');
   const Pin = require('../models/Pin');
 
+  // The open review round is everything not yet in a saved version (creating a
+  // version tags the round's pins and decisions), whatever versions came before
   const latestVersion = await Version.findOne({ project: project._id })
     .sort({ versionNumber: -1 })
     .select('_id versionNumber');
-  const currentVersionId = latestVersion?._id || null;
+  const currentVersionId = null;
+  const roundLabel = `Round ${(latestVersion?.versionNumber || 0) + 1}`;
 
-  const pinQuery = { project: project._id, status: { $ne: 'resolved' } };
-  if (currentVersionId) {
-    pinQuery.version = currentVersionId;
-  } else {
-    pinQuery.version = null;
-  }
+  const pinQuery = { project: project._id, status: { $ne: 'resolved' }, version: null };
   const openPinsAtDecision = await Pin.countDocuments(pinQuery);
 
   if (project.review?.requireAllResolved && decision === 'approved' && openPinsAtDecision > 0) {
@@ -848,7 +847,7 @@ exports.recordMemberDecision = asyncHandler(async (req, res) => {
 
   if (approval) {
     approval.decision = decision;
-    approval.note = (note || '').slice(0, 2000);
+    approval.note = cleanNote;
     approval.openPinsAtDecision = openPinsAtDecision;
     approval.ip = req.ip;
     approval.userAgent = req.headers['user-agent'] || null;
@@ -859,7 +858,7 @@ exports.recordMemberDecision = asyncHandler(async (req, res) => {
       organization: project.organization,
       version: currentVersionId,
       decision,
-      note: (note || '').slice(0, 2000),
+      note: cleanNote,
       reviewer: {
         user: req.user._id,
         guestName: null,
@@ -881,7 +880,7 @@ exports.recordMemberDecision = asyncHandler(async (req, res) => {
     {
       decision,
       openPinsAtDecision,
-      round: latestVersion ? `Version ${latestVersion.versionNumber}` : 'Current round',
+      round: roundLabel,
     }
   );
 
@@ -894,7 +893,7 @@ exports.recordMemberDecision = asyncHandler(async (req, res) => {
       decision,
       reviewerName: req.user.name,
       openPinsAtDecision,
-      note: (note || '').slice(0, 200),
+      note: cleanNote.slice(0, 200),
     },
   }).catch(() => {});
 
@@ -920,7 +919,7 @@ exports.getApprovals = asyncHandler(async (req, res) => {
   const approvals = await Approval.find({ project: req.project._id })
     .populate('reviewer.user', 'name email avatar')
     .populate('version', 'versionNumber name')
-    .sort({ createdAt: -1 });
+    .sort({ updatedAt: -1 });
 
   res.json({ approvals });
 });
@@ -942,7 +941,11 @@ exports.updateReviewSettings = asyncHandler(async (req, res) => {
     project.review.requireAllResolved = Boolean(requireAllResolved);
   }
   if (deadlineAt !== undefined) {
-    project.review.deadlineAt = deadlineAt ? new Date(deadlineAt) : null;
+    const deadline = deadlineAt ? new Date(deadlineAt) : null;
+    if (deadline && Number.isNaN(deadline.getTime())) {
+      return res.status(400).json({ message: 'Invalid deadline' });
+    }
+    project.review.deadlineAt = deadline;
   }
   if (deadlineMessage !== undefined) {
     project.review.deadlineMessage = String(deadlineMessage || '').slice(0, 500);

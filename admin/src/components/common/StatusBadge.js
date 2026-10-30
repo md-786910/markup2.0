@@ -64,6 +64,8 @@ const HEALTH_LABELS = { healthy: 'Healthy', watch: 'Watch', at_risk: 'At risk' }
 
 export function HealthBadge({ health }) {
   if (!health) return <span className="text-gray-400">—</span>;
+  // The daily job hasn't scored this organization yet (the stored 50/Watch is only a default)
+  if (!health.computedAt) return <span className="text-xs text-gray-400" title="Scored by the daily billing job">Not scored</span>;
   const score = health.score != null ? health.score : 50;
   const band = health.band || 'watch';
   const tooltip = (health.reasons && health.reasons.length > 0)
@@ -80,7 +82,7 @@ export function HealthBadge({ health }) {
 }
 
 export const HEALTH_OPTIONS = [
-  { value: 'healthy', label: 'Healthy (75+)' },
-  { value: 'watch', label: 'Watch (40–74)' },
+  { value: 'healthy', label: 'Healthy (70+)' },
+  { value: 'watch', label: 'Watch (40–69)' },
   { value: 'at_risk', label: 'At risk (<40)' },
 ];

@@ -90,6 +90,11 @@ async function sendDigestEmail(toEmail, projectName, events) {
 // ── Account ─────────────────────────────────────────────────────────────────
 
 // Website contact form: to the support inbox, answerable with Reply
+// Operational alert to the team (content built by utils/adminAlerts.js)
+async function sendAdminAlertEmail(toEmail, { subject, html, text }) {
+  return send(toEmail, { subject, html, text });
+}
+
 async function sendSupportRequest(toEmail, request) {
   await send(toEmail, templates.supportRequest(request), { replyTo: { name: request.name, address: request.email } });
 }
@@ -158,6 +163,7 @@ async function sendSubscriptionCanceledEmail(toEmail, orgName, planName, endsAt,
 
 module.exports = {
   getTransporter,
+  sendAdminAlertEmail,
   sendSupportRequest,
   sendSupportTicketToTeam,
   sendSupportReplyEmail,

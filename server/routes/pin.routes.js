@@ -2,7 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const projectAccess = require('../middleware/projectAccess');
 const { requireAccess } = projectAccess;
-const { checkOrgNotLocked } = require('../middleware/orgLimits');
+const { checkOrgNotLocked, checkTaskWorkflowFields } = require('../middleware/orgLimits');
 const upload = require('../middleware/upload');
 const { enforceStorageQuota } = require('../utils/storage');
 const {
@@ -18,8 +18,8 @@ router.use(auth);
 
 router.post('/:projectId/pins', projectAccess, requireAccess('comment'), checkOrgNotLocked, upload.single('screenshot'), enforceStorageQuota, createPin);
 router.get('/:projectId/pins', projectAccess, getPins);
-router.patch('/:projectId/pins/reorder', projectAccess, requireAccess('comment'), checkOrgNotLocked, reorderPins);
-router.patch('/:projectId/pins/:pinId', projectAccess, requireAccess('comment'), checkOrgNotLocked, updatePin);
+router.patch('/:projectId/pins/reorder', projectAccess, requireAccess('comment'), checkOrgNotLocked, checkTaskWorkflowFields, reorderPins);
+router.patch('/:projectId/pins/:pinId', projectAccess, requireAccess('comment'), checkOrgNotLocked, checkTaskWorkflowFields, updatePin);
 router.patch('/:projectId/pins/:pinId/screenshot', projectAccess, requireAccess('comment'), checkOrgNotLocked, upload.single('screenshot'), enforceStorageQuota, attachScreenshot);
 router.delete('/:projectId/pins/:pinId', projectAccess, requireAccess('comment'), checkOrgNotLocked, deletePin);
 

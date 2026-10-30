@@ -109,7 +109,9 @@ async function computeHealthForOrg(orgId) {
     Project.find({ organization: orgId }).select('_id shareSettings status').lean(),
     Workspace.find({ organization: orgId }).select('_id isDefault shareSettings').lean(),
     Integration.countDocuments({ organization: orgId, enabled: true }),
-    Invoice.countDocuments({ organization: orgId, status: { $in: ['pending', 'failed'] } }),
+    // Only renewal invoices past their due date: an abandoned checkout or a renewal
+    // still inside its grace period isn't money owed
+    Invoice.countDocuments({ organization: orgId, status: 'pending', billingMonth: { $type: 'string' }, dueAt: { $lt: new Date() } }),
   ]);
 
   const activeProjects = projects.filter((p) => p.status !== 'archived');

@@ -35,6 +35,8 @@ function emptyForm() {
       replyHours: 48,
     },
     features: [],
+    // true once the admin edits the bullet list; otherwise the list is derived from the limits
+    featuresEdited: false,
     extraFeatures: [],
     razorpayPlanId: '',
   };
@@ -55,7 +57,7 @@ export default function PricingPage() {
     try {
       const [plansRes, trialRes] = await Promise.all([
         getPlansApi(),
-        getTrialSettingsApi().catch(() => ({ data: { defaultDays: 14, activeTrialOrgsCount: 0 } })),
+        getTrialSettingsApi().catch(() => ({ data: { defaultDays: 30, activeTrialOrgsCount: 0 } })),
       ]);
       setPlans(plansRes.data.plans);
       if (trialRes?.data) setTrialSettings(trialRes.data);
@@ -107,6 +109,7 @@ export default function PricingPage() {
         replyHours: plan.support?.replyHours || 48,
       },
       features: Array.isArray(plan.features) ? [...plan.features] : [],
+      featuresEdited: false,
       extraFeatures: Array.isArray(plan.extraFeatures) ? [...plan.extraFeatures] : [],
       razorpayPlanId: plan.razorpayPlanId || '',
     });
@@ -121,14 +124,15 @@ export default function PricingPage() {
     setForm((f) => {
       const next = [...f.features];
       next[i] = value;
-      return { ...f, features: next };
+      return { ...f, features: next, featuresEdited: true };
     });
   };
 
-  const addFeature = () => setForm((f) => ({ ...f, features: [...f.features, ''] }));
+  const addFeature = () => setForm((f) => ({ ...f, features: [...f.features, ''], featuresEdited: true }));
   const removeFeature = (i) => setForm((f) => ({
     ...f,
     features: f.features.filter((_, idx) => idx !== i),
+    featuresEdited: true,
   }));
 
   const updateSupportField = (key, value) => {
@@ -191,8 +195,10 @@ export default function PricingPage() {
         ...limitsPayload,
         support: form.support,
         extraFeatures: form.extraFeatures.map((f) => f.trim()).filter(Boolean),
-        deriveFeatures: true, // Auto-derive dynamic bullet points
-        features: form.features.map((f) => f.trim()).filter(Boolean),
+        // Bullets follow the limits unless the admin edited them by hand
+        ...(form.featuresEdited
+          ? { features: form.features.map((f) => f.trim()).filter(Boolean) }
+          : { deriveFeatures: true }),
         razorpayPlanId: form.razorpayPlanId.trim(),
       };
       const { data } = await updatePlanApi(editModal, payload);
@@ -276,7 +282,7 @@ export default function PricingPage() {
                     <div>
                       <p className="text-xs font-semibold text-emerald-900">Auto-assign to new signups</p>
                       <p className="text-[10.5px] text-emerald-700 leading-snug mt-0.5">
-                        On: new orgs start on Free.<br />Off: new orgs get a {trialSettings?.defaultDays || 14}-day trial.
+                        On: new orgs start on Free.<br />Off: new orgs get a {trialSettings?.defaultDays || 30}-day trial.
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
@@ -622,14 +628,14 @@ export default function PricingPage() {
                   Usage Impact Warning ({impactWarning.affectedCount} customer{impactWarning.affectedCount === 1 ? '' : 's'} affected)
                 </div>
                 <p className="text-xs text-amber-700">
-                  Some organizations currently subscribed to this plan exceed the proposed lower limits:
+                  Some of the {impactWarning.totalOrgs} organizations on this plan already use more than the new limits:
                 </p>
                 <div className="space-y-1">
-                  {impactWarning.impacts?.map((imp, idx) => (
-                    <div key={idx} className="text-xs flex items-center justify-between bg-white/70 px-2.5 py-1.5 rounded-lg border border-amber-200/50">
-                      <span className="font-medium text-gray-800">{imp.orgName}</span>
-                      <span className="text-amber-800 font-mono">
-                        {imp.limitKey}: {imp.currentUsage} used &gt; {imp.proposedLimit} new limit
+                  {Object.entries(impactWarning.impacts || {}).filter(([, count]) => count > 0).map(([limitKey, count]) => (
+                    <div key={limitKey} className="text-xs flex items-center justify-between bg-white/70 px-2.5 py-1.5 rounded-lg border border-amber-200/50">
+                      <span className="font-medium text-gray-800 font-mono">{limitKey}</span>
+                      <span className="text-amber-800">
+                        {count} organization{count === 1 ? '' : 's'} over the new limit
                       </span>
                     </div>
                   ))}
@@ -669,7 +675,7 @@ export default function PricingPage() {
           <button onClick={() => setEditModal(null)} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
             Cancel
           </button>
-          <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm hover:shadow-md flex items-center gap-2">
+          <button onClick={() => handleSave(false)} disabled={saving} className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm hover:shadow-md flex items-center gap-2">
             {saving ? (
               <>
                 <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>

@@ -906,6 +906,7 @@ exports.exportOrganization = asyncHandler(async (req, res) => {
   // Support requests as the customer sees them (no internal notes)
   const { forCustomer } = require("./supportTicket.controller");
   const supportRequests = (await require("../models/SupportTicket").find({ organization: org._id }).lean()).map(forCustomer);
+  const approvals = await require("../models/Approval").find({ organization: org._id }).select("-ip -userAgent").lean();
 
   // Share passwords/tokens are credentials, not customer content
   for (const p of projects) {
@@ -922,7 +923,7 @@ exports.exportOrganization = asyncHandler(async (req, res) => {
     organization: {
       _id: org._id, name: org.name, plan: org.plan, createdAt: org.createdAt, billingDetails: org.billingDetails,
     },
-    users, workspaces, projects, pins, comments, versions, activity, invoices, supportRequests,
+    users, workspaces, projects, pins, comments, versions, approvals, activity, invoices, supportRequests,
     files: "Uploaded files (documents, screenshots, attachments) are referenced by their path in each record and can be downloaded from the app.",
   };
   logOrgActivity(org._id, req.user._id, "org.data_exported", {});

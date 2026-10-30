@@ -14,6 +14,9 @@ export function describeAction(a) {
   switch (a.action) {
     case 'org.plan_set_by_admin': return `changed the plan from ${plan(m.from)} to ${plan(m.to)}`;
     case 'org.trial_extended': return `extended the trial by ${m.days} days${m.trialEndsAt ? ` (until ${formatDate(m.trialEndsAt)})` : ''}`;
+    case 'org.deal_updated': return m.after?.price != null
+      ? `set a custom price of ${m.after.price} ${m.after.currency || 'USD'}`
+      : 'removed the custom price';
     case 'org.limits_overridden': {
       const keys = Object.keys(m.overrides || {});
       return keys.length ? `set custom limits (${keys.length})` : 'cleared custom limits';

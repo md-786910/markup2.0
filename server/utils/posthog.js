@@ -6,7 +6,11 @@ const https = require('https');
 
 const API_KEY = process.env.POSTHOG_PERSONAL_API_KEY;
 const PROJECT_ID = process.env.POSTHOG_PROJECT_ID;
-const HOST = (process.env.POSTHOG_HOST || 'https://eu.i.posthog.com').replace(/\/$/, '');
+// Queries go to PostHog's app/API host; the "i." hosts (POSTHOG_HOST, used by the
+// app to send events) only accept ingestion. POSTHOG_API_HOST overrides it.
+const HOST = (process.env.POSTHOG_API_HOST
+  || (process.env.POSTHOG_HOST || 'https://eu.i.posthog.com').replace(/\/\/(eu|us)\.i\.posthog\.com/, '//$1.posthog.com')
+).replace(/\/$/, '');
 
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const TIMEOUT_MS = 5000;             // 5 seconds max
@@ -141,10 +145,24 @@ async function getOrgPosthogData(orgId) {
       LIMIT 8
     `;
 
-    const [sessionResults, pageResults, eventResults] = await Promise.all([
+    // Query 4: time in the app, as the span between the first and last event of each session
+    const durationQuery = `
+      SELECT sum(duration)
+      FROM (
+        SELECT $session_id as sid, dateDiff('second', min(timestamp), max(timestamp)) as duration
+        FROM events
+        WHERE timestamp >= now() - INTERVAL 30 DAY
+          AND $group_0 = '${orgKey}'
+          AND $session_id != ''
+        GROUP BY sid
+      )
+    `;
+
+    const [sessionResults, pageResults, eventResults, durationResults] = await Promise.all([
       queryHogQL(sessionQuery),
       queryHogQL(pagesQuery),
       queryHogQL(eventsQuery),
+      queryHogQL(durationQuery),
     ]);
 
     if (!sessionResults && !pageResults && !eventResults) {
@@ -155,11 +173,15 @@ async function getOrgPosthogData(orgId) {
     const activeUsers30d = sessionResults?.[0]?.[1] || 0;
     const topPages = (pageResults || []).map((row) => ({ url: row[0], views: row[1] }));
     const topEvents = (eventResults || []).map((row) => ({ event: row[0], count: row[1] }));
+    // null (shown as "—") when the duration query failed, rather than a misleading 0
+    const totalSeconds = durationResults ? Number(durationResults?.[0]?.[0]) || 0 : null;
+    const totalTimeMinutes30d = totalSeconds == null ? null : Math.round(totalSeconds / 60);
 
     const data = {
       available: true,
       sessions,
       activeUsers30d,
+      totalTimeMinutes30d,
       topPages,
       topEvents,
     };

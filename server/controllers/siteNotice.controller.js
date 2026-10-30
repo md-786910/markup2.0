@@ -60,10 +60,21 @@ exports.updateAdminNotice = asyncHandler(async (req, res) => {
   if (message != null) update.message = String(message).slice(0, 500).trim();
   if (level && VALID_LEVELS.includes(level)) update.level = level;
   if (dismissible != null) update.dismissible = !!dismissible;
-  if (link !== undefined) update.link = link ? String(link).slice(0, 300).trim() : null;
+  if (link !== undefined) {
+    const cleanLink = link ? String(link).slice(0, 300).trim() : null;
+    // The banner renders this as a link: only web addresses or paths in the app
+    if (cleanLink && !/^(https?:\/\/|\/(?!\/))/i.test(cleanLink)) {
+      return res.status(400).json({ message: 'The link must start with https://, http:// or /' });
+    }
+    update.link = cleanLink;
+  }
   if (linkText !== undefined) update.linkText = linkText ? String(linkText).slice(0, 60).trim() : null;
-  if (startsAt !== undefined) update.startsAt = startsAt ? new Date(startsAt) : null;
-  if (expiresAt !== undefined) update.expiresAt = expiresAt ? new Date(expiresAt) : null;
+  for (const [key, value] of [['startsAt', startsAt], ['expiresAt', expiresAt]]) {
+    if (value === undefined) continue;
+    const date = value ? new Date(value) : null;
+    if (date && Number.isNaN(date.getTime())) return res.status(400).json({ message: `Invalid ${key}` });
+    update[key] = date;
+  }
 
   const notice = await SiteNotice.findOneAndUpdate(
     { key: 'global' },

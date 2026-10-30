@@ -121,7 +121,8 @@ export default function GuestProjectPage() {
   const isFeedbackClosed = Boolean(
     project?.review?.deadlineAt && new Date() > new Date(project.review.deadlineAt)
   );
-  const openPinsCount = pins.filter((p) => p.status !== 'resolved').length;
+  // Open pins of the current review round (pins not yet in a saved version), as the server counts them
+  const openPinsCount = pins.filter((p) => p.status !== 'resolved' && !p.version).length;
   const isRequireResolvedBlocked = Boolean(
     project?.review?.requireAllResolved && openPinsCount > 0
   );

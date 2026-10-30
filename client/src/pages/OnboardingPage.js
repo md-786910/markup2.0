@@ -69,7 +69,7 @@ export default function OnboardingPage() {
   // Payment
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [livePlans, setLivePlans] = useState(null); // null = still loading
-  const [trialDays, setTrialDays] = useState(14);
+  const [trialDays, setTrialDays] = useState(30);
   const [signupMode, setSignupMode] = useState('trial');
 
   // Setting-up state shown after Start is clicked on the Payment step
@@ -110,7 +110,7 @@ export default function OnboardingPage() {
     getPublicPlansApi()
       .then((res) => {
         if (!alive) return;
-        const days = res.data?.trialDays ?? 14;
+        const days = res.data?.trialDays ?? 30;
         const mode = res.data?.signupMode || 'trial';
         setTrialDays(days);
         setSignupMode(mode);

@@ -1,5 +1,6 @@
 // Tests for Phase 5: Customer Health, Engagement & HogQL Telemetry
 process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_smoke_test';
+if (!/_test(\?|$)/.test(process.env.MONGODB_URI)) { console.error('Refusing to run: the test database name must end in _test'); process.exit(1); }
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'phase5-test-secret-'.padEnd(48, 'x');
 
 const path = require('path');
@@ -101,7 +102,7 @@ function check(name, cond, extra = '') {
       User.deleteMany({ email: /@phase5\.test$/ }),
       Project.deleteMany({ name: /^Phase5Project/ }),
       Pin.deleteMany({ pageUrl: /^https:\/\/phase5\.test/ }),
-      Comment.deleteMany({ content: /^Phase5Comment/ }),
+      Comment.deleteMany({ body: /^Phase5Comment/ }),
       Workspace.deleteMany({ name: /^Phase5Workspace/ }),
       Invoice.deleteMany({ invoiceNumber: /^PHASE5-INV/ }),
       SupportTicket.deleteMany({ subject: /^Phase5Ticket/ }),
@@ -195,12 +196,25 @@ function check(name, cond, extra = '') {
       currency: 'USD',
       plan: 'pro',
       status: 'pending',
+      billingMonth: '2026-01', // a renewal invoice: only these count as money owed
       dueAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days overdue
+    });
+    // An abandoned checkout (no billingMonth) stays pending but is not owed
+    await Invoice.create({
+      invoiceNumber: `PHASE5-INV-CHK-${Date.now()}`,
+      organization: atRiskOrg._id,
+      amount: 4900,
+      currency: 'USD',
+      plan: 'pro',
+      status: 'pending',
     });
 
     const atRiskComputed = await computeHealthForOrg(atRiskOrg._id);
     check('Inactive + overdue org computes at_risk band', atRiskComputed.band === 'at_risk', `score: ${atRiskComputed.score}`);
     check('Inactive + overdue org detects overdue invoice reason', atRiskComputed.reasons.some((r) => r.toLowerCase().includes('overdue')));
+    await Invoice.deleteMany({ organization: atRiskOrg._id, billingMonth: '2026-01' });
+    const checkoutOnly = await computeHealthForOrg(atRiskOrg._id);
+    check('A pending checkout invoice alone is not counted as overdue', !checkoutOnly.reasons.some((r) => r.toLowerCase().includes('overdue')));
     check('Inactive + overdue org detects inactivity reason', atRiskComputed.reasons.some((r) => r.toLowerCase().includes('inactiv') || r.toLowerCase().includes('active')));
 
     // --- 4. Admin Controller Endpoints Integration ---
@@ -250,7 +264,7 @@ function check(name, cond, extra = '') {
       User.deleteMany({ email: /@phase5\.test$/ }),
       Project.deleteMany({ name: /^Phase5Project/ }),
       Pin.deleteMany({ pageUrl: /^https:\/\/phase5\.test/ }),
-      Comment.deleteMany({ content: /^Phase5Comment/ }),
+      Comment.deleteMany({ body: /^Phase5Comment/ }),
       Workspace.deleteMany({ name: /^Phase5Workspace/ }),
       Invoice.deleteMany({ invoiceNumber: /^PHASE5-INV/ }),
     ]);

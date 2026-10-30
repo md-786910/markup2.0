@@ -64,6 +64,8 @@ async function settleInvoice(invoiceId, { providerPaymentId, providerCaptureId }
     }
 
     const isRenewal = !!invoice.billingMonth;
+    // Before the plan changes: was this org already a paying customer?
+    const wasPaying = ['starter', 'pro', 'enterprise'].includes(org.plan) && org.subscription?.status === 'active';
     let periodStart;
     let periodEnd;
     if (isRenewal) {
@@ -131,6 +133,11 @@ async function settleInvoice(invoiceId, { providerPaymentId, providerCaptureId }
     }
 
     sendReceipt(invoice, org, owner?.email);
+    if (!isRenewal && !wasPaying) {
+      require('../utils/adminAlerts').alertNewPaidCustomer({
+        organization: org, amount: invoice.amount, currency: invoice.currency, provider: invoice.provider,
+      }).catch(() => {});
+    }
 
     return { ok: true, invoice, org, periodEnd };
   } catch (err) {

@@ -17,6 +17,14 @@
 
 const axios = require('axios');
 const mailer = require('./mailer');
+const { URLS } = require('../config/env');
+const { logger } = require('./logger');
+
+// Customer-supplied text (ticket subjects, names) must not become markup
+const escHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const escSlack = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// Links open the admin panel (its own app and host), not the customer app
+const adminLink = (path) => `${URLS.admin}${path}`;
 
 /**
  * Dispatch an alert across configured channels asynchronously.
@@ -44,10 +52,10 @@ async function sendAdminAlert({ event, title, summary, details = {}, link, sever
     promises.push(sendEmailAlert(adminEmail, { event, title, summary, details, link, severity }));
   }
 
-  try {
-    await Promise.allSettled(promises);
-  } catch {
-    // Fire and forget: never throw or interrupt caller request flow
+  // Fire and forget: never throw into the caller, but say when a channel failed
+  const results = await Promise.allSettled(promises);
+  for (const r of results) {
+    if (r.status === 'rejected') logger.warn({ event, err: r.reason?.message }, 'admin alert could not be delivered');
   }
 }
 
@@ -63,7 +71,7 @@ async function sendSlackAlert(webhookUrl, { event, title, summary, details, link
 
   const fields = Object.entries(details).map(([k, v]) => ({
     type: 'mrkdwn',
-    text: `*${k}:*\n${v}`,
+    text: `*${escSlack(k)}:*\n${escSlack(v)}`,
   }));
 
   const blocks = [
@@ -79,7 +87,7 @@ async function sendSlackAlert(webhookUrl, { event, title, summary, details, link
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: summary,
+        text: escSlack(summary),
       },
     },
   ];
@@ -128,27 +136,27 @@ async function sendEmailAlert(toEmail, { event, title, summary, details, link, s
   const subject = `[Kommently Alert] [${severity.toUpperCase()}] ${title}`;
   
   const detailRows = Object.entries(details)
-    .map(([k, v]) => `<tr><td style="padding:6px 12px;font-weight:600;color:#475569;">${k}</td><td style="padding:6px 12px;color:#0f172a;">${v}</td></tr>`)
+    .map(([k, v]) => `<tr><td style="padding:6px 12px;font-weight:600;color:#475569;">${escHtml(k)}</td><td style="padding:6px 12px;color:#0f172a;">${escHtml(v)}</td></tr>`)
     .join('');
 
   const html = `
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;border:1px solid #e2e8f0;border-radius:8px;">
-      <h2 style="color:${severity === 'critical' ? '#dc2626' : '#2563eb'};margin-top:0;">${title}</h2>
-      <p style="font-size:15px;color:#334155;line-height:1.5;">${summary}</p>
+      <h2 style="color:${severity === 'critical' ? '#dc2626' : '#2563eb'};margin-top:0;">${escHtml(title)}</h2>
+      <p style="font-size:15px;color:#334155;line-height:1.5;">${escHtml(summary)}</p>
       ${detailRows ? `<table style="width:100%;margin:16px 0;border-collapse:collapse;background:#f8fafc;border-radius:6px;">${detailRows}</table>` : ''}
-      ${link ? `<p style="margin-top:24px;"><a href="${link}" style="background:#2563eb;color:#ffffff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">Open in Admin Panel</a></p>` : ''}
+      ${link ? `<p style="margin-top:24px;"><a href="${escHtml(link)}" style="background:#2563eb;color:#ffffff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">Open in Admin Panel</a></p>` : ''}
       <hr style="border:none;border-top:1px solid #e2e8f0;margin-top:32px;" />
       <p style="font-size:12px;color:#94a3b8;margin-bottom:0;">Automated notification from Kommently Alert Engine (${event})</p>
     </div>
   `;
 
-  await mailer.send(toEmail, { subject, html });
+  const text = [title, summary, ...Object.entries(details).map(([k, v]) => `${k}: ${v}`), link || ''].join('\n');
+  await mailer.sendAdminAlertEmail(toEmail, { subject, html, text });
 }
 
 // Convenience Event Helpers
 
 function alertNewUrgentTicket({ ticket, organization, requester }) {
-  const appBase = process.env.APP_URL || 'http://localhost:3000';
   return sendAdminAlert({
     event: 'ticket.urgent',
     title: `Urgent Support Ticket #${ticket.number}`,
@@ -159,13 +167,12 @@ function alertNewUrgentTicket({ ticket, organization, requester }) {
       Plan: organization?.plan || 'N/A',
       Requester: `${requester.name} <${requester.email}>`,
     },
-    link: `${appBase}/admin/support`,
+    link: adminLink(ticket._id ? `/support/${ticket._id}` : '/support'),
     severity: 'critical',
   });
 }
 
 function alertOverdueTicket({ ticket, organization }) {
-  const appBase = process.env.APP_URL || 'http://localhost:3000';
   return sendAdminAlert({
     event: 'ticket.overdue',
     title: `Overdue SLA: Ticket #${ticket.number}`,
@@ -175,13 +182,12 @@ function alertOverdueTicket({ ticket, organization }) {
       Organization: organization?.name || 'N/A',
       'Due At': ticket.dueAt ? new Date(ticket.dueAt).toISOString() : 'Immediate',
     },
-    link: `${appBase}/admin/support`,
+    link: adminLink(ticket._id ? `/support/${ticket._id}` : '/support'),
     severity: 'warning',
   });
 }
 
 function alertPaymentFailed({ organization, invoice, error }) {
-  const appBase = process.env.APP_URL || 'http://localhost:3000';
   return sendAdminAlert({
     event: 'payment.failed',
     title: `Payment Failed: ${organization.name}`,
@@ -192,13 +198,12 @@ function alertPaymentFailed({ organization, invoice, error }) {
       Amount: invoice ? `${(invoice.amount / 100).toFixed(2)} ${invoice.currency}` : 'N/A',
       Reason: error || 'Payment gateway declined transaction',
     },
-    link: `${appBase}/admin/organizations/${organization._id}`,
+    link: adminLink(`/organizations/${organization._id}`),
     severity: 'warning',
   });
 }
 
 function alertNewPaidCustomer({ organization, amount, currency, provider }) {
-  const appBase = process.env.APP_URL || 'http://localhost:3000';
   return sendAdminAlert({
     event: 'customer.new',
     title: `New Paying Customer: ${organization.name}!`,
@@ -208,13 +213,12 @@ function alertNewPaidCustomer({ organization, amount, currency, provider }) {
       Revenue: `${(amount / 100).toFixed(2)} ${currency}`,
       Gateway: provider,
     },
-    link: `${appBase}/admin/organizations/${organization._id}`,
+    link: adminLink(`/organizations/${organization._id}`),
     severity: 'info',
   });
 }
 
 function alertRefundIssued({ organization, invoice, amount, currency, admin }) {
-  const appBase = process.env.APP_URL || 'http://localhost:3000';
   return sendAdminAlert({
     event: 'refund.issued',
     title: `Refund Issued: ${organization?.name || 'Organization'}`,
@@ -225,13 +229,12 @@ function alertRefundIssued({ organization, invoice, amount, currency, admin }) {
       Amount: `${(amount / 100).toFixed(2)} ${currency}`,
       IssuedBy: admin.name,
     },
-    link: `${appBase}/admin/revenue`,
+    link: adminLink('/revenue'),
     severity: 'warning',
   });
 }
 
 function alertOrgLocked({ organization, reason }) {
-  const appBase = process.env.APP_URL || 'http://localhost:3000';
   return sendAdminAlert({
     event: 'org.locked',
     title: `Account Locked: ${organization.name}`,
@@ -241,7 +244,7 @@ function alertOrgLocked({ organization, reason }) {
       Plan: organization.plan,
       Reason: reason,
     },
-    link: `${appBase}/admin/organizations/${organization._id}`,
+    link: adminLink(`/organizations/${organization._id}`),
     severity: 'critical',
   });
 }

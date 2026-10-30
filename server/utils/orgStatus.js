@@ -4,15 +4,25 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Plans billed monthly at a list price; enterprise is a custom deal
 const PRICED_PLANS = ['starter', 'pro'];
 
+// The custom deal that applies right now, or null. Deals only bring in money
+// while the org is on a paid plan with an active subscription.
+function activeDeal(org, now = new Date()) {
+  const deal = org.deal;
+  if (!deal || deal.price == null) return null;
+  if (deal.until && new Date(deal.until) <= now) return null;
+  if (![...PRICED_PLANS, 'enterprise'].includes(org.plan) || org.subscription?.status !== 'active') return null;
+  return deal;
+}
+
 // Monthly revenue of an org (USD), prioritizing active custom deals then list price
 function monthlyRevenue(org, plans) {
-  const now = new Date();
-  const dealActive = org.deal && org.deal.price != null && (!org.deal.until || new Date(org.deal.until) > now);
-  if (dealActive) {
-    if (org.deal.currency === 'INR') {
-      return Math.round(Number(org.deal.price) / 84) || 0;
+  const deal = activeDeal(org);
+  if (deal) {
+    if (deal.currency === 'INR') {
+      const { USD_INR_RATE } = require('../config/plans');
+      return Math.round(Number(deal.price) / USD_INR_RATE) || 0;
     }
-    return Number(org.deal.price) || 0;
+    return Number(deal.price) || 0;
   }
   if (!PRICED_PLANS.includes(org.plan) || org.subscription?.status !== 'active') return 0;
   return Number(plans[org.plan]?.price) || 0;
@@ -30,4 +40,4 @@ function lifecycleStatus(org, now = Date.now()) {
   return 'paying';
 }
 
-module.exports = { PRICED_PLANS, monthlyRevenue, lifecycleStatus };
+module.exports = { PRICED_PLANS, activeDeal, monthlyRevenue, lifecycleStatus };

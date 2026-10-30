@@ -1,5 +1,6 @@
 // Tests for Phase 8: Task Workflow
 process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_smoke_test';
+if (!/_test(\?|$)/.test(process.env.MONGODB_URI)) { console.error('Refusing to run: the test database name must end in _test'); process.exit(1); }
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'phase8-test-secret-'.padEnd(48, 'x');
 
 const path = require('path');
@@ -87,10 +88,19 @@ function check(name, cond, extra = '') {
       role: 'member',
     });
 
+    const userA3 = await User.create({
+      name: 'Outsider Carol',
+      email: 'carol@phase8.test',
+      passwordHash: 'dummy',
+      organization: orgA._id,
+      role: 'member',
+    });
+
     const project = await Project.create({
       name: 'Phase8 Test Project',
       organization: orgA._id,
       owner: userA1._id,
+      members: [userA1._id, userA2._id],
       websiteUrl: 'https://phase8.test',
       shareSettings: {
         enabled: true,
@@ -144,6 +154,26 @@ function check(name, cond, extra = '') {
       nextErr
     );
     check('Assignee from foreign org is refused with 400', foreignRes.getCode() === 400);
+
+    // Org user without access to the project (must fail)
+    const noAccessRes = mockRes();
+    await pinController.updatePin(
+      { params: { pinId: pin._id }, body: { assignee: userA3._id }, project, organization: orgA, user: userA1, app: { get: () => null } },
+      noAccessRes,
+      nextErr
+    );
+    check('Assignee without project access is refused with 400', noAccessRes.getCode() === 400);
+
+    // Invalid values are refused instead of being ignored or crashing
+    for (const [label, body] of [['status', { status: 'done-ish' }], ['priority', { priority: 'asap' }], ['due date', { dueAt: 'not-a-date' }], ['assignee id', { assignee: 'xyz' }]]) {
+      const badRes = mockRes();
+      await pinController.updatePin(
+        { params: { pinId: pin._id }, body, project, organization: orgA, user: userA1, app: { get: () => null } },
+        badRes,
+        nextErr
+      );
+      check(`Invalid ${label} is refused with 400`, badRes.getCode() === 400);
+    }
 
     // Valid update with member assignee
     const targetDue = new Date(Date.now() + 3 * 86400000);
@@ -264,6 +294,30 @@ function check(name, cond, extra = '') {
     );
     check('getMyTasks returns assigned tasks count', bobTasks?.total >= 1);
     check('getMyTasks categorizes overdue task correctly', bobTasks?.overdue?.some((t) => t._id.toString() === bobPin._id.toString()));
+    check('getMyTasks returns the project name and id for the task link', bobTasks?.overdue?.[0]?.project?.name === 'Phase8 Test Project');
+
+    // A task in a project Bob can't open (not a member, no workspace access) stays hidden
+    const hiddenProject = await Project.create({
+      name: 'Phase8 Hidden Project',
+      organization: orgA._id,
+      owner: userA1._id,
+      members: [userA1._id],
+      projectType: 'website',
+      websiteUrl: 'https://phase8.test/hidden',
+    });
+    const hiddenPin = await Pin.create({
+      project: hiddenProject._id,
+      pageUrl: 'https://phase8.test/hidden',
+      createdBy: userA1._id,
+      assignee: userA2._id,
+      pinNumber: 1,
+      xPercent: 1,
+      yPercent: 1,
+    });
+    let bobTasksAfter = null;
+    await pinController.getMyTasks({ user: userA2 }, { json: (d) => { bobTasksAfter = d; } });
+    const allBob = [...(bobTasksAfter?.overdue || []), ...(bobTasksAfter?.dueSoon || []), ...(bobTasksAfter?.other || [])];
+    check('getMyTasks hides tasks in projects the user cannot open', !allBob.some((t) => t._id.toString() === hiddenPin._id.toString()));
 
     // User A1 has no assigned tasks
     let aliceTasks = null;

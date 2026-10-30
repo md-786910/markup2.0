@@ -228,13 +228,12 @@ exports.getGuestPins = asyncHandler(async (req, res) => {
   commentAgg.forEach((c) => { countMap[c._id.toString()] = c; });
 
   // Count plus the first comment (list preview), as in the member pin list
-  const allowConsole = !!project.settings?.guestConsoleCapture;
   const pinsWithCounts = pins.map((pin) => {
     const info = countMap[pin._id.toString()];
     const pinObj = pin.toObject();
-    if (!allowConsole && pinObj.context) {
-      pinObj.context.consoleErrors = [];
-    }
+    // Technical details (browser, OS, console errors, failed requests) are for the
+    // team; the guest page never shows them
+    delete pinObj.context;
     // Guest privacy sanitization: guests see open vs resolved only
     const guestStatus = pinObj.status === 'resolved' ? 'resolved' : 'open';
     delete pinObj.assignee;
@@ -377,10 +376,8 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
   const project = await loadSharedProject(req, res, { write: true });
   if (!project) return discardUploads(req);
 
-  const storageError = await reserveStorage(project.organization, req);
-  if (storageError) return res.status(403).json(storageError);
-
   if (!req.share.allowComments) {
+    discardUploads(req);
     return res.status(403).json({ message: 'Guest commenting is disabled for this project.' });
   }
 
@@ -392,6 +389,9 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
       deadlineAt: project.review.deadlineAt,
     });
   }
+
+  const storageError = await reserveStorage(project.organization, req);
+  if (storageError) return res.status(403).json(storageError);
 
   const { guestName, guestEmail } = req.body;
   const body = sanitizeCommentBody(req.body.body);
@@ -466,13 +466,23 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
   if (!['approved', 'changes_requested'].includes(decision)) {
     return res.status(400).json({ message: 'Valid decision ("approved" or "changes_requested") is required.' });
   }
-  if (!name || !email) {
+  if (!name || !email || typeof name !== 'string' || typeof email !== 'string') {
     return res.status(400).json({ message: 'Reviewer name and email are required.' });
   }
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return res.status(400).json({ message: 'Please enter a valid email address.' });
+  }
+  const cleanNote = String(note ?? '').slice(0, 2000);
 
   // Check if approvals are enabled on this project
   if (project.review?.approvalsEnabled === false) {
     return res.status(403).json({ message: 'Approvals are not enabled for this project.' });
+  }
+  // Sign-off is a paid feature: a link left on after a downgrade can't record decisions
+  const org = await Organization.findById(project.organization);
+  const { getEffectiveLimitsAsync } = require('../config/plans');
+  if (!org || (await getEffectiveLimitsAsync(org)).hasApprovals === false) {
+    return res.status(403).json({ message: 'Approvals are not available for this project.', code: 'FEATURE_NOT_AVAILABLE' });
   }
 
   // If deadline is set and passed:
@@ -487,19 +497,16 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
   const Version = require('../models/Version');
   const Approval = require('../models/Approval');
 
-  // Find latest version (round). If none, null represents current round.
+  // The open review round is everything not yet in a saved version (creating a
+  // version tags the round's pins and decisions), whatever versions came before
   const latestVersion = await Version.findOne({ project: project._id })
     .sort({ versionNumber: -1 })
     .select('_id versionNumber');
-  const currentVersionId = latestVersion?._id || null;
+  const currentVersionId = null;
+  const roundLabel = `Round ${(latestVersion?.versionNumber || 0) + 1}`;
 
   // Open pins count for this round (unresolved pins)
-  const pinQuery = { project: project._id, status: { $ne: 'resolved' } };
-  if (currentVersionId) {
-    pinQuery.version = currentVersionId;
-  } else {
-    pinQuery.version = null;
-  }
+  const pinQuery = { project: project._id, status: { $ne: 'resolved' }, version: null };
   const openPinsAtDecision = await Pin.countDocuments(pinQuery);
 
   if (project.review?.requireAllResolved && decision === 'approved' && openPinsAtDecision > 0) {
@@ -522,7 +529,7 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
 
   if (approval) {
     approval.decision = decision;
-    approval.note = (note || '').slice(0, 2000);
+    approval.note = cleanNote;
     approval.reviewer.guestName = cleanName;
     approval.openPinsAtDecision = openPinsAtDecision;
     approval.ip = req.ip;
@@ -534,7 +541,7 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
       organization: project.organization,
       version: currentVersionId,
       decision,
-      note: (note || '').slice(0, 2000),
+      note: cleanNote,
       reviewer: {
         user: null,
         guestName: cleanName,
@@ -559,7 +566,7 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
     {
       decision,
       openPinsAtDecision,
-      round: latestVersion ? `Version ${latestVersion.versionNumber}` : 'Current round',
+      round: roundLabel,
     }
   );
 
@@ -573,7 +580,7 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
       decision,
       reviewerName: cleanName,
       openPinsAtDecision,
-      note: (note || '').slice(0, 200),
+      note: cleanNote.slice(0, 200),
     },
   }).catch(() => {});
 

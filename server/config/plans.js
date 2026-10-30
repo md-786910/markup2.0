@@ -112,12 +112,12 @@ async function getDefaultTrialDaysAsync() {
   try {
     const PaymentSettings = require('../models/PaymentSettings');
     const settings = await PaymentSettings.getSingleton();
-    const days = settings?.trial?.defaultDays || 14;
+    const days = settings?.trial?.defaultDays || DEFAULT_TRIAL_DAYS;
     _trialDaysCache = days;
     _trialDaysCacheTime = now;
     return days;
   } catch {
-    return DEFAULT_TRIAL_DAYS || 14;
+    return DEFAULT_TRIAL_DAYS;
   }
 }
 
@@ -270,4 +270,4 @@ async function getEffectiveLimitsAsync(org) {
   return { ...base, ...overrides };
 }
 
-module.exports = { getSupportForPlan, getSupportForOrg, getEffectiveLimitsAsync, PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache, getDefaultTrialDaysAsync, clearTrialCache };
+module.exports = { getSupportForPlan, getSupportForOrg, getEffectiveLimitsAsync, PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, USD_INR_RATE, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache, getDefaultTrialDaysAsync, clearTrialCache };

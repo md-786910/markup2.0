@@ -10,6 +10,7 @@ const { extractMentionedUserIds, stripHtmlAndMentions } = require('../utils/ment
 const { createProjectNotifications } = require('../utils/notificationHelper');
 const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { deleteCommentCascade } = require('../utils/cascade');
+const { releaseUploads } = require('../utils/storage');
 
 // Keeps only mentions of users who can see the project (owner, members, or same
 // org), so a comment can't trigger emails/notifications to arbitrary user IDs.
@@ -38,8 +39,11 @@ exports.createComment = asyncHandler(async (req, res) => {
   }
 
   if (req.project?.review?.deadlineAt && new Date() > new Date(req.project.review.deadlineAt)) {
-    const isManageReply = req.access === 'manage' && !!parentComment;
+    // Every comment here is on an existing pin; after the deadline only people who
+    // manage the project can still reply
+    const isManageReply = req.access === 'manage';
     if (!isManageReply) {
+      await releaseUploads(req.organization?._id, req);
       return res.status(423).json({
         code: 'FEEDBACK_CLOSED',
         message: req.project.review.deadlineMessage || 'Feedback has closed for this review round.',
@@ -112,7 +116,8 @@ exports.createComment = asyncHandler(async (req, res) => {
       projectId,
       pageUrl: pin.pageUrl,
       comment: stripHtmlAndMentions(body).substring(0, 200),
-      context: pin.context,
+      // Technical details belong to the report itself, not to every reply
+      context: isFirstComment ? pin.context : undefined,
     });
 
     emailProjectMembers('comment', {

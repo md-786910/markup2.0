@@ -32,6 +32,8 @@ const supportTicketSchema = new Schema({
   // First-reply target from the plan (calendar hours for now)
   dueAt: { type: Date, default: null },
   firstResponseAt: { type: Date, default: null },
+  // When the team was alerted that the first reply is overdue (once per ticket)
+  overdueAlertedAt: { type: Date, default: null },
   lastCustomerReplyAt: { type: Date, default: null },
   lastAdminReplyAt: { type: Date, default: null },
   resolvedAt: { type: Date, default: null },

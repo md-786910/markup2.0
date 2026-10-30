@@ -81,6 +81,29 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [deviceMode, setDeviceMode] = useState('desktop');
   const [devicePinCounts, setDevicePinCounts] = useState({ desktop: 0, tablet: 0, mobile: 0 });
+  // Last known open/resolved state of every pin (all devices), so the badges only
+  // change when a pin moves between open and resolved, and a local update plus its
+  // socket echo are counted once
+  const pinStatesRef = useRef(new Map());
+  const trackPinState = useCallback((pin, change) => {
+    if (!pin?._id) return;
+    const states = pinStatesRef.current;
+    const prev = states.get(pin._id);
+    if (change === 'deleted') {
+      states.delete(pin._id);
+      if (prev?.open) setDevicePinCounts((c) => ({ ...c, [prev.mode]: Math.max(0, (c[prev.mode] || 0) - 1) }));
+      return;
+    }
+    if (!pin.status) return;
+    // An update for a pin not loaded yet is already in the counts being fetched
+    if (change === 'updated' && !prev) return;
+    const mode = pin.deviceMode || prev?.mode || 'desktop';
+    const open = pin.status !== 'resolved';
+    states.set(pin._id, { open, mode });
+    if (open !== !!prev?.open) {
+      setDevicePinCounts((c) => ({ ...c, [mode]: Math.max(0, (c[mode] || 0) + (open ? 1 : -1)) }));
+    }
+  }, []);
   const [currentDocPage, setCurrentDocPage] = useState(1);
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
   const [sidebarTab, setSidebarTab] = useState('pins');
@@ -196,11 +219,14 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     getPinsApi(project._id)
       .then((res) => {
         const counts = { desktop: 0, tablet: 0, mobile: 0 };
+        const states = new Map();
         for (const pin of res.data.pins) {
-          if (pin.status !== 'resolved' && counts[pin.deviceMode || 'desktop'] !== undefined) {
-            counts[pin.deviceMode || 'desktop']++;
-          }
+          const mode = pin.deviceMode || 'desktop';
+          const open = pin.status !== 'resolved' && counts[mode] !== undefined;
+          states.set(pin._id, { open, mode });
+          if (open) counts[mode]++;
         }
+        pinStatesRef.current = states;
         setDevicePinCounts(counts);
       })
       .catch(() => {});
@@ -359,13 +385,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
   const handleDeletePin = async (pinId) => {
     try {
-      // Decrement count before deleting
-      const pin = allPins.find((p) => p._id === pinId);
-      if (pin && pin.status !== 'resolved') {
-        const mode = pin.deviceMode || 'desktop';
-        setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
-      }
       await deletePinApi(project._id, pinId);
+      trackPinState({ _id: pinId }, 'deleted');
       handleClosePin();
       await loadPins();
       await loadAllPins();
@@ -376,16 +397,9 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
   const handlePinUpdate = async (pinId, patchData) => {
     try {
-      if (patchData && patchData.status) {
-        const mode = deviceMode;
-        if (patchData.status === 'resolved') {
-          setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
-        } else if (patchData.status === 'pending' || patchData.status === 'open') {
-          setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
-        }
-      }
       const res = await updatePinApi(project._id, pinId, patchData);
       const updated = res.data?.pin;
+      if (updated) trackPinState(updated, 'updated');
       await loadPins();
       await loadAllPins();
       if (selectedPin?._id === pinId) {
@@ -443,13 +457,9 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         if (prev.some((p) => p._id === data.pin._id)) return prev;
         return [data.pin, ...prev];
       });
-      // Update device pin counts
-      if (data.pin.status !== 'resolved') {
-        const mode = data.pin.deviceMode || 'desktop';
-        setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
-      }
+      trackPinState(data.pin, 'created');
     });
-  }, [onEvent, currentPageUrl, deviceMode]);
+  }, [onEvent, currentPageUrl, deviceMode, trackPinState]);
 
   // Pin updated (status change)
   useEffect(() => {
@@ -461,32 +471,19 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       setSelectedPin((prev) =>
         prev && prev._id === data.pin._id ? { ...prev, ...data.pin } : prev
       );
-      // Update device pin counts on status change
-      const mode = data.pin.deviceMode || 'desktop';
-      if (data.pin.status === 'resolved') {
-        setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
-      } else if (data.pin.status !== 'resolved') {
-        setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
-      }
+      trackPinState(data.pin, 'updated');
     });
-  }, [onEvent]);
+  }, [onEvent, trackPinState]);
 
   // Pin deleted
   useEffect(() => {
     return onEvent('pin:deleted', (data) => {
-      // Decrement device count if the deleted pin was active
-      setAllPins((prev) => {
-        const deleted = prev.find((p) => p._id === data.pinId);
-        if (deleted && deleted.status !== 'resolved') {
-          const mode = deleted.deviceMode || 'desktop';
-          setDevicePinCounts((c) => ({ ...c, [mode]: Math.max(0, (c[mode] || 0) - 1) }));
-        }
-        return prev.filter((p) => p._id !== data.pinId);
-      });
+      trackPinState({ _id: data.pinId }, 'deleted');
+      setAllPins((prev) => prev.filter((p) => p._id !== data.pinId));
       setPins((prev) => prev.filter((p) => p._id !== data.pinId));
       setSelectedPin((prev) => (prev && prev._id === data.pinId ? null : prev));
     });
-  }, [onEvent]);
+  }, [onEvent, trackPinState]);
 
   // Comment created — update counts in pin lists
   useEffect(() => {
@@ -697,7 +694,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             <button
               onClick={() => {
                 if (!limits.hasTaskWorkflow) {
-                  navigate('/pricing');
+                  navigate('/settings?tab=billing');
                   return;
                 }
                 setViewLayout('board');

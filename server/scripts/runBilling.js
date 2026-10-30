@@ -391,6 +391,7 @@ async function phaseOrgDeletion() {
       Activity.deleteMany({ organization: org._id, 'metadata.actorRole': { $ne: 'superadmin' } }),
       require('../models/Workspace').deleteMany({ organization: org._id }),
       require('../models/AdminNote').deleteMany({ organization: org._id }),
+      require('../models/Approval').deleteMany({ organization: org._id }),
       deleteSupportTickets(org._id),
       Project.updateMany({ members: { $in: userIds } }, { $pull: { members: { $in: userIds } } }),
     ]);
@@ -454,15 +455,20 @@ async function runBilling() {
     try {
       const SupportTicket = require('../models/SupportTicket');
       const { alertOverdueTicket } = require('../utils/adminAlerts');
+      // Each overdue ticket alerts once, most overdue first
       const overdueTickets = await SupportTicket.find({
         status: 'open',
         firstResponseAt: null,
+        overdueAlertedAt: null,
         dueAt: { $ne: null, $lt: new Date() },
-      }).populate('organization', 'name').limit(10).lean();
+      }).sort({ dueAt: 1 }).populate('organization', 'name').limit(10).lean();
       for (const t of overdueTickets) {
+        await SupportTicket.updateOne({ _id: t._id }, { $set: { overdueAlertedAt: new Date() } });
         alertOverdueTicket({ ticket: t, organization: t.organization }).catch(() => {});
       }
-    } catch {}
+    } catch (err) {
+      console.error('[billing] overdue support alerts failed:', err.message);
+    }
     console.log('[billing] done');
   } finally {
     running = false;

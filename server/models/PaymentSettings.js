@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { DEFAULT_TRIAL_DAYS } = require('../config/plans');
 
 // Singleton document — one row keyed by `key: 'default'` controls the active
 // payment provider + global billing policy for the whole platform. Admins
@@ -23,7 +24,7 @@ const paymentSettingsSchema = new mongoose.Schema({
   allowDowngrades: { type: Boolean, default: false },
   // Global trial configuration across all workspaces
   trial: {
-    defaultDays: { type: Number, default: 14, min: 1, max: 365 },
+    defaultDays: { type: Number, default: DEFAULT_TRIAL_DAYS, min: 1, max: 365 },
     updatedAt: { type: Date, default: Date.now },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser', default: null },
   },
@@ -40,13 +41,13 @@ paymentSettingsSchema.statics.getSingleton = async function () {
         paypal: { enabled: false },
       },
       trial: {
-        defaultDays: 14,
+        defaultDays: DEFAULT_TRIAL_DAYS,
         updatedAt: new Date(),
       },
     });
   } else if (!doc.trial || !doc.trial.defaultDays) {
     doc.trial = {
-      defaultDays: 14,
+      defaultDays: DEFAULT_TRIAL_DAYS,
       updatedAt: new Date(),
     };
     await doc.save();

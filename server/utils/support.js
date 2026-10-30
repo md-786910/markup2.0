@@ -40,6 +40,10 @@ function computeBusinessHoursDueAt(from, targetHours, configStr) {
 
     const [startH, startM] = timeRange.split('-')[0].split(':').map(Number);
     const [endH, endM] = timeRange.split('-')[1].split(':').map(Number);
+    // A setting that can't be read (e.g. "Mon-Fri 9-18") falls back to calendar hours
+    if (![startH, startM, endH, endM].every(Number.isFinite) || startH * 60 + startM >= endH * 60 + endM) {
+      throw new Error('Unreadable SUPPORT_HOURS');
+    }
 
     const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     let allowedDays = [1, 2, 3, 4, 5]; // default Mon-Fri
@@ -60,17 +64,18 @@ function computeBusinessHoursDueAt(from, targetHours, configStr) {
     // Iterate in 15-minute intervals
     let current = new Date(from.getTime());
 
+    // Day of week and hour/minute in the configured time zone
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      weekday: 'short',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    });
+
     let iterations = 0;
     while (remainingMinutes > 0 && iterations < 4000) {
       iterations++;
-      // Get current day of week and hour/minute in the specified timezone
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        weekday: 'short',
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: false,
-      });
 
       const parts = formatter.formatToParts(current);
       const dayStr = parts.find((p) => p.type === 'weekday')?.value;
@@ -91,6 +96,8 @@ function computeBusinessHoursDueAt(from, targetHours, configStr) {
       current = new Date(current.getTime() + 15 * 60 * 1000);
     }
 
+    // Ran out of steps without finding enough working time: the setting is unusable
+    if (remainingMinutes > 0) throw new Error('No working hours in SUPPORT_HOURS');
     return current;
   } catch {
     // Resilient fallback to calendar hours

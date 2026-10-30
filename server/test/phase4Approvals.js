@@ -1,5 +1,6 @@
 // Tests for Phase 4: Client approvals and feedback deadlines
 process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_smoke_test';
+if (!/_test(\?|$)/.test(process.env.MONGODB_URI)) { console.error('Refusing to run: the test database name must end in _test'); process.exit(1); }
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'phase4-test-secret-'.padEnd(48, 'x');
 
 const path = require('path');

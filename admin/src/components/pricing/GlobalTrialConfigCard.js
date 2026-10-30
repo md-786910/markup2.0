@@ -8,7 +8,7 @@ export default function GlobalTrialConfigCard({
 }) {
   const [modalOpen, setModalOpen] = useState(false);
 
-  const defaultDays = trialSettings?.defaultDays || 14;
+  const defaultDays = trialSettings?.defaultDays || 30;
   const activeCount = trialSettings?.activeTrialOrgsCount || 0;
 
   return (
