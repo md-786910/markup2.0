@@ -141,6 +141,13 @@ export default function PrivacyPage() {
               We do not use third-party advertising cookies or sell data to advertisers. You can manage cookie preferences through your browser settings, though disabling essential cookies may impair Service functionality.
             </p>
 
+            <h3 className="font-display text-lg font-semibold text-[#0f172a] mt-6 mb-2">
+              2.5 Technical Diagnostic Data (Developer-Ready Reports)
+            </h3>
+            <p className="text-slate-600 leading-relaxed mb-4">
+              When a reviewer drops a feedback pin on a project, Kommently automatically captures technical environment context (browser version, operating system, screen resolution, viewport, timezone, and recent console errors or failed network requests) to help developers reproduce defects. We never capture form input values, passwords, cookies, or authentication tokens. Project owners can configure or disable console error capture within project settings.
+            </p>
+
             {/* 3. How We Use Your Information */}
             <h2 id="how-we-use" className="font-display text-2xl font-bold text-[#0f172a] mt-12 mb-4">
               3. How We Use Your Information

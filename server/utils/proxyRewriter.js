@@ -490,6 +490,9 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         logging: false,
         imageTimeout: fast ? 500 : 2500,
         ignoreElements: function(el) {
+          if (!el) return false;
+          var tag = (el.tagName || '').toUpperCase();
+          if (tag === 'VIDEO' || tag === 'AUDIO') return true;
           if (el.id === '__markup_pin_container' || (el.classList && el.classList.contains('__markup_pin'))) return true;
           return isHiddenOnPage(el);
         },
@@ -658,6 +661,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       try {
         var resolved = new URL(url, __markupPageOrigin);
         var originalPath = resolved.pathname + resolved.search + resolved.hash;
+        __markupPageUrl = resolved.href;
         _pushState.call(this, state, title, originalPath);
         window.parent.postMessage({ type: 'MARKUP_READY', pageUrl: resolved.href, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight }, '*');
         return;
@@ -671,6 +675,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       try {
         var resolved = new URL(url, __markupPageOrigin);
         var originalPath = resolved.pathname + resolved.search + resolved.hash;
+        __markupPageUrl = resolved.href;
         return _replaceState.call(this, state, title, originalPath);
       } catch(e) {}
     }
@@ -684,6 +689,17 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
     var _origUrl = new URL(__markupPageUrl);
     _replaceState.call(history, null, '', _origUrl.pathname + _origUrl.search + _origUrl.hash);
   } catch(e) {}
+
+  function updatePageUrlFromLocation() {
+    try {
+      var currentPath = window.location.pathname + window.location.search + window.location.hash;
+      var resolved = new URL(currentPath, __markupPageOrigin);
+      __markupPageUrl = resolved.href;
+      window.parent.postMessage({ type: 'MARKUP_READY', pageUrl: resolved.href, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight }, '*');
+    } catch(e) {}
+  }
+  window.addEventListener('popstate', updatePageUrlFromLocation);
+  window.addEventListener('hashchange', updatePageUrlFromLocation);
 
   function init() {
     // Create pin container
@@ -770,6 +786,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       var selector = null;
       var elementOffsetX = null;
       var elementOffsetY = null;
+      var elementText = null;
       try {
         var target = document.elementFromPoint(e.clientX, e.clientY);
         if (target && target.id !== '__markup_pin_container' && !target.classList.contains('__markup_pin')) {
@@ -779,12 +796,26 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
             elementOffsetX = ((e.clientX - rect.left) / rect.width) * 100;
             elementOffsetY = ((e.clientY - rect.top) / rect.height) * 100;
           }
+          var tag = (target.tagName || '').toUpperCase();
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+            elementText = (target.getAttribute('placeholder') || target.getAttribute('aria-label') || target.name || tag.toLowerCase()).slice(0, 120);
+          } else {
+            elementText = (target.innerText || target.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+          }
         }
       } catch (err) { /* fallback to percentage */ }
 
       var viewportXPercent = (e.clientX / window.innerWidth) * 100;
       var viewportYPercent = (e.clientY / window.innerHeight) * 100;
       var clickId = (++__markupClickSeq) + '-' + Date.now();
+
+      var diag = window.__markupDiag || { consoleErrors: [], failedRequests: [] };
+      var context = {
+        pageTitle: (document.title || '').slice(0, 200),
+        elementText: elementText,
+        consoleErrors: (diag.consoleErrors || []).slice(-20),
+        failedRequests: (diag.failedRequests || []).slice(-20)
+      };
 
       sendMessage('MARKUP_CLICK', {
         clickId: clickId,
@@ -797,7 +828,8 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         elementOffsetY: elementOffsetY,
         pageUrl: __markupPageUrl,
         documentWidth: doc.scrollWidth,
-        documentHeight: doc.scrollHeight
+        documentHeight: doc.scrollHeight,
+        context: context
       });
 
       // Capture exactly what is on screen, asynchronously (don't block pin creation)
@@ -1288,6 +1320,142 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   const captureScript = `
 <script>
 (function() {
+  // Phase 3: Developer-Ready Reports diagnostic ring buffers (<2 KB)
+  try {
+    var __diag = window.__markupDiag = {
+      consoleErrors: [],
+      failedRequests: [],
+      lastErrorTime: 0,
+      lastErrorMessage: '',
+      recentSignatures: {},
+      pushError: function(level, msg) {
+        try {
+          var now = Date.now();
+          var str = typeof msg === 'string' ? msg : (msg && msg.message ? (msg.message + (msg.stack ? '\\n' + msg.stack : '')) : String(msg));
+          var sig = (level || 'error') + ':' + str.slice(0, 100);
+          if (this.recentSignatures[sig] && (now - this.recentSignatures[sig]) < 500) return;
+          this.recentSignatures[sig] = now;
+          this.lastErrorMessage = str;
+          this.lastErrorTime = now;
+          this.consoleErrors.push({
+            level: level === 'warn' ? 'warn' : 'error',
+            message: str.slice(0, 500),
+            at: new Date().toISOString()
+          });
+          if (this.consoleErrors.length > 20) this.consoleErrors.shift();
+        } catch(e) {}
+      },
+      pushRequest: function(method, url, status) {
+        try {
+          var clean = '';
+          if (typeof url === 'string') {
+            if (url.indexOf('/api/proxy') !== -1) {
+              var match = url.match(/[?&]url=([^&]+)/i);
+              if (match && match[1]) {
+                try { clean = decodeURIComponent(match[1]); } catch(e) { clean = match[1]; }
+              } else {
+                clean = url;
+              }
+            } else {
+              clean = url;
+            }
+            clean = clean.split(/[?#]/)[0];
+          }
+          this.failedRequests.push({
+            method: (method || 'GET').toUpperCase().slice(0, 10),
+            url: clean.slice(0, 2000),
+            status: Number(status) || 0
+          });
+          if (this.failedRequests.length > 20) this.failedRequests.shift();
+        } catch(e) {}
+      }
+    };
+
+    function safeStringify(a) {
+      if (a === null || a === undefined) return String(a);
+      if (typeof a !== 'object') return String(a);
+      if (a.stack) return a.message + '\\n' + a.stack;
+      try {
+        return JSON.stringify(a);
+      } catch(e) {
+        return a.tagName ? ('<' + a.tagName.toLowerCase() + '>') : String(a);
+      }
+    }
+
+    var origErr = console.error;
+    console.error = function() {
+      try {
+        var args = Array.prototype.slice.call(arguments);
+        __diag.pushError('error', args.map(safeStringify).join(' '));
+      } catch(e) {}
+      if (origErr) return origErr.apply(console, arguments);
+    };
+
+    var origWarn = console.warn;
+    console.warn = function() {
+      try {
+        var args = Array.prototype.slice.call(arguments);
+        __diag.pushError('warn', args.map(safeStringify).join(' '));
+      } catch(e) {}
+      if (origWarn) return origWarn.apply(console, arguments);
+    };
+
+    window.addEventListener('error', function(ev) {
+      try {
+        var msg = ev.error && ev.error.stack ? (ev.error.message + '\\n' + ev.error.stack) : (ev.message || 'Script error');
+        __diag.pushError('error', msg);
+      } catch(e) {}
+    });
+
+    window.addEventListener('unhandledrejection', function(ev) {
+      try {
+        var reason = ev.reason;
+        var msg = reason && reason.stack ? (reason.message + '\\n' + reason.stack) : (reason && reason.message ? reason.message : String(reason || 'Unhandled rejection'));
+        __diag.pushError('error', 'Unhandled Promise Rejection: ' + msg);
+      } catch(e) {}
+    });
+
+    if (window.fetch) {
+      var origFetch = window.fetch;
+      window.fetch = function(input, init) {
+        var method = (init && init.method) || (typeof input === 'object' && input && input.method) || 'GET';
+        var url = typeof input === 'string' ? input : (input && input.url ? input.url : (input && input.href ? input.href : (input ? String(input) : '')));
+        return origFetch.apply(this, arguments).then(function(res) {
+          if (!res.ok) __diag.pushRequest(method, url, res.status);
+          return res;
+        }).catch(function(err) {
+          __diag.pushRequest(method, url, 0);
+          throw err;
+        });
+      };
+    }
+
+    if (window.XMLHttpRequest) {
+      var origOpen = XMLHttpRequest.prototype.open;
+      var origSend = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.open = function(method, url) {
+        this.__markupMethod = method;
+        this.__markupUrl = url;
+        this.__markupAborted = false;
+        var xhr = this;
+        xhr.addEventListener('abort', function() { xhr.__markupAborted = true; });
+        return origOpen.apply(this, arguments);
+      };
+      XMLHttpRequest.prototype.send = function() {
+        var xhr = this;
+        xhr.addEventListener('loadend', function() {
+          try {
+            if (xhr.__markupAborted) return;
+            if (xhr.status >= 400 || xhr.status === 0) {
+              __diag.pushRequest(xhr.__markupMethod || 'GET', xhr.__markupUrl || '', xhr.status);
+            }
+          } catch(e) {}
+        });
+        return origSend.apply(this, arguments);
+      };
+    }
+  } catch(e) {}
+
   try {
     function record(inst) { try { if (inst) window.__markupScroller = inst; } catch(e){} }
     function wrap(Real) {

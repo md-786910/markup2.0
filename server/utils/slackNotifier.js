@@ -39,6 +39,25 @@ async function sendSlackNotification(webhookUrl, data) {
     });
   }
 
+  if (data.context) {
+    const ctx = data.context;
+    const envParts = [];
+    if (ctx.browser || ctx.os) envParts.push(`${ctx.browser || ''} on ${ctx.os || ''}`.trim());
+    if (ctx.screen && ctx.screen.w != null && ctx.screen.h != null) envParts.push(`${ctx.screen.w}x${ctx.screen.h}`);
+    const badges = [];
+    if (Array.isArray(ctx.consoleErrors) && ctx.consoleErrors.length > 0) badges.push(`🚨 ${ctx.consoleErrors.length} errors`);
+    if (Array.isArray(ctx.failedRequests) && ctx.failedRequests.length > 0) badges.push(`⚠️ ${ctx.failedRequests.length} failed reqs`);
+    let info = '';
+    if (envParts.length > 0) info += `*Env:* ${envParts.join(' · ')}`;
+    if (badges.length > 0) info += `  |  ${badges.join('  ')}`;
+    if (info) {
+      blocks.push({
+        type: 'context',
+        elements: [{ type: 'mrkdwn', text: info }],
+      });
+    }
+  }
+
   blocks.push({
     type: 'actions',
     elements: [{

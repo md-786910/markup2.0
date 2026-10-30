@@ -226,7 +226,7 @@ exports.getWorkspaceMembers = asyncHandler(async (req, res) => {
 });
 
 exports.updateProject = asyncHandler(async (req, res) => {
-  const { name, websiteUrl, status, projectStatus, workspace } = req.body;
+  const { name, websiteUrl, status, projectStatus, workspace, settings } = req.body;
   const project = req.project;
 
   // Needs 'manage' on this project (creator, org admins, or granted)
@@ -247,6 +247,15 @@ exports.updateProject = asyncHandler(async (req, res) => {
       : null;
     if (!target) return res.status(400).json({ message: 'Workspace not found' });
     project.workspace = target._id;
+  }
+  if (settings && typeof settings === 'object') {
+    if (!project.settings) project.settings = {};
+    if (typeof settings.captureConsoleErrors === 'boolean') {
+      project.settings.captureConsoleErrors = settings.captureConsoleErrors;
+    }
+    if (typeof settings.guestConsoleCapture === 'boolean') {
+      project.settings.guestConsoleCapture = settings.guestConsoleCapture;
+    }
   }
   await project.save();
 

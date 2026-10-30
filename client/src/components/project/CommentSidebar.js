@@ -16,6 +16,7 @@ import { fileUrl } from "../../utils/uploadUrl";
 import { ACCEPTED_ATTACHMENT_TYPES } from "../../utils/attachmentHelpers";
 import { formatFullTimestamp } from "../../utils/formatTimestamp";
 import { toastError } from '../../utils/toast';
+import TechnicalDetails from './TechnicalDetails';
 
 function formatDateTime(dateStr) {
   const d = new Date(dateStr);
@@ -529,7 +530,7 @@ export default function CommentSidebar({
       </>)}
 
       {/* Screenshot */}
-      {pin.screenshot?.path && (
+      {pin.screenshot?.path ? (
         <div className="px-3 py-1.5 border-b border-gray-200 shrink-0">
           <p className="text-[10px] text-gray-400 mb-1 font-medium">
             Screenshot
@@ -563,7 +564,21 @@ export default function CommentSidebar({
             </svg>
           </button>
         </div>
-      )}
+      ) : (pin?.pageUrl && !pin.pageUrl.startsWith('doc:') ? (
+        <div className="px-3 py-1.5 border-b border-gray-100 shrink-0 flex items-center justify-between text-[11px] text-gray-400">
+          <span>Screenshot</span>
+          <span className="text-[10px] text-gray-400 italic">Not available</span>
+        </div>
+      ) : null)}
+
+      {/* Technical reproduction details */}
+      <div className="px-3 shrink-0">
+        <TechnicalDetails
+          context={pin.context}
+          pageUrl={pin.pageUrl}
+          deviceMode={pin.deviceMode}
+        />
+      </div>
 
       {/* Prev / Next Navigation */}
       {pins.length > 1 && (

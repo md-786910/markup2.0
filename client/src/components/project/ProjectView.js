@@ -23,6 +23,7 @@ import {
 } from "../../services/pinService";
 import { useSocket } from "../../hooks/useSocket";
 import { toastError } from '../../utils/toast';
+import { getClientEnvironment } from "../../utils/clientEnv";
 import BrandMark from "../common/BrandMark";
 
 // PDF viewer (react-pdf + pdf.js) is only downloaded for document projects
@@ -204,7 +205,13 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   // Handle clicks from iframe — store click data for pending pin (don't create yet)
   useEffect(() => {
     if (iframeState.lastClick && pinMode && !pendingPinData) {
-      const { clickId, xPercent, yPercent, viewportXPercent, viewportYPercent, selector, elementOffsetX, elementOffsetY, documentWidth, documentHeight } = iframeState.lastClick;
+      const { clickId, xPercent, yPercent, viewportXPercent, viewportYPercent, selector, elementOffsetX, elementOffsetY, documentWidth, documentHeight, context: iframeContext } = iframeState.lastClick;
+      const env = getClientEnvironment();
+      const combinedContext = {
+        ...env,
+        ...(iframeContext || {}),
+        screen: env.screen,
+      };
       setPendingPinData({
         clickId,
         xPercent,
@@ -218,6 +225,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         documentWidth,
         documentHeight,
         deviceMode,
+        context: combinedContext,
       });
       iframeState.clearLastClick();
     }
@@ -230,7 +238,10 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       const blob = await (await fetch(dataUrl)).blob();
       const formData = new FormData();
       formData.append('screenshot', blob, 'screenshot.jpg');
-      await uploadPinScreenshotApi(project._id, pinId, formData);
+      const res = await uploadPinScreenshotApi(project._id, pinId, formData);
+      if (res?.data?.pin?.screenshot) {
+        setSelectedPin((prev) => (prev && prev._id === pinId ? { ...prev, screenshot: res.data.pin.screenshot } : prev));
+      }
       loadAllPins();
       loadPins();
     } catch (err) {
@@ -523,7 +534,14 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
   const handleDocumentClick = useCallback((clickData) => {
     if (pendingPinData) return;
-    setPendingPinData(clickData);
+    const env = getClientEnvironment();
+    setPendingPinData({
+      ...clickData,
+      context: {
+        ...env,
+        ...(clickData.context || {}),
+      },
+    });
   }, [pendingPinData]);
 
   const handleDocScreenshot = useCallback((screenshot) => {

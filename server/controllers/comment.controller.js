@@ -99,7 +99,9 @@ exports.createComment = asyncHandler(async (req, res) => {
       pinNumber: pin.pinNumber,
       pinId: pin._id.toString(),
       projectId,
+      pageUrl: pin.pageUrl,
       comment: stripHtmlAndMentions(body).substring(0, 200),
+      context: pin.context,
     });
 
     emailProjectMembers('comment', {

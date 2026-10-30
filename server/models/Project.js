@@ -76,6 +76,10 @@ const projectSchema = new Schema({
     allowComments: { type: Boolean, default: true },
     expiresAt: { type: Date, default: null },
   },
+  settings: {
+    captureConsoleErrors: { type: Boolean, default: true },
+    guestConsoleCapture: { type: Boolean, default: false },
+  },
 }, {
   timestamps: true,
   toJSON: {

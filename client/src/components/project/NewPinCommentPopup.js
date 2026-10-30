@@ -90,6 +90,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
         if (pinData.deviceMode) pinFormData.append('deviceMode', pinData.deviceMode);
         if (pinData.viewportXPercent != null) pinFormData.append('viewportXPercent', pinData.viewportXPercent);
         if (pinData.viewportYPercent != null) pinFormData.append('viewportYPercent', pinData.viewportYPercent);
+        if (pinData.context) pinFormData.append('context', JSON.stringify(pinData.context));
         pinFormData.append('initialComment', 'true');
 
         // Posting never waits for the capture: without a screenshot yet, the
@@ -222,6 +223,11 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
                 <div className="flex items-center gap-1.5 text-[11px] text-gray-400 ml-1">
                   <div className="w-2.5 h-2.5 border border-gray-300 border-t-blue-500 rounded-full animate-spin" />
                   Capturing...
+                </div>
+              )}
+              {pinData.captureFailed && (
+                <div className="text-[11px] text-amber-600/90 ml-1">
+                  Screenshot skipped
                 </div>
               )}
             </div>

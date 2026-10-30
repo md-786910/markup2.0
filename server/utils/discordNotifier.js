@@ -32,15 +32,30 @@ async function sendDiscordNotification(webhookUrl, data) {
   const title = messageFn(data);
   const link = `${CLIENT_ORIGIN}/project/${data.projectId}?pin=${data.pinId || ''}`;
 
+  const fields = [];
+  if (data.context) {
+    const ctx = data.context;
+    if (ctx.browser || ctx.os) fields.push({ name: 'Environment', value: `${ctx.browser || ''} on ${ctx.os || ''}`.trim(), inline: true });
+    if (ctx.screen && ctx.screen.w != null && ctx.screen.h != null) fields.push({ name: 'Screen', value: `${ctx.screen.w}x${ctx.screen.h}`, inline: true });
+    const errCount = Array.isArray(ctx.consoleErrors) ? ctx.consoleErrors.length : 0;
+    const reqCount = Array.isArray(ctx.failedRequests) ? ctx.failedRequests.length : 0;
+    if (errCount > 0 || reqCount > 0) {
+      fields.push({ name: 'Diagnostics', value: `🚨 ${errCount} errors · ⚠️ ${reqCount} failed reqs`, inline: true });
+    }
+  }
+
+  const embed = {
+    title,
+    description: data.comment ? stripHtml(data.comment).substring(0, 200) : '',
+    url: link,
+    color: ACTION_COLORS[data.action] || 0x3b82f6,
+    timestamp: new Date().toISOString(),
+    footer: { text: 'Kommently' },
+  };
+  if (fields.length > 0) embed.fields = fields;
+
   await axios.post(webhookUrl, {
-    embeds: [{
-      title,
-      description: data.comment ? stripHtml(data.comment).substring(0, 200) : '',
-      url: link,
-      color: ACTION_COLORS[data.action] || 0x3b82f6,
-      timestamp: new Date().toISOString(),
-      footer: { text: 'Kommently' },
-    }],
+    embeds: [embed],
   });
 }
 

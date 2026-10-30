@@ -107,6 +107,7 @@ export function useIframeMessages() {
               elementOffsetY: data.elementOffsetY != null ? data.elementOffsetY : null,
               documentWidth: data.documentWidth != null ? data.documentWidth : null,
               documentHeight: data.documentHeight != null ? data.documentHeight : null,
+              context: data.context || null,
             },
           }));
           break;

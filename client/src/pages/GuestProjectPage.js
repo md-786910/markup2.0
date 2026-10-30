@@ -13,6 +13,7 @@ import AttachmentChip from '../components/project/AttachmentChip';
 import AttachmentItem from '../components/project/AttachmentItem';
 import { ACCEPTED_ATTACHMENT_TYPES } from '../utils/attachmentHelpers';
 import { toast, toastError } from '../utils/toast';
+import { getClientEnvironment } from '../utils/clientEnv';
 import IframeContainer from '../components/project/IframeContainer';
 import { useIframeMessages } from '../hooks/useIframeMessages';
 import { normalizePageUrl } from '../utils/pageUrl';
@@ -243,14 +244,35 @@ export default function GuestProjectPage() {
   useEffect(() => {
     if (!lastClick) return;
     if (commentMode && !draft) {
-      setDraft({ ...lastClick, deviceMode: 'desktop' });
+      const env = getClientEnvironment();
+      const combinedContext = {
+        ...env,
+        ...(lastClick.context || {}),
+        screen: env.screen,
+      };
+      setDraft({
+        ...lastClick,
+        pageUrl: iframeState.currentPageUrl || lastClick.pageUrl,
+        deviceMode: 'desktop',
+        context: combinedContext,
+      });
       setDraftBody('');
     }
     clearLastClick();
-  }, [lastClick, clearLastClick, commentMode, draft]);
+  }, [lastClick, clearLastClick, commentMode, draft, iframeState.currentPageUrl]);
 
   const handleDocumentClick = useCallback((clickData) => {
-    if (!draft) { setDraft(clickData); setDraftBody(''); }
+    if (!draft) {
+      const env = getClientEnvironment();
+      setDraft({
+        ...clickData,
+        context: {
+          ...env,
+          ...(clickData.context || {}),
+        },
+      });
+      setDraftBody('');
+    }
   }, [draft]);
 
   const savedPinRef = useRef(null);

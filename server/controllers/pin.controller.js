@@ -9,6 +9,7 @@ const { metric } = require('../instrument');
 const { extractMentionedUserIds } = require('../utils/mentionHelper');
 const { createProjectNotifications } = require('../utils/notificationHelper');
 const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
+const { sanitizePinContext } = require('../utils/pinContext');
 
 exports.createPin = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
@@ -37,12 +38,20 @@ exports.createPin = asyncHandler(async (req, res) => {
     size: req.file.size,
   } : null;
 
+  const projectDoc = await Project.findById(projectId).select('name organization settings');
+
   // Get next incremental pin number for this project
   const lastPin = await Pin.findOne({ project: projectId })
     .sort({ pinNumber: -1 })
     .select('pinNumber')
     .lean();
   const pinNumber = (lastPin?.pinNumber || 0) + 1;
+
+  const context = sanitizePinContext(req.body.context, {
+    projectSettings: projectDoc?.settings,
+    isGuest: false,
+    userAgent: req.headers['user-agent'],
+  });
 
   const pin = await Pin.create({
     project: projectId,
@@ -60,6 +69,7 @@ exports.createPin = asyncHandler(async (req, res) => {
     viewportYPercent,
     screenshot,
     pinNumber,
+    context,
   });
 
   const populated = await Pin.findById(pin._id).populate('createdBy', 'name email');
@@ -84,16 +94,16 @@ exports.createPin = asyncHandler(async (req, res) => {
       metadata: { pinNumber, pageUrl },
     }).catch(() => {});
 
-    const project = await Project.findById(projectId).select('name organization');
-    if (project) {
-      notifyIntegrations(projectId, project.organization, {
+    if (projectDoc) {
+      notifyIntegrations(projectId, projectDoc.organization, {
         action: 'pin.created',
         actorName: req.user.name,
-        projectName: project.name,
+        projectName: projectDoc.name,
         pinNumber,
         pinId: pin._id.toString(),
         projectId,
         pageUrl,
+        context: populated.context,
       });
     }
   }
@@ -275,6 +285,11 @@ exports.attachScreenshot = asyncHandler(async (req, res) => {
   await pin.save();
 
   const populated = await Pin.findById(pin._id).populate('createdBy', 'name email');
+
+  // Real-time notification for late screenshot attachment
+  const io = req.app.get('io');
+  if (io) emitToProject(io, req.project._id.toString(), 'pin:updated', { pin: populated });
+
   res.json({ pin: populated });
 });
 

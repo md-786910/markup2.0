@@ -12,6 +12,7 @@ const { createProjectNotifications } = require('../utils/notificationHelper');
 const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { reserveStorage, discardUploads } = require('../utils/storage');
 const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
+const { sanitizePinContext } = require('../utils/pinContext');
 const { findShared, findSharedWorkspace, workspaceProjectsQuery, composeWorkspaceToken, isExpired } = require('../utils/sharing');
 
 // Verify a guest-supplied password against either the bcrypt hash (preferred,
@@ -226,10 +227,15 @@ exports.getGuestPins = asyncHandler(async (req, res) => {
   commentAgg.forEach((c) => { countMap[c._id.toString()] = c; });
 
   // Count plus the first comment (list preview), as in the member pin list
+  const allowConsole = !!project.settings?.guestConsoleCapture;
   const pinsWithCounts = pins.map((pin) => {
     const info = countMap[pin._id.toString()];
+    const pinObj = pin.toObject();
+    if (!allowConsole && pinObj.context) {
+      pinObj.context.consoleErrors = [];
+    }
     return {
-      ...pin.toObject(),
+      ...pinObj,
       commentsCount: info ? info.count : 0,
       firstComment: info ? { body: info.firstBody, createdAt: info.firstCreatedAt } : null,
     };
@@ -295,6 +301,12 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
     .lean();
   const pinNumber = (lastPin?.pinNumber || 0) + 1;
 
+  const context = sanitizePinContext(req.body.context, {
+    projectSettings: project.settings,
+    isGuest: true,
+    userAgent: req.headers['user-agent'],
+  });
+
   const pin = await Pin.create({
     project: project._id,
     pageUrl: normalizePageUrl(pageUrl),
@@ -311,6 +323,7 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
     viewportXPercent: viewportXPercent != null ? parseFloat(viewportXPercent) : null,
     viewportYPercent: viewportYPercent != null ? parseFloat(viewportYPercent) : null,
     pinNumber,
+    context,
   });
 
   // Activity log

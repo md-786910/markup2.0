@@ -84,6 +84,32 @@ const pinSchema = new Schema({
     ref: 'Version',
     default: null,
   },
+  context: {
+    browser: { type: String, default: null },
+    os: { type: String, default: null },
+    screen: {
+      _id: false,
+      w: { type: Number, default: undefined },
+      h: { type: Number, default: undefined },
+      dpr: { type: Number, default: undefined },
+    },
+    pageTitle: { type: String, default: null },
+    elementText: { type: String, default: null },
+    consoleErrors: [{
+      _id: false,
+      level: { type: String, enum: ['error', 'warn'], default: 'error' },
+      message: { type: String },
+      at: { type: Date, default: Date.now },
+    }],
+    failedRequests: [{
+      _id: false,
+      method: { type: String, default: 'GET' },
+      url: { type: String },
+      status: { type: Number },
+    }],
+    timeZone: { type: String, default: null },
+    language: { type: String, default: null },
+  },
 }, { timestamps: true });
 
 pinSchema.index({ project: 1, pageUrl: 1, deviceMode: 1 });

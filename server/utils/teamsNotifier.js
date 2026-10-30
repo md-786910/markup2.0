@@ -50,6 +50,25 @@ async function sendTeamsNotification(webhookUrl, data) {
     });
   }
 
+  if (data.context) {
+    const ctx = data.context;
+    const parts = [];
+    if (ctx.browser || ctx.os) parts.push(`${ctx.browser || ''} on ${ctx.os || ''}`.trim());
+    if (ctx.screen && ctx.screen.w != null && ctx.screen.h != null) parts.push(`${ctx.screen.w}x${ctx.screen.h}`);
+    const errCount = Array.isArray(ctx.consoleErrors) ? ctx.consoleErrors.length : 0;
+    const reqCount = Array.isArray(ctx.failedRequests) ? ctx.failedRequests.length : 0;
+    if (errCount > 0 || reqCount > 0) parts.push(`🚨 ${errCount} errors, ⚠️ ${reqCount} failed reqs`);
+    if (parts.length > 0) {
+      body.push({
+        type: 'TextBlock',
+        text: `**Technical Details:** ${parts.join(' | ')}`,
+        wrap: true,
+        size: 'Small',
+        isSubtle: true,
+      });
+    }
+  }
+
   await axios.post(webhookUrl, {
     type: 'message',
     attachments: [

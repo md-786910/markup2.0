@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { enableShareApi, updateShareApi } from '../../services/projectService';
+import { enableShareApi, updateShareApi, updateProjectApi } from '../../services/projectService';
 import useEscape from '../../hooks/useEscape';
 
 export default function ShareProjectModal({ isOpen, onClose, project, onProjectUpdate }) {
@@ -9,6 +9,8 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
   const [copied, setCopied] = useState(false);
   const [password, setPassword] = useState('');
   const [allowComments, setAllowComments] = useState(true);
+  const [captureConsoleErrors, setCaptureConsoleErrors] = useState(true);
+  const [guestConsoleCapture, setGuestConsoleCapture] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const autoEnableProjectRef = useRef(null);
 
@@ -22,6 +24,10 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
         const origin = window.location.origin;
         setShareUrl(`${origin}/review/${project.shareSettings.token}`);
       }
+    }
+    if (project?.settings) {
+      setCaptureConsoleErrors(project.settings.captureConsoleErrors !== false);
+      setGuestConsoleCapture(!!project.settings.guestConsoleCapture);
     }
   }, [project]);
 
@@ -62,11 +68,22 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
     setLoading(true);
     setError('');
     try {
-      const res = await updateShareApi(project._id, {
+      const shareRes = await updateShareApi(project._id, {
         password: password || null,
         allowComments,
       });
-      onProjectUpdate({ ...project, shareSettings: res.data.shareSettings });
+      const projRes = await updateProjectApi(project._id, {
+        settings: {
+          captureConsoleErrors,
+          guestConsoleCapture,
+        },
+      });
+      onProjectUpdate({
+        ...project,
+        shareSettings: shareRes.data.shareSettings,
+        settings: projRes.data.project?.settings || { ...project.settings, captureConsoleErrors, guestConsoleCapture },
+      });
+      onClose();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update settings');
     } finally {
@@ -162,6 +179,38 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
                 <div
                   className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${allowComments ? 'translate-x-[22px]' : 'translate-x-0.5'
                     }`}
+                />
+              </div>
+            </label>
+
+            {/* Team console errors capture toggle */}
+            <label className="flex items-center justify-between cursor-pointer">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Capture team console errors</p>
+                <p className="text-xs text-gray-400">Collect browser errors and network logs for pins created by team</p>
+              </div>
+              <div
+                className={`relative w-11 h-6 rounded-full transition-colors ${captureConsoleErrors ? 'bg-blue-600' : 'bg-gray-200'}`}
+                onClick={() => setCaptureConsoleErrors(!captureConsoleErrors)}
+              >
+                <div
+                  className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${captureConsoleErrors ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
+                />
+              </div>
+            </label>
+
+            {/* Guest console errors capture toggle */}
+            <label className="flex items-center justify-between cursor-pointer">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Capture guest console errors</p>
+                <p className="text-xs text-gray-400">Collect browser errors and network logs from guest reviewers</p>
+              </div>
+              <div
+                className={`relative w-11 h-6 rounded-full transition-colors ${guestConsoleCapture ? 'bg-blue-600' : 'bg-gray-200'}`}
+                onClick={() => setGuestConsoleCapture(!guestConsoleCapture)}
+              >
+                <div
+                  className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${guestConsoleCapture ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
                 />
               </div>
             </label>
