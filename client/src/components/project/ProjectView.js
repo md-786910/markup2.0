@@ -197,7 +197,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       .then((res) => {
         const counts = { desktop: 0, tablet: 0, mobile: 0 };
         for (const pin of res.data.pins) {
-          if (pin.status === 'pending' && counts[pin.deviceMode || 'desktop'] !== undefined) {
+          if (pin.status !== 'resolved' && counts[pin.deviceMode || 'desktop'] !== undefined) {
             counts[pin.deviceMode || 'desktop']++;
           }
         }
@@ -361,7 +361,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     try {
       // Decrement count before deleting
       const pin = allPins.find((p) => p._id === pinId);
-      if (pin && pin.status === 'pending') {
+      if (pin && pin.status !== 'resolved') {
         const mode = pin.deviceMode || 'desktop';
         setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
       }
@@ -444,7 +444,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         return [data.pin, ...prev];
       });
       // Update device pin counts
-      if (data.pin.status === 'pending') {
+      if (data.pin.status !== 'resolved') {
         const mode = data.pin.deviceMode || 'desktop';
         setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
       }
@@ -465,7 +465,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       const mode = data.pin.deviceMode || 'desktop';
       if (data.pin.status === 'resolved') {
         setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
-      } else if (data.pin.status === 'pending') {
+      } else if (data.pin.status !== 'resolved') {
         setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
       }
     });
@@ -474,10 +474,10 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   // Pin deleted
   useEffect(() => {
     return onEvent('pin:deleted', (data) => {
-      // Decrement device count if the deleted pin was pending
+      // Decrement device count if the deleted pin was active
       setAllPins((prev) => {
         const deleted = prev.find((p) => p._id === data.pinId);
-        if (deleted && deleted.status === 'pending') {
+        if (deleted && deleted.status !== 'resolved') {
           const mode = deleted.deviceMode || 'desktop';
           setDevicePinCounts((c) => ({ ...c, [mode]: Math.max(0, (c[mode] || 0) - 1) }));
         }

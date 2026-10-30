@@ -160,12 +160,12 @@ export default function GuestProjectPage() {
 
   // Derived data
   const filteredPins = useMemo(() => {
-    if (filterStatus === 'open') return pins.filter((p) => p.status === 'pending');
+    if (filterStatus === 'open') return pins.filter((p) => p.status !== 'resolved');
     if (filterStatus === 'resolved') return pins.filter((p) => p.status === 'resolved');
     return pins;
   }, [pins, filterStatus]);
 
-  const openCount = pins.filter((p) => p.status === 'pending').length;
+  const openCount = pins.filter((p) => p.status !== 'resolved').length;
   const resolvedCount = pins.filter((p) => p.status === 'resolved').length;
 
   const loadProject = useCallback(async (pwd) => {

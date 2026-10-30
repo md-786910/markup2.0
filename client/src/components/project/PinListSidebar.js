@@ -253,7 +253,7 @@ export default function PinListSidebar({
     let result = pins;
 
     // Status tab filter
-    if (filterStatus === 'open') result = result.filter((p) => p.status === 'pending');
+    if (filterStatus === 'open') result = result.filter((p) => p.status !== 'resolved');
     else if (filterStatus === 'resolved') result = result.filter((p) => p.status === 'resolved');
 
     // Filter option
@@ -352,7 +352,7 @@ export default function PinListSidebar({
   };
 
   // Filter counts
-  const openCount = pins.filter((p) => p.status === 'pending').length;
+  const openCount = pins.filter((p) => p.status !== 'resolved').length;
   const resolvedCount = pins.filter((p) => p.status === 'resolved').length;
 
   // Group by page (only when sortBy === 'page'; otherwise flat list)
@@ -1068,7 +1068,7 @@ export default function PinListSidebar({
                             {/* Resolve toggle */}
                             {!readOnly && (
                             <button
-                              onClick={() => onStatusChange(pin._id, pin.status === 'resolved' ? 'pending' : 'resolved')}
+                              onClick={() => onStatusChange(pin._id, pin.status === 'resolved' ? 'open' : 'resolved')}
                               className={`p-1 rounded transition-colors ${pin.status === 'resolved'
                                 ? 'text-emerald-500 hover:bg-emerald-50'
                                 : 'text-gray-300 hover:text-emerald-500 hover:bg-emerald-50'

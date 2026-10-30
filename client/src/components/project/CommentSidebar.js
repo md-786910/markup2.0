@@ -300,7 +300,7 @@ export default function CommentSidebar({
               onClick={() =>
                 onStatusChange(
                   pin._id,
-                  pin.status === "resolved" ? "pending" : "resolved",
+                  pin.status === "resolved" ? "open" : "resolved",
                 )
               }
               className={`p-1.5 rounded-md transition-colors ${
