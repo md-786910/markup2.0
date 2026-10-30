@@ -176,7 +176,7 @@ exports.getGuestWorkspace = asyncHandler(async (req, res) => {
       .lean(),
   ]);
   const counts = await Pin.aggregate([
-    { $match: { project: { $in: projects.map((p) => p._id) }, status: 'pending' } },
+    { $match: { project: { $in: projects.map((p) => p._id) }, status: { $in: ['open', 'in_progress', 'in_review', 'pending'] } } },
     { $group: { _id: '$project', open: { $sum: 1 } } },
   ]);
   const openBy = new Map(counts.map((c) => [c._id.toString(), c.open]));
@@ -235,8 +235,16 @@ exports.getGuestPins = asyncHandler(async (req, res) => {
     if (!allowConsole && pinObj.context) {
       pinObj.context.consoleErrors = [];
     }
+    // Guest privacy sanitization: guests see open vs resolved only
+    const guestStatus = pinObj.status === 'resolved' ? 'resolved' : 'open';
+    delete pinObj.assignee;
+    delete pinObj.priority;
+    delete pinObj.dueAt;
+    delete pinObj.labels;
+    delete pinObj.position;
     return {
       ...pinObj,
+      status: guestStatus,
       commentsCount: info ? info.count : 0,
       firstComment: info ? { body: info.firstBody, createdAt: info.firstCreatedAt } : null,
     };

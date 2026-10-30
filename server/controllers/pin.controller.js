@@ -121,7 +121,7 @@ exports.createPin = asyncHandler(async (req, res) => {
 
 exports.getPins = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  const { pageUrl, deviceMode } = req.query;
+  const { pageUrl, deviceMode, status, assignee, priority, label } = req.query;
 
   const filter = { project: projectId };
   if (pageUrl) {
@@ -130,10 +130,27 @@ exports.getPins = asyncHandler(async (req, res) => {
   if (deviceMode) {
     filter.deviceMode = deviceMode;
   }
+  if (status) {
+    if (status === 'open' || status === 'pending') {
+      filter.status = { $in: ['open', 'pending'] };
+    } else {
+      filter.status = status;
+    }
+  }
+  if (assignee) {
+    filter.assignee = assignee === 'unassigned' ? null : assignee;
+  }
+  if (priority) {
+    filter.priority = priority;
+  }
+  if (label) {
+    filter.labels = label;
+  }
 
   const pins = await Pin.find(filter)
     .populate('createdBy', 'name email')
-    .sort({ createdAt: -1 });
+    .populate('assignee', 'name email')
+    .sort({ position: 1, createdAt: -1 });
 
   // Get comment counts, first comment, and latest comment for each pin
   const pinIds = pins.map((p) => p._id);
@@ -213,7 +230,7 @@ exports.getPins = asyncHandler(async (req, res) => {
 
 exports.updatePin = asyncHandler(async (req, res) => {
   const { pinId } = req.params;
-  const { status } = req.body;
+  const { status, assignee, priority, dueAt, labels, position } = req.body;
 
   // Scoped to the project already authorized by projectAccess
   const pin = await Pin.findOne({ _id: pinId, project: req.project._id });
@@ -221,27 +238,100 @@ exports.updatePin = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Pin not found' });
   }
 
-  if (status) pin.status = status;
+  const prevStatus = pin.status;
+  const prevAssignee = pin.assignee ? String(pin.assignee) : null;
+
+  if (status) {
+    const norm = status === 'pending' ? 'open' : status;
+    if (['open', 'in_progress', 'in_review', 'resolved'].includes(norm)) {
+      pin.status = norm;
+    }
+  }
+
+  if (assignee !== undefined) {
+    if (!assignee) {
+      pin.assignee = null;
+    } else {
+      // Validate that assignee is a project or workspace member in the same org
+      const User = require('../models/User');
+      const targetUser = await User.findById(assignee).select('organization');
+      if (!targetUser || String(targetUser.organization) !== String(req.organization._id)) {
+        return res.status(400).json({ message: 'Assignee must belong to your organization.' });
+      }
+      pin.assignee = assignee;
+    }
+  }
+
+  if (priority && ['low', 'normal', 'high', 'urgent'].includes(priority)) {
+    pin.priority = priority;
+  }
+
+  if (dueAt !== undefined) {
+    pin.dueAt = dueAt ? new Date(dueAt) : null;
+  }
+
+  if (Array.isArray(labels)) {
+    pin.labels = labels.map((l) => String(l).trim().slice(0, 40)).filter(Boolean).slice(0, 10);
+  }
+
+  if (position != null && Number.isFinite(Number(position))) {
+    pin.position = Number(position);
+  }
+
   await pin.save();
 
-  const populated = await Pin.findById(pin._id).populate('createdBy', 'name email');
+  const populated = await Pin.findById(pin._id)
+    .populate('createdBy', 'name email')
+    .populate('assignee', 'name email');
 
   // Real-time notification
   const io = req.app.get('io');
   emitToProject(io, pin.project.toString(), 'pin:updated', { pin: populated });
 
+  // Notifications on assignment change
+  if (pin.assignee && String(pin.assignee._id || pin.assignee) !== prevAssignee) {
+    const assigneeId = String(pin.assignee._id || pin.assignee);
+    if (assigneeId !== String(req.user._id)) {
+      createProjectNotifications({
+        io,
+        projectId: pin.project.toString(),
+        actor: req.user,
+        type: 'pin_assigned',
+        pin: populated,
+        targetUserId: assigneeId,
+        metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl },
+      }).catch(() => {});
+    }
+  }
+
+  // Notifications on status change to 'in_review' -> alert original creator
+  if (pin.status === 'in_review' && prevStatus !== 'in_review' && pin.createdBy) {
+    const creatorId = String(pin.createdBy._id || pin.createdBy);
+    if (creatorId !== String(req.user._id)) {
+      createProjectNotifications({
+        io,
+        projectId: pin.project.toString(),
+        actor: req.user,
+        type: 'pin_in_review',
+        pin: populated,
+        targetUserId: creatorId,
+        metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl },
+      }).catch(() => {});
+    }
+  }
+
   // Activity log for status changes
   if (status) {
-    const action = status === 'resolved' ? 'pin.resolved' : 'pin.reopened';
-    logActivity(pin.project.toString(), req.user._id, action, { pinNumber: pin.pinNumber });
+    const action = pin.status === 'resolved' ? 'pin.resolved' : (pin.status === 'open' && prevStatus === 'resolved' ? 'pin.reopened' : 'pin.status_changed');
+    logActivity(pin.project.toString(), req.user._id, action, { pinNumber: pin.pinNumber, status: pin.status });
 
     createProjectNotifications({
       io,
       projectId: pin.project.toString(),
       actor: req.user,
-      type: status === 'resolved' ? 'pin_resolved' : 'pin_reopened',
+      type: pin.status === 'resolved' ? 'pin_resolved' : (pin.status === 'open' ? 'pin_reopened' : 'pin_status_changed'),
       pin: populated,
-      metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl, status },
+      metadata: { pinNumber: pin.pinNumber, pageUrl: pin.pageUrl, status: pin.status },
     }).catch(() => {});
   }
 
@@ -322,4 +412,92 @@ exports.deletePin = asyncHandler(async (req, res) => {
   emitToProject(io, projectId, 'pin:deleted', { pinId });
 
   res.json({ message: 'Pin deleted' });
+});
+
+/**
+ * PATCH /api/projects/:projectId/pins/reorder
+ * Batch update positions when cards are moved on the Kanban board.
+ */
+exports.reorderPins = asyncHandler(async (req, res) => {
+  const { moves } = req.body; // array of { pinId, status, position }
+  if (!Array.isArray(moves)) {
+    return res.status(400).json({ message: 'moves array required' });
+  }
+
+  const bulkOps = moves.map((m) => {
+    const update = {};
+    if (m.position != null) update.position = Number(m.position);
+    if (m.status && ['open', 'in_progress', 'in_review', 'resolved'].includes(m.status)) {
+      update.status = m.status;
+    }
+    return {
+      updateOne: {
+        filter: { _id: m.pinId, project: req.project._id },
+        update: { $set: update },
+      },
+    };
+  });
+
+  if (bulkOps.length > 0) {
+    await Pin.bulkWrite(bulkOps);
+  }
+
+  const io = req.app.get('io');
+  if (io) {
+    emitToProject(io, req.project._id.toString(), 'pins:reordered', { moves });
+  }
+
+  res.json({ success: true, count: bulkOps.length });
+});
+
+/**
+ * GET /api/my-tasks
+ * Aggregates all open pins assigned to the current user across all accessible projects.
+ */
+exports.getMyTasks = asyncHandler(async (req, res) => {
+  const Project = require('../models/Project');
+  const userOrgId = req.user.organization;
+
+  // Find all projects in user's org
+  const projects = await Project.find({
+    organization: userOrgId,
+    deletionScheduledAt: null,
+  }).select('_id name websiteUrl projectType').lean();
+
+  const projectIds = projects.map((p) => p._id);
+  const projectMap = new Map(projects.map((p) => [String(p._id), p]));
+
+  const now = new Date();
+  const pins = await Pin.find({
+    project: { $in: projectIds },
+    assignee: req.user._id,
+    status: { $ne: 'resolved' },
+  })
+    .populate('createdBy', 'name email')
+    .sort({ dueAt: 1, priority: -1, createdAt: -1 })
+    .lean();
+
+  const overdue = [];
+  const dueSoon = [];
+  const other = [];
+
+  const sevenDaysFromNow = new Date(now.getTime() + 7 * 86400000);
+
+  for (const p of pins) {
+    p.projectInfo = projectMap.get(String(p.project)) || null;
+    if (p.dueAt && new Date(p.dueAt) < now) {
+      overdue.push(p);
+    } else if (p.dueAt && new Date(p.dueAt) <= sevenDaysFromNow) {
+      dueSoon.push(p);
+    } else {
+      other.push(p);
+    }
+  }
+
+  res.json({
+    total: pins.length,
+    overdue,
+    dueSoon,
+    other,
+  });
 });

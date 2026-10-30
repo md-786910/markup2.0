@@ -4,8 +4,16 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Plans billed monthly at a list price; enterprise is a custom deal
 const PRICED_PLANS = ['starter', 'pro'];
 
-// Monthly revenue of an org at its plan's list price (USD), 0 unless it pays
+// Monthly revenue of an org (USD), prioritizing active custom deals then list price
 function monthlyRevenue(org, plans) {
+  const now = new Date();
+  const dealActive = org.deal && org.deal.price != null && (!org.deal.until || new Date(org.deal.until) > now);
+  if (dealActive) {
+    if (org.deal.currency === 'INR') {
+      return Math.round(Number(org.deal.price) / 84) || 0;
+    }
+    return Number(org.deal.price) || 0;
+  }
   if (!PRICED_PLANS.includes(org.plan) || org.subscription?.status !== 'active') return 0;
   return Number(plans[org.plan]?.price) || 0;
 }

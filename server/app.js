@@ -194,6 +194,7 @@ app.use("/api/admin-auth", authLimiter, require("./routes/adminAuth.routes"));
 app.use("/api/admin", adminLimiter, adminRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/workspaces", require("./routes/workspace.routes"));
+app.get("/api/my-tasks", require("./middleware/auth"), require("./controllers/pin.controller").getMyTasks);
 
 // Health check
 app.get("/api/health", async (req, res) => {
@@ -205,6 +206,9 @@ app.get("/api/health", async (req, res) => {
   if (redisUp !== null) body.redis = redisUp ? "up" : "down";
   res.status(dbUp ? 200 : 503).json(body);
 });
+
+// Public site notice banner endpoint
+app.get("/api/site-notice", require("./controllers/siteNotice.controller").getPublicNotice);
 
 // Public plans endpoint — source of truth for billing tab + marketing site.
 // No auth: pricing is public.

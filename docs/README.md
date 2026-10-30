@@ -15,14 +15,14 @@ Read [`CLAUDE.md`](../CLAUDE.md) first for how the codebase works. These docs de
 | 3 | [Developer-ready reports](phase-03-developer-ready-reports.md) | Done | S | Browser, OS, console errors on every pin; closes Marker.io's main edge |
 | 4 | [Client approvals and feedback deadlines](phase-04-client-approvals.md) | Done | M | Formal sign-off is the agency selling point |
 | 5 | [Engagement and customer health](phase-05-engagement-and-health.md) | Done | M | Know which customers are active, stuck or at risk |
-| 6 | [Pricing and revenue](phase-06-pricing-and-revenue.md) | Planned | M | Plan editor, revenue view, renewals and unpaid invoices |
-| 7 | [Launch hardening](phase-07-launch-hardening.md) | Planned | S | Alerts, support-agent role, tests, runbooks |
+| 6 | [Pricing and revenue](phase-06-pricing-and-revenue.md) | Done | M | Plan editor, revenue view, renewals and unpaid invoices |
+| 7 | [Launch hardening](phase-07-launch-hardening.md) | Done | S | Alerts, support-agent role, tests, runbooks |
 
 ### Growth track: first months after launch
 
 | # | Phase | Status | Size | Why |
 |---|---|---|---|---|
-| 8 | [Task workflow](phase-08-task-workflow.md) | Planned | M | Assignee, priority, due date, board view (BugHerd's core) |
+| 8 | [Task workflow](phase-08-task-workflow.md) | Done | M | Assignee, priority, due date, board view (BugHerd's core) |
 | 9 | [AI pack and MCP server](phase-09-ai-and-mcp.md) | Planned | M | Auto titles, duplicates, round summaries; Claude/Cursor access |
 | 10 | [More integrations](phase-10-integrations.md) | Planned | S each | Linear, ClickUp, Asana, Trello, GitHub Issues |
 | 11 | [Fallback for sites that block the proxy](phase-11-blocked-site-fallback.md) | Planned | L | Removes our biggest failure case |

@@ -22,6 +22,14 @@ const planConfigSchema = new mongoose.Schema({
     hasVersionHistory: { type: Boolean, default: null },
     hasApprovals: { type: Boolean, default: null },
   },
+  // Support channel SLA overrides (Phase 6)
+  support: {
+    tickets: { type: Boolean, default: null },
+    chat: { type: Boolean, default: null },
+    priority: { type: String, enum: ['normal', 'high', 'urgent', null], default: null },
+    replyHours: { type: Number, default: null },
+  },
+  extraFeatures: [{ type: String }],
   name: { type: String, default: null },
   price: { type: Number, default: null },
   // Monthly price charged through Razorpay, in whole rupees. null = price × RAZORPAY_USD_INR_RATE

@@ -37,4 +37,26 @@ function adminAuth({ requireTwoFactor = true } = {}) {
   });
 }
 
+/**
+ * Enforce minimum admin role (e.g. requireAdminRole('superadmin'))
+ */
+function requireAdminRole(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.admin) {
+      return res.status(401).json({ message: 'Sign in to the admin panel.' });
+    }
+    const role = req.admin.role || 'superadmin';
+    if (!allowedRoles.includes(role)) {
+      return res.status(403).json({
+        message: 'You do not have permission to perform this action.',
+        code: 'INSUFFICIENT_ROLE',
+      });
+    }
+    next;
+    next();
+  };
+}
+
 module.exports = adminAuth;
+module.exports.adminAuth = adminAuth;
+module.exports.requireAdminRole = requireAdminRole;

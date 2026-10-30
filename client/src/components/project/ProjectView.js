@@ -26,6 +26,7 @@ import { useSocket } from "../../hooks/useSocket";
 import { toastError } from '../../utils/toast';
 import { getClientEnvironment } from "../../utils/clientEnv";
 import BrandMark from "../common/BrandMark";
+import TaskBoard from "./TaskBoard";
 
 // PDF viewer (react-pdf + pdf.js) is only downloaded for document projects
 const DocumentViewer = React.lazy(() => import("./DocumentViewer"));
@@ -84,6 +85,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
   const [sidebarTab, setSidebarTab] = useState('pins');
   const [selectedVersion, setSelectedVersion] = useState(null);
+  const [viewLayout, setViewLayout] = useState('canvas'); // 'canvas' | 'board'
   // Phones show the page or the comments, switched by a bottom tab bar
   const [mobilePane, setMobilePane] = useState('page');
   const showCommentsOnPhone = () => { if (window.innerWidth < 768) setMobilePane('comments'); };
@@ -372,24 +374,32 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     }
   };
 
-  const handleStatusChange = async (pinId, newStatus) => {
+  const handlePinUpdate = async (pinId, patchData) => {
     try {
-      // Update device count
-      const mode = deviceMode;
-      if (newStatus === 'resolved') {
-        setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
-      } else if (newStatus === 'pending') {
-        setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
+      if (patchData && patchData.status) {
+        const mode = deviceMode;
+        if (patchData.status === 'resolved') {
+          setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
+        } else if (patchData.status === 'pending' || patchData.status === 'open') {
+          setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
+        }
       }
-      await updatePinApi(project._id, pinId, { status: newStatus });
+      const res = await updatePinApi(project._id, pinId, patchData);
+      const updated = res.data?.pin;
       await loadPins();
       await loadAllPins();
       if (selectedPin?._id === pinId) {
-        setSelectedPin((prev) => ({ ...prev, status: newStatus }));
+        setSelectedPin((prev) => ({ ...prev, ...(updated || patchData) }));
       }
+      return updated;
     } catch (err) {
-      toastError(err, 'Could not update the pin.');
+      toastError(err, 'Could not update pin.');
+      throw err;
     }
+  };
+
+  const handleStatusChange = async (pinId, newStatus) => {
+    return handlePinUpdate(pinId, { status: newStatus });
   };
 
   // Show loader when iframe starts navigating
@@ -669,6 +679,43 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               Changes requested
             </button>
           )}
+
+          {/* Canvas vs Board View Switcher */}
+          <div className="hidden sm:flex items-center bg-gray-100/90 rounded-lg p-0.5 border border-gray-200/70">
+            <button
+              onClick={() => setViewLayout('canvas')}
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                viewLayout === 'canvas' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title="Canvas / Website view"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+              </svg>
+              <span>Canvas</span>
+            </button>
+            <button
+              onClick={() => {
+                if (!limits.hasTaskWorkflow) {
+                  navigate('/pricing');
+                  return;
+                }
+                setViewLayout('board');
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                viewLayout === 'board' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+              title={limits.hasTaskWorkflow ? "Kanban Task Board" : "Kanban Task Board (Upgrade to Starter/Pro)"}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5v15m6-15v15m-10.5-15h15a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75A2.25 2.25 0 014.5 4.5z" />
+              </svg>
+              <span>Board</span>
+              {!limits.hasTaskWorkflow && (
+                <span className="text-[9px] bg-amber-100 text-amber-700 font-bold px-1 rounded">PRO</span>
+              )}
+            </button>
+          </div>
           <div className="hidden xl:flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 hover:bg-gray-100/60 transition-colors cursor-default" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
             {isDocumentProject ? (
               <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -795,6 +842,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             onDeletePin={handleDeletePin}
             onNavigatePin={handlePinNavigate}
             onStatusChange={handleStatusChange}
+            onPinUpdate={handlePinUpdate}
             onCommentAdded={() => { loadAllPins(); loadPins(); }}
             onEvent={onEvent}
             resyncKey={resyncKey}
@@ -834,7 +882,21 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
         {/* Content area */}
         <div className={`${mobilePane === 'page' ? 'block' : 'hidden'} md:block flex-1 min-w-0 relative`}>
-          {isDocumentProject ? (
+          {viewLayout === 'board' ? (
+            <TaskBoard
+              pins={shownAllPins}
+              members={allMembers}
+              onPinClick={(pin) => {
+                setPendingPinData(null);
+                setSelectedPin(pin);
+                showCommentsOnPhone();
+              }}
+              onPinUpdate={handlePinUpdate}
+              canEdit={canComment}
+              readOnly={!canComment}
+              onSwitchToCanvas={() => setViewLayout('canvas')}
+            />
+          ) : isDocumentProject ? (
             <React.Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-10 h-10 border-[3px] border-gray-200 border-t-blue-500 rounded-full animate-spin"></div></div>}>
             <DocumentViewer
               documents={project.documents}
@@ -842,6 +904,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               currentPage={currentDocPage}
               onPageChange={setCurrentDocPage}
               onDocIndexChange={setCurrentDocIndex}
+              hidePins={!pinMode}
               pinMode={pinMode}
               pins={shownPins}
               selectedPinId={selectedPin?._id}
@@ -856,6 +919,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               key={(() => { try { return new URL(targetUrl).origin; } catch { return targetUrl; } })()}
               proxyUrl={proxyUrl}
               targetUrl={targetUrl}
+              hidePins={!pinMode}
               pinMode={pinMode}
               pins={shownPins}
               selectedPinId={selectedPin?._id}

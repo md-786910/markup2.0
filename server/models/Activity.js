@@ -34,7 +34,7 @@ const activitySchema = new Schema({
       // Project-scoped events
       'project.created', 'project.updated', 'project.status_changed',
       'project.archived', 'project.unarchived',
-      'pin.created', 'pin.resolved', 'pin.reopened', 'pin.deleted',
+      'pin.created', 'pin.resolved', 'pin.reopened', 'pin.deleted', 'pin.status_changed',
       'comment.created', 'comment.deleted',
       'member.invited', 'member.joined', 'member.removed', 'member.role_changed',
       'share.enabled', 'share.disabled',
@@ -55,7 +55,7 @@ const activitySchema = new Schema({
       // Admin panel: support requests and notes (organization set)
       'support.resolved', 'support.updated', 'org.note_added', 'org.note_deleted',
       // Admin panel: platform settings and the admin team (organization is null)
-      'plan.updated', 'plan.toggled', 'payment_settings.updated',
+      'plan.updated', 'plan.toggled', 'payment_settings.updated', 'admin.site_notice_updated',
       'admin.invite_resent', 'admin.invited', 'admin.disabled', 'admin.enabled', 'admin.removed', 'admin.two_factor_reset',
     ],
     required: true,

@@ -11,6 +11,7 @@ export const unlockOrganizationApi = (id) => api.patch(`/admin/organizations/${i
 export const setOrganizationPlanApi = (id, data) => api.patch(`/admin/organizations/${id}/plan`, data);
 export const extendTrialApi = (id, days) => api.post(`/admin/organizations/${id}/extend-trial`, { days });
 export const setOrganizationLimitsApi = (id, data) => api.patch(`/admin/organizations/${id}/limits`, data);
+export const setOrganizationDealApi = (id, data) => api.patch(`/admin/organizations/${id}/deal`, data);
 export const addOrganizationNoteApi = (id, body) => api.post(`/admin/organizations/${id}/notes`, { body });
 export const updateOrganizationNoteApi = (id, noteId, data) => api.patch(`/admin/organizations/${id}/notes/${noteId}`, data);
 export const deleteOrganizationNoteApi = (id, noteId) => api.delete(`/admin/organizations/${id}/notes/${noteId}`);
@@ -29,8 +30,14 @@ export const getProjectsApi = (params) => api.get('/admin/projects', { params })
 
 // Plans
 export const getPlansApi = () => api.get('/admin/plans');
+export const getPlanUsageImpactApi = (planId, params) => api.get(`/admin/plans/${planId}/impact`, { params });
 export const updatePlanApi = (planId, data) => api.patch(`/admin/plans/${planId}`, data);
 export const togglePlanApi = (planId) => api.patch(`/admin/plans/${planId}/toggle`);
+
+// Revenue & Invoices
+export const getRevenueApi = () => api.get('/admin/revenue');
+export const getInvoicesApi = (params) => api.get('/admin/invoices', { params });
+export const exportInvoicesApi = (params) => api.get('/admin/invoices', { params: { ...params, format: 'csv' }, responseType: 'blob' });
 
 // Support inbox
 export const getSupportStatsApi = () => api.get('/admin/support/stats');

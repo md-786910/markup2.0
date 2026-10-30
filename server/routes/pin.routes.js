@@ -9,6 +9,7 @@ const {
   createPin,
   getPins,
   updatePin,
+  reorderPins,
   attachScreenshot,
   deletePin,
 } = require('../controllers/pin.controller');
@@ -17,6 +18,7 @@ router.use(auth);
 
 router.post('/:projectId/pins', projectAccess, requireAccess('comment'), checkOrgNotLocked, upload.single('screenshot'), enforceStorageQuota, createPin);
 router.get('/:projectId/pins', projectAccess, getPins);
+router.patch('/:projectId/pins/reorder', projectAccess, requireAccess('comment'), checkOrgNotLocked, reorderPins);
 router.patch('/:projectId/pins/:pinId', projectAccess, requireAccess('comment'), checkOrgNotLocked, updatePin);
 router.patch('/:projectId/pins/:pinId/screenshot', projectAccess, requireAccess('comment'), checkOrgNotLocked, upload.single('screenshot'), enforceStorageQuota, attachScreenshot);
 router.delete('/:projectId/pins/:pinId', projectAccess, requireAccess('comment'), checkOrgNotLocked, deletePin);

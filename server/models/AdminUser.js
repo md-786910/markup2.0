@@ -10,6 +10,8 @@ const adminUserSchema = new mongoose.Schema({
   passwordHash: { type: String, default: null, select: false },
   // invited: has not set a password yet · active · disabled: can't sign in
   status: { type: String, enum: ['invited', 'active', 'disabled'], default: 'invited' },
+  // superadmin: full control · support: tickets, customer notes, up to 14d trial extensions
+  role: { type: String, enum: ['superadmin', 'support'], default: 'superadmin' },
   invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser', default: null },
   // One session at a time; rotating it signs out every other session
   sessionToken: { type: String, default: null, select: false },
@@ -48,6 +50,7 @@ adminUserSchema.methods.toPublic = function () {
     name: this.name,
     email: this.email,
     status: this.status,
+    role: this.role || 'superadmin',
     lastLoginAt: this.lastLoginAt,
     lastSeen: this.lastSeen,
     twoFactorEnabled: !!this.twoFactor?.enabled,

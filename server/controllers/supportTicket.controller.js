@@ -157,6 +157,12 @@ exports.createTicket = asyncHandler(async (req, res) => {
     throw err;
   }
   notifyTeam(req, ticket, body, false);
+  if (support.priority === 'urgent') {
+    try {
+      const { alertNewUrgentTicket } = require('../utils/adminAlerts');
+      alertNewUrgentTicket({ ticket, organization: req.organization, requester: req.user }).catch(() => {});
+    } catch {}
+  }
   res.status(201).json({ ticket: forCustomer(ticket) });
 });
 

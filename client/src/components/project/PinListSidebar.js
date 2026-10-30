@@ -117,6 +117,7 @@ export default function PinListSidebar({
   readOnly = false,
   onNavigatePin,
   onStatusChange,
+  onPinUpdate,
   onEvent,
   resyncKey,
   members = [],
@@ -383,6 +384,7 @@ export default function PinListSidebar({
             onBack={onClosePin}
             onClose={onClosePin}
             onStatusChange={onStatusChange}
+            onPinUpdate={onPinUpdate}
             onDelete={onDeletePin}
             onNavigate={onNavigatePin}
             onEvent={onEvent}

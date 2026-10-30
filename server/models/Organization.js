@@ -84,6 +84,13 @@ const organizationSchema = new mongoose.Schema({
     // Owner cancelled: keeps the paid plan until currentPeriodEnd, then moves to free
     cancelAtPeriodEnd: { type: Boolean, default: false },
   },
+  // Custom pricing and terms set by a superadmin (Phase 6)
+  deal: {
+    price: { type: Number, default: null }, // In whole currency units (e.g. 150 for $150/mo)
+    currency: { type: String, enum: ['USD', 'INR'], default: 'USD' },
+    note: { type: String, default: null },
+    until: { type: Date, default: null }, // Expiry date (null = indefinite)
+  },
   // Per-org limits set by a superadmin (enterprise deals). Merged over the plan's
   // limits on every request; unset keys use the plan default.
   limitOverrides: {

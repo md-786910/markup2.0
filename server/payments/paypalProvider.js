@@ -76,7 +76,14 @@ async function createOrder({ org, plan, planConfig, invoiceMeta = {} }) {
   const { ordersController } = handles;
 
   // Native USD pricing — store cents as the integer amount.
-  const usd = Number(planConfig.price);
+  const now = new Date();
+  const dealActive = org.deal && org.deal.price != null && (!org.deal.until || new Date(org.deal.until) > now);
+  let usd;
+  if (dealActive) {
+    usd = org.deal.currency === 'USD' ? Number(org.deal.price) : Number(org.deal.price) / 84;
+  } else {
+    usd = Number(planConfig.price);
+  }
   if (!Number.isFinite(usd) || usd <= 0) throw new Error('Invalid USD price for plan.');
   const amountCents = Math.round(usd * 100);
   const value = (amountCents / 100).toFixed(2);

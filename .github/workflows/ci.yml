@@ -1,0 +1,81 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop, bug-report ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Test Suites & Verification
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+      redis:
+        image: redis:7.0-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Server Dependencies
+        run: npm --prefix server ci
+
+      - name: Install Client Dependencies
+        run: npm --prefix client ci
+
+      - name: Install Admin Dependencies
+        run: npm --prefix admin ci
+
+      - name: Run Core Smoke Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017/kommently_ci_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: ci-secret-key-must-be-long-enough-for-sha256-hash
+          ADMIN_REQUIRE_2FA: false
+        run: node server/test/smoke.js
+
+      - name: Run Phase 3 Developer Reports Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017/kommently_ci_test
+        run: node server/test/phase3DeveloperReports.js
+
+      - name: Run Phase 4 Approvals & Deadlines Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017/kommently_ci_test
+        run: node server/test/phase4Approvals.js
+
+      - name: Run Phase 5 Customer Health Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017/kommently_ci_test
+        run: node server/test/phase5Health.js
+
+      - name: Run Phase 6 Pricing & Revenue Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017/kommently_ci_test
+        run: node server/test/phase6Revenue.js
+
+      - name: Run Phase 7 Launch Hardening Tests
+        env:
+          MONGODB_URI: mongodb://localhost:27017/kommently_ci_test
+        run: node server/test/phase7Hardening.js
+
+      - name: Build Client Web App
+        run: npm --prefix client run build
+
+      - name: Build Admin Portal
+        run: npm --prefix admin run build
+

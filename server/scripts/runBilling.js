@@ -47,7 +47,7 @@ const CLIENT_ORIGIN = URLS.app;
 const PAY_URL = `${CLIENT_ORIGIN}/settings?tab=invoices`;
 const PLAN_URL = `${CLIENT_ORIGIN}/settings?tab=billing`;
 
-const PAID_PLANS = ['starter', 'pro']; // mirrors UPGRADEABLE_PLANS
+const PAID_PLANS = ['starter', 'pro', 'enterprise']; // paid tiers (enterprise billed when custom deal/subscription exists)
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const GRACE_DAYS = 10; // dueAt = createdAt + 10 days; lock fires day 11+
@@ -266,6 +266,10 @@ async function phaseProcessPending() {
         org.subscription.status = 'past_due';
         await org.save({ validateBeforeSave: false });
         console.log(`[billing] LOCKED org ${org._id} for invoice ${inv._id}`);
+        try {
+          const { alertOrgLocked } = require('../utils/adminAlerts');
+          alertOrgLocked({ organization: org, reason: 'Payment overdue (grace period expired)' }).catch(() => {});
+        } catch {}
       }
       if (email) await safeSend(`org-locked→${email}`, () =>
         sendOrgLockedEmail(email, org.name, inv.amount, PAY_URL, inv.currency)
@@ -445,6 +449,20 @@ async function runBilling() {
     } catch (err) {
       console.error('[billing] customer health update failed:', err.message);
     }
+
+    // Check for overdue open support tickets and trigger admin alert
+    try {
+      const SupportTicket = require('../models/SupportTicket');
+      const { alertOverdueTicket } = require('../utils/adminAlerts');
+      const overdueTickets = await SupportTicket.find({
+        status: 'open',
+        firstResponseAt: null,
+        dueAt: { $ne: null, $lt: new Date() },
+      }).populate('organization', 'name').limit(10).lean();
+      for (const t of overdueTickets) {
+        alertOverdueTicket({ ticket: t, organization: t.organization }).catch(() => {});
+      }
+    } catch {}
     console.log('[billing] done');
   } finally {
     running = false;

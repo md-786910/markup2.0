@@ -5,7 +5,7 @@ const PLANS = {
     price: 0,
     priceLabel: '$0',
     period: 'forever',
-    limits: { maxProjects: 2, maxWorkspaces: 1, maxMembers: 5, maxGuests: 2, maxStorageMB: 200, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false, hasApprovals: false },
+    limits: { maxProjects: 2, maxWorkspaces: 1, maxMembers: 5, maxGuests: 2, maxStorageMB: 200, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false, hasApprovals: false, hasTaskWorkflow: false },
     features: [
       '2 projects',
       '1 workspace',
@@ -26,7 +26,7 @@ const PLANS = {
     price: 12,
     priceLabel: '$12',
     period: '/month',
-    limits: { maxProjects: 15, maxWorkspaces: 3, maxMembers: 25, maxGuests: 10, maxStorageMB: 5120, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: false, hasApprovals: true },
+    limits: { maxProjects: 15, maxWorkspaces: 3, maxMembers: 25, maxGuests: 10, maxStorageMB: 5120, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: false, hasApprovals: true, hasTaskWorkflow: true },
     features: [
       '15 projects',
       '3 workspaces',
@@ -51,7 +51,7 @@ const PLANS = {
     period: '/month',
     popular: true,
     razorpayPlanId: process.env.RAZORPAY_PRO_PLAN_ID || null,
-    limits: { maxProjects: 999, maxWorkspaces: 999, maxMembers: 999, maxGuests: 50, maxStorageMB: 25600, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true, hasApprovals: true },
+    limits: { maxProjects: 999, maxWorkspaces: 999, maxMembers: 999, maxGuests: 50, maxStorageMB: 25600, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true, hasApprovals: true, hasTaskWorkflow: true },
     features: [
       'Unlimited projects',
       'Unlimited workspaces',
@@ -73,7 +73,7 @@ const PLANS = {
     price: null,
     priceLabel: 'Custom',
     period: '',
-    limits: { maxProjects: 9999, maxWorkspaces: 9999, maxMembers: 9999, maxGuests: 9999, maxStorageMB: 102400, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true, hasApprovals: true },
+    limits: { maxProjects: 9999, maxWorkspaces: 9999, maxMembers: 9999, maxGuests: 9999, maxStorageMB: 102400, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true, hasApprovals: true, hasTaskWorkflow: true },
     features: [
       'Everything in Pro',
       '100 GB storage',
@@ -90,6 +90,8 @@ const PLANS = {
 const DEFAULT_TRIAL_DAYS = 30;
 // Fallback USD→INR conversion when a plan has no explicit INR price (admin → Pricing)
 const USD_INR_RATE = parseFloat(process.env.RAZORPAY_USD_INR_RATE || '84');
+
+const { derivePlanFeatures } = require('../utils/planFeatures');
 
 const PLAN_LIST = Object.values(PLANS).sort((a, b) => a.order - b.order);
 
@@ -129,7 +131,14 @@ function getSupportForPlan(planId, trialEndsAt = null) {
   let id = planId === 'trial' ? 'pro' : planId;
   if (planId === 'trial' && trialEndsAt && new Date(trialEndsAt) < new Date()) id = 'starter';
   const plan = PLANS[id] || PLANS.free;
-  return { ...plan.support };
+  const support = { ...plan.support };
+  if (_overrideCache && _overrideCache[id]?.support) {
+    const o = _overrideCache[id].support;
+    for (const [k, v] of Object.entries(o)) {
+      if (v !== undefined && v !== null) support[k] = v;
+    }
+  }
+  return support;
 }
 
 // Support for one organization: its plan's, then the org's own overrides
@@ -157,15 +166,9 @@ async function getLimitsForPlanAsync(planId) {
   const effectiveId = planId === 'trial' ? 'pro' : planId;
   const override = overrides[effectiveId];
   if (override && override.limits) {
-    if (override.limits.maxProjects != null) base.maxProjects = override.limits.maxProjects;
-    if (override.limits.maxWorkspaces != null) base.maxWorkspaces = override.limits.maxWorkspaces;
-    if (override.limits.maxMembers != null) base.maxMembers = override.limits.maxMembers;
-    if (override.limits.maxGuests != null) base.maxGuests = override.limits.maxGuests;
-    if (override.limits.maxStorageMB != null) base.maxStorageMB = override.limits.maxStorageMB;
-    if (override.limits.hasIntegrations != null) base.hasIntegrations = override.limits.hasIntegrations;
-    if (override.limits.hasActivityLogs != null) base.hasActivityLogs = override.limits.hasActivityLogs;
-    if (override.limits.hasVersionHistory != null) base.hasVersionHistory = override.limits.hasVersionHistory;
-    if (override.limits.hasApprovals != null) base.hasApprovals = override.limits.hasApprovals;
+    for (const [k, v] of Object.entries(override.limits)) {
+      if (v !== undefined && v !== null) base[k] = v;
+    }
   }
   return base;
 }
@@ -174,20 +177,23 @@ async function getPlansWithOverrides() {
   const overrides = await _getOverrides();
   const result = {};
   for (const [key, plan] of Object.entries(PLANS)) {
-    const merged = { ...plan, limits: { ...plan.limits }, enabled: true };
+    const merged = { ...plan, limits: { ...plan.limits }, support: { ...plan.support }, enabled: true };
     const override = overrides[key];
     if (override) {
       if (override.enabled === false) merged.enabled = false;
+      // Generic limits merge across all keys (Phase 6 fix for maxWorkspaces and future keys)
       if (override.limits) {
-        if (override.limits.maxProjects != null) merged.limits.maxProjects = override.limits.maxProjects;
-        if (override.limits.maxMembers != null) merged.limits.maxMembers = override.limits.maxMembers;
-        if (override.limits.maxGuests != null) merged.limits.maxGuests = override.limits.maxGuests;
-        if (override.limits.maxStorageMB != null) merged.limits.maxStorageMB = override.limits.maxStorageMB;
-        if (override.limits.hasIntegrations != null) merged.limits.hasIntegrations = override.limits.hasIntegrations;
-        if (override.limits.hasActivityLogs != null) merged.limits.hasActivityLogs = override.limits.hasActivityLogs;
-        if (override.limits.hasVersionHistory != null) merged.limits.hasVersionHistory = override.limits.hasVersionHistory;
-        if (override.limits.hasApprovals != null) merged.limits.hasApprovals = override.limits.hasApprovals;
+        for (const [k, v] of Object.entries(override.limits)) {
+          if (v !== undefined && v !== null) merged.limits[k] = v;
+        }
       }
+      // Support channel SLA overrides
+      if (override.support) {
+        for (const [k, v] of Object.entries(override.support)) {
+          if (v !== undefined && v !== null) merged.support[k] = v;
+        }
+      }
+      if (Array.isArray(override.extraFeatures)) merged.extraFeatures = override.extraFeatures;
       if (override.name != null) merged.name = override.name;
       // price: null means "Custom", so accept null but skip undefined
       if (override.price !== undefined) merged.price = override.price;
@@ -195,13 +201,19 @@ async function getPlansWithOverrides() {
       if (key === 'free') merged.price = 0;
       if (override.priceLabel != null) merged.priceLabel = override.priceLabel;
       if (override.period != null) merged.period = override.period;
-      // explicit [] is an intentional override; missing field falls through
-      if (Array.isArray(override.features)) merged.features = override.features;
+      // explicit features override or derive automatically from limits and support
+      if (Array.isArray(override.features)) {
+        merged.features = override.features;
+      } else {
+        merged.features = derivePlanFeatures(merged, override.extraFeatures);
+      }
       if (override.popular != null) merged.popular = override.popular;
       if (override.badgeColor != null) merged.badgeColor = override.badgeColor;
       if (override.order != null) merged.order = override.order;
       if (override.razorpayPlanId != null) merged.razorpayPlanId = override.razorpayPlanId;
       if (override.assignToNewSignups != null) merged.assignToNewSignups = override.assignToNewSignups;
+    } else {
+      merged.features = derivePlanFeatures(merged);
     }
     // INR price for Razorpay: an explicit admin price, else the USD price converted at a fixed rate
     merged.priceInr = override && override.priceInr != null

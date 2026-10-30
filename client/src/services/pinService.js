@@ -31,3 +31,10 @@ export const uploadPinScreenshotApi = (projectId, pinId, formData) =>
 
 export const deletePinApi = (projectId, pinId) =>
   api.delete(`/projects/${projectId}/pins/${pinId}`);
+
+export const reorderPinsApi = (projectId, moves) =>
+  api.patch(`/projects/${projectId}/pins/reorder`, { moves });
+
+export const getMyTasksApi = () =>
+  api.get("/my-tasks");
+

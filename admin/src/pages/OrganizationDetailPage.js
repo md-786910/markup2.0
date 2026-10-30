@@ -8,6 +8,7 @@ import {
   extendTrialApi,
   setOrganizationLimitsApi,
   refundInvoiceApi,
+  setOrganizationDealApi,
   addOrganizationNoteApi,
   updateOrganizationNoteApi,
   deleteOrganizationNoteApi,
@@ -238,6 +239,100 @@ function LockDialog({ org, onClose, onDone }) {
       <div className="mt-6 flex justify-end gap-2">
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
         <Button variant="danger" onClick={save} disabled={saving}>{saving ? 'Locking…' : 'Lock organization'}</Button>
+      </div>
+    </Modal>
+  );
+}
+
+function CustomDealDialog({ org, onClose, onDone }) {
+  const deal = org.deal || {};
+  const [price, setPrice] = useState(deal.price != null ? String(deal.price) : '');
+  const [currency, setCurrency] = useState(deal.currency || 'USD');
+  const [note, setNote] = useState(deal.note || '');
+  const [until, setUntil] = useState(deal.until ? new Date(deal.until).toISOString().slice(0, 10) : '');
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await setOrganizationDealApi(org._id, {
+        price: price === '' ? null : Number(price),
+        currency,
+        note: note.trim() || null,
+        until: until || null,
+      });
+      toast.success(price === '' ? 'Custom deal cleared.' : 'Custom deal saved.');
+      onDone();
+    } catch (err) {
+      toastError(err, 'Could not save custom deal.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen onClose={onClose} title={`Custom Deal: ${org.name}`} size="md">
+      <p className="mb-4 text-sm text-gray-500">
+        Set a negotiated monthly price for this organization. This overrides the plan list price for MRR and future renewal invoices.
+      </p>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Custom Monthly Price" hint="Leave blank to remove custom deal">
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="e.g. 150"
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Currency">
+            <select
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value)}
+              className={inputClass}
+            >
+              <option value="USD">USD ($)</option>
+              <option value="INR">INR (₹)</option>
+            </select>
+          </Field>
+        </div>
+        <Field label="Valid Until" hint="Optional expiry date. Indefinite if empty.">
+          <input
+            type="date"
+            value={until}
+            onChange={(e) => setUntil(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Agreement / Deal Notes" hint="Internal notes on terms, discounts or agreement terms">
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            maxLength={500}
+            className={`${inputClass} h-auto py-2`}
+            placeholder="e.g. Annual contract signed with VP Engineering. 25% agency partner discount."
+          />
+        </Field>
+      </div>
+      <div className="mt-6 flex justify-between">
+        {deal.price != null ? (
+          <Button
+            variant="danger-soft"
+            onClick={() => { setPrice(''); }}
+            disabled={saving}
+          >
+            Clear deal
+          </Button>
+        ) : <div />}
+        <div className="flex gap-2">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save deal'}
+          </Button>
+        </div>
       </div>
     </Modal>
   );
@@ -493,7 +588,7 @@ function ProjectsTab({ data }) {
   );
 }
 
-function BillingTab({ data, onRefund, busy }) {
+function BillingTab({ data, onRefund, onOpenDeal, busy }) {
   const org = data.organization;
   const sub = org.subscription || {};
   const columns = [
@@ -526,7 +621,7 @@ function BillingTab({ data, onRefund, busy }) {
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Subscription" value={sub.status && sub.status !== 'none' ? sub.status[0].toUpperCase() + sub.status.slice(1) : 'None'} hint={sub.cancelAtPeriodEnd ? 'Cancels at the end of the period' : sub.currentPeriodEnd ? `Renews ${formatDate(sub.currentPeriodEnd)}` : undefined} tone={sub.cancelAtPeriodEnd ? 'warn' : 'default'} />
-        <StatCard label="Monthly revenue" value={data.mrr ? formatUsd(data.mrr) : '—'} hint="At the plan's list price" />
+        <StatCard label="Monthly revenue" value={data.mrr ? formatUsd(data.mrr) : '—'} hint={org.deal?.price != null ? 'Custom deal active' : "At the plan's list price"} />
         <StatCard
           label="Paid to date"
           value={Object.entries(data.invoices.filter((i) => i.status === 'paid').reduce((acc, i) => ({ ...acc, [i.currency]: (acc[i.currency] || 0) + i.amount }), {}))
@@ -534,6 +629,42 @@ function BillingTab({ data, onRefund, busy }) {
           hint={`${data.invoices.filter((i) => i.status === 'paid').length} paid invoices`}
         />
       </div>
+
+      <Card
+        title="Custom deal & pricing"
+        description="Negotiated pricing and billing terms for this organization"
+        actions={
+          <Button size="sm" onClick={onOpenDeal}>
+            {org.deal?.price != null ? 'Edit deal' : 'Add custom deal'}
+          </Button>
+        }
+      >
+        {org.deal?.price != null ? (
+          <div className="space-y-2 text-sm">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-2xl font-bold text-gray-900">
+                {formatMoney(org.deal.price * 100, org.deal.currency || 'USD')}
+              </span>
+              <span className="text-gray-500">/ month</span>
+              {org.deal.until && (
+                <span className="ml-2 rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-700">
+                  Valid until {formatDate(org.deal.until)} ({relativeDays(org.deal.until)})
+                </span>
+              )}
+            </div>
+            {org.deal.note && (
+              <p className="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                {org.deal.note}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">
+            No custom deal active. Standard list price applies to billing and revenue calculations.
+          </p>
+        )}
+      </Card>
+
       <Card title="Invoices" padded={false}>
         <DataTable columns={columns} data={data.invoices} emptyMessage="No invoices yet" />
       </Card>
@@ -799,11 +930,12 @@ export default function OrganizationDetailPage() {
       {tab === 'overview' && <OverviewTab data={data} onOpenNotes={() => setTab('notes')} />}
       {tab === 'people' && <PeopleTab data={data} />}
       {tab === 'projects' && <ProjectsTab data={data} />}
-      {tab === 'billing' && <BillingTab data={data} onRefund={handleRefund} busy={busy} />}
+      {tab === 'billing' && <BillingTab data={data} onRefund={handleRefund} onOpenDeal={() => setDialog('deal')} busy={busy} />}
       {tab === 'activity' && <ActivityTab data={data} />}
       {tab === 'support' && <SupportTab orgId={org._id} />}
       {tab === 'notes' && <NotesTab data={data} onChange={fetchData} />}
 
+      {dialog === 'deal' && <CustomDealDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
       {dialog === 'plan' && <ChangePlanDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
       {dialog === 'trial' && <ExtendTrialDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
       {dialog === 'limits' && <LimitsDialog org={org} limits={data.limits} planSupport={data.planSupport} onClose={() => setDialog(null)} onDone={closeAndReload} />}

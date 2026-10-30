@@ -1,6 +1,6 @@
 # Phase 7: Launch hardening
 
-**Status: Planned · Size: S (about 3–4 days)**
+**Status: Done · Size: S (about 3–4 days)**
 
 ## Goal
 Be alerted when something important happens, give support staff a safe role, and make the launch boring.

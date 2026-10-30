@@ -10,6 +10,7 @@ const Comment = require('../models/Comment');
 const Workspace = require('../models/Workspace');
 const Invitation = require('../models/Invitation');
 const AdminNote = require('../models/AdminNote');
+const AdminUser = require('../models/AdminUser');
 const SupportTicket = require('../models/SupportTicket');
 const PaymentSettings = require('../models/PaymentSettings');
 const asyncHandler = require('../utils/asyncHandler');
@@ -655,6 +656,10 @@ exports.updatePlan = asyncHandler(async (req, res) => {
     const n = numOrSkip(b.maxProjects);
     if (n !== undefined) $set['limits.maxProjects'] = n;
   }
+  if (b.maxWorkspaces !== undefined) {
+    const n = numOrSkip(b.maxWorkspaces);
+    if (n !== undefined) $set['limits.maxWorkspaces'] = n;
+  }
   if (b.maxMembers !== undefined) {
     const n = numOrSkip(b.maxMembers);
     if (n !== undefined) $set['limits.maxMembers'] = n;
@@ -675,6 +680,28 @@ exports.updatePlan = asyncHandler(async (req, res) => {
   }
   if (b.hasVersionHistory !== undefined) {
     $set['limits.hasVersionHistory'] = !!b.hasVersionHistory;
+  }
+  if (b.hasApprovals !== undefined) {
+    $set['limits.hasApprovals'] = !!b.hasApprovals;
+  }
+
+  // Support channel SLA overrides
+  if (b.support && typeof b.support === 'object') {
+    if (b.support.tickets !== undefined) $set['support.tickets'] = !!b.support.tickets;
+    if (b.support.chat !== undefined) $set['support.chat'] = !!b.support.chat;
+    if (b.support.priority !== undefined) {
+      $set['support.priority'] = ['normal', 'high', 'urgent'].includes(b.support.priority) ? b.support.priority : 'normal';
+    }
+    if (b.support.replyHours !== undefined) {
+      $set['support.replyHours'] = numOrNull(b.support.replyHours);
+    }
+  }
+
+  // Extra features
+  if (Array.isArray(b.extraFeatures)) {
+    $set.extraFeatures = b.extraFeatures
+      .map((f) => String(f).slice(0, 200).trim())
+      .filter((f) => f.length > 0);
   }
 
   // Display fields
@@ -698,15 +725,18 @@ exports.updatePlan = asyncHandler(async (req, res) => {
   if (b.assignToNewSignups !== undefined && planId === 'free') {
     $set.assignToNewSignups = !!b.assignToNewSignups;
   }
+  const updateDoc = { $set };
   if (Array.isArray(b.features)) {
     $set.features = b.features
       .map((f) => String(f).slice(0, 200).trim())
       .filter((f) => f.length > 0);
+  } else if (b.features === null || b.deriveFeatures === true) {
+    updateDoc.$unset = { features: 1 };
   }
 
   await PlanConfig.findOneAndUpdate(
     { planId },
-    { $set },
+    updateDoc,
     { upsert: true, returnDocument: 'after' },
   );
   logAdminAction(null, req.admin, 'plan.updated', { planId, changes: $set });
@@ -736,6 +766,62 @@ exports.togglePlan = asyncHandler(async (req, res) => {
   clearPlanCache();
   const plans = await getPlansWithOverrides();
   res.json({ plans });
+});
+
+exports.getPlanUsageImpact = asyncHandler(async (req, res) => {
+  const { planId } = req.params;
+  if (!PLANS[planId]) return res.status(404).json({ message: 'Plan not found' });
+
+  const orgs = await Organization.find({ plan: planId, deletionScheduledAt: null }).select('_id name storageUsedBytes').lean();
+  const totalOrgs = orgs.length;
+  if (totalOrgs === 0) {
+    return res.json({ totalOrgs: 0, impacts: {} });
+  }
+
+  const orgIds = orgs.map((o) => o._id);
+  const [projectCounts, memberCounts, workspaceCounts] = await Promise.all([
+    Project.aggregate([
+      { $match: { organization: { $in: orgIds }, status: 'active' } },
+      { $group: { _id: '$organization', count: { $sum: 1 } } },
+    ]),
+    User.aggregate([
+      { $match: { organization: { $in: orgIds } } },
+      { $group: { _id: '$organization', count: { $sum: 1 } } },
+    ]),
+    Workspace.aggregate([
+      { $match: { organization: { $in: orgIds } } },
+      { $group: { _id: '$organization', count: { $sum: 1 } } },
+    ]),
+  ]);
+
+  const pMap = new Map(projectCounts.map((p) => [String(p._id), p.count]));
+  const mMap = new Map(memberCounts.map((m) => [String(m._id), m.count]));
+  const wMap = new Map(workspaceCounts.map((w) => [String(w._id), w.count]));
+
+  const impacts = {};
+  const query = Object.keys(req.query || {}).length ? req.query : (req.body || {});
+
+  if (query.maxProjects != null) {
+    const limit = Number(query.maxProjects);
+    impacts.maxProjects = orgs.filter((o) => (pMap.get(String(o._id)) || 0) > limit).length;
+  }
+  if (query.maxWorkspaces != null) {
+    const limit = Number(query.maxWorkspaces);
+    impacts.maxWorkspaces = orgs.filter((o) => (wMap.get(String(o._id)) || 0) > limit).length;
+  }
+  if (query.maxMembers != null) {
+    const limit = Number(query.maxMembers);
+    impacts.maxMembers = orgs.filter((o) => (mMap.get(String(o._id)) || 0) > limit).length;
+  }
+  if (query.maxStorageMB != null) {
+    const limitBytes = Number(query.maxStorageMB) * 1048576;
+    impacts.maxStorageMB = orgs.filter((o) => (o.storageUsedBytes || 0) > limitBytes).length;
+  }
+
+  const affectedCount = Object.values(impacts).reduce((a, b) => Math.max(a, b), 0);
+  const hasImpact = affectedCount > 0;
+
+  res.json({ totalOrgs, impacts, hasImpact, affectedCount });
 });
 
 // ── Payment Settings ─────────────────────────────────────────────
@@ -850,8 +936,13 @@ exports.setOrganizationPlan = asyncHandler(async (req, res) => {
  */
 exports.extendTrial = asyncHandler(async (req, res) => {
   const days = parseInt(req.body?.days, 10);
-  if (!Number.isFinite(days) || days < 1 || days > 365) {
-    return res.status(400).json({ message: 'days must be between 1 and 365' });
+  const maxAllowed = req.admin?.role === 'support' ? 14 : 365;
+  if (!Number.isFinite(days) || days < 1 || days > maxAllowed) {
+    return res.status(400).json({
+      message: req.admin?.role === 'support'
+        ? 'Support agents can only extend trials by up to 14 days'
+        : 'days must be between 1 and 365',
+    });
   }
   const org = await Organization.findById(req.params.id);
   if (!org) return res.status(404).json({ message: 'Organization not found' });
@@ -901,6 +992,36 @@ exports.setOrganizationLimits = asyncHandler(async (req, res) => {
   res.json({ organization: org });
 });
 
+exports.setOrganizationDeal = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { price, currency, note, until } = req.body;
+
+  const org = await Organization.findById(id);
+  if (!org) return res.status(404).json({ message: 'Organization not found' });
+
+  const prevDeal = org.deal ? (org.deal.toObject ? org.deal.toObject() : org.deal) : null;
+
+  if (price === null || price === undefined || price === '') {
+    org.deal = { price: null, currency: 'USD', note: null, until: null };
+  } else {
+    const numPrice = Number(price);
+    if (!Number.isFinite(numPrice) || numPrice < 0) {
+      return res.status(400).json({ message: 'Price must be a positive number or zero' });
+    }
+    org.deal = {
+      price: numPrice,
+      currency: currency === 'INR' ? 'INR' : 'USD',
+      note: note ? String(note).slice(0, 500) : null,
+      until: until ? new Date(until) : null,
+    };
+  }
+
+  await org.save();
+  logAdminAction(org._id, req.admin, 'org.deal_updated', { before: prevDeal, after: org.deal });
+
+  res.json({ organization: org, deal: org.deal });
+});
+
 /**
  * POST /api/admin/invoices/:id/refund
  * Full refund through the invoice's payment provider; the plan is revoked if
@@ -926,6 +1047,11 @@ exports.refundInvoice = asyncHandler(async (req, res) => {
   logAdminAction(invoice.organization, req.admin, 'org.invoice_refunded', {
     invoiceId: String(invoice._id), amount: invoice.amount, currency: invoice.currency,
   });
+  try {
+    const { alertRefundIssued } = require('../utils/adminAlerts');
+    const org = await Organization.findById(invoice.organization).select('name');
+    alertRefundIssued({ organization: org, invoice, amount: invoice.amount, currency: invoice.currency, admin: req.admin }).catch(() => {});
+  } catch {}
   res.json({ invoice, downgraded: !!result.downgraded });
 });
 
@@ -981,4 +1107,240 @@ exports.getAuditLog = asyncHandler(async (req, res) => {
     Activity.countDocuments(filter),
   ]);
   res.json({ entries, total, page, totalPages: Math.ceil(total / limit) });
+});
+
+// ── Revenue & Invoices (Phase 6) ─────────────────────────────────
+
+exports.getRevenue = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const fourteenDaysAhead = new Date(now.getTime() + 14 * dayMs);
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * dayMs);
+
+  const plans = await getPlansWithOverrides();
+
+  // 1. Paying organizations & current MRR breakdown
+  const payingOrgs = await Organization.find({
+    deletionScheduledAt: null,
+    $or: [
+      { plan: { $in: ['starter', 'pro', 'enterprise'] }, 'subscription.status': 'active' },
+      { 'deal.price': { $ne: null } },
+    ],
+  }).select('name plan subscription deal').lean();
+
+  const mrrByPlan = {
+    starter: { usd: 0, inr: 0, count: 0 },
+    pro: { usd: 0, inr: 0, count: 0 },
+    enterprise: { usd: 0, inr: 0, count: 0 },
+    custom: { usd: 0, inr: 0, count: 0 },
+  };
+
+  let totalUsdMrr = 0;
+  let totalInrMrr = 0;
+
+  for (const org of payingOrgs) {
+    const dealActive = org.deal && org.deal.price != null && (!org.deal.until || new Date(org.deal.until) > now);
+    if (dealActive) {
+      if (org.deal.currency === 'INR') {
+        totalInrMrr += Number(org.deal.price);
+        mrrByPlan.custom.inr += Number(org.deal.price);
+      } else {
+        totalUsdMrr += Number(org.deal.price);
+        mrrByPlan.custom.usd += Number(org.deal.price);
+      }
+      mrrByPlan.custom.count++;
+    } else if (org.subscription?.status === 'active' && ['starter', 'pro'].includes(org.plan)) {
+      const planConfig = plans[org.plan];
+      const usdPrice = Number(planConfig?.price) || 0;
+      const inrPrice = Number(planConfig?.priceInr) || Math.round(usdPrice * 84);
+
+      if (org.subscription?.provider === 'razorpay') {
+        totalInrMrr += inrPrice;
+        mrrByPlan[org.plan].inr += inrPrice;
+      } else {
+        totalUsdMrr += usdPrice;
+        mrrByPlan[org.plan].usd += usdPrice;
+      }
+      mrrByPlan[org.plan].count++;
+    }
+  }
+
+  // 2. New MRR this month & Churned MRR this month
+  const [newOrgsMonth, churnedOrgsMonth, ninetyDaysTrials, ninetyDaysConverted] = await Promise.all([
+    Organization.find({
+      plan: { $in: ['starter', 'pro', 'enterprise'] },
+      'subscription.status': 'active',
+      createdAt: { $gte: startOfMonth },
+    }).select('plan subscription deal').lean(),
+    Organization.find({
+      $or: [
+        { 'subscription.cancelAtPeriodEnd': true, 'subscription.currentPeriodEnd': { $gte: startOfMonth } },
+        { 'subscription.status': 'canceled', updatedAt: { $gte: startOfMonth } },
+      ],
+    }).select('plan subscription deal').lean(),
+    Organization.countDocuments({
+      createdAt: { $gte: ninetyDaysAgo, $lte: new Date(now.getTime() - 14 * dayMs) },
+    }),
+    Organization.countDocuments({
+      createdAt: { $gte: ninetyDaysAgo, $lte: new Date(now.getTime() - 14 * dayMs) },
+      plan: { $in: ['starter', 'pro', 'enterprise'] },
+    }),
+  ]);
+
+  const newMrr30d = {
+    usd: newOrgsMonth.reduce((acc, o) => acc + (o.deal?.price || plans[o.plan]?.price || 0), 0),
+    count: newOrgsMonth.length,
+  };
+
+  const churnedMrr30d = {
+    usd: churnedOrgsMonth.reduce((acc, o) => acc + (o.deal?.price || plans[o.plan]?.price || 0), 0),
+    count: churnedOrgsMonth.length,
+  };
+
+  const trialConversionRate = ninetyDaysTrials > 0
+    ? Math.round((ninetyDaysConverted / ninetyDaysTrials) * 100)
+    : 0;
+
+  // 3. Upcoming Renewals (next 14 days)
+  const upcomingRenewals = await Organization.find({
+    plan: { $in: ['starter', 'pro', 'enterprise'] },
+    'subscription.status': 'active',
+    'subscription.cancelAtPeriodEnd': { $ne: true },
+    'subscription.currentPeriodEnd': { $gte: now, $lte: fourteenDaysAhead },
+  })
+    .sort({ 'subscription.currentPeriodEnd': 1 })
+    .select('name plan subscription deal owner')
+    .populate('owner', 'name email')
+    .lean();
+
+  // 4. Unpaid & Failed Invoices
+  const unpaidInvoices = await Invoice.find({
+    status: { $in: ['pending', 'failed'] },
+  })
+    .sort({ dueAt: 1, createdAt: -1 })
+    .limit(20)
+    .populate('organization', 'name plan')
+    .lean();
+
+  // 5. Recent Payments (last 20)
+  const recentPayments = await Invoice.find({
+    status: 'paid',
+  })
+    .sort({ paidAt: -1, createdAt: -1 })
+    .limit(20)
+    .populate('organization', 'name plan')
+    .lean();
+
+  // 6. Recent Refunds (last 20)
+  const recentRefunds = await Invoice.find({
+    status: 'refunded',
+  })
+    .sort({ refundedAt: -1, updatedAt: -1 })
+    .limit(20)
+    .populate('organization', 'name plan')
+    .lean();
+
+  // 7. Scheduled Cancellations (cancel at period end)
+  const scheduledCancellations = await Organization.find({
+    'subscription.cancelAtPeriodEnd': true,
+    deletionScheduledAt: null,
+  })
+    .sort({ 'subscription.currentPeriodEnd': 1 })
+    .select('name plan subscription owner')
+    .populate('owner', 'name email')
+    .lean();
+
+  res.json({
+    kpis: {
+      totalUsdMrr,
+      totalInrMrr,
+      payingOrgsCount: payingOrgs.length,
+      newMrr30d,
+      churnedMrr30d,
+      trialConversionRate,
+    },
+    mrrByPlan,
+    upcomingRenewals,
+    unpaidInvoices,
+    recentPayments,
+    recentRefunds,
+    scheduledCancellations,
+  });
+});
+
+exports.getInvoices = asyncHandler(async (req, res) => {
+  const { status, plan, currency, from, to, format } = req.query;
+  const csv = format === 'csv';
+  const { page, limit } = parsePaging(req.query);
+
+  const filter = {};
+  if (status) filter.status = String(status);
+  if (plan) filter.plan = String(plan);
+  if (currency) filter.currency = String(currency).toUpperCase();
+  if (from || to) {
+    filter.createdAt = {};
+    if (from) filter.createdAt.$gte = new Date(from);
+    if (to) filter.createdAt.$lte = new Date(to);
+  }
+
+  if (csv) {
+    const invoices = await Invoice.find(filter)
+      .sort({ createdAt: -1 })
+      .populate('organization', 'name billingDetails')
+      .lean();
+
+    const cell = (v) => {
+      const s = v == null ? '' : String(v);
+      return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    };
+    const iso = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
+    const header = ['Invoice Number', 'Date', 'Organization', 'Buyer Legal Name', 'GSTIN', 'Plan', 'Currency', 'Amount', 'Taxable', 'Tax', 'Status', 'Paid At', 'Provider', 'Due Date'];
+    const lines = invoices.map((inv) => {
+      const amt = (inv.amount / 100).toFixed(2);
+      const taxAmt = inv.tax?.total ? (inv.tax.total / 100).toFixed(2) : '0.00';
+      const taxableAmt = inv.tax?.taxable ? (inv.tax.taxable / 100).toFixed(2) : amt;
+      return [
+        inv.invoiceNumber || '',
+        iso(inv.createdAt),
+        inv.organization?.name || '',
+        inv.buyer?.name || inv.organization?.billingDetails?.legalName || '',
+        inv.buyer?.taxId || inv.organization?.billingDetails?.taxId || '',
+        inv.plan,
+        inv.currency,
+        amt,
+        taxableAmt,
+        taxAmt,
+        inv.status,
+        iso(inv.paidAt),
+        inv.provider || '',
+        iso(inv.dueAt),
+      ].map(cell).join(',');
+    });
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="kommently-invoices-${new Date().toISOString().slice(0, 10)}.csv"`);
+    const csvContent = [header.map(cell).join(','), ...lines].join('\n');
+    if (typeof res.send === 'function') {
+      return res.send(csvContent);
+    }
+    return res.end(csvContent);
+  }
+
+  const [invoices, total] = await Promise.all([
+    Invoice.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('organization', 'name billingDetails')
+      .lean(),
+    Invoice.countDocuments(filter),
+  ]);
+
+  res.json({
+    invoices,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  });
 });

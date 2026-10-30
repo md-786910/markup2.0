@@ -48,11 +48,12 @@ exports.listAdmins = asyncHandler(async (req, res) => {
 exports.inviteAdmin = asyncHandler(async (req, res) => {
   const name = String(req.body?.name || '').trim();
   const email = String(req.body?.email || '').toLowerCase().trim();
+  const role = req.body?.role === 'support' ? 'support' : 'superadmin';
   if (!name) return res.status(400).json({ message: 'Enter their name.' });
   if (!EMAIL_RE.test(email)) return res.status(400).json({ message: 'Enter a valid email address.' });
   if (await AdminUser.exists({ email })) return res.status(400).json({ message: 'That email already has an admin account.' });
 
-  const target = await AdminUser.create({ name: name.slice(0, 80), email, status: 'invited', invitedBy: req.admin._id });
+  const target = await AdminUser.create({ name: name.slice(0, 80), email, role, status: 'invited', invitedBy: req.admin._id });
   try {
     await sendInvite(req, target);
   } catch (err) {

@@ -46,6 +46,7 @@ export default function CommentSidebar({
   onClose,
   onBack,
   onStatusChange,
+  onPinUpdate,
   onDelete,
   onNavigate,
   onEvent,
@@ -65,6 +66,7 @@ export default function CommentSidebar({
   const [lightbox, setLightbox] = useState(null);
   const [lightboxExpanded, setLightboxExpanded] = useState(false);
   const [copyToast, setCopyToast] = useState(false);
+  const [newLabelInput, setNewLabelInput] = useState("");
   const { user } = useAuth();
 
   const handleDownload = (src) => {
@@ -91,6 +93,53 @@ export default function CommentSidebar({
   };
   const mentionRef = useRef(null);
   const editMentionRef = useRef(null);
+
+  const handleStatusSelect = (nextStatus) => {
+    if (onPinUpdate) {
+      onPinUpdate(pin._id, { status: nextStatus });
+    } else if (onStatusChange) {
+      onStatusChange(pin._id, nextStatus);
+    }
+  };
+
+  const handlePrioritySelect = (priority) => {
+    if (onPinUpdate) {
+      onPinUpdate(pin._id, { priority });
+    }
+  };
+
+  const handleAssigneeSelect = (assigneeId) => {
+    if (onPinUpdate) {
+      onPinUpdate(pin._id, { assignee: assigneeId || null });
+    }
+  };
+
+  const handleDueDateSelect = (dueDateStr) => {
+    if (onPinUpdate) {
+      onPinUpdate(pin._id, { dueAt: dueDateStr ? new Date(dueDateStr).toISOString() : null });
+    }
+  };
+
+  const handleRemoveLabel = (idx) => {
+    const nextLabels = (pin.labels || []).filter((_, i) => i !== idx);
+    if (onPinUpdate) {
+      onPinUpdate(pin._id, { labels: nextLabels });
+    }
+  };
+
+  const handleAddLabelKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const val = newLabelInput.trim();
+      if (val && !(pin.labels || []).includes(val)) {
+        const nextLabels = [...(pin.labels || []), val];
+        if (onPinUpdate) {
+          onPinUpdate(pin._id, { labels: nextLabels });
+        }
+      }
+      setNewLabelInput("");
+    }
+  };
 
   useEffect(() => {
     if (!pin) return;
@@ -346,6 +395,109 @@ export default function CommentSidebar({
                   />
                 </svg>
               </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Task workflow properties */}
+      <div className="px-4 py-2.5 bg-gray-50/80 border-b border-gray-100 text-xs space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          {/* Status */}
+          <div>
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Status</label>
+            <select
+              disabled={readOnly}
+              value={pin.status === 'pending' ? 'open' : (pin.status || 'open')}
+              onChange={(e) => handleStatusSelect(e.target.value)}
+              className="w-full text-xs font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="in_review">In Review</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </div>
+          {/* Priority */}
+          <div>
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Priority</label>
+            <select
+              disabled={readOnly}
+              value={pin.priority || 'normal'}
+              onChange={(e) => handlePrioritySelect(e.target.value)}
+              className="w-full text-xs font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {/* Assignee */}
+          <div>
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Assignee</label>
+            <select
+              disabled={readOnly}
+              value={pin.assignee?._id || pin.assignee || ''}
+              onChange={(e) => handleAssigneeSelect(e.target.value)}
+              className="w-full text-xs font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 truncate focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">Unassigned</option>
+              {members.map((m) => (
+                <option key={m._id} value={m._id}>
+                  {m.name || m.email}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* Due date */}
+          <div>
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Due date</label>
+            <input
+              type="date"
+              disabled={readOnly}
+              value={pin.dueAt ? String(pin.dueAt).slice(0, 10) : ''}
+              onChange={(e) => handleDueDateSelect(e.target.value)}
+              className="w-full text-xs font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Labels / Tags */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Labels</label>
+          </div>
+          <div className="flex flex-wrap items-center gap-1">
+            {(pin.labels || []).map((label, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center gap-1 bg-white border border-gray-200 text-gray-700 text-[11px] px-1.5 py-0.5 rounded-full"
+              >
+                <span>{label}</span>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveLabel(idx)}
+                    className="text-gray-400 hover:text-red-500 text-[12px] font-bold leading-none"
+                  >
+                    &times;
+                  </button>
+                )}
+              </span>
+            ))}
+            {!readOnly && (
+              <input
+                type="text"
+                placeholder="+ Add label (Enter)"
+                value={newLabelInput}
+                onChange={(e) => setNewLabelInput(e.target.value)}
+                onKeyDown={handleAddLabelKeyDown}
+                className="text-[11px] bg-white border border-dashed border-gray-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-blue-500 max-w-[120px]"
+              />
             )}
           </div>
         </div>

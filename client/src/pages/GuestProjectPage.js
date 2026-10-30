@@ -888,6 +888,7 @@ export default function GuestProjectPage() {
                   currentPage={currentDocPage}
                   onPageChange={setCurrentDocPage}
                   onDocIndexChange={(i) => { setCurrentDocIndex(i); setCurrentDocPage(1); }}
+                  hidePins={!commentMode}
                   pinMode={commentMode}
                   pins={pagePins}
                   selectedPinId={selectedPin?._id}
@@ -901,6 +902,7 @@ export default function GuestProjectPage() {
               <IframeContainer
                 proxyUrl={`${API_BASE}/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}&guest=true`}
                 targetUrl={project.websiteUrl}
+                hidePins={!commentMode}
                 pinMode={commentMode}
                 pins={pagePins}
                 selectedPinId={selectedPin?._id}

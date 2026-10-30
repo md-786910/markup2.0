@@ -1,6 +1,6 @@
 # Phase 8: Task workflow
 
-**Status: Planned · Size: M (about 1.5–2 weeks)**
+**Status: Done · Size: M (about 1.5–2 weeks)**
 
 ## Goal
 Teams can run the fixes inside Kommently: assign each pin, set priority and due date, move it through statuses, and see the work on a board.

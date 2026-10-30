@@ -72,8 +72,34 @@ const pinSchema = new Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'resolved'],
-    default: 'pending',
+    enum: ['open', 'in_progress', 'in_review', 'resolved', 'pending'],
+    default: 'open',
+    index: true,
+  },
+  assignee: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true,
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'normal', 'high', 'urgent'],
+    default: 'normal',
+    index: true,
+  },
+  dueAt: {
+    type: Date,
+    default: null,
+    index: true,
+  },
+  labels: {
+    type: [{ type: String, trim: true, maxlength: 40 }],
+    default: [],
+  },
+  position: {
+    type: Number,
+    default: 0,
   },
   createdByGuest: {
     name: { type: String, default: null },
@@ -116,5 +142,7 @@ pinSchema.index({ project: 1, pageUrl: 1, deviceMode: 1 });
 pinSchema.index({ project: 1, pinNumber: 1 }, { unique: true, sparse: true });
 // Unfiltered project pin list, sorted newest first
 pinSchema.index({ project: 1, createdAt: -1 });
+pinSchema.index({ assignee: 1, status: 1, dueAt: 1 });
+pinSchema.index({ project: 1, status: 1, position: 1 });
 
 module.exports = mongoose.model('Pin', pinSchema);

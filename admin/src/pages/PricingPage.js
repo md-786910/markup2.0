@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../components/common/ui';
-import { getPlansApi, updatePlanApi, togglePlanApi } from '../services/adminService';
+import { getPlansApi, updatePlanApi, togglePlanApi, getPlanUsageImpactApi } from '../services/adminService';
 import Modal from '../components/common/Modal';
 import Badge from '../components/common/Badge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -21,10 +21,20 @@ function emptyForm() {
     maxProjects: 0,
     maxMembers: 0,
     maxGuests: 0,
+    maxWorkspaces: 1,
+    maxStorageMB: 500,
     hasIntegrations: false,
     hasActivityLogs: false,
     hasVersionHistory: false,
+    hasApprovals: false,
+    support: {
+      tickets: true,
+      chat: false,
+      priority: 'normal',
+      replyHours: 48,
+    },
     features: [],
+    extraFeatures: [],
     razorpayPlanId: '',
   };
 }
@@ -36,6 +46,8 @@ export default function PricingPage() {
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const [impactWarning, setImpactWarning] = useState(null);
 
   const fetchPlans = async () => {
     try {
@@ -76,13 +88,24 @@ export default function PricingPage() {
       maxProjects: plan.limits?.maxProjects ?? 0,
       maxMembers: plan.limits?.maxMembers ?? 0,
       maxGuests: plan.limits?.maxGuests ?? 0,
+      maxWorkspaces: plan.limits?.maxWorkspaces ?? 1,
+      maxStorageMB: plan.limits?.maxStorageMB ?? 500,
       hasIntegrations: !!plan.limits?.hasIntegrations,
       hasActivityLogs: !!plan.limits?.hasActivityLogs,
       hasVersionHistory: !!plan.limits?.hasVersionHistory,
+      hasApprovals: !!plan.limits?.hasApprovals,
+      support: {
+        tickets: plan.support?.tickets !== false,
+        chat: !!plan.support?.chat,
+        priority: plan.support?.priority || 'normal',
+        replyHours: plan.support?.replyHours || 48,
+      },
       features: Array.isArray(plan.features) ? [...plan.features] : [],
+      extraFeatures: Array.isArray(plan.extraFeatures) ? [...plan.extraFeatures] : [],
       razorpayPlanId: plan.razorpayPlanId || '',
     });
     setError('');
+    setImpactWarning(null);
     setEditModal(planId);
   };
 
@@ -102,10 +125,54 @@ export default function PricingPage() {
     features: f.features.filter((_, idx) => idx !== i),
   }));
 
-  const handleSave = async () => {
+  const updateSupportField = (key, value) => {
+    setForm((f) => ({ ...f, support: { ...f.support, [key]: value } }));
+  };
+
+  const updateExtraFeature = (i, value) => {
+    setForm((f) => {
+      const next = [...f.extraFeatures];
+      next[i] = value;
+      return { ...f, extraFeatures: next };
+    });
+  };
+
+  const addExtraFeature = () => setForm((f) => ({ ...f, extraFeatures: [...f.extraFeatures, ''] }));
+  const removeExtraFeature = (i) => setForm((f) => ({
+    ...f,
+    extraFeatures: f.extraFeatures.filter((_, idx) => idx !== i),
+  }));
+
+  const handleSave = async (forceConfirmed = false) => {
     setSaving(true);
     setError('');
     try {
+      const limitsPayload = {
+        maxProjects: Number(form.maxProjects),
+        maxMembers: Number(form.maxMembers),
+        maxGuests: Number(form.maxGuests),
+        maxWorkspaces: Number(form.maxWorkspaces),
+        maxStorageMB: Number(form.maxStorageMB),
+        hasIntegrations: form.hasIntegrations,
+        hasActivityLogs: form.hasActivityLogs,
+        hasVersionHistory: form.hasVersionHistory,
+        hasApprovals: form.hasApprovals,
+      };
+
+      // Check usage impact first if not explicitly confirmed
+      if (!forceConfirmed) {
+        try {
+          const { data: impact } = await getPlanUsageImpactApi(editModal, limitsPayload);
+          if (impact?.hasImpact) {
+            setImpactWarning(impact);
+            setSaving(false);
+            return;
+          }
+        } catch {
+          // If impact check is unroutable or fails, continue with save
+        }
+      }
+
       const payload = {
         name: form.name,
         price: form.price === '' ? null : Number(form.price),
@@ -115,17 +182,16 @@ export default function PricingPage() {
         order: Number(form.order),
         badgeColor: form.badgeColor,
         popular: !!form.popular,
-        maxProjects: Number(form.maxProjects),
-        maxMembers: Number(form.maxMembers),
-        maxGuests: Number(form.maxGuests),
-        hasIntegrations: form.hasIntegrations,
-        hasActivityLogs: form.hasActivityLogs,
-        hasVersionHistory: form.hasVersionHistory,
+        ...limitsPayload,
+        support: form.support,
+        extraFeatures: form.extraFeatures.map((f) => f.trim()).filter(Boolean),
+        deriveFeatures: true, // Auto-derive dynamic bullet points
         features: form.features.map((f) => f.trim()).filter(Boolean),
         razorpayPlanId: form.razorpayPlanId.trim(),
       };
       const { data } = await updatePlanApi(editModal, payload);
       setPlans(data.plans);
+      setImpactWarning(null);
       setEditModal(null);
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to save plan.');
@@ -386,6 +452,14 @@ export default function PricingPage() {
                 <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Guests</label>
                 <input type="number" value={form.maxGuests} onChange={(e) => updateField('maxGuests', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
               </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Workspaces</label>
+                <input type="number" value={form.maxWorkspaces} onChange={(e) => updateField('maxWorkspaces', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Storage Limit (MB)</label>
+                <input type="number" value={form.maxStorageMB} onChange={(e) => updateField('maxStorageMB', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
+              </div>
             </div>
           </section>
 
@@ -426,6 +500,62 @@ export default function PricingPage() {
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" checked={form.hasVersionHistory} onChange={(e) => updateField('hasVersionHistory', e.target.checked)} className="sr-only peer" />
                   <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Client Approvals & Sign-off</p>
+                  <p className="text-[11px] text-gray-500">Allow review rounds, sign-offs, and feedback deadlines.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={form.hasApprovals} onChange={(e) => updateField('hasApprovals', e.target.checked)} className="sr-only peer" />
+                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          {/* Support SLA Section */}
+          <section className="bg-gray-50/50 rounded-xl border border-gray-100 p-4 space-y-4">
+            <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <svg className="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+              Support SLA & Channels
+            </h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Priority</label>
+                <select
+                  value={form.support.priority}
+                  onChange={(e) => updateSupportField('priority', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                >
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Reply Target (Hours)</label>
+                <input
+                  type="number"
+                  value={form.support.replyHours}
+                  onChange={(e) => updateSupportField('replyHours', Number(e.target.value))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                />
+              </div>
+              <div className="flex items-center justify-between col-span-2 pt-1">
+                <span className="text-sm text-gray-700">In-App Ticket System</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={form.support.tickets} onChange={(e) => updateSupportField('tickets', e.target.checked)} className="sr-only peer" />
+                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
+                </label>
+              </div>
+              <div className="flex items-center justify-between col-span-2">
+                <span className="text-sm text-gray-700">Live Chat Support</span>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" checked={form.support.chat} onChange={(e) => updateSupportField('chat', e.target.checked)} className="sr-only peer" />
+                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
                 </label>
               </div>
             </div>
@@ -472,6 +602,46 @@ export default function PricingPage() {
           </section>
           
           </div> {/* End Right Column */}
+
+          {impactWarning && (
+            <div className="col-span-1 lg:col-span-2">
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-sm space-y-2">
+                <div className="flex items-center gap-2 font-semibold text-amber-800">
+                  <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  Usage Impact Warning ({impactWarning.affectedCount} customer{impactWarning.affectedCount === 1 ? '' : 's'} affected)
+                </div>
+                <p className="text-xs text-amber-700">
+                  Some organizations currently subscribed to this plan exceed the proposed lower limits:
+                </p>
+                <div className="space-y-1">
+                  {impactWarning.impacts?.map((imp, idx) => (
+                    <div key={idx} className="text-xs flex items-center justify-between bg-white/70 px-2.5 py-1.5 rounded-lg border border-amber-200/50">
+                      <span className="font-medium text-gray-800">{imp.orgName}</span>
+                      <span className="text-amber-800 font-mono">
+                        {imp.limitKey}: {imp.currentUsage} used &gt; {imp.proposedLimit} new limit
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-2 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setImpactWarning(null)}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
+                  >
+                    Adjust Limits
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSave(true)}
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 rounded-lg hover:bg-amber-700"
+                  >
+                    Proceed Anyway
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="col-span-1 lg:col-span-2">

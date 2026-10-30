@@ -52,8 +52,15 @@ function getRazorpayClient() {
  */
 async function createOrder({ org, plan, planConfig, invoiceMeta = {} }) {
   const razorpay = getRazorpayClient();
-  // Explicit INR price (admin-set, or USD × RAZORPAY_USD_INR_RATE) → paise
-  const rupees = planConfig.priceInr != null ? planConfig.priceInr : planConfig.price * 84;
+  // If org has an active custom deal, charge the agreed price; otherwise list price
+  const now = new Date();
+  const dealActive = org.deal && org.deal.price != null && (!org.deal.until || new Date(org.deal.until) > now);
+  let rupees;
+  if (dealActive) {
+    rupees = org.deal.currency === 'INR' ? Number(org.deal.price) : Number(org.deal.price) * 84;
+  } else {
+    rupees = planConfig.priceInr != null ? planConfig.priceInr : planConfig.price * 84;
+  }
   const amount = Math.round(rupees * 100);
   const receipt = (invoiceMeta.receipt || `rcpt_${Date.now()}`).slice(0, 40);
 

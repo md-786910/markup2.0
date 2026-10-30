@@ -19,6 +19,7 @@ const UsersPage = lazy(() => import('./pages/UsersPage'));
 const UserDetailPage = lazy(() => import('./pages/UserDetailPage'));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+const RevenuePage = lazy(() => import('./pages/RevenuePage'));
 const PaymentsPage = lazy(() => import('./pages/PaymentsPage'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 
@@ -48,6 +49,7 @@ function App() {
                 <Route path="/users/:id" element={<UserDetailPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
                 <Route path="/pricing" element={<PricingPage />} />
+                <Route path="/revenue" element={<RevenuePage />} />
                 <Route path="/payments" element={<PaymentsPage />} />
                 <Route path="/audit" element={<AuditLogPage />} />
                 <Route path="/account" element={<AccountPage />} />
