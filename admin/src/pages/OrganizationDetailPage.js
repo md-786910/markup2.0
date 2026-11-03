@@ -491,8 +491,8 @@ function OverviewTab({ data, onOpenNotes }) {
                   <HealthBadge health={data.health} />
                 </div>
               </div>
-              {data.health?.calculatedAt && (
-                <span className="text-xs text-gray-400">Calculated {timeAgo(data.health.calculatedAt)}</span>
+              {data.health?.computedAt && (
+                <span className="text-xs text-gray-400">Calculated {timeAgo(data.health.computedAt)}</span>
               )}
             </div>
             {data.health?.reasons?.length > 0 && (
@@ -539,12 +539,14 @@ function OverviewTab({ data, onOpenNotes }) {
                   </div>
                   <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
                     <p className="text-xs text-gray-500">Total sessions (30d)</p>
-                    <p className="mt-1 text-xl font-bold text-gray-900">{data.posthog.sessionCount30d || 0}</p>
+                    <p className="mt-1 text-xl font-bold text-gray-900">{data.posthog.sessions || 0}</p>
                   </div>
                   <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
                     <p className="text-xs text-gray-500">Time in app (30d)</p>
                     <p className="mt-1 text-xl font-bold text-gray-900">
-                      {Math.round((data.posthog.totalTimeSpentMinutes30d || 0) / 60)}h {(data.posthog.totalTimeSpentMinutes30d || 0) % 60}m
+                      {data.posthog.timeInAppMinutes30d == null
+                        ? '—'
+                        : `${Math.floor(data.posthog.timeInAppMinutes30d / 60)}h ${data.posthog.timeInAppMinutes30d % 60}m`}
                     </p>
                   </div>
                 </div>
@@ -565,8 +567,14 @@ function OverviewTab({ data, onOpenNotes }) {
               </div>
             ) : (
               <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-center">
-                <p className="text-xs text-gray-500">{data.posthog.reason || 'PostHog analytics credentials not configured.'}</p>
-                <p className="mt-1 text-[11px] text-gray-400">Configure POSTHOG_PROJECT_ID and POSTHOG_PERSONAL_API_KEY in the environment to view HogQL product analytics.</p>
+                <p className="text-xs text-gray-500">
+                  {data.posthog.reason === 'unconfigured'
+                    ? 'PostHog is not connected.'
+                    : 'PostHog did not answer. Try again in a few minutes.'}
+                </p>
+                {data.posthog.reason === 'unconfigured' && (
+                  <p className="mt-1 text-[11px] text-gray-400">Set POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID on the server to see sessions, time in app and top pages.</p>
+                )}
               </div>
             )}
           </Card>

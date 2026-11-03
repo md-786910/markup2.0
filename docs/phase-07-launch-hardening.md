@@ -1,6 +1,8 @@
 # Phase 7: Launch hardening
 
-**Status: Done · Size: S (about 3–4 days)**
+**Status: Done (launch review fixes November 2026) · Size: S (about 3–4 days)**
+
+> **Launch review fixes (Nov 2026):** alert emails were never sent (`mailer.send` is not exported): they now use the escaped `adminAlert` template via `sendAdminAlertEmail`, link to the admin panel (`URLS.admin`), and Slack text is escaped; payment-failed (both providers) and new-paying-customer alerts are wired; overdue-ticket alerts go out once (`SupportTicket.overdueAlertedAt`). Support agents: the admin panel hides Plans, Revenue, Payments, Admin team and Action log (`SuperadminRoute`), invites pick a role, superadmins can change a role (`PATCH /api/admin/admins/:id/role`), agents can add at most 14 days to a trial in total and can't turn a free org into a trial, and the action log records `metadata.adminRole`. There is no CI pipeline for now (the GitHub Actions workflow was removed): run `npm test`, the phase tests and the builds before deploying; the phase test files refuse any database not ending in `_test`. Runbooks rewritten to match `DEPLOY.md`. Then: the site notice has an editor (admin → Site notice, superadmin only; links must be `https://` or an app path, dates checked) and shows as a bar on every page of the app, the sign-in and the review pages (`client/src/components/common/SiteNoticeBanner.js`, closed notices stay closed until they change); bursts of server errors alert the team (`utils/errorSpike.js`, `ERROR_ALERT_THRESHOLD`, default 20 in 5 minutes, at most every 30 minutes, proxy 502s left out); uptime monitoring is described in `DEPLOY.md`.
 
 ## Goal
 Be alerted when something important happens, give support staff a safe role, and make the launch boring.

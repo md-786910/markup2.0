@@ -2,6 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { enableShareApi, updateShareApi, updateProjectApi, updateReviewSettingsApi } from '../../services/projectService';
 import useEscape from '../../hooks/useEscape';
 
+// "YYYY-MM-DDTHH:mm" in the viewer's own time zone, the format a
+// datetime-local input shows and gives back (it is read as local time on save;
+// toISOString() here would be UTC and move the deadline by the UTC offset)
+function toLocalInputValue(date) {
+  const d = new Date(date);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
 export default function ShareProjectModal({ isOpen, onClose, project, onProjectUpdate }) {
   useEscape(onClose, isOpen);
   const [loading, setLoading] = useState(false);
@@ -36,7 +44,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
     if (project?.review) {
       setApprovalsEnabled(project.review.approvalsEnabled !== false);
       setRequireAllResolved(!!project.review.requireAllResolved);
-      setDeadlineAt(project.review.deadlineAt ? new Date(project.review.deadlineAt).toISOString().slice(0, 16) : '');
+      setDeadlineAt(project.review.deadlineAt ? toLocalInputValue(project.review.deadlineAt) : '');
       setDeadlineMessage(project.review.deadlineMessage || '');
     }
   }, [project]);

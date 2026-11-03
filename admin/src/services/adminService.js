@@ -51,6 +51,9 @@ export const getAdminsApi = () => api.get('/admin/admins');
 export const inviteAdminApi = (data) => api.post('/admin/admins', data);
 export const resendAdminInviteApi = (id) => api.post(`/admin/admins/${id}/resend`);
 export const setAdminStatusApi = (id, status) => api.patch(`/admin/admins/${id}`, { status });
+export const setAdminRoleApi = (id, role) => api.patch(`/admin/admins/${id}/role`, { role });
+export const getSiteNoticeApi = () => api.get('/admin/site-notice');
+export const updateSiteNoticeApi = (data) => api.patch('/admin/site-notice', data);
 export const removeAdminApi = (id) => api.delete(`/admin/admins/${id}`);
 export const resetAdminTwoFactorApi = (id) => api.post(`/admin/admins/${id}/reset-2fa`);
 

@@ -1,63 +1,72 @@
-# Runbook: Restore Database Backup
+# Runbook: Restore a backup
 
-## 1. Overview
-Procedure to restore MongoDB and Redis state in the event of hardware failure, catastrophic data corruption, or disaster recovery.
+The `backup` service writes an **encrypted** backup of the database and of the
+uploads to `deploy/backups/` every 7 days and keeps the newest 8:
+`mongo-<stamp>.archive.gz.enc` and `uploads-<stamp>.tar.gz.enc`. They can only
+be opened with `BACKUP_PASSPHRASE`, which is kept outside the server. Source:
+[`DEPLOY.md`](../../DEPLOY.md) section 12.
 
----
+## 1. Pick the backup
 
-## 2. MongoDB Restore Procedure
+```bash
+cd /root/markup2.0
+ls -lh deploy/backups/
+```
 
-### Tools
-- `mongodump` & `mongorestore` CLI tools.
-- Target URI: `MONGODB_URI` from `.env`.
+If the server itself is lost, copy the files back from the off-server copy
+first.
 
-### Steps
+## 2. Stop writes
 
-1. **Verify Backup Archive:**
-   Check the integrity and timestamp of your latest automated backup archive:
-   ```bash
-   ls -lh /backups/kommently/
-   ```
+Take the API down so nobody changes data during the restore:
 
-2. **Stop Ingestion Traffic (Optional but Recommended):**
-   Enable maintenance mode banner via Admin portal or temporarily route proxy traffic to maintenance page:
-   ```bash
-   # Enable maintenance notice via API or Admin panel
-   ```
+```bash
+docker compose stop server
+```
 
-3. **Execute Restore:**
-   ```bash
-   mongorestore --uri="$MONGODB_URI" --gzip --archive=/backups/kommently/kommently-backup-YYYY-MM-DD.gz --drop
-   ```
-   > **Note:** The `--drop` flag will clean existing collections before restoring.
+## 3. Restore the database
 
-4. **Verify Collection Indices:**
-   Start Node shell and verify collection counts and indexes:
-   ```bash
-   node -e "
-   const mongoose = require('mongoose');
-   mongoose.connect(process.env.MONGODB_URI).then(async () => {
-     const count = await mongoose.connection.db.collection('organizations').countDocuments();
-     console.log('Restored organizations:', count);
-     process.exit(0);
-   });
-   "
-   ```
+`--drop` replaces each collection with the backup's copy.
 
----
+```bash
+export BACKUP_PASSPHRASE='<from your safe place>'
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:BACKUP_PASSPHRASE \
+  -in deploy/backups/mongo-<stamp>.archive.gz.enc \
+  | docker compose exec -T mongo mongorestore \
+      --uri "mongodb://root:<MONGO_ROOT_PASSWORD>@localhost:27017/?authSource=admin" \
+      --gzip --archive --drop
+```
 
-## 3. Redis Cache Rehydration
+## 4. Restore the uploads
 
-Redis caches session rate-limits, email batching queues, and health checks.
-If Redis suffers data loss, it automatically degrades safely to memory and rebuilds as traffic flows.
+Screenshots, documents, avatars and support attachments:
 
-1. **Restart Redis Service:**
-   ```bash
-   docker compose restart redis
-   ```
-2. **Ping Redis Status:**
-   ```bash
-   docker compose exec redis redis-cli ping
-   # Expected output: PONG
-   ```
+```bash
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:BACKUP_PASSPHRASE \
+  -in deploy/backups/uploads-<stamp>.tar.gz.enc \
+  | docker compose run --rm -T --no-deps --user root --entrypoint tar server -xz -C /app/uploads
+```
 
+## 5. Start and check
+
+```bash
+docker compose up -d          # also fixes upload file ownership
+curl -fsS https://api.kommently.info/api/health
+docker compose exec mongo mongosh --quiet \
+  "mongodb://root:<MONGO_ROOT_PASSWORD>@localhost:27017/?authSource=admin" \
+  --eval 'db.getSiblingDB("kommently").organizations.countDocuments()'
+```
+
+Use the database name from `MONGODB_URI` in `.env` if it is not `kommently`.
+Then sign in to the admin panel and check that recent organizations are there.
+
+## Redis
+
+Redis holds rate limits, the email queue and the daily billing job. Nothing in
+it needs restoring: after a loss it is rebuilt as traffic comes in. Check it with:
+
+```bash
+docker compose ps redis       # "healthy"
+```
+
+Emails that were waiting in the queue at the moment of the loss are not sent.

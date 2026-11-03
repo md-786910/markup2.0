@@ -48,7 +48,7 @@ export const getActivityApi = (projectId, page = 1, limit = 30) =>
 
 export const enableShareApi = (projectId, data = {}) =>
   api.post(`/projects/${projectId}/share`, data)
-    .then((res) => { track('share_link_enabled', { projectId }); return res; });
+    .then((res) => { track('share_link_created', { scope: 'project', projectId }); return res; });
 
 export const updateShareApi = (projectId, data) =>
   api.patch(`/projects/${projectId}/share`, data);

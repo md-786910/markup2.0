@@ -22,7 +22,8 @@ export default function UserDetailPage() {
   if (loading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
   if (!data) return <p className="py-10 text-center text-gray-500">Person not found.</p>;
 
-  const { user, projects } = data;
+  const { user, projects, posthog } = data;
+  const minutes = posthog?.timeInAppMinutes30d;
   const org = user.organization;
 
   const projectColumns = [
@@ -80,6 +81,23 @@ export default function UserDetailPage() {
               ['Projects muted', user.mutedProjectEmails?.length || 0],
             ]}
           />
+        </Card>
+
+        <Card title="In the app, last 30 days" description="From product analytics (PostHog)">
+          {posthog?.available ? (
+            <DefinitionList
+              items={[
+                ['Last session', posthog.lastSeen ? <span title={formatDateTime(posthog.lastSeen)}>{timeAgo(posthog.lastSeen)}</span> : '—'],
+                ['Sessions', posthog.sessions],
+                ['Time in app', minutes == null ? '—' : `${Math.floor(minutes / 60)}h ${minutes % 60}m`],
+                ['Actions', posthog.totalEvents],
+              ]}
+            />
+          ) : (
+            <p className="text-sm text-gray-500">
+              {posthog?.reason === 'unconfigured' ? 'PostHog is not connected.' : 'PostHog did not answer. Try again in a few minutes.'}
+            </p>
+          )}
         </Card>
 
         <Card title="Sign-in locations">

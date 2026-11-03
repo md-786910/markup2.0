@@ -22,11 +22,11 @@ If all superadmins are locked out or the portal is unreachable:
 1. SSH into the server or access the server container shell.
 2. Run the secure reset script:
    ```bash
-   node server/scripts/resetTwoFactor.js <admin_email>
+   docker compose exec server node scripts/resetTwoFactor.js <admin_email>
    ```
    *Example:*
    ```bash
-   node server/scripts/resetTwoFactor.js admin@kommently.com
+   docker compose exec server node scripts/resetTwoFactor.js admin@kommently.com
    ```
 3. The script will safely:
    - Clear `twoFactor.enabled`, `twoFactor.secret`, and recovery codes.

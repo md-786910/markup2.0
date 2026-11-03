@@ -122,6 +122,10 @@ exports.createCheckoutSession = asyncHandler(async (req, res) => {
   const mergedPlans = await getPlansWithOverrides();
   const planConfig = mergedPlans[plan];
 
+  // A plan turned off in the admin panel can't be bought (current subscribers keep renewing)
+  if (planConfig && planConfig.enabled === false) {
+    return res.status(400).json({ message: 'This plan is not available right now. Choose another plan.', code: 'PLAN_DISABLED' });
+  }
   if (!planConfig || planConfig.price == null) {
     return res.status(400).json({ message: 'Price is not configured for this plan. Contact support.' });
   }
@@ -350,6 +354,11 @@ exports.upgradePlan = asyncHandler(async (req, res) => {
   }
 
   const mergedPlans = await getPlansWithOverrides();
+
+  // Free stays reachable (it is where cancelled plans end up); others must be on
+  if (plan !== 'free' && mergedPlans[plan]?.enabled === false) {
+    return res.status(400).json({ message: 'This plan is not available right now. Choose another plan.', code: 'PLAN_DISABLED' });
+  }
 
   if (org.plan === plan && org.isLocked === false) {
     return res.status(400).json({ message: 'You already have this active plan.' });

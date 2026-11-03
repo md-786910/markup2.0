@@ -47,6 +47,8 @@ app.set("trust proxy", 1);
 // Request log (first, so every request is captured, incl. webhooks and proxy)
 app.use(httpLogger);
 app.use(captureErrorMessage);
+// Many 5xx in a few minutes alerts the team (utils/errorSpike.js)
+app.use(require("./utils/errorSpike").errorSpikeMonitor);
 
 // Middleware
 app.use(compression());

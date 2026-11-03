@@ -25,6 +25,21 @@ function cleanUrl(rawUrl) {
   return realUrl.split(/[?#]/)[0];
 }
 
+// Console messages and stacks are free text full of URLs: every URL loses its
+// query string and fragment (our proxy and relay tokens live there; proxy URLs
+// are unwrapped to the real page first), keeping a trailing ":line:col". Any
+// leftover "token=…"-style pairs are blanked too.
+const URL_IN_TEXT = /(?:https?:\/\/|\/api\/proxy\?)[^\s"'<>()]+/g;
+const SECRET_PAIRS = /\b(token|rt|access_token|id_token|password|passwd|secret|key|api_key|apikey|sig|signature|code|session)=[^&\s"'<>]+/gi;
+function scrubText(text) {
+  return String(text || '')
+    .replace(URL_IN_TEXT, (match) => {
+      const position = (match.match(/(?::\d+){1,2}$/) || [''])[0];
+      return cleanUrl(match.slice(0, match.length - position.length)) + position;
+    })
+    .replace(SECRET_PAIRS, '$1=[removed]');
+}
+
 function parseUserAgent(ua) {
   if (!ua || typeof ua !== 'string') {
     return { browser: 'Unknown', os: 'Unknown' };
@@ -137,7 +152,7 @@ function sanitizePinContext(rawContext, options = {}) {
             rawMsg = String(err.message || '');
           }
         }
-        const message = rawMsg.slice(0, 500);
+        const message = scrubText(rawMsg).slice(0, 500);
         let at = err.at ? new Date(err.at) : new Date();
         if (isNaN(at.getTime())) at = new Date();
         return { level, message, at };

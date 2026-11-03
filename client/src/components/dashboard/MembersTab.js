@@ -1,879 +1,520 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  inviteMemberApi,
-  removeMemberApi,
-} from '../../services/projectService';
-import {
-  getProjectInvitationsApi,
-  cancelInvitationApi,
-  resendInvitationApi,
-} from '../../services/invitationService';
-import { toastError } from '../../utils/toast';
-import useEscape from '../../hooks/useEscape';
+import { inviteMemberApi, removeMemberApi } from '../../services/projectService';
+import { getProjectInvitationsApi, cancelInvitationApi, resendInvitationApi } from '../../services/invitationService';
+import { toast, toastError } from '../../utils/toast';
+import { confirmDialog } from '../../utils/confirm';
 import { useWorkspaces } from '../../contexts/WorkspaceContext';
-import { inviteToWorkspaceApi, updateOrgRoleApi } from '../../services/workspaceService';
+import { getOrgPeopleApi, getWorkspaceInvitationsApi, inviteToWorkspaceApi, updateOrgRoleApi } from '../../services/workspaceService';
+import Modal from '../common/Modal';
+import {
+  ActionMenu, Avatar, Badge, Button, Card, EmptyState, Field, FilterMenu, SearchField, SelectMenu, Tabs, Toolbar, ClearFilters, useDismiss, Icon,
+} from '../ui';
 
-const ROLE_STYLES = {
-  owner: 'bg-amber-50 text-amber-700 border-amber-200',
-  admin: 'bg-purple-50 text-purple-700 border-purple-200',
-  member: 'bg-gray-50 text-gray-600 border-gray-200',
-  guest: 'bg-sky-50 text-sky-600 border-sky-200',
-};
-
-const AVATAR_COLORS = [
-  { bg: 'bg-blue-100', text: 'text-blue-700' },
-  { bg: 'bg-emerald-100', text: 'text-emerald-700' },
-  { bg: 'bg-violet-100', text: 'text-violet-700' },
-  { bg: 'bg-rose-100', text: 'text-rose-700' },
-  { bg: 'bg-amber-100', text: 'text-amber-700' },
-  { bg: 'bg-cyan-100', text: 'text-cyan-700' },
+// Organization roles (what someone can do on each workspace and project is set there)
+const ROLES = [
+  { value: 'admin', label: 'Admin', description: 'Manages every workspace, project and member' },
+  { value: 'member', label: 'Member', description: 'Works on the workspaces and projects they are given' },
+  { value: 'guest', label: 'Guest', description: 'Outside collaborator, can comment at most' },
 ];
-
-function getAvatarColor(name) {
-  const hash = (name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
-
-const INVITE_ROLES = [
-  { value: 'admin', label: 'Admin', desc: 'Manages every workspace, project and member' },
-  { value: 'member', label: 'Member', desc: 'Works on the workspaces and projects they are given' },
-  { value: 'guest', label: 'Guest', desc: 'Outside collaborator, can comment at most' },
-];
+const ROLE_FILTERS = [{ value: 'owner', label: 'Owner' }, ...ROLES.map(({ value, label }) => ({ value, label }))];
+const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member', guest: 'Guest' };
+const STATUS_FILTERS = [{ value: 'pending', label: 'Pending' }, { value: 'expired', label: 'Expired' }];
 
 const EMAIL_SPLIT_RE = /[,\n\r\t ]+/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const parseEmailList = (value) => [...new Set((value || '').split(EMAIL_SPLIT_RE).map((e) => e.trim()).filter(Boolean))];
+const isExpired = (inv) => new Date(inv.expiresAt).getTime() <= Date.now();
+const formatDate = (d) => new Date(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 
-function parseEmailList(value) {
-  return [...new Set(
-    (value || '')
-      .split(EMAIL_SPLIT_RE)
-      .map((email) => email.trim())
-      .filter(Boolean)
-  )];
-}
+const filterIcon = {
+  role: (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+    </svg>
+  ),
+  status: (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+};
+const peopleIcon = (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+  </svg>
+);
+const mailIcon = (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+  </svg>
+);
 
-function isInvitationExpired(invitation) {
-  return new Date(invitation.expiresAt).getTime() <= Date.now();
-}
+// ── Invite dialog ────────────────────────────────────────────────────────────
+function InviteDialog({ isOpen, onClose, activeProjects, workspaces, onInvited }) {
+  const [emails, setEmails] = useState([]);
+  const [draft, setDraft] = useState('');
+  const [role, setRole] = useState('member');
+  const [projectIds, setProjectIds] = useState([]);
+  const [workspaceIds, setWorkspaceIds] = useState([]);
+  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [accessOpen, setAccessOpen] = useState(false);
+  const inputRef = useRef(null);
+  const accessRef = useRef(null);
+  useDismiss(accessRef, accessOpen, () => setAccessOpen(false));
 
-export default function MembersTab({ members, projects, isAdmin, currentUserId, onProjectsChanged }) {
-  const navigate = useNavigate();
-  const activeProjects = useMemo(
-    () => (projects || []).filter((p) => p.status === 'active'),
-    [projects]
-  );
-  const [inviteProjectIds, setInviteProjectIds] = useState([]);
-  // Whole workspaces: the invitee sees every project in them (incl. future ones)
-  const [inviteWorkspaceIds, setInviteWorkspaceIds] = useState([]);
-  const { workspaces } = useWorkspaces();
-  const [inviteEmails, setInviteEmails] = useState([]);
-  const [inviteEmailInput, setInviteEmailInput] = useState('');
-  const [inviteRole, setInviteRole] = useState('member');
-  const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteError, setInviteError] = useState('');
-  const [inviteSuccess, setInviteSuccess] = useState('');
-  const [roleLoading, setRoleLoading] = useState(null);
-  const [confirmRemove, setConfirmRemove] = useState(null);
-  useEscape(() => { setConfirmRemove(null); setRemoveProjectId(''); setRemoveError(''); }, !!confirmRemove);
-  const [removeProjectId, setRemoveProjectId] = useState('');
-  const [removeLoading, setRemoveLoading] = useState(null);
-  const [removeError, setRemoveError] = useState('');
-  const [search, setSearch] = useState('');
-  const [pendingInvitations, setPendingInvitations] = useState([]);
-  const [invitationsLoading, setInvitationsLoading] = useState(false);
-  const [cancellingId, setCancellingId] = useState(null);
-  const [resendingId, setResendingId] = useState(null);
-  const [confirmRevoke, setConfirmRevoke] = useState(null);
-  const [showInvitations, setShowInvitations] = useState(true);
-  const [invitationsError, setInvitationsError] = useState('');
-  const [invitationSuccess, setInvitationSuccess] = useState('');
-  const [menuOpen, setMenuOpen] = useState(null);
-  const menuRef = useRef(null);
-  const projectDropdownRef = useRef(null);
-  const inviteEmailInputRef = useRef(null);
-  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  useEffect(() => {
+    if (!isOpen) return;
+    setEmails([]); setDraft(''); setRole('member'); setProjectIds([]); setWorkspaceIds([]); setError(''); setAccessOpen(false);
+  }, [isOpen]);
 
-  const selectedInviteProjects = useMemo(
-    () => activeProjects.filter((project) => inviteProjectIds.includes(project._id)),
-    [activeProjects, inviteProjectIds]
-  );
-  const selectedInviteWorkspaces = workspaces.filter((w) => inviteWorkspaceIds.includes(w._id));
-  const selectedCount = selectedInviteProjects.length + selectedInviteWorkspaces.length;
-  const projectSelectLabel = selectedCount === 0
-    ? 'Select workspaces or projects'
-    : selectedCount === 1
-      ? (selectedInviteWorkspaces[0] ? `All of ${selectedInviteWorkspaces[0].name}` : selectedInviteProjects[0].name)
-      : [
-        selectedInviteWorkspaces.length && `${selectedInviteWorkspaces.length} ${selectedInviteWorkspaces.length === 1 ? 'workspace' : 'workspaces'}`,
-        selectedInviteProjects.length && `${selectedInviteProjects.length} ${selectedInviteProjects.length === 1 ? 'project' : 'projects'}`,
-      ].filter(Boolean).join(', ');
-
-  const addInviteEmails = useCallback((value) => {
-    const nextEmails = parseEmailList(value);
-    if (nextEmails.length === 0) return;
-
-    setInviteEmails((prev) => {
-      const seen = new Set(prev.map((email) => email.toLowerCase()));
-      const merged = [...prev];
-      nextEmails.forEach((email) => {
-        const normalized = email.toLowerCase();
-        if (seen.has(normalized)) return;
-        seen.add(normalized);
-        merged.push(email);
-      });
-      return merged;
+  const addEmails = (value) => {
+    const next = parseEmailList(value);
+    if (!next.length) return;
+    setEmails((prev) => {
+      const seen = new Set(prev.map((e) => e.toLowerCase()));
+      return [...prev, ...next.filter((e) => !seen.has(e.toLowerCase()) && seen.add(e.toLowerCase()))];
     });
-  }, []);
-
-  const commitInviteInput = useCallback(() => {
-    const trimmed = inviteEmailInput.trim();
-    if (!trimmed) return;
-    addInviteEmails(trimmed);
-    setInviteEmailInput('');
-  }, [addInviteEmails, inviteEmailInput]);
-
-  const removeInviteEmail = useCallback((emailToRemove) => {
-    setInviteEmails((prev) => prev.filter((email) => email !== emailToRemove));
-  }, []);
-
-  // Close menu on outside click
-  useEffect(() => {
-    if (!menuOpen && !projectDropdownOpen) return;
-    const handler = (e) => {
-      if (menuOpen && menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(null);
-      if (projectDropdownOpen && projectDropdownRef.current && !projectDropdownRef.current.contains(e.target)) {
-        setProjectDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [menuOpen, projectDropdownOpen]);
-
-  useEffect(() => {
-    if (inviteProjectIds.length === 0) return;
-    const activeIds = new Set(activeProjects.map((project) => project._id));
-    const filteredIds = inviteProjectIds.filter((projectId) => activeIds.has(projectId));
-    if (filteredIds.length !== inviteProjectIds.length) {
-      setInviteProjectIds(filteredIds);
-    }
-  }, [activeProjects, inviteProjectIds]);
-
-  const fetchInvitations = useCallback(async () => {
-    if (!projects?.length) return;
-    setInvitationsLoading(true);
-    setInvitationsError('');
-    try {
-      const results = await Promise.all(
-        projects.filter((p) => p.status === 'active').map((p) =>
-          getProjectInvitationsApi(p._id)
-            .then((res) => res.data.invitations.map((inv) => ({ ...inv, projectName: p.name })))
-            .catch((err) => {
-              console.error(`Failed to fetch invitations for project ${p.name}:`, err);
-              return [];
-            })
-        )
-      );
-      setPendingInvitations(results.flat());
-    } catch (err) {
-      toastError(err, 'Could not load invitations.');
-      setPendingInvitations([]);
-      setInvitationsError('Failed to load pending invitations');
-    } finally {
-      setInvitationsLoading(false);
-    }
-  }, [projects]);
-
-  useEffect(() => { fetchInvitations(); }, [fetchInvitations]);
-
-  const handleCancelInvitation = async (invitationId) => {
-    setCancellingId(invitationId);
-    setInvitationsError('');
-    setInvitationSuccess('');
-    try {
-      await cancelInvitationApi(invitationId);
-      setPendingInvitations((prev) => prev.filter((inv) => inv._id !== invitationId));
-      setInvitationSuccess('Invitation revoked');
-      setTimeout(() => setInvitationSuccess(''), 3000);
-    } catch (err) {
-      toastError(err, 'Could not cancel the invitation.');
-      setInvitationsError(err.response?.data?.message || 'Failed to revoke invitation');
-    } finally {
-      setCancellingId(null);
-    }
   };
+  const commitDraft = () => { if (draft.trim()) { addEmails(draft); setDraft(''); } };
 
-  const handleResendInvitation = async (invitation) => {
-    setResendingId(invitation._id);
-    setInvitationsError('');
-    setInvitationSuccess('');
-    try {
-      const res = await resendInvitationApi(invitation._id);
-      setInvitationSuccess(res.data?.message || `Invitation resent to ${invitation.email}`);
-      setPendingInvitations((prev) =>
-        prev.map((inv) => (
-          inv._id === invitation._id
-            ? { ...inv, ...(res.data?.invitation || {}), projectName: inv.projectName }
-            : inv
-        ))
-      );
-      setTimeout(() => setInvitationSuccess(''), 3000);
-    } catch (err) {
-      toastError(err, 'Could not resend the invitation.');
-      setInvitationsError(err.response?.data?.message || 'Failed to resend invitation');
-    } finally {
-      setResendingId(null);
-    }
-  };
+  const chosenWorkspaces = role === 'admin' ? [] : workspaces.filter((w) => workspaceIds.includes(w._id));
+  const chosenProjects = activeProjects.filter((p) => projectIds.includes(p._id));
+  const accessCount = chosenWorkspaces.length + chosenProjects.length;
+  const accessLabel = accessCount === 0
+    ? 'Choose workspaces or projects'
+    : accessCount === 1
+      ? (chosenWorkspaces[0] ? `All of ${chosenWorkspaces[0].name}` : chosenProjects[0].name)
+      : [
+        chosenWorkspaces.length && `${chosenWorkspaces.length} ${chosenWorkspaces.length === 1 ? 'workspace' : 'workspaces'}`,
+        chosenProjects.length && `${chosenProjects.length} ${chosenProjects.length === 1 ? 'project' : 'projects'}`,
+      ].filter(Boolean).join(', ');
+  const toggle = (setter, id) => setter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const filtered = search
-    ? members.filter((m) =>
-      (m.name || '').toLowerCase().includes(search.toLowerCase()) ||
-      (m.email || '').toLowerCase().includes(search.toLowerCase())
-    )
-    : members;
+  const allEmails = [...emails, ...parseEmailList(draft)];
+  const uniqueEmails = [...new Map(allEmails.map((e) => [e.toLowerCase(), e])).values()];
+  const canSend = uniqueEmails.length > 0 && accessCount > 0 && !sending;
 
-  const handleInvite = async (e) => {
+  const send = async (e) => {
     e.preventDefault();
-    const draftEmails = parseEmailList(inviteEmailInput);
-
-    const emails = [...inviteEmails, ...draftEmails];
-    const uniqueEmails = [...new Set(emails.map((email) => email.toLowerCase()))]
-      .map((lowerEmail) => emails.find((email) => email.toLowerCase() === lowerEmail))
-      .filter(Boolean);
-    const workspaceIds = inviteRole === 'admin' ? [] : inviteWorkspaceIds;
-    if (uniqueEmails.length === 0 || (inviteProjectIds.length === 0 && workspaceIds.length === 0)) return;
-
-    const invalidEmails = uniqueEmails.filter((email) => !EMAIL_RE.test(email));
-    if (invalidEmails.length > 0) {
-      setInviteError(`Invalid email address${invalidEmails.length > 1 ? 'es' : ''}: ${invalidEmails.join(', ')}`);
-      return;
-    }
-
-    setInviteError('');
-    setInviteSuccess('');
-    setInviteLoading(true);
+    if (!canSend) return;
+    const invalid = uniqueEmails.filter((m) => !EMAIL_RE.test(m));
+    if (invalid.length) { setError(`Check ${invalid.length > 1 ? 'these addresses' : 'this address'}: ${invalid.join(', ')}`); return; }
+    setError('');
+    setSending(true);
     try {
-      const results = await Promise.allSettled(
-        inviteProjectIds.flatMap((projectId) =>
-          uniqueEmails.map((email) => inviteMemberApi(projectId, email, inviteRole))
-        )
-      );
-      const workspaceResults = await Promise.allSettled(
-        workspaceIds.map((wsId) => inviteToWorkspaceApi(wsId, uniqueEmails, inviteRole))
-      );
-
+      const projectResults = await Promise.allSettled(projectIds.flatMap((pid) => uniqueEmails.map((m) => inviteMemberApi(pid, m, role))));
+      const wsResults = await Promise.allSettled(chosenWorkspaces.map((w) => inviteToWorkspaceApi(w._id, uniqueEmails, role)));
       const failures = [];
-      let successCount = 0;
-
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          successCount += 1;
-          return;
-        }
-        failures.push(result.reason?.response?.data?.message || 'Failed to invite member');
-      });
-      // A workspace call reports each email separately
-      workspaceResults.forEach((result) => {
-        if (result.status !== 'fulfilled') {
-          failures.push(result.reason?.response?.data?.message || 'Failed to invite to the workspace');
-          return;
-        }
-        (result.value.data.results || []).forEach((r) => {
-          if (r.status === 'added' || r.status === 'invited') successCount += 1;
-          else if (r.status === 'error') failures.push(`${r.email}: ${r.message}`);
+      let sent = 0;
+      projectResults.forEach((r) => { if (r.status === 'fulfilled') sent += 1; else failures.push(r.reason?.response?.data?.message || 'Could not invite'); });
+      wsResults.forEach((r) => {
+        if (r.status !== 'fulfilled') { failures.push(r.reason?.response?.data?.message || 'Could not invite to the workspace'); return; }
+        (r.value.data.results || []).forEach((x) => {
+          if (x.status === 'added' || x.status === 'invited') sent += 1;
+          else if (x.status === 'error') failures.push(`${x.email}: ${x.message}`);
         });
       });
-
-      if (successCount > 0) {
-        const suffix = successCount === 1 ? 'invitation' : 'invitations';
-        setInviteSuccess(`${successCount} ${suffix} sent successfully`);
-        setTimeout(() => setInviteSuccess(''), 3000);
-      }
-
-      if (failures.length > 0) {
-        setInviteError(failures[0]);
-      }
-
-      if (successCount > 0 && failures.length === 0) {
-        setInviteEmails([]);
-        setInviteEmailInput('');
-        setInviteProjectIds([]);
-        setInviteWorkspaceIds([]);
-        setProjectDropdownOpen(false);
-      }
-
-      onProjectsChanged();
-      setTimeout(() => fetchInvitations(), 500);
+      if (sent) toast.success(`${sent} ${sent === 1 ? 'invitation' : 'invitations'} sent.`);
+      if (failures.length) setError(failures[0]);
+      onInvited();
+      if (sent && !failures.length) onClose();
     } catch (err) {
-      setInviteError(err.response?.data?.message || 'Failed to invite member');
+      setError(err.response?.data?.message || 'Could not send the invitations.');
     } finally {
-      setInviteLoading(false);
-    }
-  };
-
-  // Organization role (access to each workspace/project is set there)
-  const handleRoleChange = async (member, newRole) => {
-    setRoleLoading(member._id);
-    try {
-      await updateOrgRoleApi(member._id, newRole);
-      onProjectsChanged();
-    } catch (err) {
-      toastError(err, 'Could not change the role.');
-    } finally {
-      setRoleLoading(null);
-    }
-  };
-
-  const handleRemove = async () => {
-    if (!confirmRemove || !removeProjectId) return;
-    setRemoveLoading(confirmRemove._id);
-    setRemoveError('');
-    try {
-      await removeMemberApi(removeProjectId, confirmRemove._id);
-      onProjectsChanged();
-      setConfirmRemove(null);
-      setRemoveProjectId('');
-    } catch (err) {
-      toastError(err, 'Could not remove the member.');
-      setRemoveError(err.response?.data?.message || 'Failed to remove member');
-    } finally {
-      setRemoveLoading(null);
+      setSending(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <Modal isOpen={isOpen} onClose={onClose} title="Invite people" size="lg">
+      <form onSubmit={send} className="space-y-5">
+        <p className="text-sm text-gray-500 -mt-1">People already in your organization are added at once. Everyone else gets an email with a sign-up link.</p>
 
-      {/* ===== INVITE CARD ===== */}
-      {isAdmin && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-visible relative">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
-                <svg className="w-4.5 h-4.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">Invite people</h3>
-                <p className="text-xs text-gray-400">Existing users are added instantly. New users receive a signup link.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-6">
-            {inviteError && (
-              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 px-4 py-2.5 rounded-lg mb-4">
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {inviteError}
-              </div>
-            )}
-            {inviteSuccess && (
-              <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-100 px-4 py-2.5 rounded-lg mb-4">
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {inviteSuccess}
-              </div>
-            )}
-
-            <form onSubmit={handleInvite} className="space-y-4">
-              {/* Row 1: Project + Email */}
-              <div className="flex gap-3 flex-wrap sm:flex-nowrap">
-                <div ref={projectDropdownRef} className="relative w-full sm:w-60 shrink-0 z-30">
-                  <button
-                    type="button"
-                    onClick={() => setProjectDropdownOpen((open) => !open)}
-                    aria-haspopup="listbox"
-                    aria-expanded={projectDropdownOpen}
-                    className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm border rounded-lg bg-white transition-all ${projectDropdownOpen
-                        ? 'border-blue-500 ring-2 ring-blue-500/20'
-                        : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                  >
-                    <span className={`truncate text-left ${selectedCount === 0 ? 'text-gray-400' : 'text-gray-900'}`}>
-                      {projectSelectLabel}
-                    </span>
-                    <span className="flex items-center gap-2 shrink-0">
-                      {selectedCount > 0 && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700">
-                          {selectedCount}
-                        </span>
-                      )}
-                      <svg className={`w-4 h-4 text-gray-400 transition-transform ${projectDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </span>
-                  </button>
-
-                  {projectDropdownOpen && (
-                    <div className="absolute left-0 top-full mt-1 z-50 w-72 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
-                      <div className="max-h-80 overflow-y-auto py-1">
-                        <p className="px-3.5 pt-2 pb-1 text-xs font-medium text-gray-500">Whole workspace</p>
-                        {inviteRole === 'admin' ? (
-                          <p className="px-3.5 pb-2 text-xs text-gray-400">Admins see every workspace.</p>
-                        ) : workspaces.map((w) => {
-                          const checked = inviteWorkspaceIds.includes(w._id);
-                          return (
-                            <label key={w._id} className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-gray-50 ${checked ? 'bg-blue-50/60' : ''}`}>
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => setInviteWorkspaceIds((prev) => (prev.includes(w._id) ? prev.filter((id) => id !== w._id) : [...prev, w._id]))}
-                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                              />
-                              <span className="min-w-0 flex-1 truncate text-gray-700">{w.name}</span>
-                              <span className="text-xs text-gray-400">{w.projectCount} {w.projectCount === 1 ? 'project' : 'projects'}</span>
-                            </label>
-                          );
-                        })}
-                        <p className="mt-1 border-t border-gray-100 px-3.5 pt-2.5 pb-1 text-xs font-medium text-gray-500">Single projects</p>
-                        {activeProjects.length === 0 ? (
-                          <div className="px-3.5 py-3 text-sm text-gray-400">
-                            No active projects available
-                          </div>
-                        ) : (
-                          activeProjects.map((project) => {
-                            const checked = inviteProjectIds.includes(project._id);
-                            return (
-                              <label
-                                key={project._id}
-                                className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-gray-50 ${checked ? 'bg-blue-50/60' : ''
-                                  }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => {
-                                    setInviteProjectIds((prev) => (
-                                      prev.includes(project._id)
-                                        ? prev.filter((id) => id !== project._id)
-                                        : [...prev, project._id]
-                                    ));
-                                  }}
-                                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="min-w-0 flex-1 truncate text-gray-700">{project.name}</span>
-                              </label>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-[200px]">
-                  <div
-                    className="flex min-h-[44px] flex-wrap items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20"
-                    onClick={() => inviteEmailInputRef.current?.focus()}
-                  >
-                    {inviteEmails.map((email) => (
-                      <span
-                        key={email}
-                        className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700"
-                      >
-                        <span className="max-w-[180px] truncate">{email}</span>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            removeInviteEmail(email);
-                          }}
-                          className="flex h-4 w-4 items-center justify-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700"
-                          aria-label={`Remove ${email}`}
-                        >
-                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </span>
-                    ))}
-                    <input
-                      ref={inviteEmailInputRef}
-                      type="text"
-                      value={inviteEmailInput}
-                      onChange={(e) => { setInviteEmailInput(e.target.value); setInviteError(''); }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ',' || e.key === 'Tab') {
-                          if (inviteEmailInput.trim()) {
-                            e.preventDefault();
-                            commitInviteInput();
-                          }
-                          return;
-                        }
-                        if (e.key === 'Backspace' && !inviteEmailInput && inviteEmails.length > 0) {
-                          removeInviteEmail(inviteEmails[inviteEmails.length - 1]);
-                        }
-                      }}
-                      onBlur={commitInviteInput}
-                      onPaste={(e) => {
-                        const pasted = e.clipboardData.getData('text');
-                        if (/[,\n\r\t ]/.test(pasted)) {
-                          e.preventDefault();
-                          addInviteEmails(pasted);
-                          setInviteEmailInput('');
-                        }
-                      }}
-                      placeholder={inviteEmails.length === 0 ? 'colleague@company.com, teammate@company.com' : ''}
-                      className="min-w-[180px] flex-1 border-0 bg-transparent px-1 py-1 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-                    />
-                  </div>
-                  {/* <p className="mt-1 text-[11px] text-gray-400">
-                    Press Enter, Tab, or comma to add an email. Paste multiple emails at once.
-                  </p> */}
-                </div>
-              </div>
-
-              {/* Row 2: Role pills + Invite button */}
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="flex gap-2">
-                  {INVITE_ROLES.map((r) => (
-                    <button
-                      key={r.value}
-                      type="button"
-                      onClick={() => setInviteRole(r.value)}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${inviteRole === r.value
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-                        }`}
-                      title={r.desc}
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="submit"
-                  disabled={inviteLoading || (selectedInviteProjects.length === 0 && (inviteRole === 'admin' || selectedInviteWorkspaces.length === 0))}
-                  className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
-                >
-                  {inviteLoading ? (
-                    <span className="flex items-center gap-2">
-                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Sending...
-                    </span>
-                  ) : 'Send invite'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ===== PENDING INVITATIONS ===== */}
-      {pendingInvitations.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <button
-            onClick={() => setShowInvitations(!showInvitations)}
-            className="w-full px-5 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        <Field label="Email addresses" hint="Press Enter or a comma after each address. You can paste a list.">
+          <div
+            className="flex min-h-[36px] flex-wrap items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2 py-1.5 hover:border-gray-300 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20"
+            onClick={() => inputRef.current?.focus()}
           >
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center">
-                <svg className="w-3 h-3 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="text-xs font-semibold text-gray-700">
-                Invitations
+            {emails.map((m) => (
+              <span key={m} className="inline-flex items-center gap-1 rounded-md bg-gray-100 pl-2 pr-1 py-0.5 text-[13px] text-gray-700">
+                <span className="max-w-[200px] truncate">{m}</span>
+                <button type="button" aria-label={`Remove ${m}`} onClick={(ev) => { ev.stopPropagation(); setEmails((p) => p.filter((x) => x !== m)); }} className="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700">{Icon.close('w-3 h-3')}</button>
               </span>
-              <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
-                {pendingInvitations.length}
-              </span>
-            </div>
-            <svg className={`w-4 h-4 text-gray-400 transition-transform ${showInvitations ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {showInvitations && (
-            <div className="border-t border-gray-100 divide-y divide-gray-50">
-              {pendingInvitations.map((inv) => {
-                const expired = isInvitationExpired(inv);
-                return (
-                  <div key={inv._id} className="px-5 py-3 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-800 font-medium truncate">{inv.email}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[10px] text-gray-400">{inv.projectName}</span>
-                      <span className="text-gray-200">·</span>
-                      <span className="text-[10px] text-gray-400">{inv.role || 'member'}</span>
-                      <span className="text-gray-200">·</span>
-                      <span className={`text-[10px] font-medium ${expired ? 'text-red-600' : 'text-amber-600'}`}>
-                        {expired ? 'Expired' : 'Pending'}
-                      </span>
-                      <span className="text-gray-200">·</span>
-                      <span className="text-[10px] text-gray-400">
-                        {expired ? 'Expired' : 'Expires'} {new Date(inv.expiresAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                  {isAdmin && (
-                    confirmRevoke === inv._id ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => { handleCancelInvitation(inv._id); setConfirmRevoke(null); }}
-                          disabled={cancellingId === inv._id}
-                          className="text-[11px] font-medium px-2 py-1 rounded-md text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
-                        >
-                          {cancellingId === inv._id ? '...' : 'Confirm'}
-                        </button>
-                        <button
-                          onClick={() => setConfirmRevoke(null)}
-                          className="text-[11px] font-medium px-2 py-1 rounded-md text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
-                        >
-                          No
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleResendInvitation(inv)}
-                          disabled={resendingId === inv._id}
-                          className="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 rounded-md hover:bg-blue-50 transition-colors disabled:opacity-50"
-                        >
-                          {resendingId === inv._id ? 'Sending...' : 'Resend'}
-                        </button>
-                        <button
-                          onClick={() => setConfirmRevoke(inv._id)}
-                          className="text-xs text-gray-400 hover:text-red-500 px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
-                        >
-                          Revoke
-                        </button>
-                      </div>
-                    )
-                  )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {invitationSuccess && (
-        <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-100 px-4 py-2.5 rounded-lg">
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          {invitationSuccess}
-        </div>
-      )}
-
-      {invitationsLoading && pendingInvitations.length === 0 && (
-        <div className="flex justify-center py-4">
-          <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
-        </div>
-      )}
-
-      {invitationsError && (
-        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 px-4 py-2.5 rounded-lg">
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          {invitationsError}
-        </div>
-      )}
-
-      {/* ===== MEMBERS LIST ===== */}
-      <div className="bg-white rounded-xl border border-gray-200">
-        {/* Header with search */}
-        <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-4 rounded-t-xl overflow-hidden">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-gray-900">Members</h3>
-            <span className="text-[10px] font-medium bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{members.length}</span>
-          </div>
-          <div className="relative w-56">
-            <svg className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            ))}
             <input
+              ref={inputRef}
               type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+              value={draft}
+              autoFocus
+              onChange={(ev) => { setDraft(ev.target.value); setError(''); }}
+              onKeyDown={(ev) => {
+                if ((ev.key === 'Enter' || ev.key === ',' || ev.key === 'Tab') && draft.trim()) { ev.preventDefault(); commitDraft(); return; }
+                if (ev.key === 'Backspace' && !draft && emails.length) setEmails((p) => p.slice(0, -1));
+              }}
+              onBlur={commitDraft}
+              onPaste={(ev) => {
+                const text = ev.clipboardData.getData('text');
+                if (/[,\n\r\t ]/.test(text)) { ev.preventDefault(); addEmails(text); }
+              }}
+              placeholder={emails.length ? '' : 'name@company.com'}
+              className="min-w-[160px] flex-1 border-0 bg-transparent px-1 py-0.5 text-sm text-gray-900 outline-none placeholder:text-gray-400"
             />
           </div>
-        </div>
+        </Field>
 
-        {filtered.length === 0 ? (
-          <div className="px-5 py-16 text-center">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-              <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <p className="text-sm font-medium text-gray-600">
-              {search ? 'No members match your search' : 'No team members yet'}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              {search ? 'Try a different search term' : 'Invite your first team member above'}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {filtered.map((member) => {
-              const isSelf = member._id === currentUserId;
-              const color = getAvatarColor(member.name || member.email);
-              const isMenuOpen = menuOpen === member._id;
+        <Field label="Role">
+          <SelectMenu variant="field" value={role} options={ROLES} onChange={setRole} ariaLabel="Role" />
+        </Field>
 
-              return (
-                <div key={member._id} className="px-5 py-3.5 flex items-center gap-4 hover:bg-gray-50/50 transition-colors group">
-                  {/* Avatar */}
-                  <div className={`w-10 h-10 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-sm font-bold shrink-0`}>
-                    {(member.name || member.email || '?')[0].toUpperCase()}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900 truncate">{member.name || 'Unknown'}</span>
-                      {isSelf && <span className="text-[10px] text-gray-400">(you)</span>}
-                    </div>
-                    <p className="text-xs text-gray-400 truncate">{member.email}</p>
-                  </div>
-
-                  {/* Role */}
-                  <div className="hidden sm:flex items-center">
-                    {!isAdmin || isSelf || member.role === 'owner' ? (
-                      <span className={`text-[11px] font-medium px-2.5 py-1 rounded-md border capitalize ${ROLE_STYLES[member.role] || ROLE_STYLES.member}`}>
-                        {member.role || 'member'}
-                      </span>
-                    ) : (
-                      <select
-                        value={member.role || 'member'}
-                        onChange={(e) => handleRoleChange(member, e.target.value)}
-                        disabled={roleLoading === member._id}
-                        className={`text-[11px] font-medium px-2.5 py-1 rounded-md border cursor-pointer disabled:opacity-50 appearance-none bg-no-repeat bg-[right_4px_center] bg-[length:12px] pr-5 ${ROLE_STYLES[member.role] || ROLE_STYLES.member}`}
-                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")` }}
-                      >
-                        <option value="admin">Admin</option>
-                        <option value="member">Member</option>
-                        <option value="guest">Guest</option>
-                      </select>
-                    )}
-                  </div>
-
-                  {/* Projects */}
-                  <div className="hidden lg:flex items-center gap-1 max-w-[180px] overflow-hidden">
-                    {(member.projects || []).slice(0, 3).map((p) => (
-                      <span
-                        key={p._id}
-                        onClick={() => navigate(`/project/${p._id}`)}
-                        className="text-[10px] font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded cursor-pointer hover:bg-blue-50 hover:text-blue-600 transition-colors truncate max-w-[80px]"
-                        title={p.name}
-                      >
-                        {p.name}
-                      </span>
+        <Field label="Access" hint={role === 'admin' ? 'Admins see every workspace; pick a project to send the invitation from.' : 'A whole workspace includes its future projects.'}>
+          <div ref={accessRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setAccessOpen((o) => !o)}
+              aria-haspopup="listbox"
+              aria-expanded={accessOpen}
+              className={`w-full flex items-center justify-between gap-2 h-9 px-3 text-sm bg-white border rounded-lg transition-shadow ${accessOpen ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200 hover:border-gray-300'}`}
+            >
+              <span className={`truncate ${accessCount ? 'text-gray-900' : 'text-gray-400'}`}>{accessLabel}</span>
+              <span className="flex items-center gap-2 shrink-0">
+                {accessCount > 0 && <Badge tone="blue">{accessCount}</Badge>}
+                <span className={`text-gray-400 transition-transform ${accessOpen ? 'rotate-180' : ''}`}>{Icon.chevron()}</span>
+              </span>
+            </button>
+            {accessOpen && (
+              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 animate-scale-in z-40 max-h-72 overflow-y-auto">
+                {role !== 'admin' && (
+                  <>
+                    <p className="px-3.5 pt-1.5 pb-1 text-xs font-medium text-gray-500">Whole workspace</p>
+                    {workspaces.map((w) => (
+                      <label key={w._id} className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-gray-50 ${workspaceIds.includes(w._id) ? 'bg-blue-50/60' : ''}`}>
+                        <input type="checkbox" checked={workspaceIds.includes(w._id)} onChange={() => toggle(setWorkspaceIds, w._id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                        <span className="min-w-0 flex-1 truncate text-gray-700">{w.name}</span>
+                        <span className="text-xs text-gray-400">{w.projectCount} {w.projectCount === 1 ? 'project' : 'projects'}</span>
+                      </label>
                     ))}
-                    {(member.projects || []).length > 3 && (
-                      <span className="text-[10px] text-gray-400">+{member.projects.length - 3}</span>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  {isAdmin && !isSelf && member.role !== 'owner' && (
-                    <div className="relative" ref={isMenuOpen ? menuRef : null}>
-                      <button
-                        onClick={() => setMenuOpen(isMenuOpen ? null : member._id)}
-                        className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
-                      >
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                        </svg>
-                      </button>
-                      {isMenuOpen && (
-                        <div className="absolute right-0 top-8 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-20 animate-scale-in">
-                          <button
-                            onClick={() => { setMenuOpen(null); navigate(`/project/${member.projects?.[0]?._id}/members`); }}
-                            className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            View Profile
-                          </button>
-                          <div className="border-t border-gray-100 my-1" />
-                          <button
-                            onClick={() => { setMenuOpen(null); setConfirmRemove(member); setRemoveProjectId(member.projects?.[0]?._id || ''); }}
-                            className="w-full text-left px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
-                            </svg>
-                            Remove from Project
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ===== REMOVE CONFIRMATION MODAL ===== */}
-      {confirmRemove && (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm mx-4 w-full animate-scale-in">
-            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 text-center mb-1">Remove Member</h3>
-            <p className="text-sm text-gray-500 text-center mb-5">
-              Remove <strong>{confirmRemove.name}</strong> from a project? They'll lose access to that project.
-            </p>
-            {removeError && (
-              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg mb-4">
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {removeError}
+                    <div className="border-t border-gray-100 my-1" />
+                  </>
+                )}
+                <p className="px-3.5 pt-1.5 pb-1 text-xs font-medium text-gray-500">Single projects</p>
+                {activeProjects.length === 0 ? (
+                  <p className="px-3.5 py-2 text-sm text-gray-400">No active projects here yet.</p>
+                ) : activeProjects.map((p) => (
+                  <label key={p._id} className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-gray-50 ${projectIds.includes(p._id) ? 'bg-blue-50/60' : ''}`}>
+                    <input type="checkbox" checked={projectIds.includes(p._id)} onChange={() => toggle(setProjectIds, p._id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span className="min-w-0 flex-1 truncate text-gray-700">{p.name}</span>
+                  </label>
+                ))}
               </div>
             )}
-            {(confirmRemove.projects || []).length > 1 && (
-              <div className="mb-4">
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Select project to remove from</label>
-                <select
-                  value={removeProjectId}
-                  onChange={(e) => setRemoveProjectId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                >
-                  {(confirmRemove.projects || []).map((p) => (
-                    <option key={p._id} value={p._id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setConfirmRemove(null); setRemoveProjectId(''); setRemoveError(''); }}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRemove}
-                disabled={removeLoading || !removeProjectId}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
-              >
-                {removeLoading ? 'Removing...' : 'Remove'}
-              </button>
-            </div>
           </div>
+        </Field>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" loading={sending} disabled={!canSend}>
+            {sending ? 'Sending…' : uniqueEmails.length > 1 ? `Send ${uniqueEmails.length} invitations` : 'Send invitation'}
+          </Button>
         </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ── Remove from a project ────────────────────────────────────────────────────
+function RemoveDialog({ member, onClose, onRemoved }) {
+  const [projectId, setProjectId] = useState(member?.projects?.[0]?._id || '');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setProjectId(member?.projects?.[0]?._id || ''); }, [member]);
+  if (!member) return null;
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await removeMemberApi(projectId, member._id);
+      toast.success(`${member.name || member.email} was removed from the project.`);
+      onRemoved();
+      onClose();
+    } catch (err) {
+      toastError(err, 'Could not remove them from the project.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal isOpen onClose={onClose} title="Remove from a project" size="sm">
+      <div className="space-y-5">
+        <p className="text-sm text-gray-600">
+          <span className="font-medium text-gray-900">{member.name || member.email}</span> loses access to the project you choose. They stay in your organization.
+        </p>
+        {(member.projects || []).length > 1 && (
+          <Field label="Project">
+            <SelectMenu variant="field" value={projectId} options={member.projects.map((p) => ({ value: p._id, label: p.name }))} onChange={setProjectId} ariaLabel="Project" />
+          </Field>
+        )}
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button variant="danger" loading={busy} disabled={!projectId} onClick={remove}>Remove</Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Team page ────────────────────────────────────────────────────────────────
+export default function MembersTab({ members, projects, isAdmin, currentUserId, onProjectsChanged, inviteOpen = false, onInviteOpenChange = () => {} }) {
+  const navigate = useNavigate();
+  const { workspaces } = useWorkspaces();
+  const activeProjects = useMemo(() => (projects || []).filter((p) => p.status === 'active'), [projects]);
+
+  const [view, setView] = useState('members');
+  const [roleFilter, setRoleFilter] = useState(null);
+  const [statusFilter, setStatusFilter] = useState(null);
+  const [search, setSearch] = useState('');
+  const [orgPeople, setOrgPeople] = useState(null);
+  const [invitations, setInvitations] = useState([]);
+  const [invitationsLoading, setInvitationsLoading] = useState(false);
+  const [roleSaving, setRoleSaving] = useState(null);
+  const [busyInvite, setBusyInvite] = useState(null);
+  const [removing, setRemoving] = useState(null);
+
+  // Everyone in the organization (owners/admins), with their projects here
+  const loadPeople = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const { data } = await getOrgPeopleApi();
+      setOrgPeople(data.people || []);
+    } catch { setOrgPeople(null); }
+  }, [isAdmin]);
+  useEffect(() => { loadPeople(); }, [loadPeople]);
+
+  const people = useMemo(() => {
+    const byId = new Map((members || []).map((m) => [String(m._id), m]));
+    if (!orgPeople) return members || [];
+    return orgPeople.map((p) => ({ ...p, projects: byId.get(String(p._id))?.projects || [] }));
+  }, [orgPeople, members]);
+
+  // Pending invitations: to projects here and to whole workspaces
+  const loadInvitations = useCallback(async () => {
+    if (!isAdmin) return;
+    setInvitationsLoading(true);
+    try {
+      const [byProject, byWorkspace] = await Promise.all([
+        Promise.all(activeProjects.map((p) => getProjectInvitationsApi(p._id)
+          .then((r) => r.data.invitations.map((inv) => ({ ...inv, target: p.name, targetType: 'project' })))
+          .catch(() => []))),
+        Promise.all((workspaces || []).filter((w) => w.myLevel === 'manage' || isAdmin).map((w) => getWorkspaceInvitationsApi(w._id)
+          .then((r) => r.data.invitations.map((inv) => ({ ...inv, target: w.name, targetType: 'workspace' })))
+          .catch(() => []))),
+      ]);
+      setInvitations([...byProject.flat(), ...byWorkspace.flat()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+    } finally {
+      setInvitationsLoading(false);
+    }
+  }, [activeProjects, workspaces, isAdmin]);
+  useEffect(() => { loadInvitations(); }, [loadInvitations]);
+
+  const q = search.trim().toLowerCase();
+  const visiblePeople = people.filter((m) => (!roleFilter || (m.role || 'member') === roleFilter)
+    && (!q || (m.name || '').toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q)));
+  const visibleInvitations = invitations.filter((inv) => (!statusFilter || (statusFilter === 'expired') === isExpired(inv))
+    && (!q || inv.email.toLowerCase().includes(q) || (inv.target || '').toLowerCase().includes(q)));
+  const activeFilterCount = (view === 'members' ? (roleFilter ? 1 : 0) : (statusFilter ? 1 : 0)) + (q ? 1 : 0);
+
+  const changeRole = async (member, role) => {
+    setRoleSaving(member._id);
+    try {
+      await updateOrgRoleApi(member._id, role);
+      toast.success(`${member.name || member.email} is now ${ROLE_LABEL[role].toLowerCase() === 'admin' ? 'an admin' : `a ${ROLE_LABEL[role].toLowerCase()}`}.`);
+      await loadPeople();
+      onProjectsChanged();
+    } catch (err) {
+      toastError(err, 'Could not change the role.');
+    } finally {
+      setRoleSaving(null);
+    }
+  };
+
+  const resend = async (inv) => {
+    setBusyInvite(inv._id);
+    try {
+      const res = await resendInvitationApi(inv._id);
+      toast.success(res.data?.message || `Invitation sent again to ${inv.email}.`);
+      loadInvitations();
+    } catch (err) {
+      toastError(err, 'Could not send the invitation again.');
+    } finally {
+      setBusyInvite(null);
+    }
+  };
+
+  const revoke = async (inv) => {
+    if (!(await confirmDialog({ title: `Revoke the invitation for ${inv.email}?`, message: 'The link in their email stops working.', confirmLabel: 'Revoke', danger: true }))) return;
+    setBusyInvite(inv._id);
+    try {
+      await cancelInvitationApi(inv._id);
+      setInvitations((prev) => prev.filter((x) => x._id !== inv._id));
+      toast.success('Invitation revoked.');
+    } catch (err) {
+      toastError(err, 'Could not revoke the invitation.');
+    } finally {
+      setBusyInvite(null);
+    }
+  };
+
+  const tabs = [
+    { id: 'members', label: 'Members', count: people.length },
+    ...(isAdmin ? [{ id: 'invitations', label: 'Invitations', count: invitations.length }] : []),
+  ];
+
+  return (
+    <div>
+      <Tabs tabs={tabs} active={view} onChange={(id) => { setView(id); setSearch(''); }} className="mb-6" />
+
+      <Toolbar
+        search={<SearchField value={search} onChange={setSearch} placeholder={view === 'members' ? 'Search people...' : 'Search invitations...'} label="Search" />}
+      >
+        {view === 'members' ? (
+          <FilterMenu label="Role" icon={filterIcon.role} options={ROLE_FILTERS} value={roleFilter} onChange={setRoleFilter} />
+        ) : (
+          <FilterMenu label="Status" icon={filterIcon.status} options={STATUS_FILTERS} value={statusFilter} onChange={setStatusFilter} />
+        )}
+        <ClearFilters count={activeFilterCount} onClear={() => { setRoleFilter(null); setStatusFilter(null); setSearch(''); }} />
+      </Toolbar>
+
+      {view === 'members' ? (
+        <Card flush>
+          {visiblePeople.length === 0 ? (
+            <EmptyState
+              icon={peopleIcon}
+              title={activeFilterCount ? 'Nobody matches these filters' : 'No team members yet'}
+              description={activeFilterCount ? 'Try another role or search.' : 'Invite the people you work with to review projects together.'}
+              action={activeFilterCount
+                ? <Button variant="secondary" size="sm" onClick={() => { setRoleFilter(null); setSearch(''); }}>Clear filters</Button>
+                : isAdmin && <Button variant="primary" size="sm" icon={Icon.plus()} onClick={() => onInviteOpenChange(true)}>Invite people</Button>}
+            />
+          ) : (
+            <>
+              <div className="hidden md:grid grid-cols-[minmax(0,1fr)_150px_minmax(0,260px)_40px] gap-4 px-6 py-3 border-b border-gray-100 text-xs font-medium text-gray-500">
+                <span>Person</span><span>Role</span><span>Projects in this workspace</span><span />
+              </div>
+              <ul className="divide-y divide-gray-100">
+                {visiblePeople.map((m) => {
+                  const isSelf = String(m._id) === String(currentUserId);
+                  const role = m.role || 'member';
+                  const editable = isAdmin && !isSelf && role !== 'owner';
+                  const projectList = m.projects || [];
+                  return (
+                    <li key={m._id} className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_150px_minmax(0,260px)_40px] items-center gap-x-4 gap-y-2 px-6 py-3.5 hover:bg-gray-50/60 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar name={m.name || m.email} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {m.name || m.email}
+                            {isSelf && <span className="ml-1.5 text-xs font-normal text-gray-400">(you)</span>}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{m.email}</p>
+                        </div>
+                      </div>
+                      <div className="justify-self-end md:justify-self-start">
+                        {editable ? (
+                          <SelectMenu
+                            value={role}
+                            options={ROLES}
+                            onChange={(r) => changeRole(m, r)}
+                            disabled={roleSaving === m._id}
+                            ariaLabel={`Role of ${m.name || m.email}`}
+                            align="left"
+                          />
+                        ) : (
+                          <Badge tone={role === 'owner' ? 'blue' : 'gray'}>{ROLE_LABEL[role]}</Badge>
+                        )}
+                      </div>
+                      <div className="col-span-2 md:col-span-1 flex flex-nowrap items-center gap-1.5 min-w-0 overflow-hidden">
+                        {projectList.length === 0 ? (
+                          <span className="text-xs text-gray-400">{role === 'owner' || role === 'admin' ? 'All projects' : 'No projects here'}</span>
+                        ) : (
+                          <>
+                            {projectList.slice(0, 2).map((p) => (
+                              <button key={p._id} type="button" title={p.name} onClick={() => navigate(`/project/${p._id}`)} className="max-w-[104px] shrink-0 truncate rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                                {p.name}
+                              </button>
+                            ))}
+                            {projectList.length > 2 && <span className="shrink-0 text-xs text-gray-400" title={projectList.slice(2).map((p) => p.name).join(', ')}>+{projectList.length - 2}</span>}
+                          </>
+                        )}
+                      </div>
+                      <div className="hidden md:flex justify-end">
+                        {editable && (
+                          <ActionMenu
+                            label={`Actions for ${m.name || m.email}`}
+                            items={[
+                              projectList[0] && { label: 'Manage project access', onClick: () => navigate(`/project/${projectList[0]._id}/members`) },
+                              projectList.length > 0 && 'divider',
+                              projectList.length > 0 && { label: 'Remove from a project', danger: true, onClick: () => setRemoving(m) },
+                            ]}
+                          />
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </Card>
+      ) : (
+        <Card flush>
+          {invitationsLoading && invitations.length === 0 ? (
+            <div className="flex justify-center py-14"><span className="w-5 h-5 rounded-full border-2 border-gray-200 border-t-blue-600 animate-spin" /></div>
+          ) : visibleInvitations.length === 0 ? (
+            <EmptyState
+              icon={mailIcon}
+              title={activeFilterCount ? 'No invitations match' : 'No pending invitations'}
+              description={activeFilterCount ? 'Try another status or search.' : 'Invitations you send show up here until they are accepted.'}
+              action={!activeFilterCount && <Button variant="primary" size="sm" icon={Icon.plus()} onClick={() => onInviteOpenChange(true)}>Invite people</Button>}
+            />
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {visibleInvitations.map((inv) => {
+                const expired = isExpired(inv);
+                return (
+                  <li key={inv._id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3.5">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="w-9 h-9 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center shrink-0">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{inv.email}</p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {inv.targetType === 'workspace' ? `Workspace · ${inv.target}` : inv.target} · {ROLE_LABEL[inv.role || 'member']}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge tone={expired ? 'red' : 'amber'} dot>{expired ? `Expired ${formatDate(inv.expiresAt)}` : `Expires ${formatDate(inv.expiresAt)}`}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="secondary" loading={busyInvite === inv._id} onClick={() => resend(inv)}>{expired ? 'Send new link' : 'Resend'}</Button>
+                      <Button size="sm" variant="ghost" disabled={busyInvite === inv._id} onClick={() => revoke(inv)} className="hover:text-red-600 hover:bg-red-50">Revoke</Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
       )}
+
+      <InviteDialog
+        isOpen={inviteOpen}
+        onClose={() => onInviteOpenChange(false)}
+        activeProjects={activeProjects}
+        workspaces={workspaces || []}
+        onInvited={() => { onProjectsChanged(); loadPeople(); setTimeout(loadInvitations, 400); }}
+      />
+      <RemoveDialog member={removing} onClose={() => setRemoving(null)} onRemoved={onProjectsChanged} />
     </div>
   );
 }

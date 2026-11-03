@@ -1,6 +1,6 @@
 /**
  * Tests for Global Trial Period Configuration
- * - Model defaults on PaymentSettings (defaultDays: 14)
+ * - Model defaults on PaymentSettings (defaultDays: 30, matching the website)
  * - Dynamic signup integration (new signups inherit global trialDays)
  * - GET and PATCH /api/admin/trial-settings endpoints
  * - Validation guardrails (1-365 days)
@@ -8,6 +8,8 @@
  * - Admin action audit logging
  */
 
+// Deletes test data: only ever a database whose name ends in _test (never .env's)
+process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_trial_settings_test';
 const mongoose = require('mongoose');
 const PaymentSettings = require('../models/PaymentSettings');
 const Organization = require('../models/Organization');
@@ -41,6 +43,7 @@ const mockRes = () => {
 async function run() {
   console.log('=== Global Trial Period Configuration Tests ===\n');
   await mongoose.connect(process.env.MONGODB_URI);
+  if (!mongoose.connection.name.endsWith('_test')) throw new Error(`Refusing to run against "${mongoose.connection.name}": the test database name must end in _test`);
 
   try {
     // Clean up test data
@@ -58,11 +61,11 @@ async function run() {
     // --- 1. Model & Helper Defaults ---
     console.log('--- 1. Model & Helper Defaults ---');
     const settings = await PaymentSettings.getSingleton();
-    check('PaymentSettings defaults trial.defaultDays to 14', settings.trial?.defaultDays === 14);
+    check('PaymentSettings defaults trial.defaultDays to 30', settings.trial?.defaultDays === 30);
 
     clearTrialCache();
     const helperDays = await getDefaultTrialDaysAsync();
-    check('getDefaultTrialDaysAsync returns 14', helperDays === 14);
+    check('getDefaultTrialDaysAsync returns 30', helperDays === 30);
 
     // --- 2. GET /api/admin/trial-settings ---
     console.log('\n--- 2. GET /api/admin/trial-settings ---');
@@ -71,7 +74,7 @@ async function run() {
       { admin: { _id: superAdminUser._id, role: 'superadmin' } },
       { json: (d) => { getSettingsData = d; } }
     );
-    check('getTrialSettings returns defaultDays: 14', getSettingsData?.defaultDays === 14);
+    check('getTrialSettings returns defaultDays: 30', getSettingsData?.defaultDays === 30);
     check('getTrialSettings returns activeTrialOrgsCount', typeof getSettingsData?.activeTrialOrgsCount === 'number');
 
     // --- 3. Input Validation on PATCH /api/admin/trial-settings ---

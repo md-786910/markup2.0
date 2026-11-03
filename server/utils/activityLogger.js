@@ -101,7 +101,9 @@ function logAdminAction(organizationId, admin, action, metadata = {}) {
     actor: null,
     adminActor: admin._id,
     action,
-    metadata: { ...metadata, actorRole: 'superadmin', adminName: admin.name },
+    // actorRole marks "an admin panel action" (audit log, retention, purge rely
+    // on it); adminRole is the admin's actual role (superadmin or support)
+    metadata: { ...metadata, actorRole: 'superadmin', adminRole: admin.role || 'superadmin', adminName: admin.name },
   }).catch((err) => {
     console.error('Failed to log admin action:', err.message);
   });

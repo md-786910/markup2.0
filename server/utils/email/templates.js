@@ -580,27 +580,73 @@ function reviewDecision({ actorName, projectName, decision, note, openPins, proj
     subject,
     ...renderEmail({
       preheader: `${actorName} ${actionText} ${projectName}.`,
-      eyebrow: 'Client Review',
+      eyebrow: 'Client review',
       tone: approved ? 'brand' : 'warning',
       title: approved ? 'Review round approved' : 'Changes requested',
       blocks: [
         {
           type: 'p',
-          text: `**${esc(actorName)}** has ${approved ? 'approved' : 'requested changes on'} the review round for **${esc(projectName)}**.`,
+          text: `**${actorName}** ${approved ? 'approved' : 'requested changes on'} the review round for **${projectName}**.`,
         },
-        note ? { type: 'callout', tone: 'neutral', text: esc(note) } : null,
+        note ? { type: 'callout', tone: 'neutral', text: note } : null,
         {
           type: 'note',
           text: `Snapshot at decision: **${openPins || 0}** open ${plural(openPins || 0, 'pin')}.`,
         },
-        { type: 'button', label: 'View project & history', url: projectUrl },
+        { type: 'button', label: 'Open the project', url: projectUrl },
       ].filter(Boolean),
       ...projectFooter(projectName),
     }),
   };
 }
 
+// Feedback deadline in 24 h: to the project's members and to guest reviewers
+// who commented (they get the review link, members the project)
+function deadlineReminder({ projectName, deadlineAt, url, forGuest = false, deadlineMessage = '' }) {
+  const when = new Date(deadlineAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' });
+  return {
+    subject: `Feedback on ${projectName} closes ${when}`,
+    ...renderEmail({
+      preheader: `Feedback on ${projectName} closes in less than 24 hours.`,
+      eyebrow: 'Feedback deadline',
+      tone: 'warning',
+      title: 'Feedback closes in less than 24 hours',
+      blocks: [
+        { type: 'p', text: forGuest
+          ? `The team behind **${projectName}** collects feedback until **${when}**. Add anything you still want to say before then.`
+          : `Feedback on **${projectName}** closes at **${when}**. After that, only people who manage the project can reply.` },
+        deadlineMessage ? { type: 'callout', tone: 'neutral', text: deadlineMessage } : null,
+        { type: 'button', label: forGuest ? 'Open the review' : 'Open the project', url },
+      ].filter(Boolean),
+      ...projectFooter(projectName),
+    }),
+  };
+}
+
+// Operational alert to the team (utils/adminAlerts.js). Every value is
+// customer-influenced text, so it goes through the layout's escaping blocks.
+const ALERT_TONES = { critical: 'danger', warning: 'warning', info: 'brand' };
+function adminAlert({ event, title, summary, details = {}, link, severity = 'info' }) {
+  return {
+    subject: `[Kommently alert] ${title}`,
+    ...renderEmail({
+      preheader: summary,
+      eyebrow: severity === 'critical' ? 'Needs action now' : severity === 'warning' ? 'Needs attention' : 'For your information',
+      tone: ALERT_TONES[severity] || 'brand',
+      title,
+      blocks: [
+        { type: 'p', text: summary },
+        Object.keys(details).length ? { type: 'details', rows: Object.entries(details).map(([k, v]) => [k, String(v ?? '')]) } : null,
+        link ? { type: 'button', label: 'Open in the admin panel', url: link } : null,
+        { type: 'note', text: `Automatic alert (${event}).` },
+      ],
+    }),
+  };
+}
+
 module.exports = {
+  deadlineReminder,
+  adminAlert,
   supportRequest,
   invitation,
   newPin,
@@ -608,7 +654,6 @@ module.exports = {
   mention,
   pinStatus,
   reviewDecision,
-  pinStatus,
   digest,
   passwordReset,
   adminInvite,

@@ -10,6 +10,7 @@ const { extractMentionedUserIds } = require('../utils/mentionHelper');
 const { createProjectNotifications } = require('../utils/notificationHelper');
 const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
 const { sanitizePinContext } = require('../utils/pinContext');
+const { refundUploads } = require('../utils/storage');
 
 exports.createPin = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
@@ -40,6 +41,7 @@ exports.createPin = asyncHandler(async (req, res) => {
 
   const projectDoc = await Project.findById(projectId).select('name organization settings review');
   if (projectDoc?.review?.deadlineAt && new Date() > new Date(projectDoc.review.deadlineAt)) {
+    await refundUploads(req);
     return res.status(423).json({
       code: 'FEEDBACK_CLOSED',
       message: projectDoc.review.deadlineMessage || 'Feedback has closed for this review round.',
@@ -78,6 +80,8 @@ exports.createPin = asyncHandler(async (req, res) => {
     pinNumber,
     context,
   });
+  // New feedback after a sign-off: the round is back in review
+  await Project.updateOne({ _id: projectId, projectStatus: 'approved' }, { $set: { projectStatus: 'in_review' } });
 
   const populated = await Pin.findById(pin._id).populate('createdBy', 'name email');
 
@@ -138,6 +142,7 @@ exports.getPins = asyncHandler(async (req, res) => {
     }
   }
   if (assignee) {
+    if (assignee !== 'unassigned' && !require('mongoose').isValidObjectId(assignee)) return res.json({ pins: [] });
     filter.assignee = assignee === 'unassigned' ? null : assignee;
   }
   if (priority) {
@@ -252,11 +257,18 @@ exports.updatePin = asyncHandler(async (req, res) => {
     if (!assignee) {
       pin.assignee = null;
     } else {
-      // Validate that assignee is a project or workspace member in the same org
+      // The assignee must be able to work on the pin: comment access or more
       const User = require('../models/User');
-      const targetUser = await User.findById(assignee).select('organization');
+      const { projectLevelFor } = require('../utils/workspaces');
+      const { atLeast } = require('../utils/access');
+      const targetUser = require('mongoose').isValidObjectId(assignee) && await User.findById(assignee).select('organization role');
       if (!targetUser || String(targetUser.organization) !== String(req.organization._id)) {
         return res.status(400).json({ message: 'Assignee must belong to your organization.' });
+      }
+      const project = req.project || await Project.findById(pin.project).select('organization owner members memberAccess workspace');
+      const level = String(project.owner) === String(targetUser._id) ? 'manage' : await projectLevelFor(targetUser, project);
+      if (!level || !atLeast(level, 'comment')) {
+        return res.status(400).json({ message: 'Assign the pin to someone who can comment on this project.' });
       }
       pin.assignee = assignee;
     }
@@ -267,6 +279,7 @@ exports.updatePin = asyncHandler(async (req, res) => {
   }
 
   if (dueAt !== undefined) {
+    if (dueAt && Number.isNaN(new Date(dueAt).getTime())) return res.status(400).json({ message: 'The due date is not a valid date.' });
     pin.dueAt = dueAt ? new Date(dueAt) : null;
   }
 
@@ -455,14 +468,14 @@ exports.reorderPins = asyncHandler(async (req, res) => {
  * Aggregates all open pins assigned to the current user across all accessible projects.
  */
 exports.getMyTasks = asyncHandler(async (req, res) => {
-  const Project = require('../models/Project');
   const userOrgId = req.user.organization;
 
-  // Find all projects in user's org
-  const projects = await Project.find({
-    organization: userOrgId,
-    deletionScheduledAt: null,
-  }).select('_id name websiteUrl projectType').lean();
+  // Only projects this person can open (as on the dashboard): removing someone
+  // from a project also removes its tasks from their list
+  const { visibleProjectsQuery } = require('../utils/workspaces');
+  const canSeeAll = ['owner', 'admin'].includes(req.user.role);
+  const projects = await Project.find(canSeeAll ? { organization: userOrgId } : await visibleProjectsQuery(req.user))
+    .select('_id name websiteUrl projectType').lean();
 
   const projectIds = projects.map((p) => p._id);
   const projectMap = new Map(projects.map((p) => [String(p._id), p]));

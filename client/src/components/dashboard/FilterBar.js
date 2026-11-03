@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { PROJECT_STATUSES, PROJECT_TYPES, OWNERSHIP_OPTIONS } from '../../utils/projectConstants';
+import { FilterMenu, SearchField, ClearFilters, useDismiss } from '../ui';
 
 const DATE_OPTIONS = [
   { value: 'today', label: 'Today' },
@@ -9,114 +10,12 @@ const DATE_OPTIONS = [
   { value: 'custom', label: 'Custom' },
 ];
 
-function FilterDropdown({ label, icon, options, value, onChange, isOpen, onToggle, onClose, renderOption }) {
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onClose();
-    };
-    const escHandler = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('keydown', escHandler);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('keydown', escHandler);
-    };
-  }, [isOpen, onClose]);
-
-  const selectedLabel = options.find((o) => o.value === value)?.label;
-  const isActive = value !== null;
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={onToggle}
-        className={`
-          flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] border transition-colors duration-150
-          ${isActive
-            ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium'
-            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'
-          }
-        `}
-      >
-        {icon}
-        <span>{selectedLabel || label}</span>
-        <svg
-          className={`w-3.5 h-3.5 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''} ${isActive ? 'text-blue-500' : 'text-gray-400'}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {isOpen && (
-        <div className="absolute left-0 top-full mt-1.5 w-52 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 animate-scale-in z-40">
-          {/* "All" option to clear this filter */}
-          <button
-            onClick={() => { onChange(null); onClose(); }}
-            className={`w-full text-left px-3.5 py-2 text-sm flex items-center justify-between transition-colors rounded-md mx-0 ${
-              value === null ? 'text-blue-700 bg-blue-50/60' : 'text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <span>All</span>
-            {value === null && (
-              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-          </button>
-          <div className="border-t border-gray-100 my-1" />
-          {options.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => { onChange(option.value === value ? null : option.value); onClose(); }}
-              className={`w-full text-left px-3.5 py-2 text-sm flex items-center justify-between transition-colors ${
-                option.value === value ? 'text-blue-700 bg-blue-50/60' : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <span className="flex items-center gap-2.5">
-                {renderOption ? renderOption(option) : option.label}
-              </span>
-              {option.value === value && (
-                <svg className="w-4 h-4 text-blue-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose }) {
+export function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose }) {
   const ref = useRef(null);
   const dateRange = value || { preset: null, start: '', end: '' };
   const selectedLabel = DATE_OPTIONS.find((o) => o.value === dateRange.preset)?.label;
   const isActive = !!dateRange.preset;
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onClose();
-    };
-    const escHandler = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('keydown', escHandler);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('keydown', escHandler);
-    };
-  }, [isOpen, onClose]);
+  useDismiss(ref, isOpen, onClose);
 
   const updateDateRange = (next) => {
     onChange({ ...dateRange, ...next });
@@ -217,19 +116,7 @@ function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose }) {
 }
 
 export default function FilterBar({ filters, onFiltersChange, activeFilterCount, dateOnly = false }) {
-  const [openDropdown, setOpenDropdown] = useState(null);
-  const [searchExpanded, setSearchExpanded] = useState(false);
-  const searchInputRef = useRef(null);
-
-  useEffect(() => {
-    if (searchExpanded && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [searchExpanded]);
-
-  const toggleDropdown = (name) => {
-    setOpenDropdown((prev) => (prev === name ? null : name));
-  };
+  const [dateOpen, setDateOpen] = useState(false);
 
   const updateFilter = (key, value) => {
     onFiltersChange({ ...filters, [key]: value });
@@ -241,15 +128,13 @@ export default function FilterBar({ filters, onFiltersChange, activeFilterCount,
       return;
     }
     onFiltersChange({ status: null, type: null, ownership: null, search: '', dateRange: { preset: null, start: '', end: '' } });
-    setSearchExpanded(false);
   };
 
   return (
     <div className="flex items-center gap-2 mb-6 flex-wrap">
       {!dateOnly && (
         <>
-          {/* Status dropdown */}
-          <FilterDropdown
+          <FilterMenu
             label="Status"
             icon={
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -259,9 +144,6 @@ export default function FilterBar({ filters, onFiltersChange, activeFilterCount,
             options={PROJECT_STATUSES}
             value={filters.status}
             onChange={(val) => updateFilter('status', val)}
-            isOpen={openDropdown === 'status'}
-            onToggle={() => toggleDropdown('status')}
-            onClose={() => setOpenDropdown(null)}
             renderOption={(option) => (
               <>
                 <div className={`w-2 h-2 rounded-full ${option.dot} shrink-0`} />
@@ -269,9 +151,7 @@ export default function FilterBar({ filters, onFiltersChange, activeFilterCount,
               </>
             )}
           />
-
-          {/* Type dropdown */}
-          <FilterDropdown
+          <FilterMenu
             label="Type"
             icon={
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -281,13 +161,8 @@ export default function FilterBar({ filters, onFiltersChange, activeFilterCount,
             options={PROJECT_TYPES}
             value={filters.type}
             onChange={(val) => updateFilter('type', val)}
-            isOpen={openDropdown === 'type'}
-            onToggle={() => toggleDropdown('type')}
-            onClose={() => setOpenDropdown(null)}
           />
-
-          {/* Ownership dropdown */}
-          <FilterDropdown
+          <FilterMenu
             label="Ownership"
             icon={
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -297,91 +172,25 @@ export default function FilterBar({ filters, onFiltersChange, activeFilterCount,
             options={OWNERSHIP_OPTIONS}
             value={filters.ownership}
             onChange={(val) => updateFilter('ownership', val)}
-            isOpen={openDropdown === 'ownership'}
-            onToggle={() => toggleDropdown('ownership')}
-            onClose={() => setOpenDropdown(null)}
           />
         </>
       )}
 
-      {/* Date dropdown */}
       <DateFilterDropdown
         value={filters.dateRange}
         onChange={(val) => updateFilter('dateRange', val)}
-        isOpen={openDropdown === 'date'}
-        onToggle={() => toggleDropdown('date')}
-        onClose={() => setOpenDropdown(null)}
+        isOpen={dateOpen}
+        onToggle={() => setDateOpen((o) => !o)}
+        onClose={() => setDateOpen(false)}
       />
 
-      {/* Active filter count badge + clear */}
-      {activeFilterCount > 0 && (
-        <button
-          onClick={clearAllFilters}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-100"
-        >
-          <span className="w-4.5 h-4.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center" style={{ width: '18px', height: '18px' }}>
-            {activeFilterCount}
-          </span>
-          <span>Clear all</span>
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      )}
+      <ClearFilters count={activeFilterCount} onClear={clearAllFilters} />
 
-      {/* Right side - Search */}
-      {!dateOnly && <div className="ml-auto flex items-center">
-        {searchExpanded ? (
-          <div className="flex items-center gap-2 animate-scale-in">
-            <div className="relative">
-              <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={filters.search}
-                onChange={(e) => updateFilter('search', e.target.value)}
-                placeholder="Search projects..."
-                className="w-56 pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm"
-              />
-              {filters.search && (
-                <button
-                  onClick={() => updateFilter('search', '')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-            <button
-              onClick={() => { setSearchExpanded(false); updateFilter('search', ''); }}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setSearchExpanded(true)}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 shadow-sm"
-            title="Search projects"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </button>
-        )}
-      </div>}
+      {!dateOnly && (
+        <div className="ml-auto flex items-center">
+          <SearchField value={filters.search} onChange={(v) => updateFilter('search', v)} placeholder="Search projects..." label="Search projects" />
+        </div>
+      )}
     </div>
   );
 }

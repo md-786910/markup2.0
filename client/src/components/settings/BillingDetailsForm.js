@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getBillingDetailsApi, updateBillingDetailsApi } from "../../services/billingService";
+import { toast, toastError } from "../../utils/toast";
+import { Button, Card, Field, Input } from "../ui";
 
 const FIELDS = [
   ["legalName", "Legal / company name", "Acme Pvt Ltd"],
@@ -13,7 +15,6 @@ const FIELDS = [
 export default function BillingDetailsForm({ canEdit }) {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     getBillingDetailsApi()
@@ -24,13 +25,12 @@ export default function BillingDetailsForm({ canEdit }) {
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setMessage("");
     try {
       const res = await updateBillingDetailsApi(form);
       setForm({ ...form, ...res.data.billingDetails });
-      setMessage("Saved. New invoices will use these details.");
+      toast.success("Billing details saved. New invoices use them.");
     } catch (err) {
-      setMessage(err.response?.data?.message || "Could not save billing details.");
+      toastError(err, "Could not save the billing details.");
     }
     setSaving(false);
   };
@@ -38,32 +38,27 @@ export default function BillingDetailsForm({ canEdit }) {
   if (!form) return null;
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-6">
-      <h3 className="text-base font-semibold text-gray-900 mb-1">Billing details</h3>
-      <p className="text-sm text-gray-500 mb-5">Printed on your invoices. Add your GSTIN to claim input tax credit.</p>
+    <Card title="Billing details" description="Printed on your invoices. Add your GSTIN or VAT number to claim input tax credit.">
       <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {FIELDS.map(([key, label, placeholder]) => (
-          <label key={key} className={`block text-xs font-medium text-gray-600 ${key === "address" ? "md:col-span-2" : ""}`}>
-            {label}
-            <input
-              type="text"
-              value={form[key] || ""}
-              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-              placeholder={placeholder}
-              disabled={!canEdit}
-              className="mt-1 w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
-            />
-          </label>
+          <div key={key} className={key === "address" ? "md:col-span-2" : ""}>
+            <Field label={label} htmlFor={`billing-${key}`}>
+              <Input
+                id={`billing-${key}`}
+                value={form[key] || ""}
+                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                placeholder={placeholder}
+                disabled={!canEdit}
+              />
+            </Field>
+          </div>
         ))}
         {canEdit && (
-          <div className="md:col-span-2 flex items-center gap-3">
-            <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              {saving ? "Saving..." : "Save billing details"}
-            </button>
-            {message && <span className="text-sm text-gray-600">{message}</span>}
+          <div className="md:col-span-2 flex justify-end">
+            <Button type="submit" variant="primary" loading={saving}>Save billing details</Button>
           </div>
         )}
       </form>
-    </section>
+    </Card>
   );
 }

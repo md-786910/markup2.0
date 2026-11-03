@@ -6,7 +6,11 @@ const https = require('https');
 
 const API_KEY = process.env.POSTHOG_PERSONAL_API_KEY;
 const PROJECT_ID = process.env.POSTHOG_PROJECT_ID;
-const HOST = (process.env.POSTHOG_HOST || 'https://eu.i.posthog.com').replace(/\/$/, '');
+// The query API is on the app host (eu.posthog.com), not the ingestion host the
+// browser sends events to (eu.i.posthog.com); POSTHOG_API_HOST overrides it
+const HOST = (process.env.POSTHOG_API_HOST
+  || (process.env.POSTHOG_HOST || 'https://eu.i.posthog.com').replace(/\/\/(eu|us)\.i\.posthog\.com/, '//$1.posthog.com')
+).replace(/\/$/, '');
 
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const TIMEOUT_MS = 5000;             // 5 seconds max
@@ -141,10 +145,23 @@ async function getOrgPosthogData(orgId) {
       LIMIT 8
     `;
 
-    const [sessionResults, pageResults, eventResults] = await Promise.all([
+    // Query 4: time in the app, as the summed length of each session (first to last event)
+    const timeQuery = `
+      SELECT sum(duration) FROM (
+        SELECT $session_id, dateDiff('second', min(timestamp), max(timestamp)) as duration
+        FROM events
+        WHERE timestamp >= now() - INTERVAL 30 DAY
+          AND $group_0 = '${orgKey}'
+          AND $session_id IS NOT NULL
+        GROUP BY $session_id
+      )
+    `;
+
+    const [sessionResults, pageResults, eventResults, timeResults] = await Promise.all([
       queryHogQL(sessionQuery),
       queryHogQL(pagesQuery),
       queryHogQL(eventsQuery),
+      queryHogQL(timeQuery),
     ]);
 
     if (!sessionResults && !pageResults && !eventResults) {
@@ -156,10 +173,13 @@ async function getOrgPosthogData(orgId) {
     const topPages = (pageResults || []).map((row) => ({ url: row[0], views: row[1] }));
     const topEvents = (eventResults || []).map((row) => ({ event: row[0], count: row[1] }));
 
+    const seconds = timeResults?.[0]?.[0];
     const data = {
       available: true,
       sessions,
       activeUsers30d,
+      // null when that query failed (shown as "—", not as zero)
+      timeInAppMinutes30d: typeof seconds === 'number' ? Math.round(seconds / 60) : null,
       topPages,
       topEvents,
     };
@@ -195,16 +215,30 @@ async function getUserPosthogData(userId) {
         AND distinct_id = '${userKey}'
     `;
 
-    const results = await queryHogQL(query);
+    // Time in the app: each session's first to last event, summed
+    const timeQuery = `
+      SELECT sum(duration) FROM (
+        SELECT $session_id, dateDiff('second', min(timestamp), max(timestamp)) as duration
+        FROM events
+        WHERE timestamp >= now() - INTERVAL 30 DAY
+          AND distinct_id = '${userKey}'
+          AND $session_id IS NOT NULL
+        GROUP BY $session_id
+      )
+    `;
+
+    const [results, timeResults] = await Promise.all([queryHogQL(query), queryHogQL(timeQuery)]);
     if (!results || !results.length) {
       return { available: false, reason: 'query_failed' };
     }
 
+    const seconds = timeResults?.[0]?.[0];
     const data = {
       available: true,
       lastSeen: results[0][0] || null,
       sessions: results[0][1] || 0,
       totalEvents: results[0][2] || 0,
+      timeInAppMinutes30d: typeof seconds === 'number' ? Math.round(seconds / 60) : null,
     };
 
     setCached(cacheKey, data);

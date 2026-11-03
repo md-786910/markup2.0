@@ -11,47 +11,24 @@ import {
 import UpgradeModal from "./UpgradeModal";
 import { confirmDialog } from "../../utils/confirm";
 import DowngradeModal from "./DowngradeModal";
+import { Badge, Button, Card, Notice } from '../ui';
 import { toastError } from '../../utils/toast';
 
-const badgeColors = {
-  gray: "bg-gray-100 text-gray-600 border border-gray-200",
-  blue: "bg-blue-50 text-blue-700 border border-blue-200",
-  purple: "bg-purple-50 text-purple-700 border border-purple-200",
-  amber: "bg-amber-50 text-amber-700 border border-amber-200",
-};
 
-function UsageBar({ label, used, max, color = "blue" }) {
-  const percent =
-    max >= 999 ? (used > 0 ? 5 : 0) : Math.min(100, (used / max) * 100);
+function UsageBar({ label, used, max }) {
   const isUnlimited = max >= 999;
+  const percent = isUnlimited ? (used > 0 ? 4 : 0) : Math.min(100, (used / max) * 100);
   const isNearLimit = !isUnlimited && percent >= 80;
-
-  const colorClasses = {
-    blue: "bg-blue-500",
-    purple: "bg-purple-500",
-    emerald: "bg-emerald-500",
-    amber: "bg-amber-500",
-  };
-
-  const activeColor = isNearLimit
-    ? colorClasses.amber
-    : colorClasses[color] || colorClasses.blue;
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-gray-700">{label}</span>
-        <span
-          className={`text-xs font-semibold ${isNearLimit ? "text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100" : "text-gray-500"}`}
-        >
-          {used} / {isUnlimited ? "∞" : max}
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[13px] font-medium text-gray-700">{label}</span>
+        <span className={`text-xs font-medium tabular-nums ${isNearLimit ? 'text-amber-700' : 'text-gray-500'}`}>
+          {used} / {isUnlimited ? 'Unlimited' : max}
         </span>
       </div>
       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-500 ${activeColor}`}
-          style={{ width: `${Math.max(percent, 2)}%` }}
-        />
+        <div className={`h-full rounded-full transition-all duration-500 ${isNearLimit ? 'bg-amber-500' : 'bg-blue-600'}`} style={{ width: `${Math.max(percent, 2)}%` }} />
       </div>
     </div>
   );
@@ -182,433 +159,131 @@ export default function BillingTab() {
     planData?.subscription?.status === "active" &&
     planData?.subscription?.razorpayCustomerId;
 
+  const planName = currentPlanId === 'trial' ? 'Pro trial' : livePlans[currentPlanId]?.name || 'Free';
+  const statusTone = statusMessage && statusMessage.includes('successful') ? 'green' : 'amber';
+
   return (
-    <div className="space-y-8 pb-10">
-      {statusMessage && (
-        <div
-          className={`flex items-center gap-2 p-4 rounded-xl text-sm font-medium shadow-sm ${statusMessage.includes("successful")
-              ? "bg-green-50 text-green-800 border border-green-200"
-              : "bg-amber-50 text-amber-800 border border-amber-200"
-            }`}
-        >
-          <svg
-            className="w-5 h-5 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-          >
-            {statusMessage.includes("successful") ? (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            ) : (
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
-              />
-            )}
-          </svg>
-          {statusMessage}
-        </div>
-      )}
+    <div className="space-y-6">
+      {statusMessage && <Notice tone={statusTone}>{statusMessage}</Notice>}
 
-      {/* Top Grid: Subscription & Usage */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Current Subscription Card */}
-        <section className="bg-white rounded-xl border border-gray-200 p-6 relative overflow-hidden flex flex-col justify-between">
-
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                <svg
-                  className="w-4 h-4 text-blue-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
-                  />
-                </svg>
-                Current plan
-              </h3>
-              {hasPaidSubscription && isOwner && (
-                <button
-                  onClick={() => setSearchParams({ tab: "invoices" })}
-                  className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-1.5"
-                >
-                  <svg
-                    className="w-3.5 h-3.5 text-gray-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    ></path>
-                  </svg>
-                  View invoices
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-end gap-3 mb-2">
-              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
-                {currentPlanId === "trial"
-                  ? "Pro trial"
-                  : livePlans[currentPlanId]?.name || "Free"}
-              </h2>
-              {currentPlanId !== "trial" && (
-                <span
-                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${badgeColors[livePlans[currentPlanId]?.badgeColor || "gray"]
-                    }`}
-                >
-                  Active
-                </span>
-              )}
-            </div>
-
-            {isTrialActive && (
-              <p className="text-sm text-gray-500 font-medium">
-                {daysLeft} day{daysLeft !== 1 ? "s" : ""} remaining in your{" "}
-                {trialDays}-day trial.
-              </p>
-            )}
-            {!isTrialActive && currentPlanId === "trial" && user?.orgLocked && (
-              <div className="inline-flex items-center gap-1.5 mt-2 text-sm text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 font-medium">
-                <svg
-                  className="w-4 h-4 shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  ></path>
-                </svg>
-                Trial expired. Please upgrade.
-              </div>
-            )}
-            {currentPlanId !== "trial" && (
-              <p className="text-sm text-gray-500 font-medium">
-                {livePlans[currentPlanId]?.priceLabel}{" "}
-                <span className="text-gray-400 font-normal">
-                  {livePlans[currentPlanId]?.period}
-                </span>
-              </p>
-            )}
-            {periodEnd && (
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <span className={`text-sm font-medium ${cancelAtPeriodEnd ? "text-amber-700" : "text-gray-600"}`}>
-                  {cancelAtPeriodEnd
-                    ? `Cancelled. You keep this plan until ${periodEnd}.`
-                    : `Renews on ${periodEnd}. We email an invoice before then.`}
-                </span>
-                {isOwner && (
-                  <button
-                    onClick={cancelAtPeriodEnd ? handleResume : handleCancel}
-                    disabled={subscriptionBusy}
-                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    {cancelAtPeriodEnd ? "Resume subscription" : "Cancel subscription"}
-                  </button>
-                )}
-              </div>
-            )}
+        <Card
+          title="Current plan"
+          actions={hasPaidSubscription && isOwner && (
+            <Button size="sm" variant="secondary" onClick={() => setSearchParams({ tab: 'invoices' })}>View invoices</Button>
+          )}
+        >
+          <div className="flex items-center gap-2.5">
+            <p className="text-2xl font-bold text-gray-900 tracking-tight">{planName}</p>
+            {currentPlanId !== 'trial' && !user?.orgLocked && <Badge tone={cancelAtPeriodEnd ? 'amber' : 'green'} dot>{cancelAtPeriodEnd ? 'Cancelling' : 'Active'}</Badge>}
+            {user?.orgLocked && <Badge tone="red" dot>Locked</Badge>}
           </div>
-
+          {currentPlanId !== 'trial' && (
+            <p className="text-sm text-gray-500 mt-1">
+              {livePlans[currentPlanId]?.priceLabel} <span className="text-gray-400">{livePlans[currentPlanId]?.period}</span>
+            </p>
+          )}
           {isTrialActive && (
-            <div className="mt-6 pt-5 border-t border-gray-100 relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-500">
-                  Trial progress
-                </span>
-                <span
-                  className={`text-xs font-bold ${urgency === "critical"
-                      ? "text-red-600"
-                      : urgency === "warning"
-                        ? "text-amber-600"
-                        : "text-blue-600"
-                    }`}
-                >
-                  {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+            <p className="text-sm text-gray-500 mt-1">{daysLeft} day{daysLeft !== 1 ? 's' : ''} left of your {trialDays}-day trial with every Pro feature.</p>
+          )}
+          {!isTrialActive && currentPlanId === 'trial' && user?.orgLocked && (
+            <div className="mt-3"><Notice tone="red">Your trial has ended. Choose a plan below to keep working.</Notice></div>
+          )}
+          {periodEnd && (
+            <div className="mt-5 pt-5 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+              <p className={`text-sm ${cancelAtPeriodEnd ? 'text-amber-700' : 'text-gray-600'}`}>
+                {cancelAtPeriodEnd ? `Cancelled. You keep this plan until ${periodEnd}.` : `Renews on ${periodEnd}. We email an invoice before then.`}
+              </p>
+              {isOwner && (
+                <Button size="sm" variant="secondary" loading={subscriptionBusy} onClick={cancelAtPeriodEnd ? handleResume : handleCancel}>
+                  {cancelAtPeriodEnd ? 'Resume subscription' : 'Cancel subscription'}
+                </Button>
+              )}
+            </div>
+          )}
+          {isTrialActive && (
+            <div className="mt-5 pt-5 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[13px] font-medium text-gray-700">Trial</span>
+                <span className={`text-xs font-medium ${urgency === 'critical' ? 'text-red-600' : urgency === 'warning' ? 'text-amber-700' : 'text-blue-700'}`}>
+                  {daysLeft} day{daysLeft !== 1 ? 's' : ''} left
                 </span>
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${urgency === "critical"
-                      ? "bg-red-500"
-                      : urgency === "warning"
-                        ? "bg-amber-500"
-                        : "bg-blue-500"
-                    }`}
-                  style={{ width: `${progressPercent}%` }}
-                />
+                <div className={`h-full rounded-full transition-all duration-500 ${urgency === 'critical' ? 'bg-red-500' : urgency === 'warning' ? 'bg-amber-500' : 'bg-blue-600'}`} style={{ width: `${progressPercent}%` }} />
               </div>
             </div>
           )}
-        </section>
+        </Card>
 
-        {/* Workspace Usage Card */}
-        <section className="bg-white rounded-xl border border-gray-200 p-6">
-          <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2 mb-6">
-            <svg
-              className="w-4 h-4 text-purple-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z"
-              />
-            </svg>
-            Usage
-          </h3>
+        <Card title="Usage" description="What your organization uses of the plan.">
           <div className="space-y-5">
-            <UsageBar
-              label="Projects"
-              used={usage.projects}
-              max={limits.maxProjects}
-              color="blue"
-            />
-            {limits.maxWorkspaces != null && (
-              <UsageBar
-                label="Workspaces"
-                used={usage.workspaces || 1}
-                max={limits.maxWorkspaces}
-                color="blue"
-              />
-            )}
-            <UsageBar
-              label="Team members"
-              used={usage.members}
-              max={limits.maxMembers}
-              color="blue"
-            />
-            <UsageBar
-              label="Guest reviewers"
-              used={usage.guests}
-              max={limits.maxGuests}
-              color="blue"
-            />
+            <UsageBar label="Projects" used={usage.projects} max={limits.maxProjects} />
+            {limits.maxWorkspaces != null && <UsageBar label="Workspaces" used={usage.workspaces || 1} max={limits.maxWorkspaces} />}
+            <UsageBar label="Team members" used={usage.members} max={limits.maxMembers} />
+            <UsageBar label="Guest reviewers" used={usage.guests} max={limits.maxGuests} />
             {limits.maxStorageMB != null && (
               <UsageBar
                 label="Storage (GB)"
                 used={Math.round(((usage.storageMB || 0) / 1024) * 100) / 100}
                 max={Math.round((limits.maxStorageMB / 1024) * 10) / 10}
-                color="blue"
               />
             )}
           </div>
-        </section>
+        </Card>
       </div>
 
       <BillingDetailsForm canEdit={isOwner || isAdmin} />
 
-      {/* Available Plans Section */}
-      <section className="pt-4">
-        <div className="mb-6">
-          <h3 className="text-xl font-bold text-gray-900">
-            Upgrade your plan
-          </h3>
-          <p className="text-sm text-gray-500 mt-1">
-            One plan covers every workspace in your organization. Unlock premium features, remove limits, and collaborate seamlessly
-            with your entire team.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <Card title="Plans" description="One plan covers every workspace in your organization.">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {livePlanList
-            .filter((p) => p.id !== "enterprise" && p.enabled !== false)
+            .filter((p) => p.id !== 'enterprise' && p.enabled !== false)
             .map((plan) => {
               // A trial runs with Pro features: Pro is what they're trying,
               // and Free is not "current" (nor an upgrade) during the trial
-              const onTrial = currentPlanId === "trial";
+              const onTrial = currentPlanId === 'trial';
               const isCurrent = plan.id === currentPlanId;
-              const isTrying = onTrial && plan.id === "pro";
-              const trialFree = onTrial && plan.id === "free";
+              const isTrying = onTrial && plan.id === 'pro';
+              const trialFree = onTrial && plan.id === 'free';
               const isUpgrade = !isCurrent && !trialFree && plan.order > currentOrder;
               const isDowngrade = !isCurrent && !trialFree && plan.order <= currentOrder;
-
+              const highlighted = isCurrent || isTrying;
               return (
-                <div
-                  key={plan.id}
-                  className={`relative flex flex-col bg-white rounded-xl p-6 transition-colors duration-200 ${isCurrent || isTrying
-                      ? "border-2 border-blue-600"
-                      : "border border-gray-200 hover:border-gray-300 hover:shadow-sm"
-                    }`}
-                >
-                  {/* Popular badge */}
-                  {(plan.popular || isTrying) && (
-                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                      <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-600 text-white whitespace-nowrap">
-                        {isTrying ? "Your trial" : "Most popular"}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="mb-5">
-                    <h4 className="text-base font-bold text-gray-900 mb-2">
-                      {plan.name}
-                    </h4>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-gray-900 tracking-tight">
-                        {plan.priceLabel}
-                      </span>
-                      {plan.period && (
-                        <span className="text-sm font-medium text-gray-500">
-                          {plan.period}
+                <div key={plan.id} className={`relative flex flex-col rounded-xl p-5 transition-colors ${highlighted ? 'border-2 border-blue-600 bg-blue-50/30' : 'border border-gray-200 hover:border-gray-300'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-semibold text-gray-900">{plan.name}</h4>
+                    {isTrying ? <Badge tone="blue">Your trial</Badge> : isCurrent ? <Badge tone="blue">Current</Badge> : plan.popular ? <Badge tone="blue">Most popular</Badge> : null}
+                  </div>
+                  <div className="flex items-baseline gap-1 mt-2">
+                    <span className="text-2xl font-bold text-gray-900 tracking-tight">{plan.priceLabel}</span>
+                    {plan.period && <span className="text-sm text-gray-500">{plan.period}</span>}
+                  </div>
+                  <ul className="space-y-2.5 my-5 flex-1">
+                    {(plan.features || []).map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-[13px] text-gray-600">
+                        <span className="mt-0.5 w-4 h-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                         </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex-1">
-                    <ul className="space-y-3 mb-8">
-                      {(plan.features || []).map((feature, i) => (
-                        <li
-                          key={i}
-                          className="flex items-start gap-2.5 text-sm text-gray-600"
-                        >
-                          <div className="mt-0.5 w-4 h-4 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                            <svg
-                              className="w-2.5 h-2.5 text-green-600"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              strokeWidth={3}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          </div>
-                          <span className="leading-snug">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="mt-auto pt-4 border-t border-gray-100">
-                    {trialFree && (
-                      <p className="py-2.5 text-center text-sm text-gray-500">Free forever, no card needed</p>
-                    )}
-                    {isCurrent && (
-                      <button
-                        disabled
-                        className="w-full py-2.5 text-sm font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-xl cursor-default"
-                      >
-                        Current plan
-                      </button>
-                    )}
-                    {isUpgrade && isOwner && (
-                      <button
-                        onClick={() => setUpgradeTarget(plan)}
-                        className="w-full py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-sm hover:shadow flex justify-center items-center gap-2"
-                      >
-                        Upgrade to {plan.name}
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M17 8l4 4m0 0l-4 4m4-4H3"
-                          ></path>
-                        </svg>
-                      </button>
-                    )}
-                    {isUpgrade && !isOwner && (
-                      <button
-                        disabled
-                        className="w-full py-2.5 text-sm font-bold text-gray-500 bg-gray-100 rounded-xl cursor-not-allowed border border-gray-200"
-                        title="Only the organization owner can upgrade"
-                      >
-                        Ask owner to upgrade
-                      </button>
-                    )}
-                    {isDowngrade && allowDowngrades && isOwner && (
-                      <button
-                        onClick={() => setDowngradeTarget(plan)}
-                        className="w-full py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-colors flex justify-center items-center gap-2"
-                      >
-                        Downgrade to {plan.name}
-                      </button>
-                    )}
-                    {isDowngrade && allowDowngrades && !isOwner && (
-                      <button
-                        disabled
-                        className="w-full py-2.5 text-sm font-bold text-gray-500 bg-gray-100 rounded-xl cursor-not-allowed border border-gray-200"
-                        title="Only the organization owner can change the plan"
-                      >
-                        Ask owner to downgrade
-                      </button>
-                    )}
-                    {isDowngrade && !allowDowngrades && (
-                      <button
-                        disabled
-                        className="w-full py-2.5 text-sm font-bold text-gray-400 bg-gray-50 rounded-xl cursor-not-allowed border border-gray-200"
-                        title="Downgrades are disabled by your admin"
-                      >
-                        Downgrade
-                      </button>
-                    )}
+                        <span className="leading-snug">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="pt-4 border-t border-gray-100">
+                    {trialFree && <p className="h-9 flex items-center justify-center text-[13px] text-gray-500">Free forever, no card needed</p>}
+                    {isCurrent && <Button className="w-full" variant="secondary" disabled>Current plan</Button>}
+                    {isUpgrade && isOwner && <Button className="w-full" variant="primary" onClick={() => setUpgradeTarget(plan)}>Upgrade to {plan.name}</Button>}
+                    {isUpgrade && !isOwner && <Button className="w-full" variant="secondary" disabled title="Only the organization owner can upgrade">Ask the owner to upgrade</Button>}
+                    {isDowngrade && allowDowngrades && isOwner && <Button className="w-full" variant="secondary" onClick={() => setDowngradeTarget(plan)}>Switch to {plan.name}</Button>}
+                    {isDowngrade && allowDowngrades && !isOwner && <Button className="w-full" variant="secondary" disabled title="Only the organization owner can change the plan">Ask the owner to switch</Button>}
+                    {isDowngrade && !allowDowngrades && <Button className="w-full" variant="secondary" disabled title="Plan downgrades are turned off">Not available</Button>}
                   </div>
                 </div>
               );
             })}
         </div>
-      </section>
+      </Card>
 
-      {/* Enterprise Callout */}
-      {/* <section className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-lg">
-        <div className="text-left">
-          <h4 className="text-lg font-bold text-white flex items-center gap-2">
-            <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 2a.75.75 0 01.673.418l2.67 5.412 5.968.869a.75.75 0 01.416 1.279l-4.318 4.208 1.019 5.944a.75.75 0 01-1.088.791L10 18.347l-5.34 2.808a.75.75 0 01-1.088-.791l1.019-5.944-4.318-4.208a.75.75 0 01.416-1.279l5.968-.869 2.67-5.412A.75.75 0 0110 2z" clipRule="evenodd" />
-            </svg>
-            Enterprise Plan
-          </h4>
-          <p className="text-sm text-gray-300 mt-1 max-w-xl">
-            Need custom limits, single sign-on (SSO), SLA guarantees, or dedicated priority support? Contact our sales team for a fully tailored solution.
-          </p>
-        </div>
-        <button
-          disabled
-          className="px-6 py-2.5 text-sm font-bold text-gray-900 bg-white rounded-xl hover:bg-gray-50 transition-colors shrink-0 shadow-sm"
-        >
-          Contact Sales
-        </button>
-      </section> */}
-
-      {/* Upgrade Modal */}
       {upgradeTarget && (
         <UpgradeModal
           selectedPlan={upgradeTarget}
@@ -618,8 +293,6 @@ export default function BillingTab() {
           onUpgradeComplete={handleUpgradeComplete}
         />
       )}
-
-      {/* Downgrade Modal */}
       {downgradeTarget && (
         <DowngradeModal
           targetPlan={downgradeTarget}

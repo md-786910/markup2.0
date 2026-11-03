@@ -1,6 +1,8 @@
 # Phase 4: Client approvals and feedback deadlines
 
-**Status: Done (Shipped October 2026) · Size: M (about 1.5 weeks)**
+**Status: Done (Shipped October 2026; launch review fixes November 2026) · Size: M (about 1.5 weeks)**
+
+> **Launch review fixes (Nov 2026):** the Share dialog moved the deadline by the UTC offset on every save (fixed: local time in the `datetime-local` field); managers can reply after the deadline; refused uploads are deleted and their storage released; every decision is its own dated `Approval` (no overwrite); open pins at a decision count every unresolved pin, so "require all resolved" can't be bypassed; decisions email the project's managers (`reviewDecision`, `utils/reviewNotify.js`, opt-outs respected) and post to Slack/Teams/Discord; decision endpoints enforce `hasApprovals` (and the review page hides the bar); socket payloads leave out reviewer IP and browser. Then: 24 h deadline reminders from the daily job (`phaseDeadlineReminders`, once per deadline via `review.reminderSentFor`; members get the project, guests who commented the review link; guests who unsubscribed are kept in `EmailOptOut`); `changes_requested` is a project status; new feedback on an approved project puts it back in review; the workspace review page shows each project's latest decision (reviewer name and date).
 
 ## Goal
 A client can formally approve a review round (or request changes) from the review link, the team gets a dated record of who approved what, and the team can close a round to new feedback on a deadline.

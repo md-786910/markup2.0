@@ -30,6 +30,8 @@ router.post('/unsubscribe', asyncHandler(async (req, res) => {
   const email = verifyUnsubscribeToken(String(req.query.token || ''));
   if (!email) return res.status(400).send(page('Invalid link', '<p>This unsubscribe link is not valid.</p>'));
   await User.updateOne({ email }, { $set: { emailNotificationsEnabled: false } });
+  // Guest reviewers have no account: remember the address
+  await require('../models/EmailOptOut').updateOne({ email: String(email).toLowerCase() }, { $setOnInsert: { email: String(email).toLowerCase() } }, { upsert: true });
   res.send(page("You're unsubscribed", '<p style="line-height:1.6">You will no longer receive notification emails. You can turn them back on any time in your profile settings.</p>'));
 }));
 

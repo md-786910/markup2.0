@@ -435,6 +435,10 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
 
   const isGetRequest = req.method === 'GET';
 
+  // Pass the site's own status through (a 404 or 401 from its API must stay one:
+  // site code checks response.ok, and failed requests are captured on pins)
+  if (response.status >= 200 && response.status < 600) res.status(response.status);
+
   // Guest mode is sticky: query param on the initial iframe load, then cookie
   // on every subsequent sub-resource request. Either source flips this on.
   let isGuest = req.query.guest === 'true';
@@ -469,7 +473,7 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
     }
     const css = response.data.toString("utf-8");
     const rewritten = rewriteCssUrls(css, url, projectId, serverBase, workerBase, isGuest);
-    rewriteCacheSet(cacheKey, rewritten);
+    if (response.status < 300) rewriteCacheSet(cacheKey, rewritten);
     res.setHeader("Content-Type", "text/css; charset=utf-8");
     return res.send(rewritten);
   }
@@ -484,7 +488,7 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
     }
     const js = response.data.toString("utf-8");
     const rewritten = rewriteJsUrls(js, url, projectId, serverBase, workerBase, isGuest);
-    rewriteCacheSet(cacheKey, rewritten);
+    if (response.status < 300) rewriteCacheSet(cacheKey, rewritten);
     res.setHeader("Content-Type", contentType);
     return res.send(rewritten);
   }

@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import PrivateRoute from './components/common/PrivateRoute';
+import SuperadminRoute from './components/common/SuperadminRoute';
 import AdminLayout from './components/layout/AdminLayout';
 import './index.css';
 
@@ -10,6 +11,7 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const AccountPage = lazy(() => import('./pages/AccountPage'));
 const AdminTeamPage = lazy(() => import('./pages/AdminTeamPage'));
+const SiteNoticePage = lazy(() => import('./pages/SiteNoticePage'));
 const SupportInboxPage = lazy(() => import('./pages/SupportInboxPage'));
 const SupportTicketPage = lazy(() => import('./pages/SupportTicketPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -48,12 +50,15 @@ function App() {
                 <Route path="/users" element={<UsersPage />} />
                 <Route path="/users/:id" element={<UserDetailPage />} />
                 <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/pricing" element={<PricingPage />} />
-                <Route path="/revenue" element={<RevenuePage />} />
-                <Route path="/payments" element={<PaymentsPage />} />
-                <Route path="/audit" element={<AuditLogPage />} />
+                <Route element={<SuperadminRoute />}>
+                  <Route path="/pricing" element={<PricingPage />} />
+                  <Route path="/revenue" element={<RevenuePage />} />
+                  <Route path="/payments" element={<PaymentsPage />} />
+                  <Route path="/audit" element={<AuditLogPage />} />
+                  <Route path="/admins" element={<AdminTeamPage />} />
+                  <Route path="/notice" element={<SiteNoticePage />} />
+                </Route>
                 <Route path="/account" element={<AccountPage />} />
-                <Route path="/admins" element={<AdminTeamPage />} />
                 <Route path="/support" element={<SupportInboxPage />} />
                 <Route path="/support/:ticketId" element={<SupportTicketPage />} />
               </Route>

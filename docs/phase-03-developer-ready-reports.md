@@ -1,6 +1,8 @@
 # Phase 3: Developer-ready reports
 
-**Status: Planned · Size: S (about 3 days)**
+**Status: Done (October 2026; launch review fixes November 2026) · Size: S (about 3 days)**
+
+> **Launch review fixes (Nov 2026):** element text and selector class regexes reached the browser broken (`/s+/g`, `[w-]`; template-literal escaping) and are fixed; clicks on the page background store no element text; console messages and stacks are scrubbed on the server (query strings, fragments and `token=`-style pairs removed, proxy URLs unwrapped, `:line:col` kept); guest pin responses no longer include anyone's `context`; the proxy now passes the site's own status code through (failed requests were never captured because everything came back 200). Tests: `server/test/proxyPassthrough.js` (in `npm test`) and smoke checks.
 
 ## Goal
 Every pin carries the technical context a developer needs to reproduce the issue, captured automatically without asking the reviewer anything.

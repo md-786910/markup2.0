@@ -797,10 +797,12 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
             elementOffsetY = ((e.clientY - rect.top) / rect.height) * 100;
           }
           var tag = (target.tagName || '').toUpperCase();
+          // (Inside this template literal regex escapes need a double backslash)
           if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
             elementText = (target.getAttribute('placeholder') || target.getAttribute('aria-label') || target.name || tag.toLowerCase()).slice(0, 120);
-          } else {
-            elementText = (target.innerText || target.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+          } else if (tag !== 'BODY' && tag !== 'HTML') {
+            // The page background says nothing about what was clicked
+            elementText = (target.innerText || target.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 120);
           }
         }
       } catch (err) { /* fallback to percentage */ }
@@ -963,7 +965,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         for (var c = 0; c < el.classList.length; c++) {
           var cls = el.classList[c];
           // Skip classes that look generated/dynamic (contain hashes, random strings)
-          if (!/^[a-zA-Z][\w-]{2,}$/.test(cls)) continue;
+          if (!/^[a-zA-Z][\\w-]{2,}$/.test(cls)) continue;
           if (/[-_][a-f0-9]{4,}/i.test(cls)) continue;
           stableClasses.push(cls);
           if (stableClasses.length >= 2) break;

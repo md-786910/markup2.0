@@ -85,7 +85,8 @@ export default function PricingPage() {
     setForm({
       name: plan.name || '',
       price: plan.price == null ? '' : String(plan.price),
-      priceInr: plan.priceInr == null ? '' : String(plan.priceInr),
+      // Only an admin-set INR price is filled in; empty keeps following the USD price
+      priceInr: plan.priceInrCustom && plan.priceInr != null ? String(plan.priceInr) : '',
       priceLabel: plan.priceLabel || '',
       period: plan.period || '',
       order: plan.order ?? 0,
@@ -153,12 +154,14 @@ export default function PricingPage() {
     setSaving(true);
     setError('');
     try {
+      // An empty field keeps the current limit (Number('') would save 0)
+      const limitValue = (v) => (v === '' || v == null ? null : Number(v));
       const limitsPayload = {
-        maxProjects: Number(form.maxProjects),
-        maxMembers: Number(form.maxMembers),
-        maxGuests: Number(form.maxGuests),
-        maxWorkspaces: Number(form.maxWorkspaces),
-        maxStorageMB: Number(form.maxStorageMB),
+        maxProjects: limitValue(form.maxProjects),
+        maxMembers: limitValue(form.maxMembers),
+        maxGuests: limitValue(form.maxGuests),
+        maxWorkspaces: limitValue(form.maxWorkspaces),
+        maxStorageMB: limitValue(form.maxStorageMB),
         hasIntegrations: form.hasIntegrations,
         hasActivityLogs: form.hasActivityLogs,
         hasVersionHistory: form.hasVersionHistory,
@@ -352,7 +355,7 @@ export default function PricingPage() {
                     type="number"
                     value={form.priceInr}
                     onChange={(e) => updateField('priceInr', e.target.value)}
-                    placeholder="Auto from USD"
+                    placeholder={plans[editModal]?.priceInr != null && !plans[editModal]?.priceInrCustom ? `Auto from USD (now ₹${plans[editModal].priceInr})` : 'Auto from USD'}
                     className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   />
                 </div>
@@ -361,7 +364,10 @@ export default function PricingPage() {
                 <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Price Label</label>
                 <input
                   type="text"
-                  value={form.priceLabel}
+                  // Starter and Pro always show the price they charge
+                  value={['starter', 'pro'].includes(editModal) ? (form.price === '' ? '' : `$${form.price}`) : form.priceLabel}
+                  disabled={['starter', 'pro'].includes(editModal)}
+                  title={['starter', 'pro'].includes(editModal) ? 'Follows the USD price' : undefined}
                   onChange={(e) => updateField('priceLabel', e.target.value)}
                   placeholder="$29 or Custom"
                   maxLength={40}
@@ -625,7 +631,7 @@ export default function PricingPage() {
                   Some organizations currently subscribed to this plan exceed the proposed lower limits:
                 </p>
                 <div className="space-y-1">
-                  {impactWarning.impacts?.map((imp, idx) => (
+                  {(impactWarning.details || []).map((imp, idx) => (
                     <div key={idx} className="text-xs flex items-center justify-between bg-white/70 px-2.5 py-1.5 rounded-lg border border-amber-200/50">
                       <span className="font-medium text-gray-800">{imp.orgName}</span>
                       <span className="text-amber-800 font-mono">
@@ -669,7 +675,7 @@ export default function PricingPage() {
           <button onClick={() => setEditModal(null)} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
             Cancel
           </button>
-          <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm hover:shadow-md flex items-center gap-2">
+          <button onClick={() => handleSave()} disabled={saving} className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm hover:shadow-md flex items-center gap-2">
             {saving ? (
               <>
                 <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>

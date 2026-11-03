@@ -109,6 +109,8 @@ const organizationSchema = new mongoose.Schema({
     supportPriority: { type: String, enum: ['normal', 'high', 'urgent'] },
     supportReplyHours: { type: Number },
   },
+  // Days support agents have added to this trial (capped at 14 in total)
+  trialSupportExtensionDays: { type: Number, default: 0 },
   // Owner requested deletion: the org is locked and purged by the daily job at this time
   deletionScheduledAt: { type: Date, default: null },
   // Bytes of uploaded files counted against the plan's maxStorageMB (utils/storage.js)

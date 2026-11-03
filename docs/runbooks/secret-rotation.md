@@ -1,41 +1,48 @@
-# Runbook: Secret Rotation
+# Runbook: Rotate a secret
 
-## 1. Overview
-Guidelines for rotating production credentials, encryption keys, and gateway webhook secrets without disrupting active user sessions or locking out administrators.
+All secrets live in the repo-root `.env` on the server. After editing it, apply
+it with `docker compose up -d` (**not** `restart`, which keeps the old values).
+Never print `.env` values into a shared terminal or chat.
 
----
+## What each secret protects
 
-## 2. Secrets Inventory & Risk Matrix
+| Variable | Rotating it… | Plan |
+|---|---|---|
+| `JWT_SECRET` | Signs everyone out (customers and admins), invalidates open 2FA sign-in steps, 24 h proxy tokens (review iframes reload), and the unsubscribe links in emails already sent. **If `TWO_FACTOR_KEY` is not set, it also makes every admin's 2FA unreadable** (see below). | Off-peak; set `TWO_FACTOR_KEY` first |
+| `TWO_FACTOR_KEY` | Makes every stored admin 2FA secret unreadable | Don't rotate; if lost, reset 2FA per admin |
+| `RELAY_SECRET` | Must match the Cloudflare worker's secret, or relayed sites stop loading | Update the worker and `.env` together |
+| `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` | Payments / webhooks fail until both sides match | Create the new key in Razorpay, update `.env`, then revoke the old key |
+| `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` | Same as above for PayPal | Same order |
+| `SMTP_PASS` | Email stops until it matches the provider | Change at the provider, update `.env`, run `npm run check:smtp` |
+| `MONGO_*_PASSWORD`, `REDIS_PASSWORD` | The existing volumes keep the old password | Change it inside Mongo/Redis first; see `DEPLOY.md` troubleshooting |
+| `BACKUP_PASSPHRASE` | Old backups still need the old passphrase | Keep the old one with the old backups |
+| `ADMIN_ALERTS_SLACK_WEBHOOK` | Alerts go to the new webhook | Replace and apply |
 
-| Secret Variable | Usage | Rotation Risk | Strategy |
-| :--- | :--- | :--- | :--- |
-| `JWT_SECRET` | User and guest authentication tokens | High (logs out all users) | Schedule during off-peak hours |
-| `TWO_FACTOR_KEY` | AES encryption key for TOTP secrets | **CRITICAL** | **Never rotate without re-encrypting `AdminUser.twoFactor.secret` in DB first** |
-| `RAZORPAY_KEY_SECRET` | Payment verification | Medium | Update in gateway first, then sync `.env` |
-| `PAYPAL_CLIENT_SECRET` | PayPal order generation & captures | Medium | Create secondary credential in PayPal developer portal |
-| `ADMIN_ALERTS_SLACK_WEBHOOK`| Slack alert notification URL | Low | Replace webhook URL in `.env` |
-| `SMTP_PASS` | Outgoing email authentication | Low | Update password in SMTP provider, then update `.env` |
+## Rotate `JWT_SECRET`
 
----
-
-## 3. JWT_SECRET Rotation Procedure
-
-1. Notify active team members of scheduled re-authentication.
-2. Generate a secure 64-character random string:
+1. Make sure `TWO_FACTOR_KEY` is set in `.env`. If it is empty, the 2FA
+   secrets are encrypted with a key derived from `JWT_SECRET`: set
+   `TWO_FACTOR_KEY` **before** rotating and plan to reset 2FA for every admin
+   (`node scripts/resetTwoFactor.js <email>`), because their current secrets
+   can't be read with the new key.
+2. Generate a new value:
    ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   openssl rand -base64 64 | tr -dc 'A-Za-z0-9' | head -c 48; echo
    ```
-3. Update `JWT_SECRET` in `.env`.
-4. Gracefully restart backend:
+3. Put it in `.env`, then apply:
    ```bash
-   docker compose restart server
+   cd /root/markup2.0 && docker compose up -d
+   curl -fsS https://api.kommently.info/api/health
    ```
+4. Everyone signs in again. Admins whose 2FA was reset set it up again at
+   their next sign-in.
 
----
+## Lost `TWO_FACTOR_KEY`
 
-## 4. TWO_FACTOR_KEY Precautions (Important)
-> [!CAUTION]
-> Changing `TWO_FACTOR_KEY` without decrypting and re-encrypting the database `AdminUser.twoFactor.secret` fields will prevent ALL administrators with 2FA enabled from generating valid TOTP verification tokens!
->
-> If `TWO_FACTOR_KEY` is accidentally lost, run [`admin-2fa-reset.md`](./admin-2fa-reset.md) to recover access.
+Admins with 2FA can no longer sign in. For each one:
 
+```bash
+docker compose exec server node scripts/resetTwoFactor.js <admin email>
+```
+
+See [admin-2fa-reset.md](admin-2fa-reset.md).

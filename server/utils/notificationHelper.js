@@ -75,6 +75,8 @@ async function createProjectNotifications({
   comment = null,
   mentionedUserIds = [],
   excludeRecipientIds = [],
+  // Only this person (e.g. the new assignee), if they are on the project
+  targetUserId = null,
   message = '',
   metadata = {},
 }) {
@@ -99,9 +101,11 @@ async function createProjectNotifications({
     const seen = new Set();
     const recipientMembers = [];
 
+    const targetStr = targetUserId ? String(targetUserId) : null;
     for (const m of allMembers) {
       const mId = m._id.toString();
       if (mId === actorIdStr || seen.has(mId) || excludeSet.has(mId)) continue;
+      if (targetStr && mId !== targetStr) continue;
       seen.add(mId);
       recipientMembers.push(m);
     }

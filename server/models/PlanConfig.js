@@ -31,7 +31,9 @@ const planConfigSchema = new mongoose.Schema({
   },
   extraFeatures: [{ type: String }],
   name: { type: String, default: null },
-  price: { type: Number, default: null },
+  // No default: a row created for another field (e.g. turning the plan off) must
+  // not store a price; null is only ever set on purpose (= "Custom")
+  price: { type: Number },
   // Monthly price charged through Razorpay, in whole rupees. null = price × RAZORPAY_USD_INR_RATE
   priceInr: { type: Number, default: null },
   priceLabel: { type: String, default: null },

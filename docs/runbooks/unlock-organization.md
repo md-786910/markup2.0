@@ -11,7 +11,7 @@ In the Admin Panel (`/organizations/:id`):
 - Check the header status badge.
 - View the **Status** field:
   - `Payment overdue`: 10-day payment grace period expired.
-  - `Trial expired`: 30-day trial ended without plan selection.
+  - `Trial expired`: the trial ended without a paid plan (trial length: Settings → trial settings in the admin panel).
   - `Manual lock`: Administrator intervention.
 
 ---
@@ -26,10 +26,10 @@ If the customer needs temporary access to settle payment or export project data:
 
 1. **Extend Trial (for Trial Locks):**
    - Click **Extend Trial** in the organization overview.
-   - Enter extension days (Support agents up to 14 days, Superadmins up to 365 days).
+   - Enter extension days. Superadmins: up to 365 days. Support agents: only for organizations already on a trial, and up to 14 days per trial in total.
    - This automatically resets `isLocked = false` and re-arms trial reminders.
 
-2. **Manual Unlock (for Invoiced Orgs):**
+2. **Manual Unlock (for Invoiced Orgs):** superadmins only (support agents can't lock or unlock).
    - Click **Unlock Organization** in the Actions dropdown.
    - Enter reason in internal note.
    - The organization is restored to active status.

@@ -31,9 +31,13 @@ async function findTarget(req, res) {
   return target;
 }
 
+// Someone must always be able to run the panel: the last active admin, or the
+// last active superadmin (support agents can't manage the team or billing)
 async function isLastActiveAdmin(target) {
   if (target.status !== 'active') return false;
-  return (await AdminUser.countDocuments({ status: 'active', _id: { $ne: target._id } })) === 0;
+  if ((await AdminUser.countDocuments({ status: 'active', _id: { $ne: target._id } })) === 0) return true;
+  if ((target.role || 'superadmin') !== 'superadmin') return false;
+  return (await AdminUser.countDocuments({ status: 'active', role: { $ne: 'support' }, _id: { $ne: target._id } })) === 0;
 }
 
 // GET /admin/admins
@@ -94,6 +98,23 @@ exports.setAdminStatus = asyncHandler(async (req, res) => {
   target.sessionToken = newSessionToken(); // signs them out right away
   await target.save({ validateBeforeSave: false });
   logAdminAction(null, req.admin, status === 'disabled' ? 'admin.disabled' : 'admin.enabled', { email: target.email, name: target.name });
+  res.json({ admin: target.toPublic() });
+});
+
+// PATCH /admin/admins/:adminId/role { role: 'superadmin' | 'support' }
+exports.setAdminRole = asyncHandler(async (req, res) => {
+  const target = await findTarget(req, res);
+  if (!target) return;
+  const role = req.body?.role;
+  if (!['superadmin', 'support'].includes(role)) return res.status(400).json({ message: 'Role must be superadmin or support.' });
+  if (String(target._id) === String(req.admin._id)) return res.status(400).json({ message: "You can't change your own role." });
+  if ((target.role || 'superadmin') === role) return res.json({ admin: target.toPublic() });
+  if (role === 'support' && (await isLastActiveAdmin(target))) return res.status(400).json({ message: "You can't make the last superadmin a support agent." });
+  const from = target.role || 'superadmin';
+  target.role = role;
+  target.sessionToken = newSessionToken(); // the new access applies from their next sign-in
+  await target.save({ validateBeforeSave: false });
+  logAdminAction(null, req.admin, 'admin.role_changed', { email: target.email, name: target.name, from, to: role });
   res.json({ admin: target.toPublic() });
 });
 

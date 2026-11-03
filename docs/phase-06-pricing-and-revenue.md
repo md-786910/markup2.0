@@ -1,6 +1,8 @@
 # Phase 6: Pricing and revenue
 
-**Status: Planned · Size: M (about 1 week)**
+**Status: Done (October 2026; launch review fixes November 2026) · Size: M (about 1 week)**
+
+> **Launch review fixes (Nov 2026):** turning a plan off and on no longer wipes its price (a `PlanConfig` row created for another field stored `price: null`, which made Starter/Pro "Custom": checkout failed and renewals were skipped). Starter and Pro now ignore a non-positive price override, the schema has no price default, and the plan editor refuses an empty, negative or non-numeric price and negative limits (an empty limit keeps the current one). Their price label follows the price; the INR price follows USD unless an admin set it (`priceInrCustom`). Save runs the usage-impact check (the click event was treated as "confirmed") and the warning lists the affected organizations (`details`). Disabled plans can't be bought or switched to (`PLAN_DISABLED`); custom deals must be above 0; "sync active trials" only lengthens running trials. Tests: smoke "Launch fixes" sections.
 
 ## Goal
 Manage plans and prices confidently from the admin panel and see revenue health at a glance.

@@ -1,46 +1,55 @@
-# Runbook: Outgoing Email / SMTP Outage
+# Runbook: Email is not being sent
 
-## 1. Overview
-Procedure to handle email delivery failures, SMTP outages, queue backlogs, and fallback relay configuration.
+Kommently sends sign-up codes, password resets, invitations, notifications,
+support replies, receipts and team alerts through the SMTP server in `.env`.
+Sign-up codes and password resets wait for the send; everything else goes
+through the email queue.
 
----
+## Symptoms
 
-## 2. Detection & Symptoms
-- Customers report not receiving magic links, invitation emails, or password resets.
-- Admin alert fired or Sentry logs display `SMTP connection timeout` / `ECONNREFUSED`.
-- `server/utils/emailQueue.js` shows growing queue length without dequeuing.
+- People don't get sign-up codes, password resets or invitations.
+- Server log lines with `smtp`, `ETIMEDOUT`, `ECONNREFUSED` or `EAUTH`:
+  ```bash
+  docker compose logs --since 1h server | grep -iE "smtp|mail|EAUTH|ETIMEDOUT|ECONNREFUSED"
+  ```
 
----
+## Diagnose
 
-## 3. Immediate Troubleshooting Steps
+Run the built-in check. It tests the network, the login and, with an address,
+sends a test message, with a hint for each error code. It never prints the
+password.
 
-1. **Verify SMTP Configuration:**
-   Check `.env` variables on the server:
+```bash
+cd /root/markup2.0
+docker compose exec server node scripts/checkSmtp.js              # connection + login
+docker compose exec server node scripts/checkSmtp.js you@company.com   # + test email
+```
+
+Common causes: the provider is down, the password was changed, the port is
+blocked by the host (try 587 instead of 465), or the sending domain lost its
+SPF/DKIM records.
+
+## Queue
+
+With Redis, queued notification emails are kept in the BullMQ queue
+`email-batches` and retried with backoff, so they go out once SMTP works again.
+To see how many are waiting:
+
+```bash
+docker compose exec redis sh -c 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning llen bull:email-batches:wait'
+```
+
+Without Redis the queue is in memory: emails waiting there are lost if the API
+restarts during the outage.
+
+## Switch to another provider
+
+1. Put the other provider's `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
+   `SMTP_PASS` and `SMTP_FROM` in `.env` (keep the old values somewhere safe).
+2. Apply and test:
    ```bash
-   echo "Host: $SMTP_HOST, Port: $SMTP_PORT, User: $SMTP_USER"
+   docker compose up -d
+   docker compose exec server node scripts/checkSmtp.js you@company.com
    ```
 
-2. **Test SMTP Connection Directly:**
-   Run the email test script to inspect network error:
-   ```bash
-   node -e "
-   const mailer = require('./server/utils/mailer');
-   mailer.verifyConnection().then(() => console.log('SMTP OK')).catch(e => console.error('SMTP Error:', e));
-   "
-   ```
-
-3. **Check Queue Backlog (Redis):**
-   If Redis is running:
-   ```bash
-   docker compose exec redis redis-cli llen email_queue
-   ```
-
-4. **Failover to Alternate Relay Provider:**
-   If the primary SMTP host (e.g. SendGrid / Postmark / Mailgun) is experiencing service disruption:
-   - Update `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and `SMTP_PASS` in `.env` to secondary relay credentials.
-   - Restart server container:
-     ```bash
-     docker compose restart server
-     ```
-   - The in-process email queue will automatically flush pending messages through the new relay without dropping messages.
-
+`docker compose restart` would keep the old settings; use `up -d`.

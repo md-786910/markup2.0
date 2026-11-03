@@ -37,10 +37,7 @@ exports.getPublicNotice = asyncHandler(async (req, res) => {
  * GET /api/admin/site-notice
  */
 exports.getAdminNotice = asyncHandler(async (req, res) => {
-  let notice = await SiteNotice.findOne({ key: 'global' });
-  if (!notice) {
-    notice = await SiteNotice.create({ key: 'global' });
-  }
+  const notice = await SiteNotice.findOneAndUpdate({ key: 'global' }, { $setOnInsert: { key: 'global' } }, { upsert: true, returnDocument: 'after' });
   res.json({ notice });
 });
 
@@ -60,10 +57,23 @@ exports.updateAdminNotice = asyncHandler(async (req, res) => {
   if (message != null) update.message = String(message).slice(0, 500).trim();
   if (level && VALID_LEVELS.includes(level)) update.level = level;
   if (dismissible != null) update.dismissible = !!dismissible;
-  if (link !== undefined) update.link = link ? String(link).slice(0, 300).trim() : null;
+  if (link !== undefined) {
+    const value = link ? String(link).trim() : '';
+    // Shown as a link to every customer: only web addresses or in-app paths
+    if (value && !(/^https?:\/\/[^\s]+$/i.test(value) || /^\/(?![/\\])[^\s]*$/.test(value))) {
+      return res.status(400).json({ message: 'The link must start with https:// (or be a path in the app, like /settings).' });
+    }
+    update.link = value ? value.slice(0, 300) : null;
+  }
   if (linkText !== undefined) update.linkText = linkText ? String(linkText).slice(0, 60).trim() : null;
-  if (startsAt !== undefined) update.startsAt = startsAt ? new Date(startsAt) : null;
-  if (expiresAt !== undefined) update.expiresAt = expiresAt ? new Date(expiresAt) : null;
+  for (const [key, value] of [['startsAt', startsAt], ['expiresAt', expiresAt]]) {
+    if (value === undefined) continue;
+    if (value && Number.isNaN(new Date(value).getTime())) return res.status(400).json({ message: `${key === 'startsAt' ? 'Start' : 'End'} time is not a valid date.` });
+    update[key] = value ? new Date(value) : null;
+  }
+  if (update.startsAt && update.expiresAt && update.expiresAt <= update.startsAt) {
+    return res.status(400).json({ message: 'The end time must be after the start time.' });
+  }
 
   const notice = await SiteNotice.findOneAndUpdate(
     { key: 'global' },

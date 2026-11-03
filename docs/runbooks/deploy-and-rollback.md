@@ -1,76 +1,67 @@
-# Runbook: Deploy and Rollback
+# Runbook: Deploy and roll back
 
-## 1. Overview
-This runbook covers zero-downtime deployment, container service orchestration, post-deploy verification, and emergency rollback procedures for Kommently.
+Production runs from the repo at `/root/markup2.0` with Docker Compose. The
+production override builds the API image and the three frontends inside Docker
+(`deploy/docker/spa.Dockerfile`), so never build them on the host with
+`npm run build`: a host build bakes in the wrong `REACT_APP_*` URLs. Full guide:
+[`DEPLOY.md`](../../DEPLOY.md) sections 9–11.
 
----
+## Before you deploy
 
-## 2. Standard Deployment Procedure
-
-### Prerequisites
-- All automated test suites passing:
+- The tests pass on a throwaway database (there is no CI):
   ```bash
-  node server/test/smoke.js
-  node server/test/phase7Hardening.js
+  cd server
+  TEST_MONGODB_URI=mongodb://127.0.0.1:<port>/kommently_smoke_test npm test
   ```
-- Git working directory clean and merged to `main`.
-- Environment files (`.env`) checked and secrets present.
+  plus `node test/phase{3..8}*.js` and `node test/globalTrialSettings.js` with the same kind of `_test` database. Never point them at the production database.
+- Note the running release, so you can roll back to it:
+  ```bash
+  cd /root/markup2.0
+  git rev-parse --short HEAD
+  docker image ls kommently/server
+  ```
 
-### Steps
-1. **Pull Latest Changes:**
-   ```bash
-   git checkout main
-   git pull origin main
-   ```
+## Deploy
 
-2. **Build Client & Admin Production Bundles:**
-   ```bash
-   npm --prefix client run build
-   npm --prefix admin run build
-   ```
+```bash
+cd /root/markup2.0
+git pull
+IMAGE_TAG=$(git rev-parse --short HEAD) docker compose up -d --build --remove-orphans
+docker compose ps -a
+```
 
-3. **Install Server Dependencies:**
-   ```bash
-   npm --prefix server ci --omit=dev
-   ```
+The frontend jobs (`client`, `admin`, `website`) build, publish to
+`{client,admin,website}/build` and exit with code 0; the API restarts in a few
+seconds. nginx needs no reload.
 
-4. **Zero-Downtime Container Restart (Docker Compose):**
-   ```bash
-   docker compose up -d --build server
-   ```
+## Check
 
-5. **Verify Service Health:**
-   ```bash
-   curl -f http://localhost:5000/api/health
-   # Expected output: {"status":"ok","db":"up","redis":"up"}
-   ```
+```bash
+curl -fsS https://api.kommently.info/api/health     # {"status":"ok","db":"up","redis":"up"}
+docker compose logs --since 10m server | grep -E "WARN|ERROR"
+docker compose logs client admin website | tail -20  # each ends with the build being published
+```
 
----
+Then sign in to the app and the admin panel once, and open one project.
 
-## 3. Emergency Rollback Procedure
+## Roll back
 
-If the deployment causes critical errors, 5xx spikes, or data issues:
+Images are kept per tag, so a rollback needs no rebuild:
 
-1. **Revert Git to Last Known Good Commit:**
-   ```bash
-   git log -n 5 --oneline
-   git checkout <PREVIOUS_STABLE_COMMIT_HASH>
-   ```
+```bash
+docker image ls kommently/server            # pick the previous tag
+IMAGE_TAG=<previous sha> docker compose up -d
+curl -fsS https://api.kommently.info/api/health
+```
 
-2. **Rebuild Frontend Bundles:**
-   ```bash
-   npm --prefix client run build
-   npm --prefix admin run build
-   ```
+This rolls back the API. To roll back the frontends too, check out that
+commit and rebuild them:
 
-3. **Restart Application Services:**
-   ```bash
-   docker compose restart server
-   ```
+```bash
+git checkout <previous sha>
+IMAGE_TAG=<previous sha> docker compose up -d --build client admin website
+```
 
-4. **Verify Health & Logs:**
-   ```bash
-   curl -f http://localhost:5000/api/health
-   docker compose logs --tail=100 server
-   ```
-
+`docker compose restart` does not pick up a new image or a changed `.env`;
+always use `up -d`. Database changes are not rolled back by this: if a release
+changed data, restore from a backup ([restore-backup.md](restore-backup.md)).

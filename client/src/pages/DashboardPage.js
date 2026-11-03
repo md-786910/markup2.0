@@ -15,6 +15,7 @@ import {
 } from '../services/projectService';
 import { toastError } from '../utils/toast';
 import useEscape from '../hooks/useEscape';
+import { Button, Icon } from '../components/ui';
 import { useWorkspaces } from '../contexts/WorkspaceContext';
 
 const DEFAULT_DATE_RANGE = { preset: null, start: '', end: '' };
@@ -76,6 +77,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [createType, setCreateType] = useState('website');
 
   // ?create=website|document (e.g. from a blocked site) opens the create dialog
@@ -222,7 +224,9 @@ export default function DashboardPage() {
 
   const pageTitle = tab === 'members' ? 'Team' : tab === 'archived' ? 'Archive' : (workspace?.name || 'Dashboard');
   const pageSubtitle = tab === 'members'
-    ? `${allMembers.length} member${allMembers.length !== 1 ? 's' : ''} across ${projects.length} project${projects.length !== 1 ? 's' : ''}`
+    ? (isAdmin
+      ? `Everyone in ${user?.orgName || 'your organization'}: roles, project access and invitations`
+      : `The people you work with in ${user?.orgName || 'your organization'}`)
     : `${websiteCount} website${websiteCount !== 1 ? 's' : ''}${documentCount > 0 ? ` · ${documentCount} document${documentCount !== 1 ? 's' : ''}` : ''}${archivedProjects.length > 0 && tab !== 'archived' ? ` · ${archivedProjects.length} archived` : ''}`;
 
   return (
@@ -237,6 +241,9 @@ export default function DashboardPage() {
           <p className="text-sm text-gray-500 mt-1">{pageSubtitle}</p>
         </div>
         <div className="flex items-center gap-3">
+          {tab === 'members' && isAdmin && (
+            <Button variant="primary" icon={Icon.plus()} onClick={() => setInviteOpen(true)}>Invite people</Button>
+          )}
           {canCreateHere && tab !== 'members' && (
             <NewProjectDropdown
               onSelect={(type) => {
@@ -268,6 +275,8 @@ export default function DashboardPage() {
           isAdmin={isAdmin}
           currentUserId={user?.id}
           onProjectsChanged={loadProjects}
+          inviteOpen={inviteOpen}
+          onInviteOpenChange={setInviteOpen}
         />
       ) : (
         <ProjectList

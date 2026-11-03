@@ -6,6 +6,8 @@ import {
 } from '../../services/billingService';
 import { useAuth } from '../../hooks/useAuth';
 import { toastError } from '../../utils/toast';
+import Modal from '../common/Modal';
+import { Badge, Button, Card, EmptyState, FilterMenu, Notice } from '../ui';
 import useEscape from '../../hooks/useEscape';
 
 function loadScript(src, id) {
@@ -76,34 +78,18 @@ function PaypalPayInvoiceModal({ invoice, paypalClientId, onClose, onPaid }) {
   }, [paypalClientId, invoice, onPaid]);
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
-        <div className="px-6 pt-6 pb-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-base font-bold text-gray-900">Pay invoice via PayPal</h3>
-          <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="p-6 space-y-4">
-          <div className="text-sm text-gray-700">
-            Amount: <span className="font-bold text-gray-900">{formatAmount(invoice)}</span>
-          </div>
-          <div ref={containerRef} />
-          {error && (
-            <div className="bg-red-50 text-red-600 border border-red-100 p-3 rounded-xl text-sm">
-              {error}
-            </div>
-          )}
-        </div>
+    <Modal isOpen onClose={onClose} title="Pay with PayPal" size="sm">
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">Amount <span className="font-semibold text-gray-900">{formatAmount(invoice)}</span></p>
+        <div ref={containerRef} />
+        {error && <Notice tone="red">{error}</Notice>}
       </div>
-    </div>
+    </Modal>
   );
 }
 
 export default function InvoicesTab() {
+  const [statusFilter, setStatusFilter] = useState(null);
   const { user, isOwner, updateUser } = useAuth();
   const [invoices, setInvoices] = useState([]);
   const [keyId, setKeyId] = useState('');
@@ -207,128 +193,111 @@ export default function InvoicesTab() {
     handleRazorpayPay(invoice);
   };
 
+  const STATUS_TONE = { paid: 'green', pending: 'amber', refunded: 'gray', void: 'gray', failed: 'red' };
+  const STATUS_LABEL = { paid: 'Paid', pending: 'Due', refunded: 'Refunded', void: 'Void', failed: 'Failed' };
+  const statusOptions = Object.keys(STATUS_LABEL).filter((st) => invoices.some((inv) => inv.status === st)).map((st) => ({ value: st, label: STATUS_LABEL[st] }));
+  const shown = statusFilter ? invoices.filter((inv) => inv.status === statusFilter) : invoices;
+
   if (loading) {
     return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-10 w-48 bg-gray-100 rounded-lg mb-6" />
-        {[1, 2, 3, 4].map((i) => <div key={i} className="h-16 bg-gray-100 rounded-xl" />)}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 space-y-3 animate-pulse">
+        <div className="h-5 w-40 bg-gray-100 rounded" />
+        {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-gray-50 rounded-lg" />)}
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 pb-10">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-xl font-bold text-gray-900">Billing History</h3>
-          <p className="text-sm text-gray-500 mt-1">Manage your invoices and track your payments.</p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      {error && <Notice tone="red">{error}</Notice>}
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl flex items-center gap-3">
-          <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          {error}
-        </div>
-      )}
-
-      {invoices.length === 0 ? (
-        <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          </div>
-          <h4 className="text-base font-semibold text-gray-900">No invoices yet</h4>
-          <p className="text-sm text-gray-500 mt-1">Upgrade your plan to see your billing history here.</p>
-        </div>
-      ) : (
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50/80">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500">Billing Date</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500">Plan Detail</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500">Amount</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500">Method</th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500">Status</th>
-                <th className="px-6 py-4 text-right text-xs font-medium text-gray-500">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {invoices.map((inv) => (
-                <tr key={inv._id} className="hover:bg-gray-50/50 transition-colors group">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-semibold text-gray-900">
-                      {new Date(inv.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-                    </div>
-                    <div className="text-[11px] text-gray-400 font-mono mt-0.5 uppercase">{inv.invoiceNumber || inv._id.slice(-8)}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${inv.plan === 'pro' ? 'bg-purple-500' : 'bg-blue-500'}`} />
-                      <span className="text-sm font-bold text-gray-700 capitalize">{inv.plan} Plan</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-extrabold text-gray-900">{formatAmount(inv)}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-xs font-medium text-gray-600 capitalize">
-                      {inv.provider || 'razorpay'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize border ${
-                      inv.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                      inv.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                      inv.status === 'refunded' ? 'bg-gray-50 text-gray-600 border-gray-200' :
-                      'bg-red-50 text-red-700 border-red-100'
-                    }`}>
-                      {inv.status === 'paid' && <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>}
-                      {inv.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    {inv.status === 'pending' && isOwner ? (
-                      <button
-                        onClick={() => handlePayNow(inv)}
-                        disabled={payingInvoiceId === inv._id}
-                        className="inline-flex items-center gap-2 text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow-md disabled:opacity-50"
-                      >
-                        {payingInvoiceId === inv._id ? (
-                          <>
-                            <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            Wait...
-                          </>
-                        ) : 'Pay Now'}
-                      </button>
-                    ) : inv.status === 'pending' ? (
-                      <span className="text-[11px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded border border-gray-100">Waiting for owner</span>
-                    ) : (
-                      <button
-                        onClick={() => handleDownloadPdf(inv)}
-                        disabled={downloadingId === inv._id}
-                        className="inline-flex items-center gap-1.5 text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
-                      >
-                        {downloadingId === inv._id ? (
-                          <>
-                            <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                            ...
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
-                            PDF
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </td>
+      <Card
+        flush
+        title="Invoices"
+        description="Every invoice for your organization. Download a PDF for your records."
+        actions={invoices.length > 0 && statusOptions.length > 1 && (
+          <FilterMenu
+            label="Status"
+            icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+            options={statusOptions}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
+        )}
+      >
+        {invoices.length === 0 ? (
+          <EmptyState
+            icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>}
+            title="No invoices yet"
+            description="Invoices appear here once you are on a paid plan."
+          />
+        ) : (
+          <>
+          {/* Small screens: one card per invoice */}
+          <ul className="md:hidden divide-y divide-gray-100">
+            {shown.map((inv) => (
+              <li key={inv._id} className="flex items-center justify-between gap-3 px-6 py-3.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">{new Date(inv.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })} · <span className="tabular-nums">{formatAmount(inv)}</span></p>
+                  <p className="text-xs text-gray-500 mt-0.5 truncate"><span className="font-mono">{inv.invoiceNumber || inv._id.slice(-8).toUpperCase()}</span> · <span className="capitalize">{inv.plan}</span></p>
+                  <div className="mt-1.5"><Badge tone={STATUS_TONE[inv.status] || 'gray'} dot>{STATUS_LABEL[inv.status] || inv.status}</Badge></div>
+                </div>
+                {inv.status === 'pending' && isOwner ? (
+                  <Button size="sm" variant="primary" loading={payingInvoiceId === inv._id} onClick={() => handlePayNow(inv)}>Pay now</Button>
+                ) : inv.status !== 'pending' && (
+                  <Button size="sm" variant="secondary" loading={downloadingId === inv._id} onClick={() => handleDownloadPdf(inv)}>PDF</Button>
+                )}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500">
+                  <th className="px-6 py-3 font-medium">Date</th>
+                  <th className="px-6 py-3 font-medium">Plan</th>
+                  <th className="px-6 py-3 font-medium">Amount</th>
+                  <th className="px-6 py-3 font-medium">Paid with</th>
+                  <th className="px-6 py-3 font-medium">Status</th>
+                  <th className="px-6 py-3 font-medium text-right"><span className="sr-only">Actions</span></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {shown.map((inv) => (
+                  <tr key={inv._id} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-6 py-3.5 whitespace-nowrap">
+                      <p className="text-sm font-medium text-gray-900">{new Date(inv.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                      <p className="text-xs text-gray-500 font-mono mt-0.5">{inv.invoiceNumber || inv._id.slice(-8).toUpperCase()}</p>
+                    </td>
+                    <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-700 capitalize">{inv.plan}</td>
+                    <td className="px-6 py-3.5 whitespace-nowrap text-sm font-semibold text-gray-900 tabular-nums">{formatAmount(inv)}</td>
+                    <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-600">{inv.provider === 'paypal' ? 'PayPal' : 'Razorpay'}</td>
+                    <td className="px-6 py-3.5 whitespace-nowrap"><Badge tone={STATUS_TONE[inv.status] || 'gray'} dot>{STATUS_LABEL[inv.status] || inv.status}</Badge></td>
+                    <td className="px-6 py-3.5 whitespace-nowrap text-right">
+                      {inv.status === 'pending' && isOwner ? (
+                        <Button size="sm" variant="primary" loading={payingInvoiceId === inv._id} onClick={() => handlePayNow(inv)}>Pay now</Button>
+                      ) : inv.status === 'pending' ? (
+                        <span className="text-xs text-gray-500">The owner can pay it</span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          loading={downloadingId === inv._id}
+                          icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>}
+                          onClick={() => handleDownloadPdf(inv)}
+                        >
+                          PDF
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          </>
+        )}
+      </Card>
 
       {paypalInvoice && (
         <PaypalPayInvoiceModal

@@ -12,9 +12,12 @@ async function notifyPaymentFailed(invoice) {
   try {
     const Organization = require('../models/Organization');
     const User = require('../models/User');
-    const org = await Organization.findById(invoice.organization).select('name');
+    const org = await Organization.findById(invoice.organization).select('name plan');
+    if (!org) return;
+    // The team hears about it too (ADMIN_ALERTS_EMAIL / Slack)
+    require('../utils/adminAlerts').alertPaymentFailed({ organization: org, invoice }).catch(() => {});
     const owner = await User.findOne({ organization: invoice.organization, role: 'owner' }).select('email');
-    if (!org || !owner?.email) return;
+    if (!owner?.email) return;
     await require('../utils/mailer').sendPaymentFailedEmail(
       owner.email, org.name, invoice.amount, invoice.currency, `${CLIENT_ORIGIN}/settings?tab=billing`,
     );

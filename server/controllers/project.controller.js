@@ -14,6 +14,7 @@ const { canAssignRole } = require('../middleware/roles');
 const { isLevel, capForRole } = require('../utils/access');
 const { logActivity } = require('../utils/activityLogger');
 const { metric } = require('../instrument');
+const { notifyReviewDecision, publicApproval } = require('../utils/reviewNotify');
 const { createProjectNotifications, createSingleNotification } = require('../utils/notificationHelper');
 const { signProxyToken } = require('../utils/proxyToken');
 const { seatLimitError } = require('../middleware/orgLimits');
@@ -240,7 +241,7 @@ exports.updateProject = asyncHandler(async (req, res) => {
   if (name) project.name = name;
   if (websiteUrl) project.websiteUrl = websiteUrl;
   if (status && ['active', 'archived'].includes(status)) project.status = status;
-  if (projectStatus && ['not_started', 'in_progress', 'in_review', 'approved', 'completed'].includes(projectStatus)) project.projectStatus = projectStatus;
+  if (projectStatus && ['not_started', 'in_progress', 'in_review', 'changes_requested', 'approved', 'completed'].includes(projectStatus)) project.projectStatus = projectStatus;
   if (workspace) {
     const target = mongoose.isValidObjectId(workspace)
       ? await Workspace.findOne({ _id: workspace, organization: project.organization })
@@ -823,13 +824,10 @@ exports.recordMemberDecision = asyncHandler(async (req, res) => {
     .select('_id versionNumber');
   const currentVersionId = latestVersion?._id || null;
 
-  const pinQuery = { project: project._id, status: { $ne: 'resolved' } };
-  if (currentVersionId) {
-    pinQuery.version = currentVersionId;
-  } else {
-    pinQuery.version = null;
-  }
-  const openPinsAtDecision = await Pin.countDocuments(pinQuery);
+  // Every open pin counts, including ones posted since the last saved version
+  // (the review page shows the same number); else "require all resolved" could
+  // be passed while new feedback is still open
+  const openPinsAtDecision = await Pin.countDocuments({ project: project._id, status: { $ne: 'resolved' } });
 
   if (project.review?.requireAllResolved && decision === 'approved' && openPinsAtDecision > 0) {
     return res.status(400).json({
@@ -839,22 +837,9 @@ exports.recordMemberDecision = asyncHandler(async (req, res) => {
     });
   }
 
-  // One decision per user per round (latest wins)
-  let approval = await Approval.findOne({
-    project: project._id,
-    version: currentVersionId,
-    'reviewer.user': req.user._id,
-  });
-
-  if (approval) {
-    approval.decision = decision;
-    approval.note = (note || '').slice(0, 2000);
-    approval.openPinsAtDecision = openPinsAtDecision;
-    approval.ip = req.ip;
-    approval.userAgent = req.headers['user-agent'] || null;
-    await approval.save();
-  } else {
-    approval = await Approval.create({
+  // Every decision is its own dated record: a later one never rewrites an
+  // earlier sign-off (the history shows them all, newest first)
+  const approval = await Approval.create({
       project: project._id,
       organization: project.organization,
       version: currentVersionId,
@@ -869,9 +854,8 @@ exports.recordMemberDecision = asyncHandler(async (req, res) => {
       ip: req.ip,
       userAgent: req.headers['user-agent'] || null,
     });
-  }
 
-  const newStatus = decision === 'approved' ? 'approved' : 'in_review';
+  const newStatus = decision === 'approved' ? 'approved' : 'changes_requested';
   await Project.updateOne({ _id: project._id }, { $set: { projectStatus: newStatus } });
 
   logActivity(
@@ -898,10 +882,14 @@ exports.recordMemberDecision = asyncHandler(async (req, res) => {
     },
   }).catch(() => {});
 
+  // Email to the project's managers, and Slack/Teams/Discord
+  notifyReviewDecision({ project, actorUserId: req.user._id, actorName: req.user.name, decision, note, openPinsAtDecision });
+
+  // Socket emit (without the reviewer's IP and browser)
   const io = req.app.get('io');
   if (io) {
     io.to(`project:${project._id}`).emit('project:review_decision', {
-      approval,
+      approval: publicApproval(approval),
       projectStatus: newStatus,
     });
   }

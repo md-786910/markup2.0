@@ -23,32 +23,34 @@ const paymentSettingsSchema = new mongoose.Schema({
   allowDowngrades: { type: Boolean, default: false },
   // Global trial configuration across all workspaces
   trial: {
-    defaultDays: { type: Number, default: 14, min: 1, max: 365 },
+    // 30 days: what the website, pricing page and Terms promise
+    defaultDays: { type: Number, default: 30, min: 1, max: 365 },
     updatedAt: { type: Date, default: Date.now },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'AdminUser', default: null },
   },
 }, { timestamps: true });
 
+const DEFAULT_TRIAL_DAYS = 30;
+
 paymentSettingsSchema.statics.getSingleton = async function () {
-  let doc = await this.findOne({ key: 'default' });
-  if (!doc) {
-    doc = await this.create({
-      key: 'default',
-      activeProvider: 'razorpay',
-      providers: {
-        razorpay: { enabled: true },
-        paypal: { enabled: false },
-      },
-      trial: {
-        defaultDays: 14,
-        updatedAt: new Date(),
-      },
-    });
-  } else if (!doc.trial || !doc.trial.defaultDays) {
-    doc.trial = {
-      defaultDays: 14,
-      updatedAt: new Date(),
-    };
+  // One atomic upsert: two first requests at once (e.g. /api/plans on a fresh
+  // database) must not both try to create it
+  const insert = {
+    key: 'default',
+    activeProvider: 'razorpay',
+    providers: { razorpay: { enabled: true }, paypal: { enabled: false } },
+    trial: { defaultDays: DEFAULT_TRIAL_DAYS, updatedAt: new Date(), updatedBy: null },
+  };
+  let doc;
+  try {
+    doc = await this.findOneAndUpdate({ key: 'default' }, { $setOnInsert: insert }, { upsert: true, returnDocument: 'after', setDefaultsOnInsert: false });
+  } catch (err) {
+    if (err.code !== 11000) throw err;
+    doc = await this.findOne({ key: 'default' });
+  }
+  // A missing length, or the old automatic 14 that no admin ever chose, becomes 30
+  if (!doc.trial || !doc.trial.defaultDays || (doc.trial.defaultDays === 14 && !doc.trial.updatedBy)) {
+    doc.trial = { defaultDays: DEFAULT_TRIAL_DAYS, updatedAt: new Date(), updatedBy: null };
     await doc.save();
   }
   return doc;

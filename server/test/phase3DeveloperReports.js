@@ -1,5 +1,6 @@
 // Tests for Phase 3: Developer-ready reports
-process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_smoke_test';
+// Deletes test data: only ever a database whose name ends in _test
+process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_phase3_test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'phase3-test-secret-'.padEnd(48, 'x');
 
 const path = require('path');
@@ -116,6 +117,7 @@ function check(name, cond, extra = '') {
 
   // --- 5. Database Model Persistence ---
   await mongoose.connect(process.env.MONGODB_URI);
+  if (!mongoose.connection.name.endsWith('_test')) throw new Error(`Refusing to run against "${mongoose.connection.name}": the test database name must end in _test`);
   console.log('\nConnected to MongoDB for model testing');
 
   const user = await User.create({ name: 'Tester', email: 'tester@phase3.com', passwordHash: 'hash' });

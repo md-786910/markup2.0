@@ -1,5 +1,6 @@
 // Tests for Phase 7: Launch Hardening
-process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_smoke_test';
+// Deletes test data: only ever a database whose name ends in _test
+process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_phase7_test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'phase7-test-secret-'.padEnd(48, 'x');
 
 const path = require('path');
@@ -26,6 +27,7 @@ function check(name, cond, extra = '') {
 
   try {
     await mongoose.connect(process.env.MONGODB_URI);
+    if (!mongoose.connection.name.endsWith('_test')) throw new Error(`Refusing to run against "${mongoose.connection.name}": the test database name must end in _test`);
 
     // Clean test records
     await Promise.all([

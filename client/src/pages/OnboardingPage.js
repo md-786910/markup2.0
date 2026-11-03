@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { updateOrganizationApi, uploadAvatarApi, validateEmailApi, sendOtpApi, verifyOtpApi } from '../services/authService';
 import { getPublicPlansApi, createCheckoutSessionApi, verifyPaymentApi, upgradePlanApi, getBillingConfigApi } from '../services/billingService';
 import AuthLayout from '../components/layout/AuthLayout';
+import { track } from '../monitoring/analytics';
 
 const STEPS = [
   { id: 'organization', label: 'Organization' },
@@ -47,6 +48,7 @@ export default function OnboardingPage() {
   const avatarRef = useRef(null);
 
   const [step, setStep] = useState(0);
+  useEffect(() => { track('onboarding_step', { step: STEPS[step]?.id }); }, [step]);
 
   // Org fields
   const [orgName, setOrgName] = useState('');

@@ -417,6 +417,64 @@ async function phaseRetention() {
   console.log(`[billing] retention: removed ${n.deletedCount} notifications, ${a.deletedCount} activity entries, ${i.deletedCount} invitations`);
 }
 
+// Feedback deadlines closing within 24 h: one reminder per deadline to the
+// project's members and to guest reviewers who commented (opt-outs respected)
+async function phaseDeadlineReminders() {
+  const Project = require('../models/Project');
+  const Pin = require('../models/Pin');
+  const Comment = require('../models/Comment');
+  const User = require('../models/User');
+  const EmailOptOut = require('../models/EmailOptOut');
+  const { getRecipients } = require('../utils/notifier');
+  const { URLS } = require('../config/env');
+  const now = new Date();
+  const projects = await Project.find({
+    status: 'active',
+    'review.deadlineAt': { $gt: now, $lte: new Date(now.getTime() + DAY_MS) },
+  }).select('name organization review shareSettings').lean();
+  let sent = 0;
+  for (const project of projects) {
+    // Claim it first, so a second run (or instance) doesn't send it again
+    const claimed = await Project.updateOne(
+      { _id: project._id, 'review.reminderSentFor': { $ne: project.review.deadlineAt } },
+      { $set: { 'review.reminderSentFor': project.review.deadlineAt } },
+      { timestamps: false },
+    );
+    if (!claimed.modifiedCount) continue;
+    const org = await Organization.findById(project.organization).select('isLocked deletionScheduledAt').lean();
+    if (!org || org.isLocked || org.deletionScheduledAt) continue;
+    const base = { projectName: project.name, deadlineAt: project.review.deadlineAt, deadlineMessage: project.review.deadlineMessage || '' };
+
+    const members = await getRecipients(project._id, null);
+    const memberDocs = await User.find({ _id: { $in: members.map((m) => m._id) } }).select('email emailNotificationsEnabled').lean();
+    const memberEmails = new Set();
+    for (const u of memberDocs) {
+      if (!u.email) continue;
+      memberEmails.add(u.email.toLowerCase());
+      if (u.emailNotificationsEnabled === false) continue;
+      await safeSend('deadline reminder', () => require('../utils/mailer').sendDeadlineReminderEmail(u.email, { ...base, url: `${URLS.app}/project/${project._id}` }));
+      sent += 1;
+    }
+
+    // Guests only when the review link still works
+    if (project.shareSettings?.enabled && project.shareSettings?.token && !(project.shareSettings.expiresAt && new Date(project.shareSettings.expiresAt) < now)) {
+      const pinIds = await Pin.find({ project: project._id }).distinct('_id');
+      const guestEmails = new Set([
+        ...(await Pin.distinct('createdByGuest.email', { project: project._id, 'createdByGuest.email': { $ne: null } })),
+        ...(await Comment.distinct('authorGuest.email', { pin: { $in: pinIds }, 'authorGuest.email': { $ne: null } })),
+      ].filter(Boolean).map((e) => String(e).toLowerCase()));
+      const optedOut = new Set((await EmailOptOut.find({ email: { $in: [...guestEmails] } }).select('email').lean()).map((o) => o.email));
+      const optedOutUsers = new Set((await User.find({ email: { $in: [...guestEmails] }, emailNotificationsEnabled: false }).select('email').lean()).map((u) => u.email.toLowerCase()));
+      for (const email of guestEmails) {
+        if (memberEmails.has(email) || optedOut.has(email) || optedOutUsers.has(email)) continue;
+        await safeSend('deadline reminder (guest)', () => require('../utils/mailer').sendDeadlineReminderEmail(email, { ...base, forGuest: true, url: `${URLS.app}/review/${project.shareSettings.token}` }));
+        sent += 1;
+      }
+    }
+  }
+  if (sent) console.log(`[billing] deadline reminders: ${sent} emails for ${projects.length} projects`);
+}
+
 // Guards against overlapping runs in the same process (in-process scheduler).
 let running = false;
 
@@ -443,6 +501,11 @@ async function runBilling() {
 
     await phaseRetention();
     try {
+      await phaseDeadlineReminders();
+    } catch (err) {
+      console.error('[billing] deadline reminders failed:', err.message);
+    }
+    try {
       const { computeHealthForAllOrgs } = require('../utils/customerHealth');
       const healthSummary = await computeHealthForAllOrgs();
       console.log('[billing] updated customer health:', healthSummary);
@@ -454,12 +517,15 @@ async function runBilling() {
     try {
       const SupportTicket = require('../models/SupportTicket');
       const { alertOverdueTicket } = require('../utils/adminAlerts');
+      // Once per request: overdueAlertedAt keeps the same tickets from being re-sent daily
       const overdueTickets = await SupportTicket.find({
         status: 'open',
         firstResponseAt: null,
         dueAt: { $ne: null, $lt: new Date() },
+        overdueAlertedAt: null,
       }).populate('organization', 'name').limit(10).lean();
       for (const t of overdueTickets) {
+        await SupportTicket.updateOne({ _id: t._id }, { $set: { overdueAlertedAt: new Date() } }, { timestamps: false });
         alertOverdueTicket({ ticket: t, organization: t.organization }).catch(() => {});
       }
     } catch {}
@@ -489,4 +555,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { runBilling, phaseRetention };
+module.exports = { runBilling, phaseRetention, phaseDeadlineReminders };

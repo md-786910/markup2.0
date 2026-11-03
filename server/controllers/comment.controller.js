@@ -10,6 +10,7 @@ const { extractMentionedUserIds, stripHtmlAndMentions } = require('../utils/ment
 const { createProjectNotifications } = require('../utils/notificationHelper');
 const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { deleteCommentCascade } = require('../utils/cascade');
+const { refundUploads } = require('../utils/storage');
 
 // Keeps only mentions of users who can see the project (owner, members, or same
 // org), so a comment can't trigger emails/notifications to arbitrary user IDs.
@@ -37,9 +38,11 @@ exports.createComment = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Pin not found' });
   }
 
+  // After the feedback deadline only people who manage the project can still
+  // reply (every comment here is a reply on an existing pin's thread)
   if (req.project?.review?.deadlineAt && new Date() > new Date(req.project.review.deadlineAt)) {
-    const isManageReply = req.access === 'manage' && !!parentComment;
-    if (!isManageReply) {
+    if (req.access !== 'manage') {
+      await refundUploads(req);
       return res.status(423).json({
         code: 'FEEDBACK_CLOSED',
         message: req.project.review.deadlineMessage || 'Feedback has closed for this review round.',

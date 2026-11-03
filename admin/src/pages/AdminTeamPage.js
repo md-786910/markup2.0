@@ -4,6 +4,7 @@ import {
   inviteAdminApi,
   resendAdminInviteApi,
   setAdminStatusApi,
+  setAdminRoleApi,
   removeAdminApi,
   resetAdminTwoFactorApi,
 } from '../services/adminService';
@@ -15,6 +16,11 @@ import { formatDate, formatDateTime, timeAgo } from '../utils/formatters';
 import { toast, toastError } from '../utils/toast';
 import { confirmDialog } from '../utils/confirm';
 
+const ROLES = {
+  superadmin: ['Superadmin', 'Everything: customers, billing, plans, payments and the admin team.'],
+  support: ['Support agent', 'Support requests and customer accounts. No billing, plans, payments or admin team.'],
+};
+
 const STATUS = {
   active: ['green', 'Active'],
   invited: ['amber', 'Invited'],
@@ -24,12 +30,13 @@ const STATUS = {
 function InviteDialog({ onClose, onInvited }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [role, setRole] = useState('support');
   const [busy, setBusy] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     try {
-      await inviteAdminApi({ name: name.trim(), email: email.trim() });
+      await inviteAdminApi({ name: name.trim(), email: email.trim(), role });
       toast.success(`Invitation sent to ${email.trim()}.`);
       onInvited();
     } catch (err) {
@@ -41,13 +48,18 @@ function InviteDialog({ onClose, onInvited }) {
     <Modal isOpen onClose={onClose} title="Add an admin" size="sm">
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-gray-500">
-          They get an email to set a password (valid for 72 hours), then turn on two-step sign-in. Admins can see and change every customer account.
+          They get an email to set a password (valid for 72 hours), then turn on two-step sign-in.
         </p>
         <Field label="Name">
           <input value={name} onChange={(e) => setName(e.target.value)} required autoFocus maxLength={80} className={inputClass} />
         </Field>
         <Field label="Work email">
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputClass} placeholder="name@company.com" />
+        </Field>
+        <Field label="Role" hint={ROLES[role][1]}>
+          <select value={role} onChange={(e) => setRole(e.target.value)} className={inputClass}>
+            {Object.entries(ROLES).map(([value, [label]]) => <option key={value} value={value}>{label}</option>)}
+          </select>
         </Field>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
@@ -103,6 +115,7 @@ export default function AdminTeamPage() {
         </div>
       ),
     },
+    { key: 'role', label: 'Role', render: (row) => <Pill tone={row.role === 'support' ? 'gray' : 'blue'}>{ROLES[row.role || 'superadmin'][0]}</Pill> },
     { key: 'status', label: 'Status', render: (row) => <Pill tone={STATUS[row.status][0]} dot>{STATUS[row.status][1]}</Pill> },
     {
       key: '2fa',
@@ -151,6 +164,16 @@ export default function AdminTeamPage() {
               done: `Two-step sign-in reset for ${row.name}.`,
             })}>Reset 2FA</Button>
           )}
+          <Button size="sm" variant="ghost" onClick={() => {
+            const next = row.role === 'support' ? 'superadmin' : 'support';
+            act({
+              title: next === 'support' ? `Make ${row.name} a support agent?` : `Make ${row.name} a superadmin?`,
+              message: `${ROLES[next][1]} They are signed out and get the new access at their next sign-in.`,
+              confirmLabel: next === 'support' ? 'Make support agent' : 'Make superadmin',
+              run: () => setAdminRoleApi(row.id, next),
+              done: `${row.name} is now ${next === 'support' ? 'a support agent' : 'a superadmin'}.`,
+            });
+          }}>{row.role === 'support' ? 'Make superadmin' : 'Make support agent'}</Button>
           {row.status === 'active' && (
             <Button size="sm" variant="ghost" onClick={() => act({
               title: `Disable ${row.name}?`,

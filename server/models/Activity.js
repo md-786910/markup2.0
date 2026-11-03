@@ -56,7 +56,7 @@ const activitySchema = new Schema({
       'support.resolved', 'support.updated', 'org.note_added', 'org.note_deleted',
       // Admin panel: platform settings and the admin team (organization is null)
       'plan.updated', 'plan.toggled', 'payment_settings.updated', 'admin.site_notice_updated', 'admin.trial_settings_updated',
-      'admin.invite_resent', 'admin.invited', 'admin.disabled', 'admin.enabled', 'admin.removed', 'admin.two_factor_reset',
+      'admin.invite_resent', 'admin.invited', 'admin.disabled', 'admin.enabled', 'admin.removed', 'admin.two_factor_reset', 'admin.role_changed',
     ],
     required: true,
   },

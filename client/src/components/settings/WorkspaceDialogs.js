@@ -12,6 +12,7 @@ import {
 import { cancelInvitationApi, resendInvitationApi } from '../../services/invitationService';
 import { toast, toastError } from '../../utils/toast';
 import { confirmDialog } from '../../utils/confirm';
+import { Avatar, Badge, Button, Checkbox, Field, Input, SelectMenu, inputClass } from '../ui';
 
 const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member', guest: 'Guest' };
 
@@ -132,60 +133,47 @@ export function WorkspaceMembersDialog({ workspace, onClose, onSaved }) {
         People with access here get it on every project in this workspace, including new ones. Owners and admins can manage
         everything; guests can comment at most.
       </p>
-      <form onSubmit={invite} className="mb-5 rounded-lg border border-gray-200 bg-gray-50 p-3">
-        <label className="mb-1.5 block text-xs font-medium text-gray-600">Invite by email</label>
-        <input
-            value={inviteText}
-            onChange={(e) => setInviteText(e.target.value)}
-            placeholder="client@company.com, teammate@company.com"
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
-          />
-        <div className="mt-2 flex gap-2">
-          <select
-            value={inviteLevel}
-            onChange={(e) => setInviteLevel(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm focus:border-blue-600 focus:outline-none"
-            aria-label="Access"
-          >
-            {LEVEL_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value} disabled={inviteRole === 'guest' && o.value === 'manage'}>{o.label}</option>
-            ))}
-          </select>
-          <select
-            value={inviteRole}
-            onChange={(e) => { setInviteRole(e.target.value); if (e.target.value === 'guest' && inviteLevel === 'manage') setInviteLevel('comment'); }}
-            className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm focus:border-blue-600 focus:outline-none"
-            aria-label="Joins as"
-            title="Team members join your organization; guests are outside collaborators"
-          >
-            <option value="member">Team member</option>
-            <option value="guest">Guest</option>
-          </select>
-          <button type="submit" disabled={inviting || !inviteText.trim()} className="rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-            {inviting ? 'Sending…' : 'Invite'}
-          </button>
-        </div>
-        <p className="mt-1.5 text-xs text-gray-500">New people get an email and join this workspace when they sign up. People already in your organization are added right away.</p>
-        {invitations.length > 0 && (
-          <div className="mt-3 space-y-1.5">
-            {invitations.map((inv) => (
-              <div key={inv._id} className="flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 text-sm">
-                <span className="min-w-0 flex-1 truncate text-gray-700">{inv.email}</span>
-                <span className="text-xs text-gray-400">Pending · {ROLE_LABEL[inv.role] || inv.role}</span>
-                <button type="button" onClick={() => resendInvite(inv)} className="text-xs font-medium text-blue-600 hover:text-blue-700">Resend</button>
-                <button type="button" onClick={() => cancelInvite(inv)} className="text-xs font-medium text-gray-500 hover:text-red-600">Cancel</button>
-              </div>
-            ))}
+      <form onSubmit={invite} className="mb-5 rounded-xl border border-gray-200 bg-gray-50/60 p-4">
+        <Field label="Invite by email" hint="New people get an email and join this workspace when they sign up. People already in your organization are added right away.">
+          <Input value={inviteText} onChange={(e) => setInviteText(e.target.value)} placeholder="client@company.com, teammate@company.com" aria-label="Email addresses" />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <SelectMenu
+              value={inviteLevel}
+              onChange={setInviteLevel}
+              ariaLabel="Access"
+              className="h-9"
+              options={LEVEL_OPTIONS.map((o) => ({ value: o.value, label: o.label, description: o.hint, disabled: inviteRole === 'guest' && o.value === 'manage' }))}
+            />
+            <SelectMenu
+              value={inviteRole}
+              onChange={(r) => { setInviteRole(r); if (r === 'guest' && inviteLevel === 'manage') setInviteLevel('comment'); }}
+              ariaLabel="Joins as"
+              className="h-9"
+              options={[
+                { value: 'member', label: 'Team member', description: 'Joins your organization' },
+                { value: 'guest', label: 'Guest', description: 'Outside collaborator, can comment at most' },
+              ]}
+            />
+            <Button type="submit" variant="primary" loading={inviting} disabled={!inviteText.trim()} className="ml-auto">Invite</Button>
           </div>
+        </Field>
+        {invitations.length > 0 && (
+          <ul className="mt-3 divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
+            {invitations.map((inv) => (
+              <li key={inv._id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                <span className="min-w-0 flex-1 truncate text-gray-700">{inv.email}</span>
+                <Badge tone="amber" dot>Pending · {ROLE_LABEL[inv.role] || inv.role}</Badge>
+                <Button size="sm" variant="ghost" onClick={() => resendInvite(inv)}>Resend</Button>
+                <Button size="sm" variant="ghost" className="hover:text-red-600 hover:bg-red-50" onClick={() => cancelInvite(inv)}>Cancel</Button>
+              </li>
+            ))}
+          </ul>
         )}
       </form>
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search people"
-        className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
-      />
-      <div className="max-h-72 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200">
+      <div className="mb-3">
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search people" aria-label="Search people" />
+      </div>
+      <div className="max-h-72 divide-y divide-gray-100 overflow-y-auto rounded-xl border border-gray-200">
         {loading ? (
           <p className="p-4 text-center text-sm text-gray-400">Loading…</p>
         ) : shown.length === 0 ? (
@@ -194,38 +182,35 @@ export function WorkspaceMembersDialog({ workspace, onClose, onSaved }) {
           const always = p.role === 'owner' || p.role === 'admin';
           return (
             <div key={p._id} className="flex items-center gap-3 px-3.5 py-2.5">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700">
-                {(p.name || p.email)[0].toUpperCase()}
-              </span>
+              <Avatar name={p.name || p.email} size="sm" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-gray-900">{p.name || p.email}</span>
                 <span className="block truncate text-xs text-gray-500">{p.email}</span>
               </span>
               <span className="text-xs text-gray-400">{ROLE_LABEL[p.role] || p.role}</span>
               {always ? (
-                <span className="w-32 text-right text-xs text-gray-500">Manages all</span>
+                <span className="w-36 text-right text-xs text-gray-500">Manages all</span>
               ) : (
-                <select
-                  value={levels.get(p._id) || ''}
-                  onChange={(e) => setLevel(p._id, e.target.value)}
-                  aria-label={`Access for ${p.name || p.email}`}
-                  className={`w-32 rounded-md border px-2 py-1 text-xs focus:border-blue-600 focus:outline-none ${levels.has(p._id) ? 'border-gray-300 text-gray-900' : 'border-gray-200 text-gray-400'}`}
-                >
-                  <option value="">No access</option>
-                  {LEVEL_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value} disabled={p.role === 'guest' && o.value === 'manage'}>{o.label}</option>
-                  ))}
-                </select>
+                <div className="w-36 flex justify-end">
+                  <SelectMenu
+                    value={levels.get(p._id) || ''}
+                    onChange={(v) => setLevel(p._id, v)}
+                    ariaLabel={`Access for ${p.name || p.email}`}
+                    align="right"
+                    options={[
+                      { value: '', label: 'No access' },
+                      ...LEVEL_OPTIONS.map((o) => ({ value: o.value, label: o.label, description: o.hint, disabled: p.role === 'guest' && o.value === 'manage' })),
+                    ]}
+                  />
+                </div>
               )}
             </div>
           );
         })}
       </div>
       <div className="mt-5 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">Cancel</button>
-        <button type="button" onClick={save} disabled={saving || loading} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-          {saving ? 'Saving…' : 'Save'}
-        </button>
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" loading={saving} disabled={loading} onClick={save}>Save</Button>
       </div>
     </Modal>
   );
@@ -299,71 +284,45 @@ export function WorkspaceShareDialog({ workspace, onClose, onSaved }) {
             and email. New projects show up automatically.
           </p>
           <div className="mt-5 flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">Cancel</button>
-            <button type="button" onClick={create} disabled={busy} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-              {busy ? 'Creating…' : 'Create review link'}
-            </button>
+            <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button variant="primary" loading={busy} onClick={create}>Create review link</Button>
           </div>
         </div>
       ) : (
         <div className="space-y-5">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Review link</label>
+          <Field label="Review link">
             <div className="flex gap-2">
-              <input readOnly value={url} onFocus={(e) => e.target.select()} className="flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-700" />
-              <button type="button" onClick={copy} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                {copied ? 'Copied' : 'Copy'}
-              </button>
+              <input readOnly value={url} onFocus={(e) => e.target.select()} aria-label="Review link" className={`${inputClass} bg-gray-50 text-gray-700`} />
+              <Button variant="secondary" onClick={copy}>{copied ? 'Copied' : 'Copy'}</Button>
             </div>
-          </div>
+          </Field>
 
-          <label className="flex items-center justify-between gap-4">
-            <span>
-              <span className="block text-sm font-medium text-gray-900">Allow comments</span>
-              <span className="block text-xs text-gray-500">Off makes the link view-only.</span>
-            </span>
-            <input type="checkbox" checked={allowComments} onChange={(e) => setAllowComments(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-          </label>
+          <Checkbox checked={allowComments} onChange={(e) => setAllowComments(e.target.checked)} label="Allow comments" description="Off makes the link view-only." />
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Password {share.hasPassword && <span className="font-normal text-gray-500">(set)</span>}
-            </label>
-            <input
+          <Field label={<>Password {share.hasPassword && <span className="font-normal text-gray-500">(set)</span>}</>}>
+            <Input
               type="password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setRemovePassword(false); }}
               placeholder={share.hasPassword ? 'Enter a new password to change it' : 'Optional'}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+              aria-label="Password"
             />
             {share.hasPassword && !password && (
-              <label className="mt-2 flex items-center gap-2 text-xs text-gray-600">
-                <input type="checkbox" checked={removePassword} onChange={(e) => setRemovePassword(e.target.checked)} className="h-3.5 w-3.5 rounded border-gray-300" />
-                Remove the password
-              </label>
+              <div className="mt-2">
+                <Checkbox checked={removePassword} onChange={(e) => setRemovePassword(e.target.checked)} label="Remove the password" />
+              </div>
             )}
-          </div>
+          </Field>
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Expires on</label>
-            <input
-              type="date"
-              value={expiresAt}
-              onChange={(e) => setExpiresAt(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
-            />
-            <span className="ml-2 text-xs text-gray-500">{expiresAt ? '' : 'Never'}</span>
-          </div>
+          <Field label="Expires on" hint={expiresAt ? null : 'Never, until you turn the link off.'}>
+            <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} className="max-w-[200px]" aria-label="Expires on" />
+          </Field>
 
           <div className="flex items-center justify-between border-t border-gray-100 pt-4">
-            <button type="button" onClick={turnOff} disabled={busy} className="text-sm font-medium text-red-600 hover:text-red-700">
-              Turn off link
-            </button>
+            <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" disabled={busy} onClick={turnOff}>Turn off link</Button>
             <div className="flex gap-2">
-              <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">Close</button>
-              <button type="button" onClick={save} disabled={busy} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
-                {busy ? 'Saving…' : 'Save'}
-              </button>
+              <Button variant="secondary" onClick={onClose}>Close</Button>
+              <Button variant="primary" loading={busy} onClick={save}>Save</Button>
             </div>
           </div>
         </div>

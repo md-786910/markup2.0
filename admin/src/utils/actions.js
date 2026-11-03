@@ -63,6 +63,9 @@ export function describeAction(a) {
     case 'admin.enabled': return `turned the admin account of ${m.name || m.email} back on`;
     case 'admin.removed': return `removed ${m.name || m.email} from the admin team`;
     case 'admin.two_factor_reset': return `reset two-step sign-in for ${m.name || m.email}`;
+    case 'admin.site_notice_updated': return m.enabled ? 'turned on a site notice' : 'turned off the site notice';
+    case 'admin.trial_settings_updated': return `set the trial length to ${m.defaultDays} days`;
+    case 'admin.role_changed': return `made ${m.name || m.email} ${m.to === 'support' ? 'a support agent' : 'a superadmin'}`;
     case 'admin.invite_resent': return `sent the admin invitation to ${m.name || m.email} again`;
     case 'plan.updated': return `changed the ${plan(m.planId)} plan`;
     case 'plan.toggled': return `${m.enabled ? 'turned on' : 'turned off'} the ${plan(m.planId)} plan`;

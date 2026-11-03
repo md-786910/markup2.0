@@ -6,6 +6,7 @@ import { WorkspaceProvider } from './contexts/WorkspaceContext';
 import Toaster from './components/common/Toaster';
 import SupportPanel from './components/support/SupportPanel';
 import ConfirmHost from './components/common/ConfirmHost';
+import SiteNoticeBanner from './components/common/SiteNoticeBanner';
 import PrivateRoute from './components/common/PrivateRoute';
 import AppLayout from './components/layout/AppLayout';
 import './index.css';
@@ -66,6 +67,7 @@ function App() {
           </Suspense>
           <Toaster />
           <ConfirmHost />
+          <SiteNoticeBanner />
           <SupportPanel />
         </NotificationProvider>
         </WorkspaceProvider>

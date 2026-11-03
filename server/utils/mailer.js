@@ -99,6 +99,21 @@ async function sendSupportTicketToTeam(toEmail, data) {
   await send(toEmail, templates.supportTicketForTeam(data), { replyTo: { name: data.requesterName, address: data.requesterEmail } });
 }
 
+// Review decisions (client sign-off) to the project's managers
+async function sendReviewDecisionEmail(toEmail, data) {
+  await send(toEmail, templates.reviewDecision(data), { notification: true });
+}
+
+// Feedback deadline in 24 h (members and guest reviewers)
+async function sendDeadlineReminderEmail(toEmail, data) {
+  await send(toEmail, templates.deadlineReminder(data), { notification: true });
+}
+
+// Operational alerts to the team (utils/adminAlerts.js)
+async function sendAdminAlertEmail(toEmail, alert) {
+  await send(toEmail, templates.adminAlert(alert));
+}
+
 // Support tickets: our reply (or "resolved") to the customer
 async function sendSupportReplyEmail(toEmail, data) {
   await send(toEmail, templates.supportReply(data));
@@ -161,6 +176,9 @@ module.exports = {
   sendSupportRequest,
   sendSupportTicketToTeam,
   sendSupportReplyEmail,
+  sendAdminAlertEmail,
+  sendReviewDecisionEmail,
+  sendDeadlineReminderEmail,
   sendInvitationEmail,
   sendPinNotificationEmail,
   sendCommentNotificationEmail,

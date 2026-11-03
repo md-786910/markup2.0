@@ -63,6 +63,7 @@ router.get('/admins', requireAdminRole('superadmin'), team.listAdmins);
 router.post('/admins', requireAdminRole('superadmin'), team.inviteAdmin);
 router.post('/admins/:adminId/resend', requireAdminRole('superadmin'), team.resendInvite);
 router.patch('/admins/:adminId', requireAdminRole('superadmin'), team.setAdminStatus);
+router.patch('/admins/:adminId/role', requireAdminRole('superadmin'), team.setAdminRole);
 router.delete('/admins/:adminId', requireAdminRole('superadmin'), team.removeAdmin);
 router.post('/admins/:adminId/reset-2fa', requireAdminRole('superadmin'), team.resetAdminTwoFactor);
 

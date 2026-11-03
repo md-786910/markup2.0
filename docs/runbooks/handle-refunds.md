@@ -1,36 +1,38 @@
-# Runbook: Handling Refunds & Dispute Resolution
+# Runbook: Refund an invoice
 
-## 1. Overview
-Protocol for reviewing customer refund requests, issuing full or partial refunds through payment gateways, revoking active subscription entitlements, and auditing transaction logs.
+Only **superadmins** can refund; support agents don't see the Refund button and
+the API refuses them. Payments go through Razorpay (INR) or PayPal (USD).
 
----
+## Before refunding
 
-## 2. Refund Policy Guidelines
-- **Annual / Monthly Subscriptions:** Refunds requested within 14 days of billing anniversary may be approved in full by superadmins.
-- **Enterprise Contracts:** Subject to specific contract terms outlined in `Organization.deal.note`.
-- **Role Authority:** Support staff **cannot** issue refunds; only `superadmin` users have access to refund controls.
+- Decide according to the refund terms in your published Terms of Service, or
+  the contract for an enterprise deal (`Organization.deal.note`). The app has
+  no refund window of its own.
+- A refund is always the **full** invoice amount.
+- Refunding the invoice for the **current** paid period also ends the paid
+  plan: the organization moves to Free at once (its data stays; limits drop).
 
----
+## Steps
 
-## 3. Step-by-Step Refund Execution
+1. Admin panel → **Organizations** → the organization → **Billing** tab.
+2. Find the paid invoice and click **Refund**, then confirm.
+3. The server asks the payment provider to refund (`refundPayment` in
+   `server/payments/`), then records it (`server/payments/refundInvoice.js`):
+   the invoice becomes `refunded`, and for the current period the plan moves
+   to Free.
+4. It is logged in the action log (`org.invoice_refunded`, with your name) and
+   the team gets a "Refund issued" alert (email to `ADMIN_ALERTS_EMAIL`, and
+   Slack if configured).
 
-1. **Locate Invoice in Admin Portal:**
-   - Go to **Business** → **Revenue** (`/revenue`) or **Organizations** → Select Organization → **Billing** tab.
-   - Locate the specific paid invoice under **Recent Transactions** or **Invoices**.
+## Check
 
-2. **Issue Refund:**
-   - Click the invoice action and select **Refund Invoice**.
-   - Review invoice details (Amount, Currency, Payment Provider).
-   - Click **Confirm Refund**.
+- The invoice shows **Refunded** on the Billing tab; the toast says whether
+  the organization moved to Free.
+- The refund is visible in the Razorpay or PayPal dashboard.
 
-3. **Backend Actions Performed Automatically:**
-   - The server calls the payment provider API (`razorpayProvider.refundPayment` or `paypalProvider.refundPayment`).
-   - The invoice status transitions from `paid` to `refunded`.
-   - If the refunded invoice covers the current active period, the organization subscription is automatically downgraded to Free (`applyRefund` in `admin.controller.js`).
-   - An audit log entry `org.invoice_refunded` is logged with admin identity.
-   - A Slack and email notification is dispatched via `alertRefundIssued`.
+## If it fails
 
-4. **Verify Gateway Confirmation:**
-   - Check the invoice card status displays `Refunded`.
-   - Verify refund transaction in Stripe/Razorpay/PayPal merchant dashboard.
-
+"The payment provider rejected the refund" means nothing changed in Kommently.
+Check the reason in the provider's dashboard (already refunded there, too old,
+insufficient balance), fix it there, then click Refund again; a refund already
+recorded is not applied twice.

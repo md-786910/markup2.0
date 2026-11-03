@@ -5,9 +5,19 @@ const Project = require('../models/Project');
 const Pin = require('../models/Pin');
 const Comment = require('../models/Comment');
 const Organization = require('../models/Organization');
+const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { logGuestActivity } = require('../utils/activityLogger');
 const { metric } = require('../instrument');
+const { notifyReviewDecision, publicApproval } = require('../utils/reviewNotify');
+const { getEffectiveLimitsAsync } = require('../config/plans');
+const { captureServerEvent } = require('../utils/posthogCapture');
+
+// Client approvals are a paid feature (hasApprovals): off when the plan lacks it
+async function approvalsOnPlan(orgId) {
+  const org = await Organization.findById(orgId).select('plan limitOverrides trialEndsAt');
+  return !!org && (await getEffectiveLimitsAsync(org)).hasApprovals !== false;
+}
 const { createProjectNotifications } = require('../utils/notificationHelper');
 const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { reserveStorage, discardUploads } = require('../utils/storage');
@@ -101,7 +111,7 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
   const { shareToken } = req.params;
   const { password } = req.query;
 
-  const found = await findShared(shareToken, 'name projectType websiteUrl documents shareSettings projectStatus workspace review');
+  const found = await findShared(shareToken, 'name projectType websiteUrl documents shareSettings projectStatus workspace review organization');
   if (!found.project) {
     return res.status(found.status).json({
       message: found.status === 404 ? 'Review link not found or has been disabled.' : found.message,
@@ -130,6 +140,13 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
     }
   }
 
+  // Product analytics: a client opened a review (ids only, no person profile)
+  captureServerEvent('guest_review_opened', {
+    distinctId: `guest-review:${project._id}`,
+    organizationId: project.organization,
+    properties: { projectId: String(project._id), via: scope.workspaceId ? 'workspace' : 'project' },
+  });
+
   // Return limited project data
   res.json({
     guestAccessToken: hasSharePassword ? signGuestAccessToken(scope, share) : undefined,
@@ -142,7 +159,10 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
       documents: project.documents,
       projectStatus: project.projectStatus,
       allowComments: share.allowComments,
-      review: project.review,
+      review: {
+        ...(project.review?.toObject ? project.review.toObject() : project.review || {}),
+        approvalsEnabled: project.review?.approvalsEnabled !== false && (await approvalsOnPlan(project.organization)),
+      },
     },
   });
 });
@@ -181,6 +201,15 @@ exports.getGuestWorkspace = asyncHandler(async (req, res) => {
   ]);
   const openBy = new Map(counts.map((c) => [c._id.toString(), c.open]));
 
+  // The latest decision per project (reviewer's name and date, nothing else)
+  const decisions = await require('../models/Approval').aggregate([
+    { $match: { project: { $in: projects.map((p) => p._id) } } },
+    { $sort: { createdAt: -1 } },
+    { $group: { _id: '$project', decision: { $first: '$decision' }, at: { $first: '$createdAt' }, guestName: { $first: '$reviewer.guestName' }, user: { $first: '$reviewer.user' } } },
+  ]);
+  const userNames = new Map((await User.find({ _id: { $in: decisions.map((d) => d.user).filter(Boolean) } }).select('name').lean()).map((u) => [String(u._id), u.name]));
+  const decisionBy = new Map(decisions.map((d) => [String(d._id), { decision: d.decision, at: d.at, by: d.guestName || userNames.get(String(d.user)) || null }]));
+
   res.json({
     guestAccessToken: hasPassword(share) ? signGuestAccessToken(scope, share) : undefined,
     workspace: { name: workspace.name, allowComments: share.allowComments },
@@ -194,6 +223,7 @@ exports.getGuestWorkspace = asyncHandler(async (req, res) => {
       cover: p.documents?.[0] ? { path: p.documents[0].path, mimetype: p.documents[0].mimetype, name: p.documents[0].originalName, pages: p.documents[0].pageCount || 1 } : null,
       updatedAt: p.updatedAt,
       openPinCount: openBy.get(p._id.toString()) || 0,
+      lastDecision: decisionBy.get(p._id.toString()) || null,
       shareToken: composeWorkspaceToken(workspaceToken, p._id),
     })),
   });
@@ -228,13 +258,12 @@ exports.getGuestPins = asyncHandler(async (req, res) => {
   commentAgg.forEach((c) => { countMap[c._id.toString()] = c; });
 
   // Count plus the first comment (list preview), as in the member pin list
-  const allowConsole = !!project.settings?.guestConsoleCapture;
   const pinsWithCounts = pins.map((pin) => {
     const info = countMap[pin._id.toString()];
     const pinObj = pin.toObject();
-    if (!allowConsole && pinObj.context) {
-      pinObj.context.consoleErrors = [];
-    }
+    // Technical details (browser, OS, screen, time zone, console errors) are
+    // for the team; guests never see anyone's, including other guests'
+    delete pinObj.context;
     // Guest privacy sanitization: guests see open vs resolved only
     const guestStatus = pinObj.status === 'resolved' ? 'resolved' : 'open';
     delete pinObj.assignee;
@@ -343,6 +372,8 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
     pinNumber,
     context,
   });
+  // New feedback after a sign-off: the round is back in review
+  await Project.updateOne({ _id: project._id, projectStatus: 'approved' }, { $set: { projectStatus: 'in_review' } });
 
   // Activity log
   logGuestActivity(project._id, guestName, guestEmail, 'guest.pin_created', { pinNumber });
@@ -470,7 +501,10 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Reviewer name and email are required.' });
   }
 
-  // Check if approvals are enabled on this project
+  // Check if approvals are enabled on this project and included in the plan
+  if (!(await approvalsOnPlan(project.organization))) {
+    return res.status(403).json({ message: 'Client approvals are not available on this plan.', code: 'FEATURE_NOT_AVAILABLE' });
+  }
   if (project.review?.approvalsEnabled === false) {
     return res.status(403).json({ message: 'Approvals are not enabled for this project.' });
   }
@@ -493,14 +527,10 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
     .select('_id versionNumber');
   const currentVersionId = latestVersion?._id || null;
 
-  // Open pins count for this round (unresolved pins)
-  const pinQuery = { project: project._id, status: { $ne: 'resolved' } };
-  if (currentVersionId) {
-    pinQuery.version = currentVersionId;
-  } else {
-    pinQuery.version = null;
-  }
-  const openPinsAtDecision = await Pin.countDocuments(pinQuery);
+  // Every open pin counts, including ones posted since the last saved version
+  // (the review page shows the same number); else "require all resolved" could
+  // be passed while new feedback is still open
+  const openPinsAtDecision = await Pin.countDocuments({ project: project._id, status: { $ne: 'resolved' } });
 
   if (project.review?.requireAllResolved && decision === 'approved' && openPinsAtDecision > 0) {
     return res.status(400).json({
@@ -513,23 +543,9 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
   const cleanEmail = String(email).trim().toLowerCase();
   const cleanName = String(name).trim().slice(0, 80);
 
-  // One decision per reviewer email per round (latest wins)
-  let approval = await Approval.findOne({
-    project: project._id,
-    version: currentVersionId,
-    'reviewer.guestEmail': cleanEmail,
-  });
-
-  if (approval) {
-    approval.decision = decision;
-    approval.note = (note || '').slice(0, 2000);
-    approval.reviewer.guestName = cleanName;
-    approval.openPinsAtDecision = openPinsAtDecision;
-    approval.ip = req.ip;
-    approval.userAgent = req.headers['user-agent'] || null;
-    await approval.save();
-  } else {
-    approval = await Approval.create({
+  // Every decision is its own dated record: a later one never rewrites an
+  // earlier sign-off (the history shows them all, newest first)
+  const approval = await Approval.create({
       project: project._id,
       organization: project.organization,
       version: currentVersionId,
@@ -544,10 +560,9 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
       ip: req.ip,
       userAgent: req.headers['user-agent'] || null,
     });
-  }
 
-  // Update project status: if approved, set 'approved'; if changes_requested, set 'in_review'
-  const newStatus = decision === 'approved' ? 'approved' : 'in_review';
+  // Project status follows the latest decision
+  const newStatus = decision === 'approved' ? 'approved' : 'changes_requested';
   await Project.updateOne({ _id: project._id }, { $set: { projectStatus: newStatus } });
 
   // Log activity
@@ -577,11 +592,14 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
     },
   }).catch(() => {});
 
-  // Socket emit
+  // Email to the project's managers, and Slack/Teams/Discord
+  notifyReviewDecision({ project, actorName: cleanName, decision, note, openPinsAtDecision });
+
+  // Socket emit (without the reviewer's IP and browser)
   const io = req.app.get('io');
   if (io) {
     io.to(`project:${project._id}`).emit('project:review_decision', {
-      approval,
+      approval: publicApproval(approval),
       projectStatus: newStatus,
     });
   }

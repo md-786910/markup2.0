@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { getOrgActivityApi } from '../../services/authService';
+import { DateFilterDropdown } from '../dashboard/FilterBar';
+import { Avatar, Button, Card, ClearFilters, EmptyState, FilterMenu, Notice, SearchField, Toolbar } from '../ui';
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -20,21 +22,7 @@ function actorName(activity) {
   return 'Someone';
 }
 
-function actorInitial(activity) {
-  return actorName(activity).charAt(0).toUpperCase();
-}
 
-// Stable color per actor so the same person always gets the same avatar tint.
-const ACTOR_COLORS = [
-  'bg-blue-500', 'bg-purple-500', 'bg-emerald-500', 'bg-amber-500',
-  'bg-rose-500', 'bg-indigo-500', 'bg-teal-500', 'bg-fuchsia-500',
-];
-function actorColor(activity) {
-  const key = activity.actor?._id || activity.actorGuest?.email || activity.metadata?.actorRole || 'system';
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
-  return ACTOR_COLORS[Math.abs(hash) % ACTOR_COLORS.length];
-}
 
 // Per-action icon + color theme + message renderer.
 const ACTION_RENDERERS = {
@@ -156,32 +144,73 @@ function renderMessage(activity) {
 
 function ActivityRow({ activity }) {
   return (
-    <div className="flex items-start gap-3 py-3.5">
-      <div className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold ${actorColor(activity)}`}>
-        {actorInitial(activity)}
-      </div>
+    <li className="flex items-start gap-3 px-6 py-3.5">
+      <Avatar name={actorName(activity)} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-700 leading-snug">
+        <p className="text-sm text-gray-700 leading-snug [&_strong]:font-medium [&_strong]:text-gray-900">
           <span className="font-semibold text-gray-900">{actorName(activity)}</span>{' '}
           {renderMessage(activity)}
         </p>
-        <p className="text-xs text-gray-400 mt-0.5">{timeAgo(activity.createdAt)}</p>
+        <p className="text-xs text-gray-500 mt-0.5" title={new Date(activity.createdAt).toLocaleString()}>{timeAgo(activity.createdAt)}</p>
       </div>
-    </div>
+    </li>
   );
 }
 
 function SkeletonRow() {
   return (
-    <div className="flex items-start gap-3 py-3.5 animate-pulse">
-      <div className="shrink-0 w-9 h-9 rounded-full bg-gray-200" />
+    <div className="flex items-start gap-3 px-6 py-3.5 animate-pulse">
+      <div className="shrink-0 w-9 h-9 rounded-full bg-gray-100" />
       <div className="flex-1 space-y-2 pt-1">
-        <div className="h-3 bg-gray-200 rounded w-2/3" />
-        <div className="h-2.5 bg-gray-100 rounded w-16" />
+        <div className="h-3 bg-gray-100 rounded w-2/3" />
+        <div className="h-2.5 bg-gray-50 rounded w-16" />
       </div>
     </div>
   );
 }
+
+// Filter groups by action prefix
+const TYPE_OPTIONS = [
+  { value: 'project', label: 'Projects', match: (a) => /^(project|version)\./.test(a) },
+  { value: 'feedback', label: 'Pins and comments', match: (a) => /^(pin|comment|guest)\./.test(a) },
+  { value: 'review', label: 'Approvals', match: (a) => /^review\./.test(a) },
+  { value: 'people', label: 'People and access', match: (a) => /^member\./.test(a) || a === 'workspace.members_updated' },
+  { value: 'sharing', label: 'Review links', match: (a) => /^(share|workspace\.share)/.test(a) },
+  { value: 'workspace', label: 'Workspaces', match: (a) => /^workspace\.(created|renamed|deleted)$/.test(a) },
+  { value: 'billing', label: 'Plan and billing', match: (a) => /^(billing|org\.(plan|subscription|invoice|trial|limits|locked|unlocked))/.test(a) },
+  { value: 'integration', label: 'Integrations', match: (a) => /^integration\./.test(a) },
+];
+const DAY = 864e5;
+function inDateRange(date, range) {
+  if (!range?.preset) return true;
+  const t = new Date(date).getTime();
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  if (range.preset === 'today') return t >= startOfToday;
+  if (range.preset === '7d') return t >= Date.now() - 7 * DAY;
+  if (range.preset === '30d') return t >= Date.now() - 30 * DAY;
+  if (range.preset === 'month') return t >= new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  if (range.preset === 'custom') {
+    if (range.start && t < new Date(range.start).getTime()) return false;
+    if (range.end && t > new Date(range.end).getTime() + DAY - 1) return false;
+  }
+  return true;
+}
+function dayLabel(date) {
+  const d = new Date(date);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const that = new Date(d); that.setHours(0, 0, 0, 0);
+  const diff = Math.round((today - that) / DAY);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Yesterday';
+  return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: today.getFullYear() === d.getFullYear() ? undefined : 'numeric' });
+}
+const plainText = (node) => {
+  if (node == null || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(plainText).join(' ');
+  return plainText(node.props?.children);
+};
 
 export default function ActivityTab() {
   const [activities, setActivities] = useState([]);
@@ -224,57 +253,83 @@ export default function ActivityTab() {
     }
   };
 
+  const [type, setType] = useState(null);
+  const [person, setPerson] = useState(null);
+  const [dateRange, setDateRange] = useState({ preset: null, start: '', end: '' });
+  const [dateOpen, setDateOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const people = useMemo(() => {
+    const seen = new Map();
+    activities.forEach((a) => { const n = actorName(a); if (!seen.has(n)) seen.set(n, { value: n, label: n }); });
+    return [...seen.values()].sort((x, y) => x.label.localeCompare(y.label));
+  }, [activities]);
+
+  const q = search.trim().toLowerCase();
+  const typeMatch = TYPE_OPTIONS.find((t) => t.value === type)?.match;
+  const shown = activities.filter((a) => (!typeMatch || typeMatch(a.action))
+    && (!person || actorName(a) === person)
+    && inDateRange(a.createdAt, dateRange)
+    && (!q || `${actorName(a)} ${plainText(renderMessage(a))}`.toLowerCase().includes(q)));
+  const filterCount = (type ? 1 : 0) + (person ? 1 : 0) + (dateRange.preset ? 1 : 0) + (q ? 1 : 0);
+  const clearAll = () => { setType(null); setPerson(null); setDateRange({ preset: null, start: '', end: '' }); setSearch(''); };
+
+  const groups = [];
+  shown.forEach((a) => {
+    const label = dayLabel(a.createdAt);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(a); else groups.push({ label, items: [a] });
+  });
+
   return (
-    <div className="mb-10">
-      <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-900">Workspace Activity</h3>
-        <p className="text-xs text-gray-500 mt-1">
-          Everyone in your workspace can see what's happening here — invitations, plan changes,
-          project edits, integrations, and more.
-        </p>
-      </div>
+    <div>
+      <Toolbar search={<SearchField value={search} onChange={setSearch} placeholder="Search activity..." label="Search activity" />}>
+        <FilterMenu
+          label="Type"
+          icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>}
+          options={TYPE_OPTIONS}
+          value={type}
+          onChange={setType}
+        />
+        <FilterMenu
+          label="Person"
+          icon={<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>}
+          options={people}
+          value={person}
+          onChange={setPerson}
+        />
+        <DateFilterDropdown value={dateRange} onChange={setDateRange} isOpen={dateOpen} onToggle={() => setDateOpen((o) => !o)} onClose={() => setDateOpen(false)} />
+        <ClearFilters count={filterCount} onClear={clearAll} />
+      </Toolbar>
 
-      {error && (
-        <div className="bg-red-50 text-red-600 border border-red-100 px-4 py-3 rounded-lg text-sm mb-4">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-4"><Notice tone="red">{error}</Notice></div>}
 
-      {loading ? (
-        <div className="divide-y divide-gray-100">
-          {[1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)}
-        </div>
-      ) : activities.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-gray-200 rounded-xl">
-          <div className="inline-flex w-12 h-12 rounded-2xl bg-gray-50 items-center justify-center mb-3">
-            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <p className="text-sm font-medium text-gray-700">No activity yet</p>
-          <p className="text-xs text-gray-500 mt-1">Actions taken in this workspace will appear here.</p>
-        </div>
-      ) : (
-        <>
-          <div className="divide-y divide-gray-100 border border-gray-100 rounded-xl px-4">
-            {activities.map((a) => (
-              <ActivityRow key={a._id} activity={a} />
-            ))}
-          </div>
-
-          {page < pages && (
-            <div className="flex justify-center mt-6">
-              <button
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="px-5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
-              >
-                {loadingMore ? 'Loading…' : 'Load more'}
-              </button>
+      <Card flush title="Activity" description="What happens across your organization: projects, feedback, people, sharing, plan changes and integrations.">
+        {loading ? (
+          <div className="divide-y divide-gray-100">{[1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)}</div>
+        ) : shown.length === 0 ? (
+          <EmptyState
+            icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+            title={filterCount ? 'Nothing matches these filters' : 'No activity yet'}
+            description={filterCount ? (page < pages ? 'Try other filters, or load older activity.' : 'Try other filters.') : 'What people do in your organization shows up here.'}
+            action={filterCount ? <Button size="sm" variant="secondary" onClick={clearAll}>Clear filters</Button> : null}
+          />
+        ) : (
+          groups.map((g) => (
+            <div key={g.label}>
+              <p className="px-6 pt-4 pb-1 text-xs font-medium text-gray-500">{g.label}</p>
+              <ul className="divide-y divide-gray-100">
+                {g.items.map((a) => <ActivityRow key={a._id} activity={a} />)}
+              </ul>
             </div>
-          )}
-        </>
-      )}
+          ))
+        )}
+        {!loading && page < pages && (
+          <div className="flex justify-center px-6 py-4 border-t border-gray-100">
+            <Button variant="secondary" loading={loadingMore} onClick={handleLoadMore}>Load older activity</Button>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import api from './api';
+import { track } from '../monitoring/analytics';
 
 export const getWorkspacesApi = () => api.get('/workspaces');
 
@@ -14,7 +15,8 @@ export const getWorkspaceMembersApi = (workspaceId) => api.get(`/workspaces/${wo
 
 export const setWorkspaceMembersApi = (workspaceId, members) => api.put(`/workspaces/${workspaceId}/members`, { members });
 
-export const enableWorkspaceShareApi = (workspaceId, data = {}) => api.post(`/workspaces/${workspaceId}/share`, data);
+export const enableWorkspaceShareApi = (workspaceId, data = {}) => api.post(`/workspaces/${workspaceId}/share`, data)
+  .then((res) => { track('share_link_created', { scope: 'workspace' }); return res; });
 
 export const updateWorkspaceShareApi = (workspaceId, data) => api.patch(`/workspaces/${workspaceId}/share`, data);
 

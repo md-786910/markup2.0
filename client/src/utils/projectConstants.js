@@ -18,6 +18,12 @@ export const PROJECT_STATUSES = [
     badge: "bg-amber-50 text-amber-700",
   },
   {
+    value: "changes_requested",
+    label: "Changes Requested",
+    dot: "bg-red-500",
+    badge: "bg-red-50 text-red-700",
+  },
+  {
     value: "approved",
     label: "Approved",
     dot: "bg-green-500",

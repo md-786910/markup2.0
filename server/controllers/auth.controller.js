@@ -28,7 +28,7 @@ const { URLS, SECURE_COOKIES } = require('../config/env');
 // Build the plan-related fields for a freshly-created Organization.
 // When admin has flipped Free as the default for new signups, skip the trial
 // and start the org on Free with an active subscription. Otherwise use the
-// globally configured trial days (default 14 days, normalized to 23:59:59 UTC).
+// globally configured trial days (admin trial settings, default 30), counted in exact 24-hour days.
 async function buildSignupPlanFields() {
   const mode = await getNewSignupPlanMode();
   if (mode === 'free') {
@@ -76,6 +76,7 @@ const userResponse = (user, org, dynamicLimits) => ({
   orgDeletionScheduledAt: org ? org.deletionScheduledAt || null : null,
   orgPlan: org ? org.plan : null,
   orgName: org ? org.name : null,
+  orgCreatedAt: org ? org.createdAt : null,
   orgLogo: org ? org.logo || null : null,
   orgTrialEndsAt: org ? org.trialEndsAt : null,
   orgTrialDays: org ? org.trialDays : null,

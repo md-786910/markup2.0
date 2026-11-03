@@ -245,6 +245,27 @@ failures, the error message. Passwords, tokens and cookies are never logged.
 `LOG_LEVEL=debug|info|warn|error`; `LOG_FORMAT=json` for a log collector.
 Unexpected errors also go to Sentry when `SENTRY_DSN` is set.
 
+## Uptime monitoring and alerts
+
+Set up an external uptime monitor (e.g. Better Stack, UptimeRobot or Uptime
+Kuma on another machine; not on this server, or it goes down with it) with
+these checks every 1–5 minutes:
+
+| Check | Expect |
+|---|---|
+| `https://api.<domain>/api/health` | HTTP 200 and the body contains `"db":"up"` (it answers 503 when MongoDB is down; `"redis"` shows Redis) |
+| `https://app.<domain>/` | HTTP 200 |
+| `https://admin.<domain>/` | HTTP 200 |
+| `https://<domain>/` | HTTP 200 |
+| SSL certificate of each domain | valid for at least 14 days (certbot renews automatically) |
+
+Send its alerts to the same place as the app's own team alerts. The API itself
+emails `ADMIN_ALERTS_EMAIL` (and posts to `ADMIN_ALERTS_SLACK_WEBHOOK`) about
+urgent support requests, late first replies, failed payments, new paying
+customers, refunds, locked accounts and bursts of server errors
+(`ERROR_ALERT_THRESHOLD` 5xx responses within 5 minutes, default 20). Errors
+with stack traces go to Sentry when `SENTRY_DSN` is set.
+
 ## 12. Backups and database access
 
 The `backup` service writes an encrypted backup of the database and the

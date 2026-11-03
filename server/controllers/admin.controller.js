@@ -14,7 +14,7 @@ const AdminUser = require('../models/AdminUser');
 const SupportTicket = require('../models/SupportTicket');
 const PaymentSettings = require('../models/PaymentSettings');
 const asyncHandler = require('../utils/asyncHandler');
-const { PLANS, getPlansWithOverrides, clearPlanCache, clearTrialCache, getDefaultTrialDaysAsync, getLimitsForPlanAsync, getEffectiveLimitsAsync, getSupportForOrg, getSupportForPlan } = require('../config/plans');
+const { DEFAULT_TRIAL_DAYS, PLANS, getPlansWithOverrides, clearPlanCache, clearTrialCache, getDefaultTrialDaysAsync, getLimitsForPlanAsync, getEffectiveLimitsAsync, getSupportForOrg, getSupportForPlan } = require('../config/plans');
 const { PRICED_PLANS, monthlyRevenue, lifecycleStatus } = require('../utils/orgStatus');
 const {
   getProvider,
@@ -25,7 +25,7 @@ const { logAdminAction } = require('../utils/activityLogger');
 const { clearBillingLock } = require('../utils/orgUtils');
 const { addMonthsUTC } = require('../utils/billingDates');
 const { applyRefund } = require('../payments/refundInvoice');
-const { getOrgPosthogData } = require('../utils/posthog');
+const { getOrgPosthogData, getUserPosthogData } = require('../utils/posthog');
 
 // Page/limit from the query string, clamped so a request can't pull a whole collection
 function parsePaging(query) {
@@ -563,11 +563,14 @@ exports.getUserDetail = asyncHandler(async (req, res) => {
     .populate('organization', 'name plan slug isLocked');
   if (!user) return res.status(404).json({ message: 'User not found' });
 
-  const projects = await Project.find({ members: user._id })
-    .select('name projectType websiteUrl status organization createdAt')
-    .populate('organization', 'name');
+  const [projects, posthog] = await Promise.all([
+    Project.find({ members: user._id })
+      .select('name projectType websiteUrl status organization createdAt')
+      .populate('organization', 'name'),
+    getUserPosthogData(user._id),
+  ]);
 
-  res.json({ user, projects });
+  res.json({ user, projects, posthog });
 });
 
 // ── Projects ─────────────────────────────────────────────────────
@@ -651,26 +654,12 @@ exports.updatePlan = asyncHandler(async (req, res) => {
     return Number.isFinite(n) ? n : undefined;
   };
 
-  // Limits
-  if (b.maxProjects !== undefined) {
-    const n = numOrSkip(b.maxProjects);
-    if (n !== undefined) $set['limits.maxProjects'] = n;
-  }
-  if (b.maxWorkspaces !== undefined) {
-    const n = numOrSkip(b.maxWorkspaces);
-    if (n !== undefined) $set['limits.maxWorkspaces'] = n;
-  }
-  if (b.maxMembers !== undefined) {
-    const n = numOrSkip(b.maxMembers);
-    if (n !== undefined) $set['limits.maxMembers'] = n;
-  }
-  if (b.maxGuests !== undefined) {
-    const n = numOrSkip(b.maxGuests);
-    if (n !== undefined) $set['limits.maxGuests'] = n;
-  }
-  if (b.maxStorageMB !== undefined) {
-    const n = numOrSkip(b.maxStorageMB);
-    if (n !== undefined) $set['limits.maxStorageMB'] = n;
+  // Limits: whole numbers, 0 or more; empty keeps the current value
+  for (const key of ['maxProjects', 'maxWorkspaces', 'maxMembers', 'maxGuests', 'maxStorageMB']) {
+    if (b[key] === undefined || b[key] === null || b[key] === '') continue;
+    const n = Number(b[key]);
+    if (!Number.isInteger(n) || n < 0) return res.status(400).json({ message: `${key} must be a whole number of 0 or more` });
+    $set[`limits.${key}`] = n;
   }
   if (b.hasIntegrations !== undefined) {
     $set['limits.hasIntegrations'] = !!b.hasIntegrations;
@@ -706,10 +695,22 @@ exports.updatePlan = asyncHandler(async (req, res) => {
 
   // Display fields
   if (b.name !== undefined) $set.name = String(b.name).slice(0, 60);
-  // price: accept null (= "Custom"); otherwise number
-  if (b.price !== undefined) $set.price = planId === 'free' ? 0 : numOrNull(b.price);
+  // Price: Starter and Pro are bought online and always need a price above 0;
+  // enterprise may be null (= "Custom"); free is always 0
+  if (b.price !== undefined) {
+    const n = b.price === null || b.price === '' ? null : Number(b.price);
+    if (PRICED_PLANS.includes(planId) && !(Number.isFinite(n) && n > 0)) {
+      return res.status(400).json({ message: 'Starter and Pro need a monthly price above 0' });
+    }
+    if (n !== null && !(Number.isFinite(n) && n >= 0)) return res.status(400).json({ message: 'Price must be a number of 0 or more' });
+    $set.price = planId === 'free' ? 0 : n;
+  }
   // INR price for Razorpay; null = derive from the USD price
-  if (b.priceInr !== undefined) $set.priceInr = numOrNull(b.priceInr);
+  if (b.priceInr !== undefined) {
+    const n = b.priceInr === null || b.priceInr === '' ? null : Number(b.priceInr);
+    if (n !== null && !(Number.isFinite(n) && n > 0)) return res.status(400).json({ message: 'The INR price must be above 0, or empty to convert the USD price' });
+    $set.priceInr = planId === 'free' ? 0 : n;
+  }
   if (b.priceLabel !== undefined) $set.priceLabel = String(b.priceLabel).slice(0, 40);
   if (b.period !== undefined) $set.period = String(b.period).slice(0, 40);
   if (b.popular !== undefined) $set.popular = !!b.popular;
@@ -821,7 +822,23 @@ exports.getPlanUsageImpact = asyncHandler(async (req, res) => {
   const affectedCount = Object.values(impacts).reduce((a, b) => Math.max(a, b), 0);
   const hasImpact = affectedCount > 0;
 
-  res.json({ totalOrgs, impacts, hasImpact, affectedCount });
+  // Which organizations go over which new limit (for the warning; first 20)
+  const usageOf = {
+    maxProjects: (o) => pMap.get(String(o._id)) || 0,
+    maxWorkspaces: (o) => wMap.get(String(o._id)) || 0,
+    maxMembers: (o) => mMap.get(String(o._id)) || 0,
+    maxStorageMB: (o) => Math.round((o.storageUsedBytes || 0) / 1048576),
+  };
+  const details = [];
+  for (const limitKey of Object.keys(impacts)) {
+    const proposedLimit = Number(query[limitKey]);
+    for (const o of orgs) {
+      const currentUsage = usageOf[limitKey](o);
+      if (currentUsage > proposedLimit) details.push({ orgName: o.name, limitKey, currentUsage, proposedLimit });
+    }
+  }
+
+  res.json({ totalOrgs, impacts, details: details.slice(0, 20), hasImpact, affectedCount });
 });
 
 // ── Payment Settings ─────────────────────────────────────────────
@@ -907,7 +924,12 @@ exports.setOrganizationPlan = asyncHandler(async (req, res) => {
   if (!org.subscription) org.subscription = {};
   org.subscription.cancelAtPeriodEnd = false;
   if (plan === 'trial') {
-    org.trialEndsAt = org.trialEndsAt && org.trialEndsAt > new Date() ? org.trialEndsAt : addMonthsUTC(new Date(), 1);
+    // A new trial gets the configured trial length (admin trial settings)
+    if (!(org.trialEndsAt && org.trialEndsAt > new Date())) {
+      const trialDays = await getDefaultTrialDaysAsync();
+      org.trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
+      org.trialDays = trialDays;
+    }
     org.subscription.status = 'none';
     org.subscription.currentPeriodEnd = null;
   } else {
@@ -949,6 +971,12 @@ exports.extendTrial = asyncHandler(async (req, res) => {
   if (org.plan !== 'trial' && org.plan !== 'free') {
     return res.status(400).json({ message: 'Organization must be on a trial or free plan to extend trial' });
   }
+  // Support agents can lengthen a trial a little, not hand out a plan: no
+  // free → trial (Pro) switch, and at most 14 days added per trial in total
+  const isAgent = req.admin?.role === 'support';
+  if (isAgent && org.plan !== 'trial') {
+    return res.status(403).json({ message: 'Only a superadmin can start a trial for a free organization.' });
+  }
 
   const previousPlan = org.plan;
   if (org.plan === 'free') {
@@ -961,8 +989,14 @@ exports.extendTrial = asyncHandler(async (req, res) => {
 
   const from = org.trialEndsAt && org.trialEndsAt > new Date() ? org.trialEndsAt : new Date();
   const newEndsAt = new Date(from.getTime() + days * 24 * 60 * 60 * 1000);
+  const agentDaysSoFar = org.trialSupportExtensionDays || 0;
+  if (isAgent && agentDaysSoFar + days > 14) {
+    return res.status(403).json({ message: `Support agents can add up to 14 days to a trial in total (${agentDaysSoFar} already added). Ask a superadmin for more.` });
+  }
+  if (isAgent) org.trialSupportExtensionDays = agentDaysSoFar + days;
   org.trialEndsAt = newEndsAt;
-  org.trialDays = days;
+  // Total trial length (the app shows "N-day trial" and its progress from it)
+  org.trialDays = previousPlan === 'trial' ? (org.trialDays || 0) + days : days;
   // Re-arm reminder emails for the new end date and lift a trial-expiry lock
   org.trialReminders = { day7Sent: false, day3Sent: false, day1Sent: false, expiredSent: false };
   clearBillingLock(org);
@@ -988,7 +1022,7 @@ exports.getTrialSettings = asyncHandler(async (req, res) => {
     isLocked: false,
   });
   res.json({
-    defaultDays: settings?.trial?.defaultDays || 14,
+    defaultDays: settings?.trial?.defaultDays || DEFAULT_TRIAL_DAYS,
     updatedAt: settings?.trial?.updatedAt || null,
     updatedBy: settings?.trial?.updatedBy || null,
     activeTrialOrgsCount,
@@ -1017,16 +1051,14 @@ exports.updateTrialSettings = asyncHandler(async (req, res) => {
 
   let affectedCount = 0;
   if (syncActiveTrials) {
-    const activeOrgs = await Organization.find({ plan: 'trial', isLocked: false });
+    // Running trials only, and only ever longer: a trial promised (or extended
+    // by an admin) to a later date keeps it, and an ended trial is not restarted
     const now = new Date();
+    const activeOrgs = await Organization.find({ plan: 'trial', isLocked: false, trialEndsAt: { $gt: now } });
     for (const org of activeOrgs) {
       const base = org.createdAt ? new Date(org.createdAt) : now;
-      let newEndsAt = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
-
-      // If recalculated date is in the past, grant at least `days` from now
-      if (newEndsAt <= now) {
-        newEndsAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-      }
+      const newEndsAt = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+      if (newEndsAt <= new Date(org.trialEndsAt)) continue;
       org.trialDays = days;
       org.trialEndsAt = newEndsAt;
 
@@ -1105,8 +1137,9 @@ exports.setOrganizationDeal = asyncHandler(async (req, res) => {
     org.deal = { price: null, currency: 'USD', note: null, until: null };
   } else {
     const numPrice = Number(price);
-    if (!Number.isFinite(numPrice) || numPrice < 0) {
-      return res.status(400).json({ message: 'Price must be a positive number or zero' });
+    // The payment providers can't charge 0 (and a free deal is the Free plan)
+    if (!Number.isFinite(numPrice) || numPrice <= 0) {
+      return res.status(400).json({ message: 'A custom price must be above 0' });
     }
     org.deal = {
       price: numPrice,

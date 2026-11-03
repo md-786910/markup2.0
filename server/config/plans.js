@@ -112,12 +112,12 @@ async function getDefaultTrialDaysAsync() {
   try {
     const PaymentSettings = require('../models/PaymentSettings');
     const settings = await PaymentSettings.getSingleton();
-    const days = settings?.trial?.defaultDays || 14;
+    const days = settings?.trial?.defaultDays || DEFAULT_TRIAL_DAYS;
     _trialDaysCache = days;
     _trialDaysCacheTime = now;
     return days;
   } catch {
-    return DEFAULT_TRIAL_DAYS || 14;
+    return DEFAULT_TRIAL_DAYS;
   }
 }
 
@@ -220,8 +220,12 @@ async function getPlansWithOverrides() {
       }
       if (Array.isArray(override.extraFeatures)) merged.extraFeatures = override.extraFeatures;
       if (override.name != null) merged.name = override.name;
-      // price: null means "Custom", so accept null but skip undefined
-      if (override.price !== undefined) merged.price = override.price;
+      // Starter and Pro are bought online, so only a price above 0 overrides theirs:
+      // a null there is a leftover (e.g. the row created when the plan was turned
+      // off), never "Custom". Other plans: null means "Custom", undefined is skipped.
+      if (['starter', 'pro'].includes(key)) {
+        if (typeof override.price === 'number' && override.price > 0) merged.price = override.price;
+      } else if (override.price !== undefined) merged.price = override.price;
       // Free is always $0; an empty price saved for it must not turn it into "Custom"
       if (key === 'free') merged.price = 0;
       if (override.priceLabel != null) merged.priceLabel = override.priceLabel;
@@ -244,6 +248,13 @@ async function getPlansWithOverrides() {
     merged.priceInr = override && override.priceInr != null
       ? override.priceInr
       : (typeof merged.price === 'number' ? Math.round(merged.price * USD_INR_RATE) : null);
+    // Whether that INR price was set by an admin (else it follows the USD price)
+    merged.priceInrCustom = !!(override && override.priceInr != null);
+    // Self-serve plans show the price they charge, so a price change can't leave
+    // an old number on the pricing pages
+    if (['starter', 'pro'].includes(key) && typeof merged.price === 'number') {
+      merged.priceLabel = `$${Number.isInteger(merged.price) ? merged.price : merged.price.toFixed(2)}`;
+    }
     result[key] = merged;
   }
   return result;

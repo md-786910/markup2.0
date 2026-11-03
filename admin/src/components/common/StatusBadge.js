@@ -80,7 +80,7 @@ export function HealthBadge({ health }) {
 }
 
 export const HEALTH_OPTIONS = [
-  { value: 'healthy', label: 'Healthy (75+)' },
-  { value: 'watch', label: 'Watch (40–74)' },
+  { value: 'healthy', label: 'Healthy (70+)' },
+  { value: 'watch', label: 'Watch (40–69)' },
   { value: 'at_risk', label: 'At risk (<40)' },
 ];

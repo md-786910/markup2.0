@@ -24,6 +24,16 @@ function discardUploads(req) {
 }
 
 /**
+ * A request refused after enforceStorageQuota reserved its uploads: delete the
+ * files and give the space back.
+ */
+async function refundUploads(req) {
+  const bytes = uploadedFiles(req).reduce((sum, f) => sum + (f.size || 0), 0);
+  discardUploads(req);
+  if (bytes && req.organization?._id) await releaseStorage(req.organization._id, bytes).catch(() => {});
+}
+
+/**
  * Reserve space for this request's uploads. Returns null when allowed, or an
  * error body (and deletes the uploaded files) when the quota would be exceeded.
  */
@@ -88,4 +98,4 @@ async function enforceStorageQuota(req, res, next) {
   }
 }
 
-module.exports = { reserveStorage, releaseStorage, deleteStoredFiles, enforceStorageQuota, discardUploads };
+module.exports = { reserveStorage, releaseStorage, deleteStoredFiles, enforceStorageQuota, discardUploads, refundUploads };

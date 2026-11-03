@@ -24,10 +24,10 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 
 // Client routes (client/src/App.js) and the query params each page reads
-const CLIENT_ROUTES = [/^\/reset-password\/[^/]+$/, /^\/signup$/, /^\/project\/[a-f0-9]{24}$/, /^\/settings$/, /^\/dashboard$/, /^\/login$/, /^\/?$/];
+const CLIENT_ROUTES = [/^\/review\/[^/]+$/, /^\/reset-password\/[^/]+$/, /^\/signup$/, /^\/project\/[a-f0-9]{24}$/, /^\/settings$/, /^\/dashboard$/, /^\/login$/, /^\/?$/];
 const SETTINGS_TABS = ['workspace', 'billing', 'invoices', 'activity'];
 // Admin panel routes (admin/src/App.js) linked from team emails
-const ADMIN_ROUTES = [/^\/support\/[a-f0-9]{24}$/];
+const ADMIN_ROUTES = [/^\/support\/[a-f0-9]{24}$/, /^\/organizations\/[a-f0-9]{24}$/];
 let pass = 0, fail = 0;
 const check = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS' : 'FAIL'}  ${n}${x ? '  [' + x + ']' : ''}`); };
 
@@ -145,6 +145,35 @@ function verifyMail(mail, externalOk = []) {
   if (replyMail) verifyMail(replyMail);
   const replyLink = replyMail && linksOf(replyMail).find((l) => l.includes('support='));
   check('reply link opens the request in the app', !!replyLink && new URL(replyLink).pathname === '/dashboard' && new URL(replyLink).searchParams.get('support') === String(ticketId));
+  // 7. A client signs off → the project's managers get an email that opens the project
+  r('utils/reviewNotify').notifyReviewDecision({ project, actorName: 'Grace Guest', decision: 'approved', note: 'Ship it', openPinsAtDecision: 0 });
+  await wait(800);
+  const decision = take().find((m) => m.to === 'owner@links.test' && /approved/i.test(m.subject));
+  check('review decision email sent to the project manager', !!decision);
+  if (decision) verifyMail(decision);
+  check('review decision email opens the project', !!decision && linksOf(decision).some((l) => l === `${ENVS[MODE].APP_URL}/project/${project._id}`));
+
+  // 8. Feedback deadline in 24 h → members open the project, guests the review link
+  await Project.updateOne({ _id: project._id }, { $set: { 'review.deadlineAt': new Date(Date.now() + 6 * 3600e3), shareSettings: { enabled: true, token: 'linksreviewtoken', allowComments: true } } });
+  await Pin.updateOne({ _id: pin._id }, { $set: { createdByGuest: { name: 'Grace', email: 'grace@client.links.test' } } });
+  await r('scripts/runBilling').phaseDeadlineReminders();
+  await wait(300);
+  const reminders = take().filter((m) => /closes/i.test(m.subject));
+  for (const m of reminders) verifyMail(m);
+  check('deadline reminders go to the members and the guest', reminders.some((m) => m.to === 'owner@links.test') && reminders.some((m) => m.to === 'grace@client.links.test'), reminders.map((m) => m.to).join(','));
+  check('the guest reminder opens the review link', reminders.some((m) => m.to === 'grace@client.links.test' && linksOf(m).includes(`${ENVS[MODE].APP_URL}/review/linksreviewtoken`)));
+
+  // 9. Team alerts (urgent request, new paying customer) → admin panel pages
+  process.env.ADMIN_ALERTS_EMAIL = 'alerts@links.test';
+  const alerts = r('utils/adminAlerts');
+  const alertOrg = await Org.findById(org._id);
+  await alerts.alertNewUrgentTicket({ ticket: { _id: ticketId, number: created.ticket?.number, subject: 'Pins do not save', category: 'bug' }, organization: alertOrg, requester: member });
+  await alerts.alertNewPaidCustomer({ organization: alertOrg, amount: 2900, currency: 'USD', provider: 'paypal' });
+  await wait(300);
+  const alertMails = take().filter((m) => m.to === 'alerts@links.test');
+  check('team alerts are emailed', alertMails.length === 2, String(alertMails.length));
+  for (const m of alertMails) verifyMail(m);
+  delete process.env.ADMIN_ALERTS_EMAIL;
   delete process.env.SUPPORT_EMAIL;
 
   console.log(`\n${MODE}: ${pass} passed, ${fail} failed`);

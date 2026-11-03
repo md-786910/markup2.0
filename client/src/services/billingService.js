@@ -1,4 +1,5 @@
 import api from './api';
+import { track } from '../monitoring/analytics';
 
 export const getPublicPlansApi = () =>
   api.get('/plans');
@@ -10,10 +11,12 @@ export const upgradePlanApi = (plan) =>
   api.post('/billing/upgrade', { plan });
 
 export const createCheckoutSessionApi = (plan) =>
-  api.post('/billing/checkout-session', { plan });
+  api.post('/billing/checkout-session', { plan })
+    .then((res) => { track('checkout_started', { plan }); return res; });
 
 export const verifyPaymentApi = (data) =>
-  api.post('/billing/verify-payment', data);
+  api.post('/billing/verify-payment', data)
+    .then((res) => { track('checkout_completed', { plan: res.data?.organization?.plan || res.data?.plan || null }); return res; });
 
 export const getInvoicesApi = () =>
   api.get('/billing/invoices');

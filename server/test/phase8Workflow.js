@@ -1,5 +1,6 @@
 // Tests for Phase 8: Task Workflow
-process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_smoke_test';
+// Deletes test data: only ever a database whose name ends in _test
+process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/kommently_phase8_test';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'phase8-test-secret-'.padEnd(48, 'x');
 
 const path = require('path');
@@ -25,6 +26,7 @@ function check(name, cond, extra = '') {
 
   try {
     await mongoose.connect(process.env.MONGODB_URI);
+    if (!mongoose.connection.name.endsWith('_test')) throw new Error(`Refusing to run against "${mongoose.connection.name}": the test database name must end in _test`);
 
     // Clean test records
     await Promise.all([
@@ -91,6 +93,8 @@ function check(name, cond, extra = '') {
       name: 'Phase8 Test Project',
       organization: orgA._id,
       owner: userA1._id,
+      // Bob works on it, so he can be assigned (assignees need comment access)
+      members: [userA1._id, userA2._id],
       websiteUrl: 'https://phase8.test',
       shareSettings: {
         enabled: true,

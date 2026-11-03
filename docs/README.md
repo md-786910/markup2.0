@@ -40,6 +40,17 @@ Summary of the research behind the growth track. Sources are listed in each phas
 
 Positioning to aim for after phases 2–4: *client review to sign-off, with developer-ready reports, at a flat price.*
 
+## Launch review (November 2026)
+
+Phases 1–7 were re-verified for launch: code review, the full test suites and a browser end-to-end run (signup, admin 2FA, pins on a proxied site, review link sign-off, support request with email links, health, pricing, support-agent role). The bugs found are fixed and covered by tests (see the "Launch review fixes" note at the top of each phase file), and the open items from that review are done:
+
+- Trial length: **30 days** by default (what the website and Terms promise); an admin can change it in the trial settings.
+- Phase 4: 24 h deadline reminders, the "Changes requested" status, approval status on the workspace review page, approved projects back in review on new feedback.
+- Phase 5: PostHog data on the admin person page; the product events (`onboarding_step`, `share_link_created`, `guest_review_opened` from the server, `integration_connected`, `upgrade_clicked`, `checkout_started`, `checkout_completed`); org group without its name, with `createdAt`.
+- Phase 7: site notice editor (admin → Site notice) and banner on every page; server-error-spike alert; uptime monitoring in `DEPLOY.md`.
+
+To check once real keys are set: the PostHog queries (sessions, time in app, top pages) against the live PostHog project.
+
 ## Conventions for every phase
 
 - **Plan rules** live in `server/config/plans.js` (`limits` plus a feature list for the pricing pages), are overridable per plan (PlanConfig) and per organization (`limitOverrides`). New paid features use a `has<Feature>` limit and show `common/LockedFeature` in the app when missing.

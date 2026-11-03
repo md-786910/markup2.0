@@ -1,6 +1,8 @@
 # Phase 5: Engagement and customer health
 
-**Status: Done (Shipped October 2026) · Size: M (about 1.5 weeks)**
+**Status: Done (Shipped October 2026; launch review fixes November 2026) · Size: M (about 1.5 weeks)**
+
+> **Launch review fixes (Nov 2026):** the admin PostHog card read field names the server never sent (sessions and time in app always showed 0); it now shows `sessions`, `activeUsers30d` and a new `timeInAppMinutes30d` ("—" when unknown), and a plain "not connected" note. Queries go to the PostHog app host (`eu.posthog.com`, override `POSTHOG_API_HOST`); `POSTHOG_PERSONAL_API_KEY`/`POSTHOG_PROJECT_ID` are in `.env.example`. Health "Calculated" time shows (`computedAt`), filter labels match the bands (70+ / 40–69), and "Overdue invoice" counts only failed or past-due invoices. Then: the admin person page shows the person's last session, sessions, time in app and actions (`getUserPosthogData`); the product events are sent (`onboarding_step`, `share_link_created {scope}`, `integration_connected`, `upgrade_clicked`, `checkout_started`, `checkout_completed`, and `guest_review_opened` from the server via `utils/posthogCapture.js`, without a person profile); the organization group carries `plan` and `createdAt`, not the name.
 
 > [!NOTE]
 > Shipped: 7-signal automated customer health scoring, daily computation job (`computeHealth.js` + `runBilling.js`), PostHog HogQL API telemetry integration with 15-minute caching and safe fallback, Admin dashboard at-risk organizations list and 30-day signup-to-activation funnel, Customer directory Health column and filter, and expanded product telemetry events. Verified with 26/26 unit/integration tests and 271/271 smoke suite.

@@ -9,6 +9,8 @@ import WorkspacesTab from '../components/settings/WorkspacesTab';
 import { useWorkspaces } from '../contexts/WorkspaceContext';
 import DataPrivacySection from '../components/settings/DataPrivacySection';
 import { uploadUrl } from '../utils/uploadUrl';
+import { toast } from '../utils/toast';
+import { Page, PageHeader, Tabs, Card, SettingRow, Input, Button } from '../components/ui';
 
 const ALL_TABS = [
   { id: 'workspace', label: 'Organization' },
@@ -31,7 +33,6 @@ export default function SettingsPage() {
 
   const [workspaceName, setWorkspaceName] = useState(user?.orgName || '');
   const [nameLoading, setNameLoading] = useState(false);
-  const [nameSuccess, setNameSuccess] = useState('');
   const [nameError, setNameError] = useState('');
 
   const [logoLoading, setLogoLoading] = useState(false);
@@ -46,16 +47,14 @@ export default function SettingsPage() {
     if (!workspaceName.trim()) return;
     setNameLoading(true);
     setNameError('');
-    setNameSuccess('');
     try {
       const formData = new FormData();
       formData.append('name', workspaceName.trim());
       const res = await updateOrganizationApi(formData);
       updateUser(res.data.user);
-      setNameSuccess('Workspace name updated');
-      setTimeout(() => setNameSuccess(''), 3000);
+      toast.success('Organization name saved.');
     } catch (err) {
-      setNameError(err.response?.data?.message || 'Failed to update');
+      setNameError(err.response?.data?.message || 'Could not save the name.');
     } finally {
       setNameLoading(false);
     }
@@ -72,8 +71,9 @@ export default function SettingsPage() {
       formData.append('logo', file);
       const res = await updateOrganizationApi(formData);
       updateUser(res.data.user);
+      toast.success('Organization icon updated.');
     } catch (err) {
-      setLogoError(err.response?.data?.message || 'Failed to upload');
+      setLogoError(err.response?.data?.message || 'Could not upload the icon.');
     } finally {
       setLogoLoading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -81,135 +81,66 @@ export default function SettingsPage() {
   };
 
   const orgInitial = (user?.orgName || user?.name || '?')[0].toUpperCase();
+  const tabs = TABS.map((t) => (t.id === 'invoices' && user?.orgPendingInvoice ? { ...t, dot: true, dotTitle: 'You have an unpaid invoice' } : t));
 
   return (
-    <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-3xl animate-page-enter">
-      {/* Page header */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
-      </div>
+    <Page narrow>
+      <PageHeader title="Settings" subtitle="Your organization, workspaces, plan and invoices." />
+      <Tabs tabs={tabs} active={activeTab} onChange={handleTabChange} />
 
-      {/* Tab bar */}
-      <div className="-mx-6 px-6 sm:mx-0 sm:px-0 border-b border-gray-200 mb-8 flex gap-6 overflow-x-auto scrollbar-none">
-        {TABS.map((tab) => {
-          const showDot = tab.id === 'invoices' && !!user?.orgPendingInvoice;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`relative shrink-0 whitespace-nowrap px-1 pb-3 text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === tab.id
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-900 border-b-2 border-transparent'
-                }`}
-            >
-              {tab.label}
-              {showDot && (
-                <span
-                  title="You have an unpaid invoice"
-                  className="w-2 h-2 rounded-full bg-red-500"
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Workspace tab */}
       {activeTab === 'workspace' && (
-        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-6">
-          <h3 className="text-base font-semibold text-gray-900">Organization</h3>
-          <p className="text-sm text-gray-500 mt-1 mb-6">Your company or team. Its name and icon appear in the app, emails, and on review links.</p>
-
-          {/* Workspace Name */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-8 mb-8">
-            <label className="text-sm font-medium text-gray-700 sm:w-32 sm:pt-2.5 shrink-0">Name</label>
-            <div className="w-full min-w-0 max-w-md sm:flex-1">
+        <div className="space-y-6">
+          <Card title="Organization" description="Your company or team. Its name and icon appear in the app, in emails and on review links.">
+            <SettingRow label="Name" hint={isOwner ? null : 'Only the owner can change it.'}>
               {isOwner ? (
-                <>
-                  <div className="flex gap-3">
-                    <input
-                      type="text"
-                      value={workspaceName}
-                      onChange={(e) => { setWorkspaceName(e.target.value); setNameError(''); setNameSuccess(''); }}
-                      className="flex-1 min-w-0 px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 bg-white transition-shadow"
-                    />
-                    <button
-                      onClick={handleNameUpdate}
-                      disabled={nameLoading || workspaceName.trim() === (user?.orgName || '')}
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0"
-                    >
-                      {nameLoading ? 'Saving...' : 'Save'}
-                    </button>
-                  </div>
-                  {nameError && <p className="text-xs text-red-500 mt-1.5">{nameError}</p>}
-                  {nameSuccess && <p className="text-xs text-green-600 mt-1.5">{nameSuccess}</p>}
-                </>
-              ) : (
-                <p className="text-sm text-gray-900 py-2.5">{user?.orgName || 'Unnamed Workspace'}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Workspace Icon */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-8">
-            <label className="text-sm font-medium text-gray-700 w-32 pt-2 shrink-0">
-              Icon
-              <span className="inline-block ml-1 text-gray-300 cursor-help" title="Recommended: 256x256px, PNG or JPG">
-                <svg className="w-3.5 h-3.5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </span>
-            </label>
-            <div className="flex items-center gap-4">
-              {user?.orgLogo ? (
-                <img
-                  src={uploadUrl(user.orgLogo)}
-                  alt="Workspace icon"
-                  className="w-12 h-12 rounded-xl object-cover border border-gray-200"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-xl bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white text-lg font-bold">
-                  {orgInitial}
-                </div>
-              )}
-              {isOwner ? (
-                <div>
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    disabled={logoLoading}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
-                  >
-                    {logoLoading ? 'Uploading...' : 'Change icon'}
-                  </button>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
-                    onChange={handleLogoUpload}
-                    className="hidden"
+                <form
+                  onSubmit={(e) => { e.preventDefault(); handleNameUpdate(); }}
+                  className="flex max-w-md gap-2"
+                >
+                  <Input
+                    value={workspaceName}
+                    maxLength={80}
+                    aria-label="Organization name"
+                    onChange={(e) => { setWorkspaceName(e.target.value); setNameError(''); }}
                   />
-                  {logoError && <p className="text-xs text-red-500 mt-1">{logoError}</p>}
-                </div>
+                  <Button type="submit" variant="primary" loading={nameLoading} disabled={!workspaceName.trim() || workspaceName.trim() === (user?.orgName || '')}>
+                    Save
+                  </Button>
+                </form>
               ) : (
-                <p className="text-xs text-gray-400">Only the organization owner can change the icon</p>
+                <p className="text-sm text-gray-900 pt-2">{user?.orgName || 'Unnamed organization'}</p>
               )}
-            </div>
-          </div>
+              {nameError && <p className="text-xs text-red-600 mt-1.5">{nameError}</p>}
+            </SettingRow>
+            <SettingRow label="Icon" hint="Square image, at least 256 × 256 px (PNG or JPG)." last>
+              <div className="flex items-center gap-4">
+                {user?.orgLogo ? (
+                  <img src={uploadUrl(user.orgLogo)} alt="Organization icon" className="w-12 h-12 rounded-xl object-cover border border-gray-200" />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white text-lg font-bold">{orgInitial}</div>
+                )}
+                {isOwner ? (
+                  <>
+                    <Button variant="secondary" size="sm" loading={logoLoading} onClick={() => fileRef.current?.click()}>
+                      {user?.orgLogo ? 'Change icon' : 'Upload icon'}
+                    </Button>
+                    <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleLogoUpload} className="hidden" />
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-500">Only the owner can change the icon.</p>
+                )}
+              </div>
+              {logoError && <p className="text-xs text-red-600 mt-1.5">{logoError}</p>}
+            </SettingRow>
+          </Card>
+          <DataPrivacySection />
         </div>
       )}
-      {activeTab === 'workspace' && <DataPrivacySection />}
 
-      {/* Workspaces tab — owner/admin only */}
       {activeTab === 'workspaces' && <WorkspacesTab />}
-
-      {/* Billing tab */}
       {activeTab === 'billing' && <BillingTab />}
-
-      {/* Invoices tab */}
       {activeTab === 'invoices' && <InvoicesTab />}
-
-      {/* Activity tab — owner/admin only */}
       {activeTab === 'activity' && isAdmin && <ActivityTab />}
-    </div>
+    </Page>
   );
 }

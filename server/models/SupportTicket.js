@@ -31,6 +31,8 @@ const supportTicketSchema = new Schema({
   assignee: { type: Schema.Types.ObjectId, ref: 'AdminUser', default: null },
   // First-reply target from the plan (calendar hours for now)
   dueAt: { type: Date, default: null },
+  // When the team was alerted that the first reply is late (alerted once)
+  overdueAlertedAt: { type: Date, default: null },
   firstResponseAt: { type: Date, default: null },
   lastCustomerReplyAt: { type: Date, default: null },
   lastAdminReplyAt: { type: Date, default: null },

@@ -6,6 +6,7 @@ import {
 } from '../../services/billingService';
 import { useAuth } from '../../hooks/useAuth';
 import useEscape from '../../hooks/useEscape';
+import { track } from '../../monitoring/analytics';
 
 function loadScript(src, id) {
   return new Promise((resolve) => {
@@ -30,6 +31,10 @@ export default function UpgradeModal({ selectedPlan, currentPlanId, currentPlanN
   const paypalRenderedRef = useRef(false);
 
   const currentLabel = currentPlanId === 'trial' ? 'Free Trial' : (currentPlanName || 'Free');
+
+  useEffect(() => {
+    track('upgrade_clicked', { plan: selectedPlan?.id || selectedPlan || null, from: currentPlanId || null });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let cancelled = false;
