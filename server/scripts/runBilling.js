@@ -350,6 +350,7 @@ async function phaseCancellations() {
     org.plan = 'free';
     org.limits = await getLimitsForPlanAsync('free');
     org.subscription.status = 'canceled';
+    org.subscription.canceledAt = new Date();
     org.subscription.currentPeriodEnd = null;
     org.subscription.cancelAtPeriodEnd = false;
     clearBillingLock(org);

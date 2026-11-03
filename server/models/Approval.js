@@ -57,6 +57,12 @@ const approvalSchema = new Schema({
     type: String,
     default: null,
   },
+  // Set when the round's version was deleted: its pins went back to the open
+  // round, so this decision is kept as history but is no longer current
+  supersededAt: {
+    type: Date,
+    default: null,
+  },
 }, { timestamps: true });
 
 approvalSchema.index({ project: 1, createdAt: -1 });

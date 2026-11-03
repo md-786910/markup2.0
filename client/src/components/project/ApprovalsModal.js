@@ -11,7 +11,8 @@ export default function ApprovalsModal({
   canManage = false,
 }) {
   const [approvals, setApprovals] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Only managers load the history, so only they start in the loading state
+  const [loading, setLoading] = useState(canManage);
   const [submitting, setSubmitting] = useState(false);
   const [decision, setDecision] = useState('approved');
   const [note, setNote] = useState('');
@@ -246,10 +247,14 @@ export default function ApprovalsModal({
           {/* Audit History List */}
           <div>
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
-              Decision History & Audit Trail ({approvals.length})
+              Decision History & Audit Trail{canManage ? ` (${approvals.length})` : ''}
             </h3>
 
-            {loading ? (
+            {!canManage ? (
+              <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <p className="text-xs text-gray-500">The decision history is visible to people who manage this project.</p>
+              </div>
+            ) : loading ? (
               <div className="text-center py-8 text-xs text-gray-400">Loading history...</div>
             ) : approvals.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -284,6 +289,14 @@ export default function ApprovalsModal({
                           {isGuest && (
                             <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.2 rounded border border-amber-200">
                               Guest
+                            </span>
+                          )}
+                          {appr.supersededAt && (
+                            <span
+                              className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.2 rounded border border-gray-200"
+                              title="The version of this round was deleted, so its pins are open again"
+                            >
+                              Round reopened
                             </span>
                           )}
                         </div>

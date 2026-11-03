@@ -2,9 +2,13 @@
  * pinContext.js - Sanitization, parsing and privacy enforcement for Pin.context
  */
 
+// Longest text any pattern below ever sees. Inputs come from browsers (guests
+// too), so they are cut before matching and no regex can be made slow.
+const MAX_INPUT = 2000;
+
 function extractRealUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
-  const trimmed = rawUrl.trim();
+  const trimmed = rawUrl.slice(0, MAX_INPUT).trim();
   if (trimmed.includes('/api/proxy')) {
     const match = trimmed.match(/[?&]url=([^&]+)/i);
     if (match && match[1]) {
@@ -20,32 +24,53 @@ function extractRealUrl(rawUrl) {
 
 function cleanUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
-  const realUrl = extractRealUrl(rawUrl);
+  const realUrl = extractRealUrl(rawUrl.slice(0, MAX_INPUT)).slice(0, MAX_INPUT);
   // Strip query parameters and hash fragments (where auth tokens / secrets often live),
   // credentials in the authority (user:pass@) and ;jsessionid-style path parameters
   return realUrl.split(/[?#]/)[0]
     .replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@]*@/i, '$1')
-    .replace(/;[a-z_]*sess[a-z_]*id=[^/]*/gi, '');
+    .replace(/;(?:jsessionid|phpsessid|sessionid|sid)=[^/;]*/gi, '');
 }
 
-const SENSITIVE_KEYS = 'access_token|refresh_token|id_token|token|rt|api[_-]?key|apikey|secret|client_secret|password|passwd|pwd|authorization|auth|session|sessionid|sid|jwt|cookie|signature|sig';
+// A key whose value is a credential: one of these words, or a name ending in
+// one (accessToken, auth_token, csrftoken, X-Api-Key, client-secret, sessionId).
+// The prefix is bounded so the pattern stays linear.
+const SECRET_KEY = '[\\w-]{0,40}?(?:token|secret|passw(?:or)?d|pwd|api[_-]?key|apikey|access[_-]?key|private[_-]?key|secret[_-]?key|jwt|signature|session(?:[_-]?id)?|sessid|sid|auth|authorization|credentials?|cookie)';
+// A value: a quoted string (escaped quotes allowed) or a bare word
+const SECRET_VALUE = `"(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*'|[^\\s,;&}\\]"'\`]+`;
+// (skips values an earlier step already replaced)
+const KEY_VALUE = new RegExp(`(["']?\\b${SECRET_KEY}\\b["']?\\s*[=:]\\s*)(?!\\[redacted\\])(${SECRET_VALUE})`, 'gi');
 
 /**
  * Console messages and stack traces are free text: remove what can carry
  * credentials (query strings and fragments of URLs, key=value / "key": "value"
- * pairs with sensitive names, Bearer tokens, JWTs) before they are stored.
+ * pairs with sensitive names, auth headers, Bearer/Basic credentials, JWTs and
+ * well-known API key formats) before they are stored.
  */
 function scrubText(text) {
   if (!text) return '';
-  return String(text)
-    // URLs (also our own /api/proxy?url=…&token=… frames in stack traces): keep scheme, host and path
+  return String(text).slice(0, MAX_INPUT)
+    // URLs (also our own /api/proxy?url=…&token=… frames in stack traces): keep scheme,
+    // host, path and a stack frame's :line:col
     .replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'`<>()[\]{}]+|\/api\/proxy\?[^\s"'`<>()[\]{}]+/gi, (url) => {
       const trailing = url.match(/[.,;:]+$/)?.[0] || '';
-      return cleanUrl(url.slice(0, url.length - trailing.length)) + trailing;
+      const bare = url.slice(0, url.length - trailing.length);
+      const location = bare.match(/(?::\d+){1,2}$/)?.[0] || '';
+      const cleaned = cleanUrl(bare.slice(0, bare.length - location.length));
+      return cleaned + (cleaned.endsWith(location) ? '' : location) + trailing;
     })
-    .replace(/\bBearer\s+[A-Za-z0-9\-._~+/]+=*/gi, 'Bearer [redacted]')
-    .replace(/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]+/g, '[redacted]')
-    .replace(new RegExp(`(["']?\\b(?:${SENSITIVE_KEYS})\\b["']?\\s*[=:]\\s*)("[^"]*"|'[^']*'|[^\\s,;&}\\]]+)`, 'gi'), '$1[redacted]');
+    // Relative and protocol-relative URLs (/cb?code=…, //cdn.site/a.js?sig=…)
+    .replace(/(^|[\s"'(=])((?:\/\/|\.{0,2}\/)[^\s"'()<>?#]*)[?#][^\s"'()<>]*/g, '$1$2')
+    // URL-encoded query strings (%3Ftoken%3D…)
+    .replace(/%3F[^\s"'()<>]*/gi, '')
+    // Whole header values (Authorization: Basic …, Cookie: a=1; b=2)
+    .replace(/\b((?:proxy-)?authorization|set-cookie|cookie)(["']?\s*:\s*)("(?:[^"\\]|\\.)*"|[^\r\n]*)/gi, '$1$2[redacted]')
+    .replace(/\b(Bearer|Basic|Digest)\s+[A-Za-z0-9\-._~+/]+=*/gi, '$1 [redacted]')
+    // JWTs (also without a signature)
+    .replace(/\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]*)?/g, '[redacted]')
+    // Well-known API key formats: Stripe, GitHub, GitLab, AWS, Slack
+    .replace(/\b(?:[sprk]k_(?:live|test)_[A-Za-z0-9]{8,}|gh[pousr]_[A-Za-z0-9]{20,}|glpat-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,})\b/g, '[redacted]')
+    .replace(KEY_VALUE, '$1[redacted]');
 }
 
 function parseUserAgent(ua) {

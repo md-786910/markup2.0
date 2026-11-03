@@ -33,6 +33,7 @@ async function applyRefund(invoice, refundedTotal) {
       org.limits = await getLimitsForPlanAsync('free');
       if (!org.subscription) org.subscription = {};
       org.subscription.status = 'canceled';
+      org.subscription.canceledAt = new Date();
       org.subscription.currentPeriodEnd = null;
       org.subscription.cancelAtPeriodEnd = false;
       await org.save();

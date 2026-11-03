@@ -657,7 +657,8 @@ exports.updatePlan = asyncHandler(async (req, res) => {
       return res.status(400).json({ message: 'Price must be a number greater than 0' });
     }
   }
-  if (b.priceInr !== undefined && b.priceInr !== null && b.priceInr !== '' && !(Number(b.priceInr) > 0)) {
+  // Free is always 0 (the editor sends its derived INR price, 0, back)
+  if (planId !== 'free' && b.priceInr !== undefined && b.priceInr !== null && b.priceInr !== '' && !(Number(b.priceInr) > 0)) {
     return res.status(400).json({ message: 'INR price must be a number greater than 0' });
   }
 
@@ -732,7 +733,7 @@ exports.updatePlan = asyncHandler(async (req, res) => {
   // price: accept null (= "Custom"); otherwise number
   if (b.price !== undefined) $set.price = planId === 'free' ? 0 : numOrNull(b.price);
   // INR price for Razorpay; null = derive from the USD price
-  if (b.priceInr !== undefined) $set.priceInr = numOrNull(b.priceInr);
+  if (b.priceInr !== undefined) $set.priceInr = planId === 'free' ? 0 : numOrNull(b.priceInr);
   if (b.priceLabel !== undefined) $set.priceLabel = String(b.priceLabel).slice(0, 40);
   if (b.period !== undefined) $set.period = String(b.period).slice(0, 40);
   if (b.popular !== undefined) $set.popular = !!b.popular;
@@ -1311,7 +1312,8 @@ exports.getRevenue = asyncHandler(async (req, res) => {
   }
 
   // 2. New MRR this month (paid checkouts, i.e. conversions and upgrades; renewals have a
-  // billingMonth) & Churned MRR this month (subscriptions that ended, priced at their last payment)
+  // billingMonth) & Churned MRR this month (subscriptions that ended this month, by their
+  // canceledAt date, priced at their last payment)
   const [newPayments, churnedOrgsMonth, ninetyDaysTrials, ninetyDaysConverted] = await Promise.all([
     Invoice.find({
       status: 'paid',
@@ -1320,7 +1322,7 @@ exports.getRevenue = asyncHandler(async (req, res) => {
     }).select('organization amount currency').lean(),
     Organization.find({
       'subscription.status': 'canceled',
-      updatedAt: { $gte: startOfMonth },
+      'subscription.canceledAt': { $gte: startOfMonth },
     }).select('_id').lean(),
     Organization.countDocuments({
       createdAt: { $gte: ninetyDaysAgo, $lte: new Date(now.getTime() - 14 * dayMs) },
@@ -1345,7 +1347,8 @@ exports.getRevenue = asyncHandler(async (req, res) => {
 
   const lastPayments = churnedOrgsMonth.length
     ? await Invoice.aggregate([
-      { $match: { organization: { $in: churnedOrgsMonth.map((o) => o._id) }, status: 'paid' } },
+      // A full refund ends the subscription too, so the refunded payment counts as the last one
+      { $match: { organization: { $in: churnedOrgsMonth.map((o) => o._id) }, status: { $in: ['paid', 'refunded'] } } },
       { $sort: { paidAt: -1 } },
       { $group: { _id: '$organization', amount: { $first: '$amount' }, currency: { $first: '$currency' } } },
     ])

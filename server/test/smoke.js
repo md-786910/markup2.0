@@ -182,12 +182,23 @@ function check(name, cond, extra = '') {
   // Phase 3 privacy: console messages are scrubbed; guests never get technical details
   const ctxPin = await call('POST', `/api/projects/${wsProjId}/pins`, { user: adminA, body: { pageUrl: 'https://example.com/', xPercent: 3, yPercent: 3, context: {
     browser: '<!channel> Chrome 130',
-    consoleErrors: [{ level: 'error', message: 'GET https://api.site.com/me?token=SECRET1 failed {"Authorization":"Bearer SECRET2"}' }],
+    consoleErrors: [
+      { level: 'error', message: 'GET https://api.site.com/me?token=SECRET1 failed {"Authorization":"Bearer SECRET2"}' },
+      { level: 'error', message: 'refresh failed {"accessToken":"SECRET5","refreshToken":"SECRET6"} auth_token=SECRET7' },
+      { level: 'warn', message: 'Authorization: Basic SECRET8 GET /oauth/cb?code=SECRET9&state=1 sid=SECRET10; csrftoken=SECRET11' },
+    ],
     failedRequests: [{ method: 'GET', url: 'https://u:SECRET3@api.site.com/me?key=SECRET4', status: 401 }],
   } } });
   const storedCtx = (await Pin.findById(ctxPin.data?.pin?._id).lean())?.context;
   check('stored pin context has no tokens, query strings or markup', ctxPin.status === 201 && !JSON.stringify(storedCtx).includes('SECRET') && !storedCtx.browser.includes('<')
     && storedCtx.consoleErrors[0].message.includes('https://api.site.com/me'), JSON.stringify(storedCtx));
+  {
+    // A huge crafted URL must not stall the server (inputs are cut before any pattern runs)
+    const { sanitizePinContext } = r('utils/pinContext');
+    const started = Date.now();
+    sanitizePinContext({ failedRequests: Array(20).fill({ url: 'http://x.com/;' + 'sess'.repeat(250000), status: 500 }), consoleErrors: Array(20).fill({ message: 'token='.repeat(150000) }) });
+    check('pin context cleaning stays fast on huge crafted input', Date.now() - started < 500, `${Date.now() - started} ms`);
+  }
   const guestPinList = await call('GET', `/api/guest/${entry.shareToken}/pins`);
   check('guests do not receive technical details of pins', guestPinList.status === 200 && guestPinList.data.pins.length > 0 && guestPinList.data.pins.every((p) => p.context === undefined));
   check('guest proxy accepts projects shared through their workspace', await r('utils/sharing').isProjectShared(await Project.findById(wsProjId)));
@@ -763,6 +774,17 @@ function check(name, cond, extra = '') {
       check('the client\'s latest decision for the round wins', (await Approval.countDocuments({ project: apProject._id, version: null })) === 1);
       check('guest decisions need a valid email', (await decide({ email: 'not-an-email' })).status === 400);
       check('a non-text note is stored as text, not a server error', (await decide({ note: 42 })).status === 201);
+      const r2Version = await call('POST', `/api/projects/${apProject._id}/versions`, { user: apOwner, body: { name: 'Round 2' } });
+      const r2VersionId = r2Version.data?.version?._id;
+      check('saving a round tags its decisions with the version', !!r2VersionId && (await Approval.countDocuments({ project: apProject._id, version: r2VersionId })) === 1);
+      check('a version can be deleted', (await call('DELETE', `/api/projects/${apProject._id}/versions/${r2VersionId}`, { user: apOwner })).status === 200);
+      check('deleting a version keeps its decisions as history, not as current sign-off',
+        (await Approval.countDocuments({ project: apProject._id, version: r2VersionId })) === 0
+        && (await Approval.countDocuments({ project: apProject._id, supersededAt: { $ne: null } })) === 1);
+      await decide({ decision: 'changes_requested' });
+      check('a new decision after a version delete does not overwrite the old record',
+        (await Approval.countDocuments({ project: apProject._id, version: null, supersededAt: null })) === 1
+        && (await Approval.countDocuments({ project: apProject._id, supersededAt: { $ne: null }, decision: 'approved' })) === 1);
 
       // deadline: closed for team members and guests, managers can still reply
       check('an invalid deadline is refused', (await call('PATCH', `/api/projects/${apProject._id}/review`, { user: apOwner, body: { deadlineAt: 'soon' } })).status === 400);
@@ -928,6 +950,20 @@ function check(name, cond, extra = '') {
 
     // Phase 6 fixes: plan editor validation, derived features, deal audit, trial default
     check('a self-serve plan cannot lose its price', (await adminCall('PATCH', '/api/admin/plans/starter', { body: { price: null } })).status === 400);
+    const freeSave = await adminCall('PATCH', '/api/admin/plans/free', { body: { price: 0, priceInr: 0, maxProjects: 2, deriveFeatures: true } });
+    check('the Free plan can be saved from the plan editor', freeSave.status === 200, JSON.stringify(freeSave.data));
+    {
+      const churnOwner = await mkUser('churnowner', 'owner');
+      const thisMonth = await Organization.create({ name: 'Churned Now', slug: 'churned-now-e2e', owner: churnOwner._id, plan: 'free', subscription: { status: 'canceled', canceledAt: new Date() } });
+      // Cancelled months ago; the daily health job still touches it (updatedAt is now)
+      await Organization.create({ name: 'Churned Long Ago', slug: 'churned-old-e2e', owner: churnOwner._id, plan: 'free', subscription: { status: 'canceled', canceledAt: new Date(Date.now() - 90 * 864e5) } });
+      await Invoice.create({ organization: thisMonth._id, plan: 'starter', amount: 1200, currency: 'USD', status: 'paid', paidAt: new Date(Date.now() - 20 * 864e5) });
+      const now = new Date();
+      const expected = await Organization.countDocuments({ 'subscription.status': 'canceled', 'subscription.canceledAt': { $gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)) } });
+      const revenue = await adminCall('GET', '/api/admin/revenue');
+      check('churned MRR counts only subscriptions that ended this month', revenue.status === 200 && revenue.data.kpis.churnedMrr30d.count === expected && revenue.data.kpis.churnedMrr30d.usd >= 12,
+        JSON.stringify(revenue.data?.kpis?.churnedMrr30d));
+    }
     check('zero or negative plan prices are refused', (await adminCall('PATCH', '/api/admin/plans/pro', { body: { price: -5 } })).status === 400
       && (await adminCall('PATCH', '/api/admin/plans/pro', { body: { price: 0 } })).status === 400);
     check('negative or fractional plan limits are refused', (await adminCall('PATCH', '/api/admin/plans/starter', { body: { maxProjects: -1 } })).status === 400

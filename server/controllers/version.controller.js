@@ -41,7 +41,7 @@ exports.createVersion = asyncHandler(async (req, res) => {
   );
   // ...and the round's approval decisions, so the next round starts fresh
   await require('../models/Approval').updateMany(
-    { project: projectId, version: null },
+    { project: projectId, version: null, supersededAt: null },
     { $set: { version: version._id } }
   );
 
@@ -110,6 +110,11 @@ exports.deleteVersion = asyncHandler(async (req, res) => {
 
   // Unlink pins from this version
   await Pin.updateMany({ version: versionId }, { version: null });
+  // Its pins are open again, so the round's decisions are history, not current sign-off
+  await require('../models/Approval').updateMany(
+    { project: req.project._id, version: versionId },
+    { $set: { version: null, supersededAt: new Date() } }
+  );
 
   await Version.findByIdAndDelete(versionId);
 

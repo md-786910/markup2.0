@@ -72,6 +72,8 @@ const organizationSchema = new mongoose.Schema({
       default: 'none',
     },
     currentPeriodEnd: { type: Date, default: null },
+    // When a paid subscription actually ended (period over or fully refunded); churn reports use it
+    canceledAt: { type: Date, default: null },
     externalId: { type: String, default: null }, // Could be razorpaySubscriptionId
     provider: {
       type: String,

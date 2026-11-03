@@ -843,6 +843,7 @@ exports.recordMemberDecision = asyncHandler(async (req, res) => {
     project: project._id,
     version: currentVersionId,
     'reviewer.user': req.user._id,
+    supersededAt: null,
   });
 
   if (approval) {

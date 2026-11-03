@@ -8,9 +8,9 @@ import posthog from 'posthog-js';
 const KEY = process.env.REACT_APP_POSTHOG_KEY;
 const HOST = process.env.REACT_APP_POSTHOG_HOST || 'https://eu.i.posthog.com';
 
-// Credentials in URLs: ?token=…, /reset-password/:token, /review/:shareToken
+// Credentials in URLs: ?token=…, /reset-password/:token, /review/:shareToken, /review/w/:workspaceToken
 const SECRET_PARAMS = /([?&](?:token|password|share|key|code)=)[^&#\s]*/gi;
-const SECRET_PATHS = /(\/(?:reset-password|review)\/)[^/?#\s]+/gi;
+const SECRET_PATHS = /(\/(?:reset-password|review\/w|review)\/)[^/?#\s]+/gi;
 
 function redact(url) {
   return typeof url === 'string'

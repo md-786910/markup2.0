@@ -31,11 +31,13 @@ async function main() {
   if (admin) {
     admin.passwordHash = password;
     admin.status = 'active';
+    // Also the way back when no superadmin is left: an existing support agent is promoted
+    admin.role = 'superadmin';
     admin.sessionToken = newSessionToken();
     await admin.save();
-    console.log(`Updated the password of admin ${normalized} and signed out their sessions.`);
+    console.log(`Updated the password of admin ${normalized} (now a superadmin) and signed out their sessions.`);
   } else {
-    admin = await AdminUser.create({ name, email: normalized, passwordHash: password, status: 'active' });
+    admin = await AdminUser.create({ name, email: normalized, passwordHash: password, status: 'active', role: 'superadmin' });
     console.log(`Created admin ${normalized}.`);
   }
   await mongoose.disconnect();

@@ -31,9 +31,15 @@ async function findTarget(req, res) {
   return target;
 }
 
+// The team must keep an active admin, and an active superadmin: support agents
+// can't manage the admin team, so without one nobody could fix it in the app
 async function isLastActiveAdmin(target) {
   if (target.status !== 'active') return false;
-  return (await AdminUser.countDocuments({ status: 'active', _id: { $ne: target._id } })) === 0;
+  const others = { status: 'active', _id: { $ne: target._id } };
+  if ((await AdminUser.countDocuments(others)) === 0) return true;
+  // A missing role means superadmin (the model's default)
+  const isSuperadmin = (target.role || 'superadmin') === 'superadmin';
+  return isSuperadmin && (await AdminUser.countDocuments({ ...others, role: { $ne: 'support' } })) === 0;
 }
 
 // GET /admin/admins
@@ -88,7 +94,7 @@ exports.setAdminStatus = asyncHandler(async (req, res) => {
   if (!['active', 'disabled'].includes(status)) return res.status(400).json({ message: 'Status must be active or disabled.' });
   if (String(target._id) === String(req.admin._id)) return res.status(400).json({ message: "You can't change your own access." });
   if (status === 'active' && target.status !== 'disabled') return res.status(400).json({ message: 'Only disabled admins can be turned back on.' });
-  if (status === 'disabled' && (await isLastActiveAdmin(target))) return res.status(400).json({ message: "You can't disable the last active admin." });
+  if (status === 'disabled' && (await isLastActiveAdmin(target))) return res.status(400).json({ message: "You can't disable the last active superadmin." });
 
   target.status = status;
   target.sessionToken = newSessionToken(); // signs them out right away
@@ -102,7 +108,7 @@ exports.removeAdmin = asyncHandler(async (req, res) => {
   const target = await findTarget(req, res);
   if (!target) return;
   if (String(target._id) === String(req.admin._id)) return res.status(400).json({ message: "You can't remove yourself." });
-  if (await isLastActiveAdmin(target)) return res.status(400).json({ message: "You can't remove the last active admin." });
+  if (await isLastActiveAdmin(target)) return res.status(400).json({ message: "You can't remove the last active superadmin." });
   const SupportTicket = require('../models/SupportTicket');
   await SupportTicket.updateMany({ assignee: target._id }, { $set: { assignee: null } });
   await AdminUser.deleteOne({ _id: target._id });

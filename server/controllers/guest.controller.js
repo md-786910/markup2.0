@@ -525,6 +525,7 @@ exports.recordGuestDecision = asyncHandler(async (req, res) => {
     project: project._id,
     version: currentVersionId,
     'reviewer.guestEmail': cleanEmail,
+    supersededAt: null,
   });
 
   if (approval) {
