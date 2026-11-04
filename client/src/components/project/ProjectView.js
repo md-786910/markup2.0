@@ -565,7 +565,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     {/* Desktop */}
     <button
       onClick={() => handleDeviceChange('desktop')}
-      className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'desktop' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+      className={`flex h-6 w-7 items-center justify-center rounded-md transition-all duration-150 relative ${deviceMode === 'desktop' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
       title="Desktop (1440px)"
     >
       <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -578,7 +578,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     {/* Tablet */}
     <button
       onClick={() => handleDeviceChange('tablet')}
-      className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'tablet' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+      className={`flex h-6 w-7 items-center justify-center rounded-md transition-all duration-150 relative ${deviceMode === 'tablet' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
       title="Tablet (768px)"
     >
       <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -591,7 +591,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     {/* Mobile */}
     <button
       onClick={() => handleDeviceChange('mobile')}
-      className={`p-1.5 rounded-md transition-all duration-150 relative ${deviceMode === 'mobile' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+      className={`flex h-6 w-7 items-center justify-center rounded-md transition-all duration-150 relative ${deviceMode === 'mobile' ? 'text-gray-700 bg-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
       title="Mobile (375px)"
     >
       <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -605,29 +605,34 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   );
 
   const modeToggle = canComment ? (
-    <div className="relative flex bg-gray-100 rounded-lg p-1" role="group" aria-label="Mode">
-      <div
-        className={`absolute top-1 bottom-1 rounded-md shadow-sm transition-all duration-200 ease-in-out ${pinMode ? 'bg-blue-600' : 'bg-white'}`}
-        style={{
-          width: 'calc(50% - 4px)',
-          left: pinMode ? 'calc(50%)' : '4px',
-        }}
-      />
+    // Same look as the Canvas / Board switcher
+    <div className="flex h-8 items-center bg-gray-100/90 rounded-lg p-0.5 border border-gray-200/70" role="group" aria-label="Mode">
       <button
+        type="button"
         onClick={() => setPinMode(false)}
-        className={`relative z-10 flex-1 text-center py-1 px-4 md:px-5 rounded-md text-label whitespace-nowrap transition-colors duration-200 ${
-          !pinMode ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'
+        aria-pressed={!pinMode}
+        className={`flex h-full items-center gap-1 px-2.5 text-caption font-medium rounded-md whitespace-nowrap transition-all ${
+          !pinMode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
         }`}
       >
-        View
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <span>View</span>
       </button>
       <button
+        type="button"
         onClick={() => setPinMode(true)}
-        className={`relative z-10 flex-1 text-center py-1 px-4 md:px-5 rounded-md text-label whitespace-nowrap transition-colors duration-200 ${
-          pinMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'
+        aria-pressed={pinMode}
+        className={`flex h-full items-center gap-1 px-2.5 text-caption font-medium rounded-md whitespace-nowrap transition-all ${
+          pinMode ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'
         }`}
       >
-        Comment
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+        </svg>
+        <span>Comment</span>
       </button>
     </div>
   ) : null;
@@ -682,11 +687,11 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           )}
 
           {/* Canvas vs Board View Switcher */}
-          <div className="hidden sm:flex items-center bg-gray-100/90 rounded-lg p-0.5 border border-gray-200/70">
+          <div className="hidden sm:flex h-8 items-center bg-gray-100/90 rounded-lg p-0.5 border border-gray-200/70">
             <button
               onClick={() => setViewLayout('canvas')}
-              className={`flex items-center gap-1 px-2.5 py-1 text-caption font-medium rounded-md transition-all ${
-                viewLayout === 'canvas' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              className={`flex h-full items-center gap-1 px-2.5 text-caption font-medium rounded-md transition-all ${
+                viewLayout === 'canvas' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
               }`}
               title="Canvas / Website view"
             >
@@ -703,8 +708,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
                 }
                 setViewLayout('board');
               }}
-              className={`flex items-center gap-1 px-2.5 py-1 text-caption font-medium rounded-md transition-all ${
-                viewLayout === 'board' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              className={`flex h-full items-center gap-1 px-2.5 text-caption font-medium rounded-md transition-all ${
+                viewLayout === 'board' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
               }`}
               title={limits.hasTaskWorkflow ? "Kanban Task Board" : "Kanban Task Board (Upgrade to Starter/Pro)"}
             >
@@ -717,7 +722,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               )}
             </button>
           </div>
-          <div className="hidden xl:flex items-center gap-1.5 text-caption text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 hover:bg-gray-100/60 transition-colors cursor-default" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
+          <div className="hidden xl:flex h-8 items-center gap-1.5 text-caption text-gray-400 bg-gray-50/80 pl-2 pr-2.5 rounded-lg truncate max-w-md border border-gray-100/80 hover:bg-gray-100/60 transition-colors cursor-default" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
             {isDocumentProject ? (
               <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -733,7 +738,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
         {/* Center: Device switcher — absolutely centered so it doesn't shift with URL length */}
         {!isDocumentProject ? (
-          <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">
+          <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-8 items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">
             {deviceButtons}
           </div>
         ) : (
@@ -778,7 +783,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
           <button
             onClick={() => setShowApprovals(true)}
-            className="flex items-center gap-1.5 px-2.5 lg:px-3 py-2 text-gray-600 text-label rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            className="flex h-8 items-center gap-1.5 px-2.5 lg:px-3 text-gray-600 text-label rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
             title="Review approvals & sign-off history"
             aria-label="Approvals"
           >
@@ -791,7 +796,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           {canManageProject && (
             <button
               onClick={() => setShowShare(true)}
-              className="flex items-center gap-1.5 px-2.5 lg:px-3 py-2 text-gray-600 text-label rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              className="flex h-8 items-center gap-1.5 px-2.5 lg:px-3 text-gray-600 text-label rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
               title="Share with guests"
               aria-label="Share"
             >
@@ -805,7 +810,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           {canManageProject && (
             <button
               onClick={() => setShowInvite(true)}
-              className="flex items-center gap-1.5 px-2.5 lg:px-3.5 py-2 bg-blue-600 text-white text-label rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex h-8 items-center gap-1.5 px-2.5 lg:px-3.5 bg-blue-600 text-white text-label rounded-lg hover:bg-blue-700 transition-colors"
               title="Invite people"
               aria-label="Invite"
             >
@@ -822,7 +827,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       {(!isDocumentProject || modeToggle) && (
         <div className="md:hidden flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2">
           {!isDocumentProject ? (
-            <div className="flex items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">{deviceButtons}</div>
+            <div className="flex h-8 items-center bg-gray-100/80 rounded-lg p-1 gap-0.5">{deviceButtons}</div>
           ) : <span />}
           {modeToggle}
         </div>

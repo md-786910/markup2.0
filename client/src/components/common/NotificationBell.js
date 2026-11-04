@@ -247,7 +247,9 @@ export default function NotificationBell({ className = '', variant, projectId, o
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`relative p-2 rounded-lg transition-colors focus:outline-none ${
+        className={`relative rounded-lg transition-colors focus:outline-none ${
+          dark ? 'p-2' : 'inline-flex h-8 w-8 items-center justify-center'
+        } ${
           dark
             ? `text-gray-400 hover:text-white hover:bg-gray-800 ${isOpen ? 'bg-gray-800 text-white' : ''}`
             : `text-gray-500 hover:text-gray-700 hover:bg-gray-100 ${isOpen ? 'bg-gray-100 text-gray-800' : ''}`

@@ -40,7 +40,7 @@ export default function TrialBadge() {
         </div>
         <button
           onClick={() => navigate('/settings?tab=billing')}
-          className="w-full py-1.5 text-caption font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+          className="inline-flex h-8 w-full items-center justify-center text-caption font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
         >
           Upgrade to Starter
         </button>
@@ -79,7 +79,7 @@ export default function TrialBadge() {
       {/* Upgrade button */}
       <button
         onClick={() => navigate('/settings?tab=billing')}
-        className="w-full py-1.5 text-caption font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+        className="inline-flex h-8 w-full items-center justify-center text-caption font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
       >
         Upgrade
       </button>

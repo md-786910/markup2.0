@@ -84,7 +84,7 @@ export default function AppLayout() {
             <button
               type="button"
               onClick={() => openSupport()}
-              className="inline-flex p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100"
               title="Help & support"
               aria-label="Help & support"
             >

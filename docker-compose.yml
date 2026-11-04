@@ -131,6 +131,9 @@ services:
       PORT: "3000"
       BROWSER: none
       DISABLE_ESLINT_PLUGIN: "true"
+      # File events from a Windows drive (/mnt/e via WSL) never reach the
+      # container, so the dev server polls for changes instead.
+      WATCHPACK_POLLING: "true"
       REACT_APP_BASE_URL: ${API_URL}/api
       REACT_APP_SERVER_URL: ${API_URL}
       REACT_APP_SENTRY_DSN: ${CLIENT_SENTRY_DSN:-}
@@ -154,6 +157,9 @@ services:
       PORT: "3000"
       BROWSER: none
       DISABLE_ESLINT_PLUGIN: "true"
+      # File events from a Windows drive (/mnt/e via WSL) never reach the
+      # container, so the dev server polls for changes instead.
+      WATCHPACK_POLLING: "true"
       REACT_APP_BASE_URL: ${API_URL}/api
       REACT_APP_SERVER_URL: ${API_URL}
     volumes:
@@ -170,6 +176,9 @@ services:
       PORT: "3000"
       BROWSER: none
       DISABLE_ESLINT_PLUGIN: "true"
+      # File events from a Windows drive (/mnt/e via WSL) never reach the
+      # container, so the dev server polls for changes instead.
+      WATCHPACK_POLLING: "true"
       REACT_APP_API_URL: ${API_URL}
       REACT_APP_APP_URL: ${APP_URL}
       REACT_APP_SITE_URL: ${SITE_URL}

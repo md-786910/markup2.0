@@ -29,7 +29,7 @@ export default function NewProjectDropdown({ onSelect }) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 text-white text-label rounded-lg hover:bg-blue-700 shadow-sm transition-all active:scale-[0.98]"
+        className="flex h-8 items-center gap-1.5 px-3.5 bg-blue-600 text-white text-label rounded-lg hover:bg-blue-700 shadow-sm transition-all active:scale-[0.98]"
       >
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
