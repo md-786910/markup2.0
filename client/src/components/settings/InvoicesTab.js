@@ -80,7 +80,7 @@ function PaypalPayInvoiceModal({ invoice, paypalClientId, onClose, onPaid }) {
   return (
     <Modal isOpen onClose={onClose} title="Pay with PayPal" size="sm">
       <div className="space-y-4">
-        <p className="text-sm text-gray-600">Amount <span className="font-semibold text-gray-900">{formatAmount(invoice)}</span></p>
+        <p className="text-body-sm text-gray-600">Amount <span className="font-semibold text-gray-900">{formatAmount(invoice)}</span></p>
         <div ref={containerRef} />
         {error && <Notice tone="red">{error}</Notice>}
       </div>
@@ -238,8 +238,8 @@ export default function InvoicesTab() {
             {shown.map((inv) => (
               <li key={inv._id} className="flex items-center justify-between gap-3 px-6 py-3.5">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{new Date(inv.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })} · <span className="tabular-nums">{formatAmount(inv)}</span></p>
-                  <p className="text-xs text-gray-500 mt-0.5 truncate"><span className="font-mono">{inv.invoiceNumber || inv._id.slice(-8).toUpperCase()}</span> · <span className="capitalize">{inv.plan}</span></p>
+                  <p className="text-body-sm font-medium text-gray-900">{new Date(inv.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })} · <span className="tabular-nums">{formatAmount(inv)}</span></p>
+                  <p className="text-caption text-gray-500 mt-0.5 truncate"><span className="font-mono">{inv.invoiceNumber || inv._id.slice(-8).toUpperCase()}</span> · <span className="capitalize">{inv.plan}</span></p>
                   <div className="mt-1.5"><Badge tone={STATUS_TONE[inv.status] || 'gray'} dot>{STATUS_LABEL[inv.status] || inv.status}</Badge></div>
                 </div>
                 {inv.status === 'pending' && isOwner ? (
@@ -253,7 +253,7 @@ export default function InvoicesTab() {
           <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full">
               <thead>
-                <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500">
+                <tr className="border-b border-gray-100 text-left text-caption font-medium text-gray-500">
                   <th className="px-6 py-3 font-medium">Date</th>
                   <th className="px-6 py-3 font-medium">Plan</th>
                   <th className="px-6 py-3 font-medium">Amount</th>
@@ -266,18 +266,18 @@ export default function InvoicesTab() {
                 {shown.map((inv) => (
                   <tr key={inv._id} className="hover:bg-gray-50/60 transition-colors">
                     <td className="px-6 py-3.5 whitespace-nowrap">
-                      <p className="text-sm font-medium text-gray-900">{new Date(inv.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-                      <p className="text-xs text-gray-500 font-mono mt-0.5">{inv.invoiceNumber || inv._id.slice(-8).toUpperCase()}</p>
+                      <p className="text-body-sm font-medium text-gray-900">{new Date(inv.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                      <p className="text-caption text-gray-500 font-mono mt-0.5">{inv.invoiceNumber || inv._id.slice(-8).toUpperCase()}</p>
                     </td>
-                    <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-700 capitalize">{inv.plan}</td>
-                    <td className="px-6 py-3.5 whitespace-nowrap text-sm font-semibold text-gray-900 tabular-nums">{formatAmount(inv)}</td>
-                    <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-600">{inv.provider === 'paypal' ? 'PayPal' : 'Razorpay'}</td>
+                    <td className="px-6 py-3.5 whitespace-nowrap text-body-sm text-gray-700 capitalize">{inv.plan}</td>
+                    <td className="px-6 py-3.5 whitespace-nowrap text-body-sm font-semibold text-gray-900 tabular-nums">{formatAmount(inv)}</td>
+                    <td className="px-6 py-3.5 whitespace-nowrap text-body-sm text-gray-600">{inv.provider === 'paypal' ? 'PayPal' : 'Razorpay'}</td>
                     <td className="px-6 py-3.5 whitespace-nowrap"><Badge tone={STATUS_TONE[inv.status] || 'gray'} dot>{STATUS_LABEL[inv.status] || inv.status}</Badge></td>
                     <td className="px-6 py-3.5 whitespace-nowrap text-right">
                       {inv.status === 'pending' && isOwner ? (
                         <Button size="sm" variant="primary" loading={payingInvoiceId === inv._id} onClick={() => handlePayNow(inv)}>Pay now</Button>
                       ) : inv.status === 'pending' ? (
-                        <span className="text-xs text-gray-500">The owner can pay it</span>
+                        <span className="text-caption text-gray-500">The owner can pay it</span>
                       ) : (
                         <Button
                           size="sm"

@@ -23,7 +23,7 @@ export default function SidebarTabs({ active, onChange }) {
             role="tab"
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
-            className={`relative flex flex-1 items-center justify-center gap-1 py-2.5 text-[13px] font-medium transition-colors ${
+            className={`relative flex flex-1 items-center justify-center gap-1 py-2.5 text-label transition-colors ${
               selected ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
             }`}
           >

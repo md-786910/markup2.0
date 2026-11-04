@@ -57,7 +57,7 @@ export default function MembersPage() {
       <div className="flex items-center justify-center py-32">
         <div className="text-center">
           <p className="text-gray-600 font-medium">Project not found</p>
-          <button onClick={() => navigate('/dashboard')} className="mt-3 text-sm text-blue-600 hover:text-blue-700">
+          <button onClick={() => navigate('/dashboard')} className="mt-3 text-body-sm text-blue-600 hover:text-blue-700">
             Back to Dashboard
           </button>
         </div>
@@ -129,7 +129,7 @@ export default function MembersPage() {
       <div className="flex items-center gap-2 mb-6">
         <button
           onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+          className="flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-800 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -139,13 +139,13 @@ export default function MembersPage() {
         <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
-        <span className="text-sm font-medium text-gray-900">{project.name}</span>
+        <span className="text-body-sm font-medium text-gray-900">{project.name}</span>
       </div>
 
       {/* Page title */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Members</h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <h2 className="text-h3 font-semibold text-gray-900">Members</h2>
+        <p className="text-body-sm text-gray-500 mt-1">
           {members.length} member{members.length !== 1 ? 's' : ''} in this project
         </p>
       </div>
@@ -153,11 +153,11 @@ export default function MembersPage() {
       {/* Invite card */}
       {canManage && (
         <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3">Invite a new member</h3>
-          <p className="text-xs text-gray-400 mb-3">Enter the email of a registered user to add them to this project.</p>
+          <h3 className="text-body-sm font-semibold text-gray-800 mb-3">Invite a new member</h3>
+          <p className="text-caption text-gray-400 mb-3">Enter the email of a registered user to add them to this project.</p>
 
           {inviteError && (
-            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 px-4 py-2.5 rounded-lg mb-3">
+            <div className="flex items-center gap-2 text-body-sm text-red-600 bg-red-50 border border-red-200 px-4 py-2.5 rounded-lg mb-3">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -165,7 +165,7 @@ export default function MembersPage() {
             </div>
           )}
           {inviteSuccess && (
-            <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 px-4 py-2.5 rounded-lg mb-3">
+            <div className="flex items-center gap-2 text-body-sm text-green-700 bg-green-50 border border-green-200 px-4 py-2.5 rounded-lg mb-3">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -180,12 +180,12 @@ export default function MembersPage() {
               onChange={(e) => { setEmail(e.target.value); setInviteError(''); }}
               placeholder="member@example.com"
               required
-              className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[200px]"
+              className="flex-1 px-4 py-2.5 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[200px]"
             />
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value)}
-              className="px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="px-3 py-2.5 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               <option value="admin">Admin</option>
               <option value="member">Member</option>
@@ -194,7 +194,7 @@ export default function MembersPage() {
             <button
               type="submit"
               disabled={inviteLoading}
-              className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 shrink-0 transition-colors"
+              className="px-5 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 shrink-0 transition-colors"
             >
               {inviteLoading ? 'Inviting...' : 'Invite'}
             </button>
@@ -206,9 +206,9 @@ export default function MembersPage() {
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/80">
           <div className="flex items-center">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex-1">Member</span>
-            <span className="text-xs font-medium text-gray-500 w-32 text-center">Access</span>
-            {canManage && <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider w-20 text-right">Action</span>}
+            <span className="text-overline text-gray-500 flex-1">Member</span>
+            <span className="text-caption font-medium text-gray-500 w-32 text-center">Access</span>
+            {canManage && <span className="text-overline text-gray-500 w-20 text-right">Action</span>}
           </div>
         </div>
 
@@ -220,30 +220,30 @@ export default function MembersPage() {
             return (
               <div key={member._id} className="px-5 py-4 flex items-center gap-4 hover:bg-gray-50/50 transition-colors">
                 {/* Avatar + info */}
-                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold shrink-0">
+                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-body-sm font-semibold shrink-0">
                   {(member.name || member.email || '?')[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900 truncate">
+                    <span className="text-body-sm font-medium text-gray-900 truncate">
                       {member.name || 'Unknown'}
                     </span>
                     {isMemberOwner && (
-                      <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="text-caption font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full shrink-0">
                         Owner
                       </span>
                     )}
                     {isSelf && (
-                      <span className="text-[10px] text-gray-400 shrink-0">(you)</span>
+                      <span className="text-caption text-gray-400 shrink-0">(you)</span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{member.email}</p>
+                  <p className="text-caption text-gray-500 truncate">{member.email}</p>
                 </div>
 
                 {/* Access on this project */}
                 <div className="w-32 flex justify-center">
                   {!canManage || isMemberOwner || isSelf || member.role === 'owner' || member.role === 'admin' ? (
-                    <span className="text-xs font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-600">
+                    <span className="text-caption font-medium px-3 py-1 rounded-full bg-gray-100 text-gray-600">
                       {LEVEL_LABEL[levelOf(member)]}
                     </span>
                   ) : (
@@ -252,7 +252,7 @@ export default function MembersPage() {
                       onChange={(e) => handleAccessChange(member._id, e.target.value)}
                       disabled={roleLoading === member._id}
                       aria-label={`Access for ${member.name || member.email}`}
-                      className="text-xs font-medium text-gray-700 bg-white border border-gray-300 px-2.5 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
+                      className="text-body font-medium text-gray-700 bg-white border border-gray-300 px-2.5 py-1.5 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:opacity-50"
                     >
                       <option value="manage" disabled={member.role === 'guest'}>Can manage</option>
                       <option value="comment">Can comment</option>
@@ -271,13 +271,13 @@ export default function MembersPage() {
                         <button
                           onClick={() => handleRemove(member._id)}
                           disabled={removeLoading === member._id}
-                          className="text-[11px] px-2 py-1 rounded-md font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
+                          className="text-caption px-2 py-1 rounded-md font-medium text-white bg-red-500 hover:bg-red-600 transition-colors"
                         >
                           {removeLoading === member._id ? '...' : 'Yes'}
                         </button>
                         <button
                           onClick={() => setConfirmRemove(null)}
-                          className="text-[11px] px-2 py-1 rounded-md font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                          className="text-caption px-2 py-1 rounded-md font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
                         >
                           No
                         </button>

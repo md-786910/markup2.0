@@ -65,10 +65,10 @@ export default function ProjectsPage() {
         <div className="min-w-[180px]">
           <p className="font-medium text-gray-900">{row.name}</p>
           {row.websiteUrl ? (
-            <a href={row.websiteUrl} target="_blank" rel="noopener noreferrer" className="block max-w-[240px] truncate text-xs text-gray-500 hover:text-blue-700">
+            <a href={row.websiteUrl} target="_blank" rel="noopener noreferrer" className="block max-w-[240px] truncate text-caption text-gray-500 hover:text-blue-700">
               {row.websiteUrl.replace(/^https?:\/\//, '')}
             </a>
-          ) : <p className="text-xs text-gray-500">Document</p>}
+          ) : <p className="text-caption text-gray-500">Document</p>}
         </div>
       ),
     },

@@ -30,8 +30,8 @@ function NotFoundPage() {
       <SEO />
       <Navbar />
       <main id="main-content" className="site-container py-24 text-center sm:py-32">
-        <p className="text-sm font-semibold text-[#003dff]">404</p>
-        <h1 className="mt-3 font-display text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">This page doesn't exist.</h1>
+        <p className="text-body-sm font-semibold text-[#003dff]">404</p>
+        <h1 className="mt-3 text-h1 text-slate-950">This page doesn't exist.</h1>
         <p className="mx-auto mt-4 max-w-md text-slate-600">
           The link may be old or mistyped. Here are a few places to go instead.
         </p>

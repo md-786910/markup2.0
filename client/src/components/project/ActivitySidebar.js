@@ -110,7 +110,7 @@ export default function ActivitySidebar({ projectId }) {
         <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <p className="text-sm">No activity yet</p>
+        <p className="text-body-sm">No activity yet</p>
       </div>
     );
   }
@@ -136,13 +136,13 @@ export default function ActivitySidebar({ projectId }) {
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-gray-700 leading-snug">
+              <p className="text-body-sm text-gray-700">
                 <span className="font-medium text-gray-900">{actorName}</span>
-                {isGuest && <span className="text-xs text-amber-600 ml-1">(guest)</span>}
+                {isGuest && <span className="text-caption text-amber-600 ml-1">(guest)</span>}
                 {' '}
                 {config.label(activity.metadata)}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">{timeAgo(activity.createdAt)}</p>
+              <p className="text-caption text-gray-400 mt-0.5">{timeAgo(activity.createdAt)}</p>
             </div>
           </div>
         );
@@ -153,7 +153,7 @@ export default function ActivitySidebar({ projectId }) {
           <button
             onClick={loadMore}
             disabled={loadingMore}
-            className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+            className="w-full py-2 text-body-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
           >
             {loadingMore ? 'Loading...' : 'Load more'}
           </button>

@@ -7,7 +7,7 @@ export function PageHeader({ title, description, actions, back, children }) {
   return (
     <div className="mb-6">
       {back && (
-        <Link to={back.to} className="mb-3 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
+        <Link to={back.to} className="mb-3 inline-flex items-center gap-1 text-body-sm text-gray-500 hover:text-gray-800">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
@@ -16,8 +16,8 @@ export function PageHeader({ title, description, actions, back, children }) {
       )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">{title}</h1>
-          {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
+          <h1 className="text-h3 font-semibold text-gray-900">{title}</h1>
+          {description && <p className="mt-1 text-body-sm text-gray-500">{description}</p>}
           {children}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -32,8 +32,8 @@ export function Card({ title, description, actions, children, className = '', pa
       {(title || actions) && (
         <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">
           <div className="min-w-0">
-            {title && <h2 className="text-base font-semibold text-gray-900">{title}</h2>}
-            {description && <p className="mt-0.5 text-sm text-gray-500">{description}</p>}
+            {title && <h2 className="text-body font-semibold text-gray-900">{title}</h2>}
+            {description && <p className="mt-0.5 text-body-sm text-gray-500">{description}</p>}
           </div>
           {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
         </div>
@@ -52,7 +52,7 @@ const BUTTON_VARIANTS = {
 };
 
 export function Button({ variant = 'secondary', size = 'md', className = '', children, ...props }) {
-  const sizes = size === 'sm' ? 'h-8 px-3 text-xs' : 'h-9 px-3.5 text-sm';
+  const sizes = size === 'sm' ? 'h-8 px-3 text-label' : 'h-9 px-3.5 text-label';
   return (
     <button
       type="button"
@@ -65,14 +65,14 @@ export function Button({ variant = 'secondary', size = 'md', className = '', chi
 }
 
 export const inputClass =
-  'h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15';
+  'h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-body text-gray-900 placeholder:text-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15';
 
 export function Field({ label, hint, children }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-gray-700">{label}</span>
+      <span className="mb-1.5 block text-label text-gray-700">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-gray-500">{hint}</span>}
+      {hint && <span className="mt-1 block text-caption text-gray-500">{hint}</span>}
     </label>
   );
 }
@@ -85,13 +85,13 @@ export function Tabs({ tabs, active, onChange }) {
           key={tab.id}
           type="button"
           onClick={() => onChange(tab.id)}
-          className={`-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 pt-1 text-sm font-medium transition-colors ${
+          className={`-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 pt-1 text-label transition-colors ${
             active === tab.id ? 'border-blue-600 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-800'
           }`}
         >
           {tab.label}
           {tab.count != null && (
-            <span className={`rounded-full px-1.5 py-px text-[11px] ${active === tab.id ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+            <span className={`rounded-full px-1.5 py-px text-caption ${active === tab.id ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
               {tab.count}
             </span>
           )}
@@ -107,7 +107,7 @@ export function Avatar({ name, size = 'md', square = false }) {
   const initials = (name || '?').trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
   let hash = 0;
   for (const ch of name || '') hash = (hash * 31 + ch.charCodeAt(0)) | 0;
-  const sizes = { sm: 'h-7 w-7 text-[11px]', md: 'h-9 w-9 text-xs', lg: 'h-12 w-12 text-base' };
+  const sizes = { sm: 'h-7 w-7 text-caption', md: 'h-9 w-9 text-caption', lg: 'h-12 w-12 text-body' };
   return (
     <span className={`inline-flex shrink-0 items-center justify-center font-semibold ${square ? 'rounded-lg' : 'rounded-full'} ${sizes[size]} ${AVATAR_TONES[Math.abs(hash) % AVATAR_TONES.length]}`}>
       {initials}
@@ -118,8 +118,8 @@ export function Avatar({ name, size = 'md', square = false }) {
 export function EmptyState({ title, description, action }) {
   return (
     <div className="px-6 py-12 text-center">
-      <p className="text-sm font-medium text-gray-800">{title}</p>
-      {description && <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">{description}</p>}
+      <p className="text-body-sm font-medium text-gray-800">{title}</p>
+      {description && <p className="mx-auto mt-1 max-w-sm text-body-sm text-gray-500">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -130,7 +130,7 @@ export function DefinitionList({ items }) {
   return (
     <dl className="divide-y divide-gray-100">
       {items.filter(Boolean).map(([label, value]) => (
-        <div key={label} className="flex items-start justify-between gap-4 py-2.5 text-sm">
+        <div key={label} className="flex items-start justify-between gap-4 py-2.5 text-body-sm">
           <dt className="text-gray-500">{label}</dt>
           <dd className="min-w-0 text-right font-medium text-gray-900">{value ?? '—'}</dd>
         </div>
@@ -146,7 +146,7 @@ export function UsageBar({ label, used, limit, unit = '' }) {
   const tone = !unlimited && pct >= 100 ? 'bg-red-500' : !unlimited && pct >= 80 ? 'bg-amber-500' : 'bg-blue-600';
   return (
     <div>
-      <div className="mb-1.5 flex items-baseline justify-between text-sm">
+      <div className="mb-1.5 flex items-baseline justify-between text-body-sm">
         <span className="text-gray-600">{label}</span>
         <span className="font-medium tabular-nums text-gray-900">
           {used}{unit}

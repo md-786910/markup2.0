@@ -94,7 +94,7 @@ export default function RevenuePage() {
       key: 'invoiceNumber',
       label: 'Invoice',
       render: (row) => (
-        <span className="font-mono text-xs font-medium text-gray-900">
+        <span className="font-mono text-caption font-medium text-gray-900">
           {row.invoiceNumber || '—'}
         </span>
       ),
@@ -111,7 +111,7 @@ export default function RevenuePage() {
             {row.organization?.name || '—'}
           </Link>
           {row.buyer?.name && (
-            <p className="text-xs text-gray-500">{row.buyer.name}</p>
+            <p className="text-caption text-gray-500">{row.buyer.name}</p>
           )}
         </div>
       ),
@@ -135,13 +135,13 @@ export default function RevenuePage() {
     {
       key: 'date',
       label: 'Date',
-      render: (row) => <span className="text-xs text-gray-600">{formatDate(row.createdAt)}</span>,
+      render: (row) => <span className="text-caption text-gray-600">{formatDate(row.createdAt)}</span>,
     },
     {
       key: 'paidAt',
       label: 'Paid / Due',
       render: (row) => (
-        <span className="text-xs text-gray-500">
+        <span className="text-caption text-gray-500">
           {row.paidAt ? formatDate(row.paidAt) : row.dueAt ? relativeDays(row.dueAt) : '—'}
         </span>
       ),
@@ -197,7 +197,7 @@ export default function RevenuePage() {
           padded={false}
         >
           {renewals.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-gray-500">No renewals scheduled in the next 14 days.</p>
+            <p className="px-5 py-8 text-center text-body-sm text-gray-500">No renewals scheduled in the next 14 days.</p>
           ) : (
             <div className="divide-y divide-gray-100">
               {renewals.map((org) => (
@@ -208,14 +208,14 @@ export default function RevenuePage() {
                 >
                   <div className="min-w-0">
                     <p className="truncate font-medium text-gray-900">{org.name}</p>
-                    <p className="truncate text-xs text-gray-500">
+                    <p className="truncate text-caption text-gray-500">
                       Owner: {org.owner?.email || '—'} · Renews {relativeDays(org.subscription?.currentPeriodEnd)}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <PlanBadge plan={org.plan} />
                     {org.deal?.price != null && (
-                      <span className="rounded bg-purple-50 px-2 py-0.5 text-xs font-semibold text-purple-700">
+                      <span className="rounded bg-purple-50 px-2 py-0.5 text-caption font-semibold text-purple-700">
                         Deal: {org.deal.currency === 'INR' ? '₹' : '$'}{org.deal.price}
                       </span>
                     )}
@@ -233,7 +233,7 @@ export default function RevenuePage() {
           padded={false}
         >
           {unpaid.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-gray-500">All invoices are settled.</p>
+            <p className="px-5 py-8 text-center text-body-sm text-gray-500">All invoices are settled.</p>
           ) : (
             <div className="divide-y divide-gray-100">
               {unpaid.map((inv) => (
@@ -244,7 +244,7 @@ export default function RevenuePage() {
                 >
                   <div className="min-w-0">
                     <p className="truncate font-medium text-gray-900">{inv.organization?.name || 'Organization'}</p>
-                    <p className="truncate text-xs text-gray-500">
+                    <p className="truncate text-caption text-gray-500">
                       Due {inv.dueAt ? relativeDays(inv.dueAt) : 'soon'} · {inv.provider || 'Gateway'}
                     </p>
                   </div>
@@ -268,7 +268,7 @@ export default function RevenuePage() {
         >
           <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
             {refunds.map((inv) => (
-              <div key={inv._id} className="flex items-center justify-between px-5 py-3 text-xs">
+              <div key={inv._id} className="flex items-center justify-between px-5 py-3 text-caption">
                 <div>
                   <span className="font-medium text-gray-900">{inv.organization?.name || 'Organization'}</span>
                   <p className="text-gray-400">Refunded {timeAgo(inv.refundedAt || inv.updatedAt)}</p>
@@ -280,14 +280,14 @@ export default function RevenuePage() {
               </div>
             ))}
             {payments.slice(0, 10).map((inv) => (
-              <div key={inv._id} className="flex items-center justify-between px-5 py-3 text-xs">
+              <div key={inv._id} className="flex items-center justify-between px-5 py-3 text-caption">
                 <div>
                   <span className="font-medium text-gray-900">{inv.organization?.name || 'Organization'}</span>
                   <p className="text-gray-400">Paid {timeAgo(inv.paidAt || inv.createdAt)}</p>
                 </div>
                 <div className="text-right">
                   <span className="font-semibold text-emerald-600">+{formatMoney(inv.amount, inv.currency)}</span>
-                  <p className="font-mono text-[10px] text-gray-400">{inv.invoiceNumber}</p>
+                  <p className="font-mono text-caption text-gray-400">{inv.invoiceNumber}</p>
                 </div>
               </div>
             ))}
@@ -301,7 +301,7 @@ export default function RevenuePage() {
           padded={false}
         >
           {cancellations.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-gray-500">No cancellations pending period end.</p>
+            <p className="px-5 py-8 text-center text-body-sm text-gray-500">No cancellations pending period end.</p>
           ) : (
             <div className="divide-y divide-gray-100">
               {cancellations.map((org) => (
@@ -312,7 +312,7 @@ export default function RevenuePage() {
                 >
                   <div className="min-w-0">
                     <p className="truncate font-medium text-gray-900">{org.name}</p>
-                    <p className="truncate text-xs text-amber-600">
+                    <p className="truncate text-caption text-amber-600">
                       Ends {formatDate(org.subscription?.currentPeriodEnd)} ({relativeDays(org.subscription?.currentPeriodEnd)})
                     </p>
                   </div>
@@ -328,8 +328,8 @@ export default function RevenuePage() {
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-4">
           <div>
-            <h3 className="font-medium text-gray-900">All Tax Invoices</h3>
-            <p className="text-xs text-gray-500">{invoiceTotal} invoice records</p>
+            <h3 className="text-body font-medium text-gray-900">All Tax Invoices</h3>
+            <p className="text-caption text-gray-500">{invoiceTotal} invoice records</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <FilterDropdown

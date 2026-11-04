@@ -172,7 +172,7 @@ export default function DocumentViewer({
                   e.stopPropagation();
                   onPinClick(pin);
                 }}
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white border-2 transition-all ${pin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'} ${pin._id === selectedPinId
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-caption font-semibold text-white border-2 transition-all ${pin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'} ${pin._id === selectedPinId
                   ? 'border-blue-950 scale-125 shadow-lg'
                   : 'border-white shadow hover:scale-110'
                   }`}
@@ -197,7 +197,7 @@ export default function DocumentViewer({
                 onPageChange(1);
                 setLoading(true);
               }}
-              className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-body border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {documents.map((doc, i) => (
                 <option key={i} value={i}>
@@ -219,7 +219,7 @@ export default function DocumentViewer({
           </svg>
         </button>
 
-        <span className="text-sm text-gray-600 font-medium min-w-[80px] text-center">
+        <span className="text-body-sm text-gray-600 font-medium min-w-[80px] text-center">
           {isPdf ? `Page ${currentPage} of ${totalPages}` : `Image ${currentDocIndex + 1} of ${documents.length}`}
         </span>
 
@@ -247,7 +247,7 @@ export default function DocumentViewer({
       {loading && (
         <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-20">
           <div className="w-10 h-10 border-[3px] border-gray-200 border-t-blue-500 rounded-full animate-spin" />
-          <p className="mt-4 text-sm font-medium text-gray-500">Loading document...</p>
+          <p className="mt-4 text-body-sm font-medium text-gray-500">Loading document...</p>
         </div>
       )}
     </div>

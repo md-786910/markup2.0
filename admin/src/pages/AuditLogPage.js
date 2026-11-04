@@ -44,17 +44,17 @@ export default function AuditLogPage() {
                 <li key={a._id} className="flex items-start gap-3 px-5 py-3.5">
                   <Avatar name={actorName(a, 'Admin')} size="sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-700">
+                    <p className="text-body-sm text-gray-700">
                       <span className="font-medium text-gray-900">{actorName(a, 'Admin')}</span> {describeAction(a)}
                     </p>
                     {a.organization && (
-                      <Link to={`/organizations/${a.organization._id}`} className="mt-1 inline-flex items-center gap-2 text-sm text-gray-600 hover:text-blue-700">
+                      <Link to={`/organizations/${a.organization._id}`} className="mt-1 inline-flex items-center gap-2 text-body-sm text-gray-600 hover:text-blue-700">
                         {a.organization.name}
                         <PlanBadge plan={a.organization.plan} />
                       </Link>
                     )}
                   </div>
-                  <span className="shrink-0 text-xs text-gray-400" title={formatDateTime(a.createdAt)}>{timeAgo(a.createdAt)}</span>
+                  <span className="shrink-0 text-caption text-gray-400" title={formatDateTime(a.createdAt)}>{timeAgo(a.createdAt)}</span>
                 </li>
               ))}
             </ol>

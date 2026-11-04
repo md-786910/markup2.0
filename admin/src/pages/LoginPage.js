@@ -61,7 +61,7 @@ export default function LoginPage() {
         <form onSubmit={handleCode} className="space-y-4">
           <AuthError>{error}</AuthError>
           <div>
-            <label htmlFor="admin-code" className="mb-1.5 block text-sm font-medium text-gray-700">{useRecovery ? 'Recovery code' : 'Authentication code'}</label>
+            <label htmlFor="admin-code" className="mb-1.5 block text-label text-gray-700">{useRecovery ? 'Recovery code' : 'Authentication code'}</label>
             {useRecovery ? (
               <input
                 id="admin-code"
@@ -73,7 +73,7 @@ export default function LoginPage() {
                 autoComplete="off"
                 spellCheck={false}
                 placeholder="XXXXX-XXXXX"
-                className={`${authInputClass} font-mono tracking-wider`}
+                className={`${authInputClass} font-mono`}
               />
             ) : (
               <input
@@ -86,7 +86,7 @@ export default function LoginPage() {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 placeholder="123456"
-                className={`${authInputClass} text-center font-mono text-lg tracking-[0.4em]`}
+                className={`${authInputClass} text-center font-mono text-body-lg tracking-[0.4em]`}
               />
             )}
           </div>
@@ -94,7 +94,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => { setUseRecovery((v) => !v); setCode(''); setError(''); }}
-            className="w-full text-center text-sm font-medium text-blue-600 hover:text-blue-700"
+            className="w-full text-center text-label text-blue-600 hover:text-blue-700"
           >
             {useRecovery ? 'Use your authenticator app instead' : 'Lost your phone? Use a recovery code'}
           </button>
@@ -108,7 +108,7 @@ export default function LoginPage() {
       <form onSubmit={handlePassword} className="space-y-4">
         <AuthError>{error}</AuthError>
         <div>
-          <label htmlFor="admin-email" className="mb-1.5 block text-sm font-medium text-gray-700">Email</label>
+          <label htmlFor="admin-email" className="mb-1.5 block text-label text-gray-700">Email</label>
           <input
             id="admin-email"
             type="email"
@@ -123,8 +123,8 @@ export default function LoginPage() {
         </div>
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <label htmlFor="admin-password" className="text-sm font-medium text-gray-700">Password</label>
-            <Link to="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-700">Forgot password?</Link>
+            <label htmlFor="admin-password" className="text-label text-gray-700">Password</label>
+            <Link to="/forgot-password" className="text-body-sm font-medium text-blue-600 hover:text-blue-700">Forgot password?</Link>
           </div>
           <PasswordInput id="admin-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" />
         </div>

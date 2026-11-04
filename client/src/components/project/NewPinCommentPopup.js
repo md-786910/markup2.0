@@ -50,10 +50,10 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
         var div = document.createElement('div');
         div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:2px 0';
         var avatar = document.createElement('span');
-        avatar.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#dbe5ff;color:#0031d1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0';
+        avatar.style.cssText = 'width:24px;height:24px;border-radius:50%;background:#dbe5ff;color:#0031d1;display:flex;align-items:center;justify-content:center;font-size:var(--text-caption);font-weight:600;flex-shrink:0';
         avatar.textContent = (item.value || '?')[0].toUpperCase();
         var name = document.createElement('span');
-        name.style.cssText = 'font-size:13px;color:#111827';
+        name.style.cssText = 'font-size:var(--text-body-sm);color:#111827';
         name.textContent = item.value;
         div.appendChild(avatar);
         div.appendChild(name);
@@ -220,13 +220,13 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
                 />
               </label>
               {!pinData.screenshot && !pinData.captureFailed && (
-                <div className="flex items-center gap-1.5 text-[11px] text-gray-400 ml-1">
+                <div className="flex items-center gap-1.5 text-caption text-gray-400 ml-1">
                   <div className="w-2.5 h-2.5 border border-gray-300 border-t-blue-500 rounded-full animate-spin" />
                   Capturing...
                 </div>
               )}
               {pinData.captureFailed && (
-                <div className="text-[11px] text-amber-600/90 ml-1">
+                <div className="text-caption text-amber-600/90 ml-1">
                   Screenshot skipped
                 </div>
               )}
@@ -235,7 +235,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
               type="button"
               onClick={handleSubmit}
               disabled={loading || isBodyEmpty()}
-              className="px-5 py-2 bg-blue-600 text-white text-[13px] font-semibold rounded-full hover:bg-blue-700 disabled:opacity-40 shadow-sm shadow-blue-600/20 transition-all hover:shadow-md"
+              className="px-5 py-2 bg-blue-600 text-white text-label rounded-full hover:bg-blue-700 disabled:opacity-40 shadow-sm shadow-blue-600/20 transition-all hover:shadow-md"
             >
               {loading ? (
                 <div className="flex items-center gap-1.5">

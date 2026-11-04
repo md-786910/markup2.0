@@ -147,11 +147,11 @@ function ActivityRow({ activity }) {
     <li className="flex items-start gap-3 px-6 py-3.5">
       <Avatar name={actorName(activity)} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-700 leading-snug [&_strong]:font-medium [&_strong]:text-gray-900">
+        <p className="text-body-sm text-gray-700 [&_strong]:font-medium [&_strong]:text-gray-900">
           <span className="font-semibold text-gray-900">{actorName(activity)}</span>{' '}
           {renderMessage(activity)}
         </p>
-        <p className="text-xs text-gray-500 mt-0.5" title={new Date(activity.createdAt).toLocaleString()}>{timeAgo(activity.createdAt)}</p>
+        <p className="text-caption text-gray-500 mt-0.5" title={new Date(activity.createdAt).toLocaleString()}>{timeAgo(activity.createdAt)}</p>
       </div>
     </li>
   );
@@ -317,7 +317,7 @@ export default function ActivityTab() {
         ) : (
           groups.map((g) => (
             <div key={g.label}>
-              <p className="px-6 pt-4 pb-1 text-xs font-medium text-gray-500">{g.label}</p>
+              <p className="px-6 pt-4 pb-1 text-caption font-medium text-gray-500">{g.label}</p>
               <ul className="divide-y divide-gray-100">
                 {g.items.map((a) => <ActivityRow key={a._id} activity={a} />)}
               </ul>

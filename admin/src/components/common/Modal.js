@@ -46,7 +46,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'sm', c
         {title ? (
           <>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h3>
+              <h3 id={titleId} className="text-body-lg font-semibold text-gray-900">{title}</h3>
               <button
                 type="button"
                 onClick={onClose}

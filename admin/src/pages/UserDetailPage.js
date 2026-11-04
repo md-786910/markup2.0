@@ -33,7 +33,7 @@ export default function UserDetailPage() {
       render: (row) => (
         <div className="min-w-[180px]">
           <p className="font-medium text-gray-900">{row.name}</p>
-          <p className="max-w-[260px] truncate text-xs text-gray-500">{row.websiteUrl?.replace(/^https?:\/\//, '') || 'Document'}</p>
+          <p className="max-w-[260px] truncate text-caption text-gray-500">{row.websiteUrl?.replace(/^https?:\/\//, '') || 'Document'}</p>
         </div>
       ),
     },
@@ -54,7 +54,7 @@ export default function UserDetailPage() {
           </span>
         }
       >
-        <p className="mt-2 text-sm text-gray-500">{user.email} · Joined {formatDate(user.createdAt)}</p>
+        <p className="mt-2 text-body-sm text-gray-500">{user.email} · Joined {formatDate(user.createdAt)}</p>
       </PageHeader>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -63,13 +63,13 @@ export default function UserDetailPage() {
             <Link to={`/organizations/${org._id}`} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 hover:border-gray-300">
               <Avatar name={org.name} square />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-gray-900">{org.name}</span>
-                {org.isLocked && <span className="text-xs font-medium text-red-600">Locked</span>}
+                <span className="block truncate text-body-sm font-medium text-gray-900">{org.name}</span>
+                {org.isLocked && <span className="text-caption font-medium text-red-600">Locked</span>}
               </span>
               <PlanBadge plan={org.plan} />
             </Link>
           ) : (
-            <p className="text-sm text-gray-500">Not part of an organization.</p>
+            <p className="text-body-sm text-gray-500">Not part of an organization.</p>
           )}
         </Card>
 
@@ -94,7 +94,7 @@ export default function UserDetailPage() {
               ]}
             />
           ) : (
-            <p className="text-sm text-gray-500">
+            <p className="text-body-sm text-gray-500">
               {posthog?.reason === 'unconfigured' ? 'PostHog is not connected.' : 'PostHog did not answer. Try again in a few minutes.'}
             </p>
           )}
@@ -104,9 +104,9 @@ export default function UserDetailPage() {
           <DefinitionList
             items={[
               ['Last sign-in', formatLocation(user.lastLoginLocation)],
-              user.lastLoginIp && ['Last IP', <span className="font-mono text-xs">{user.lastLoginIp}</span>],
+              user.lastLoginIp && ['Last IP', <span className="font-mono text-caption">{user.lastLoginIp}</span>],
               ['Signed up from', formatLocation(user.signupLocation)],
-              user.signupIp && ['Signup IP', <span className="font-mono text-xs">{user.signupIp}</span>],
+              user.signupIp && ['Signup IP', <span className="font-mono text-caption">{user.signupIp}</span>],
             ]}
           />
         </Card>

@@ -467,7 +467,7 @@ export default function OnboardingPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
           {STEPS.map((s, i) => (
-            <span key={s.id} className={`text-[11px] font-medium ${
+            <span key={s.id} className={`text-caption font-medium ${
               i < step ? 'text-blue-600' : i === step ? 'text-gray-900' : 'text-gray-400'
             }`}>
               {s.label}
@@ -485,12 +485,12 @@ export default function OnboardingPage() {
       {/* ===== STEP 1: ORGANIZATION ===== */}
       {currentStep === 'organization' && (
         <>
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Set up your workspace</h2>
-          <p className="text-sm text-gray-500 mb-4">This is your team's shared space for all projects.</p>
+          <h2 className="text-h3 font-semibold text-gray-900 mb-1">Set up your workspace</h2>
+          <p className="text-body-sm text-gray-500 mb-4">This is your team's shared space for all projects.</p>
 
           {signupMode === TRIAL_PLAN_ID && (
-            <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/70 p-3 text-xs text-blue-900 shadow-sm">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">✓</span>
+            <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/70 p-3 text-caption text-blue-900 shadow-sm">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-caption font-semibold text-white">✓</span>
               <span>
                 Includes a <strong>{trialDays} {trialDays === 1 ? 'day' : 'days'} free trial</strong> with full Pro features. No credit card required.
               </span>
@@ -498,14 +498,14 @@ export default function OnboardingPage() {
           )}
 
           <div className="mb-5">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace name <span className="text-red-500">*</span></label>
+            <label className="block text-label text-gray-700 mb-1.5">Workspace name <span className="text-red-500">*</span></label>
             <input type="text" value={orgName} onChange={(e) => setOrgName(e.target.value)}
               placeholder="Acme Inc." autoFocus
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow" />
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow" />
           </div>
 
           <div className="mb-8">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace logo <span className="text-gray-400 font-normal">(optional)</span></label>
+            <label className="block text-label text-gray-700 mb-1.5">Workspace logo <span className="text-gray-400 font-normal">(optional)</span></label>
             <div onClick={() => logoRef.current?.click()}
               className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50/20 transition-colors">
               {logoPreview ? (
@@ -518,8 +518,8 @@ export default function OnboardingPage() {
                 </div>
               )}
               <div>
-                <p className="text-sm font-medium text-gray-700">{logoFile ? logoFile.name : 'Click to upload'}</p>
-                <p className="text-xs text-gray-400">PNG, JPG or GIF, max 5MB</p>
+                <p className="text-body-sm font-medium text-gray-700">{logoFile ? logoFile.name : 'Click to upload'}</p>
+                <p className="text-caption text-gray-400">PNG, JPG or GIF, max 5MB</p>
               </div>
             </div>
             <input ref={logoRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
@@ -528,10 +528,10 @@ export default function OnboardingPage() {
           </div>
 
           <button onClick={handleOrgNext} disabled={!orgName.trim()}
-            className="w-full py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors text-sm">
+            className="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors text-label">
             Continue
           </button>
-          <p className="text-center mt-6 text-sm text-gray-500">
+          <p className="text-center mt-6 text-body-sm text-gray-500">
             Already have an account? <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign in</Link>
           </p>
         </>
@@ -540,12 +540,12 @@ export default function OnboardingPage() {
       {/* ===== STEP 2: ACCOUNT ===== */}
       {currentStep === 'account' && (
         <>
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Create your account</h2>
-          <p className="text-sm text-gray-500 mb-4">Set up your account for {orgName}</p>
+          <h2 className="text-h3 font-semibold text-gray-900 mb-1">Create your account</h2>
+          <p className="text-body-sm text-gray-500 mb-4">Set up your account for {orgName}</p>
 
           {signupMode === TRIAL_PLAN_ID && (
-            <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/70 p-3 text-xs text-blue-900 shadow-sm">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">✓</span>
+            <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/70 p-3 text-caption text-blue-900 shadow-sm">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-caption font-semibold text-white">✓</span>
               <span>
                 Your workspace starts with a <strong>{trialDays} {trialDays === 1 ? 'day' : 'days'} free trial</strong>. No card needed to begin.
               </span>
@@ -553,7 +553,7 @@ export default function OnboardingPage() {
           )}
 
           {emailError && (
-            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-5 text-sm flex items-center gap-2">
+            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-5 text-body-sm flex items-center gap-2">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -563,20 +563,20 @@ export default function OnboardingPage() {
 
           <form onSubmit={handleAccountNext} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+              <label className="block text-label text-gray-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} required autoFocus
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
                 placeholder="John Doe" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Work Email <span className="text-red-500">*</span></label>
+              <label className="block text-label text-gray-700 mb-1.5">Work Email <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
                 <input type="email" value={email} onChange={(e) => handleEmailChange(e.target.value)} required
                   disabled={emailVerified}
-                  className={`flex-1 px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow ${emailVerified ? 'bg-gray-50 text-gray-500' : ''}`}
+                  className={`flex-1 px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow ${emailVerified ? 'bg-gray-50 text-gray-500' : ''}`}
                   placeholder="you@company.com" />
                 {emailVerified ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-lg">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-2 text-caption font-semibold text-green-700 bg-green-50 border border-green-200 rounded-lg">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
@@ -585,7 +585,7 @@ export default function OnboardingPage() {
                 ) : (
                   <button type="button" onClick={handleSendOtp}
                     disabled={!email.trim() || emailValidating || otpSending || resendCooldown > 0}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0">
+                    className="px-4 py-2 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0">
                     {otpSending || emailValidating
                       ? 'Sending...'
                       : resendCooldown > 0
@@ -595,11 +595,11 @@ export default function OnboardingPage() {
                 )}
               </div>
               {emailError && !emailVerified && (
-                <p className="text-xs text-red-600 mt-2">{emailError}</p>
+                <p className="text-caption text-red-600 mt-2">{emailError}</p>
               )}
               {otpSent && !emailVerified && (
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                  <p className="text-xs text-blue-800 mb-2">
+                  <p className="text-caption text-blue-800 mb-2">
                     We sent a 6-digit code to <strong>{email}</strong>. It expires in 10 minutes.
                   </p>
                   <div className="flex gap-2">
@@ -611,27 +611,27 @@ export default function OnboardingPage() {
                       value={otp}
                       onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setOtpError(''); }}
                       placeholder="000000"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono tracking-widest text-center"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-body font-mono text-center"
                     />
                     <button type="button" onClick={handleVerifyOtp}
                       disabled={otp.length !== 6 || otpVerifying}
-                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-40 transition-colors shrink-0">
+                      className="px-4 py-2 text-label text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-40 transition-colors shrink-0">
                       {otpVerifying ? 'Verifying...' : 'Confirm'}
                     </button>
                   </div>
-                  {otpError && <p className="text-xs text-red-600 mt-2">{otpError}</p>}
+                  {otpError && <p className="text-caption text-red-600 mt-2">{otpError}</p>}
                 </div>
               )}
             </div>
             {emailVerified && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Password <span className="text-red-500">*</span></label>
+                  <label className="block text-label text-gray-700 mb-1.5">Password <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <input type={showPassword ? 'text' : 'password'} value={password}
                       onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
                       required minLength={8}
-                      className="w-full px-3.5 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+                      className="w-full px-3.5 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
                       placeholder="Min 8 characters" />
                     <button
                       type="button"
@@ -652,12 +652,12 @@ export default function OnboardingPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password <span className="text-red-500">*</span></label>
+                  <label className="block text-label text-gray-700 mb-1.5">Confirm Password <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword}
                       onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); }}
                       required minLength={8}
-                      className="w-full px-3.5 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+                      className="w-full px-3.5 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
                       placeholder="Re-enter password" />
                     <button
                       type="button"
@@ -678,14 +678,14 @@ export default function OnboardingPage() {
                   </div>
                 </div>
                 {passwordError && (
-                  <p className="sm:col-span-2 text-xs text-red-600 -mt-1">{passwordError}</p>
+                  <p className="sm:col-span-2 text-caption text-red-600 -mt-1">{passwordError}</p>
                 )}
               </div>
             )}
 
             {/* Avatar upload */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Profile Photo <span className="text-gray-400 font-normal">(optional)</span></label>
+              <label className="block text-label text-gray-700 mb-1.5">Profile Photo <span className="text-gray-400 font-normal">(optional)</span></label>
               <div className="flex items-center gap-3">
                 <div onClick={() => avatarRef.current?.click()}
                   className="w-12 h-12 rounded-full cursor-pointer overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors flex items-center justify-center bg-gray-50 shrink-0">
@@ -697,7 +697,7 @@ export default function OnboardingPage() {
                     </svg>
                   )}
                 </div>
-                <button type="button" onClick={() => avatarRef.current?.click()} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                <button type="button" onClick={() => avatarRef.current?.click()} className="text-label text-blue-600 hover:text-blue-700">
                   {avatarPreview ? 'Change photo' : 'Upload photo'}
                 </button>
                 <input ref={avatarRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
@@ -708,13 +708,13 @@ export default function OnboardingPage() {
 
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={handleBack}
-                className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
+                className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-label">
                 Back
               </button>
               <button type="submit"
                 disabled={!emailVerified || !name.trim() || password.length < 8 || password !== confirmPassword}
                 title={!emailVerified ? 'Verify your email to continue' : undefined}
-                className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
+                className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-body-sm">
                 Continue
               </button>
             </div>
@@ -725,8 +725,8 @@ export default function OnboardingPage() {
       {/* ===== STEP 3: PLAN ===== */}
       {currentStep === 'payment' && (
         <>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose your plan</h2>
-          <p className="text-sm text-gray-500 mb-6">Start free without a card, or subscribe now.</p>
+          <h2 className="text-h3 font-semibold text-gray-900 mb-2">Choose your plan</h2>
+          <p className="text-body-sm text-gray-500 mb-6">Start free without a card, or subscribe now.</p>
 
           <div className="space-y-3 mb-8">
             {livePlans === null ? (
@@ -736,7 +736,7 @@ export default function OnboardingPage() {
                 ))}
               </>
             ) : livePlans.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-8 border border-dashed border-gray-200 rounded-xl">
+              <p className="text-body-sm text-gray-500 text-center py-8 border border-dashed border-gray-200 rounded-xl">
                 No plans are available right now. Please contact support.
               </p>
             ) : (
@@ -753,25 +753,25 @@ export default function OnboardingPage() {
                     }`}
                   >
                     {plan.popular && (
-                      <span className="absolute -top-2 right-4 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-600 text-white">
+                      <span className="absolute -top-2 right-4 text-caption font-semibold px-2 py-0.5 rounded-full bg-purple-600 text-white">
                         Most Popular
                       </span>
                     )}
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-gray-900">{plan.name}</h3>
+                        <h3 className="text-body-sm font-semibold text-gray-900">{plan.name}</h3>
                         {isSelected && (
-                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">Selected</span>
+                          <span className="text-caption font-medium px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">Selected</span>
                         )}
                       </div>
                       <div className="text-right">
-                        <span className="text-lg font-bold text-gray-900">{plan.priceLabel}</span>
-                        {plan.period && <span className="text-xs text-gray-400 ml-0.5">{plan.period}</span>}
+                        <span className="text-body-lg font-semibold text-gray-900">{plan.priceLabel}</span>
+                        {plan.period && <span className="text-caption text-gray-400 ml-0.5">{plan.period}</span>}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-1">
                       {plan.features.map((f, i) => (
-                        <span key={i} className="text-xs text-gray-500 flex items-center gap-1">
+                        <span key={i} className="text-caption text-gray-500 flex items-center gap-1">
                           <svg className="w-3 h-3 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
@@ -785,15 +785,15 @@ export default function OnboardingPage() {
             )}
           </div>
 
-          {error && <p className="text-sm text-red-500 mb-4 text-center">{error}</p>}
+          {error && <p className="text-body-sm text-red-500 mb-4 text-center">{error}</p>}
 
           <div className="flex gap-3">
             <button onClick={handleBack}
-              className="px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
+              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-label">
               Back
             </button>
             <button onClick={handleFinish} disabled={loading || livePlans === null || !selectedPlan}
-              className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-sm">
+              className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-label">
               {loading
                 ? 'Setting up your workspace...'
                 : (() => {
@@ -805,7 +805,7 @@ export default function OnboardingPage() {
             </button>
           </div>
 
-          <p className="text-center mt-4 text-xs text-gray-400">
+          <p className="text-center mt-4 text-caption text-gray-400">
             {(() => {
               if (selectedPlan === TRIAL_PLAN_ID) {
                 return `No credit card required. We'll email you before your ${trialDays}-day trial ends so you can pick a plan in Settings → Billing.`;
@@ -851,11 +851,11 @@ function StageRow({ status, label, sublabel }) {
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium ${status === 'done' ? 'text-gray-900' : status === 'active' ? 'text-gray-900' : 'text-gray-400'}`}>
+        <p className={`text-body-sm font-medium ${status === 'done' ? 'text-gray-900' : status === 'active' ? 'text-gray-900' : 'text-gray-400'}`}>
           {label}
         </p>
         {sublabel && status === 'active' && (
-          <p className="text-xs text-gray-500 mt-0.5">{sublabel}</p>
+          <p className="text-caption text-gray-500 mt-0.5">{sublabel}</p>
         )}
       </div>
     </div>
@@ -882,8 +882,8 @@ function SettingUpView({ stages, planName, priceLabel, period, avatarPlanned, pa
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900">Setting up your workspace</h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <h2 className="text-h3 font-semibold text-gray-900">Setting up your workspace</h2>
+        <p className="text-body-sm text-gray-500 mt-1">
           {!paidPlan
             ? 'This will only take a moment.'
             : planName && priceLabel
@@ -906,7 +906,7 @@ function SettingUpView({ stages, planName, priceLabel, period, avatarPlanned, pa
         />
       </div>
 
-      <p className="text-center text-xs text-gray-400 mt-6">
+      <p className="text-center text-caption text-gray-400 mt-6">
         Don't close this window — your secure checkout will open in a moment.
       </p>
     </div>
@@ -921,19 +921,19 @@ function RetryView({ reason, planName, onRetry, onSkip }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
         </svg>
       </div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment paused</h2>
-      <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">{reason}</p>
+      <h2 className="text-h3 font-semibold text-gray-900 mb-2">Payment paused</h2>
+      <p className="text-body-sm text-gray-500 mb-6 max-w-md mx-auto">{reason}</p>
       <div className="flex gap-3 justify-center">
         <button onClick={onSkip}
-          className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm">
+          className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-label">
           Skip to dashboard
         </button>
         <button onClick={onRetry}
-          className="px-5 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm">
+          className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-label">
           Try {planName ? `${planName} ` : ''}checkout again
         </button>
       </div>
-      <p className="text-xs text-gray-400 mt-4">
+      <p className="text-caption text-gray-400 mt-4">
         Your workspace is ready — you can pay any time from Settings → Billing.
       </p>
     </div>
@@ -1006,21 +1006,21 @@ function PaypalCheckoutView({ plan, clientId, currency, error, setError, createO
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h2m4 0h2m-9 4h10a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900">Complete your payment</h2>
+        <h2 className="text-h3 font-semibold text-gray-900">Complete your payment</h2>
         {plan && (
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-body-sm text-gray-500 mt-1">
             {plan.priceLabel}{plan.period} for the {plan.name} plan
           </p>
         )}
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
-        <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3 text-center">Pay with PayPal</p>
+        <p className="text-overline text-gray-700 mb-3 text-center">Pay with PayPal</p>
         <div ref={containerRef} />
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-600 border border-red-100 p-3 rounded-xl text-sm text-center mb-4">
+        <div className="bg-red-50 text-red-600 border border-red-100 p-3 rounded-xl text-body-sm text-center mb-4">
           {error}
         </div>
       )}
@@ -1028,11 +1028,11 @@ function PaypalCheckoutView({ plan, clientId, currency, error, setError, createO
       <button
         type="button"
         onClick={onCancel}
-        className="w-full py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors text-sm"
+        className="w-full py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-label"
       >
         Skip payment for now
       </button>
-      <p className="text-center text-xs text-gray-400 mt-3">
+      <p className="text-center text-caption text-gray-400 mt-3">
         You can pay any time from Settings → Billing.
       </p>
     </div>

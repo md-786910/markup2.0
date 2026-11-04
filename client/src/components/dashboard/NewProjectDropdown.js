@@ -29,7 +29,7 @@ export default function NewProjectDropdown({ onSelect }) {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 text-white text-[13px] font-medium rounded-lg hover:bg-blue-700 shadow-sm transition-all active:scale-[0.98]"
+        className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 text-white text-label rounded-lg hover:bg-blue-700 shadow-sm transition-all active:scale-[0.98]"
       >
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -53,8 +53,8 @@ export default function NewProjectDropdown({ onSelect }) {
                 </svg>
               </div>
               <div>
-                <p className="text-[13px] font-medium text-gray-900">Website</p>
-                <p className="text-[11px] text-gray-500 mt-0.5 leading-tight">Add a live URL to review</p>
+                <p className="text-body-sm font-medium text-gray-900">Website</p>
+                <p className="text-caption text-gray-500 mt-0.5">Add a live URL to review</p>
               </div>
             </button>
 
@@ -68,8 +68,8 @@ export default function NewProjectDropdown({ onSelect }) {
                 </svg>
               </div>
               <div>
-                <p className="text-[13px] font-medium text-gray-900">Document</p>
-                <p className="text-[11px] text-gray-500 mt-0.5 leading-tight">Upload PDF or images</p>
+                <p className="text-body-sm font-medium text-gray-900">Document</p>
+                <p className="text-caption text-gray-500 mt-0.5">Upload PDF or images</p>
               </div>
             </button>
           </div>

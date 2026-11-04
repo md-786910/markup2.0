@@ -44,12 +44,12 @@ function WorkspaceRow({ workspace, isCurrent, onRename, onDelete, onMembers, onS
             <WorkspaceTile name={workspace.name} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <p className="text-sm font-medium text-gray-900 truncate">{workspace.name}</p>
+                <p className="text-body-sm font-medium text-gray-900 truncate">{workspace.name}</p>
                 {workspace.isDefault && <Badge>Default</Badge>}
                 {isCurrent && <Badge tone="blue">Current</Badge>}
                 {workspace.shareSettings?.enabled && <Badge tone="green" dot>Review link on</Badge>}
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-caption text-gray-500 mt-0.5">
                 {workspace.projectCount} {workspace.projectCount === 1 ? 'project' : 'projects'}
                 {' · '}
                 {workspace.memberCount ? `${workspace.memberCount} ${workspace.memberCount === 1 ? 'member' : 'members'}` : 'Owners and admins only'}
@@ -138,7 +138,7 @@ export default function WorkspacesTab() {
         )}
       >
         {visible.length === 0 ? (
-          <p className="px-6 py-10 text-center text-sm text-gray-500">No workspace matches “{search}”.</p>
+          <p className="px-6 py-10 text-center text-body-sm text-gray-500">No workspace matches “{search}”.</p>
         ) : (
           <ul className="divide-y divide-gray-100">
             {visible.map((w) => (

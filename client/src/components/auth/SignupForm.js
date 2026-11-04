@@ -71,32 +71,32 @@ export default function SignupForm() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">Invitation Invalid</h2>
-        <p className="text-sm text-gray-500 mb-6">{inviteError}</p>
-        <Link to="/login" className="text-sm text-blue-600 hover:text-blue-700 font-medium">Go to Login</Link>
+        <h2 className="text-body-lg font-semibold text-gray-900 mb-2">Invitation Invalid</h2>
+        <p className="text-body-sm text-gray-500 mb-6">{inviteError}</p>
+        <Link to="/login" className="text-body-sm text-blue-600 hover:text-blue-700 font-medium">Go to Login</Link>
       </div>
     );
   }
 
   return (
     <>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">Create your account</h2>
+      <h2 className="text-h3 font-semibold text-gray-900 mb-2">Create your account</h2>
 
       {invitation ? (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-blue-800">
+          <p className="text-body-sm text-blue-800">
             <strong>{invitation.invitedBy}</strong> invited you to join <strong>{invitation.projectName}</strong>
           </p>
-          <p className="text-xs text-blue-600 mt-1">Create your account to get started</p>
+          <p className="text-caption text-blue-600 mt-1">Create your account to get started</p>
         </div>
       ) : (
-        <p className="text-sm text-gray-500 mb-8">
+        <p className="text-body-sm text-gray-500 mb-8">
           First user becomes the workspace owner
         </p>
       )}
 
       {error && (
-        <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-5 text-sm flex items-center gap-2">
+        <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-5 text-body-sm flex items-center gap-2">
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -106,50 +106,50 @@ export default function SignupForm() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
+          <label className="block text-label text-gray-700 mb-1.5">Name</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
             placeholder="John Doe"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+          <label className="block text-label text-gray-700 mb-1.5">Email</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             readOnly={!!invitation}
-            className={`w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow ${
+            className={`w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow ${
               invitation ? 'bg-gray-50 text-gray-500' : ''
             }`}
             placeholder="you@example.com"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+          <label className="block text-label text-gray-700 mb-1.5">Password</label>
           <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={8}
-            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
             placeholder="Min 8 characters"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors text-sm"
+          className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-label"
         >
           {loading ? 'Creating account...' : invitation ? 'Join Project' : 'Sign Up'}
         </button>
       </form>
-      <p className="text-center mt-6 text-sm text-gray-500">
+      <p className="text-center mt-6 text-body-sm text-gray-500">
         Already have an account?{' '}
         <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign in</Link>
       </p>

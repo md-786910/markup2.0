@@ -59,7 +59,7 @@ export default function UsersPage() {
           <Avatar name={row.name} size="sm" />
           <div className="min-w-0">
             <p className="truncate font-medium text-gray-900">{row.name}</p>
-            <p className="truncate text-xs text-gray-500">{row.email}</p>
+            <p className="truncate text-caption text-gray-500">{row.email}</p>
           </div>
         </div>
       ),

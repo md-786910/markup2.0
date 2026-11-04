@@ -19,7 +19,7 @@ export default function PricingSection() {
           <PlanCards reveal />
         </div>
         <p className="mt-10 text-center">
-          <Link to="/pricing" className="inline-flex items-center gap-2 text-sm font-semibold text-[#003dff] hover:text-[#0031d1]">
+          <Link to="/pricing" className="inline-flex items-center gap-2 text-body-sm font-semibold text-[#003dff] hover:text-[#0031d1]">
             Compare every feature
             <ArrowRightIcon className="h-4 w-4" />
           </Link>

@@ -98,7 +98,7 @@ export default function OrganizationsPage() {
           <Avatar name={row.name} square />
           <div className="min-w-0">
             <p className="truncate font-medium text-gray-900">{row.name}</p>
-            <p className="truncate text-xs text-gray-500">{row.owner?.email || 'No owner'}</p>
+            <p className="truncate text-caption text-gray-500">{row.owner?.email || 'No owner'}</p>
           </div>
         </div>
       ),
@@ -110,7 +110,7 @@ export default function OrganizationsPage() {
       render: (row) => (
         <div className="flex flex-col items-start gap-1">
           <StatusBadge status={row.status} trialEndsAt={row.trialEndsAt} />
-          {row.hasUnpaidInvoice && <span className="text-xs font-medium text-red-600">Unpaid invoice</span>}
+          {row.hasUnpaidInvoice && <span className="text-caption font-medium text-red-600">Unpaid invoice</span>}
         </div>
       ),
     },

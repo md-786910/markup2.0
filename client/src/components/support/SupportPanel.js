@@ -38,7 +38,7 @@ const MAX_FILE_MB = 5;
 
 function StatusPill({ status }) {
   const [tone, label] = STATUS[status] || STATUS.open;
-  return <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>{label}</span>;
+  return <span className={`shrink-0 rounded-full px-2 py-0.5 text-caption font-medium ${tone}`}>{label}</span>;
 }
 
 function timeAgo(date) {
@@ -77,13 +77,13 @@ function FilePicker({ files, setFiles }) {
       <input ref={inputRef} type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={(e) => { add([...e.target.files]); e.target.value = ''; }} />
       <div className="flex flex-wrap items-center gap-2">
         {files.map((f, i) => (
-          <span key={`${f.name}-${i}`} className="inline-flex max-w-[200px] items-center gap-1.5 rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700">
+          <span key={`${f.name}-${i}`} className="inline-flex max-w-[200px] items-center gap-1.5 rounded-md bg-gray-100 px-2 py-1 text-caption text-gray-700">
             <span className="truncate">{f.name}</span>
             <button type="button" onClick={() => setFiles(files.filter((_, j) => j !== i))} className="text-gray-400 hover:text-gray-700" aria-label={`Remove ${f.name}`}>×</button>
           </span>
         ))}
         {files.length < MAX_FILES && (
-          <button type="button" onClick={() => inputRef.current?.click()} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100">
+          <button type="button" onClick={() => inputRef.current?.click()} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-caption font-medium text-gray-600 hover:bg-gray-100">
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" /></svg>
             Attach screenshot or PDF
           </button>
@@ -99,42 +99,42 @@ function HomeView({ support, email, tickets, loading, onNew, onOpen, onChat }) {
     <div className="space-y-6 p-5">
       {support?.tickets ? (
         <div className="space-y-3">
-          <p className="text-sm text-gray-600">{planLine(support)}</p>
+          <p className="text-body-sm text-gray-600">{planLine(support)}</p>
           <div className="grid gap-2 sm:grid-cols-2">
-            <button type="button" onClick={onNew} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700">New request</button>
+            <button type="button" onClick={onNew} className="rounded-lg bg-blue-600 px-4 py-2.5 text-label text-white hover:bg-blue-700">New request</button>
             {support.chat && chatAvailable ? (
-              <button type="button" onClick={onChat} className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Chat with us</button>
+              <button type="button" onClick={onChat} className="rounded-lg border border-gray-200 px-4 py-2.5 text-label text-gray-700 hover:bg-gray-50">Chat with us</button>
             ) : (
-              <a href={`mailto:${email}`} className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-medium text-gray-700 hover:bg-gray-50">Email us</a>
+              <a href={`mailto:${email}`} className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-label text-gray-700 hover:bg-gray-50">Email us</a>
             )}
           </div>
         </div>
       ) : (
         <div className="rounded-xl border border-gray-200 p-4">
-          <p className="text-sm font-medium text-gray-900">Email us</p>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="text-body-sm font-medium text-gray-900">Email us</p>
+          <p className="mt-1 text-body-sm text-gray-600">
             Write to <a href={`mailto:${email}`} className="font-medium text-blue-600 hover:text-blue-700">{email}</a> and we'll get back to you.
           </p>
-          <p className="mt-3 text-xs text-gray-500">In-app requests with reply times start on the Starter plan; Pro adds live chat.</p>
+          <p className="mt-3 text-caption text-gray-500">In-app requests with reply times start on the Starter plan; Pro adds live chat.</p>
         </div>
       )}
 
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-gray-900">Quick answers</h3>
+        <h3 className="mb-2 text-body-sm font-semibold text-gray-900">Quick answers</h3>
         <div className="divide-y divide-gray-100 rounded-xl border border-gray-200">
           {SUPPORT_FAQ.map((item) => (
             <details key={item.question} className="group px-4 py-3">
-              <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-sm font-medium text-gray-900 [&::-webkit-details-marker]:hidden">
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-body-sm font-medium text-gray-900 [&::-webkit-details-marker]:hidden">
                 {item.question}
                 <svg className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
               </summary>
-              <p className="mt-2 text-sm leading-relaxed text-gray-600">{item.answer}</p>
+              <p className="mt-2 text-body-sm text-gray-600">{item.answer}</p>
             </details>
           ))}
         </div>
       </div>
 
-      <a href={`${SITE_URL}/support`} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 text-sm hover:bg-gray-50">
+      <a href={`${SITE_URL}/support`} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 text-body-sm hover:bg-gray-50">
         <span>
           <span className="block font-medium text-gray-900">Help center</span>
           <span className="block text-gray-500">More answers on our website</span>
@@ -145,13 +145,13 @@ function HomeView({ support, email, tickets, loading, onNew, onOpen, onChat }) {
       {support?.tickets && (
         <div>
           <div className="mb-2 flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-gray-900">Your requests</h3>
-            {unread > 0 && <span className="rounded-full bg-blue-600 px-1.5 text-[11px] font-semibold text-white">{unread} new</span>}
+            <h3 className="text-body-sm font-semibold text-gray-900">Your requests</h3>
+            {unread > 0 && <span className="rounded-full bg-blue-600 px-1.5 text-caption font-semibold text-white">{unread} new</span>}
           </div>
           {loading ? (
-            <p className="py-6 text-center text-sm text-gray-400">Loading…</p>
+            <p className="py-6 text-center text-body-sm text-gray-400">Loading…</p>
           ) : tickets.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-gray-200 py-6 text-center text-sm text-gray-500">No requests yet.</p>
+            <p className="rounded-xl border border-dashed border-gray-200 py-6 text-center text-body-sm text-gray-500">No requests yet.</p>
           ) : (
             <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200">
               {tickets.map((t) => (
@@ -159,8 +159,8 @@ function HomeView({ support, email, tickets, loading, onNew, onOpen, onChat }) {
                   <button type="button" onClick={() => onOpen(t._id)} className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-gray-50">
                     <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${t.unread ? 'bg-blue-600' : 'bg-transparent'}`} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-gray-900">{t.subject}</span>
-                      <span className="block text-xs text-gray-500">#{t.number} · {timeAgo(t.updatedAt)}{t.requester?.name ? ` · ${t.requester.name}` : ''}</span>
+                      <span className="block truncate text-body-sm font-medium text-gray-900">{t.subject}</span>
+                      <span className="block text-caption text-gray-500">#{t.number} · {timeAgo(t.updatedAt)}{t.requester?.name ? ` · ${t.requester.name}` : ''}</span>
                     </span>
                     <StatusPill status={t.status} />
                   </button>
@@ -207,28 +207,28 @@ function NewRequestView({ onCreated, onCancel }) {
     }
   };
 
-  const inputCls = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20';
+  const inputCls = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-body focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20';
   return (
     <form onSubmit={submit} className="space-y-4 p-5">
       <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-gray-700">What is it about?</span>
+        <span className="mb-1.5 block text-body-sm font-medium text-gray-700">What is it about?</span>
         <select value={category} onChange={(e) => setCategory(e.target.value)} className={`${inputCls} bg-white`}>
           {CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
       </label>
       <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-gray-700">Subject</span>
+        <span className="mb-1.5 block text-body-sm font-medium text-gray-700">Subject</span>
         <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={140} required autoFocus placeholder="e.g. Pins don't save on the pricing page" className={inputCls} />
       </label>
       <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-gray-700">Details</span>
+        <span className="mb-1.5 block text-body-sm font-medium text-gray-700">Details</span>
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={6} maxLength={10000} required placeholder="What were you trying to do, and what happened instead?" className={`${inputCls} resize-y`} />
       </label>
       <FilePicker files={files} setFiles={setFiles} />
-      <p className="text-xs text-gray-500">We include the page you're on and your browser, so you don't have to describe them.</p>
+      <p className="text-caption text-gray-500">We include the page you're on and your browser, so you don't have to describe them.</p>
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">Cancel</button>
-        <button type="submit" disabled={busy || subject.trim().length < 3 || body.trim().length < 10} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+        <button type="button" onClick={onCancel} className="rounded-lg px-4 py-2 text-label text-gray-600 hover:bg-gray-100">Cancel</button>
+        <button type="submit" disabled={busy || subject.trim().length < 3 || body.trim().length < 10} className="rounded-lg bg-blue-600 px-4 py-2 text-body-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
           {busy ? 'Sending…' : 'Send request'}
         </button>
       </div>
@@ -285,17 +285,17 @@ function ThreadView({ ticketId, onChanged }) {
     }
   };
 
-  if (!ticket) return <p className="p-8 text-center text-sm text-gray-400">Loading…</p>;
+  if (!ticket) return <p className="p-8 text-center text-body-sm text-gray-400">Loading…</p>;
   const isOpen = ['open', 'waiting_on_customer'].includes(ticket.status);
 
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-gray-100 px-5 py-3">
         <div className="flex items-start justify-between gap-3">
-          <p className="min-w-0 text-sm font-semibold text-gray-900">{ticket.subject}</p>
+          <p className="min-w-0 text-body-sm font-semibold text-gray-900">{ticket.subject}</p>
           <StatusPill status={ticket.status} />
         </div>
-        <p className="mt-0.5 text-xs text-gray-500">#{ticket.number} · opened {timeAgo(ticket.createdAt)}</p>
+        <p className="mt-0.5 text-caption text-gray-500">#{ticket.number} · opened {timeAgo(ticket.createdAt)}</p>
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 scrollbar-thin">
@@ -303,19 +303,19 @@ function ThreadView({ ticketId, onChanged }) {
           const mine = m.authorType === 'customer';
           return (
             <div key={m._id} className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
-              <div className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-sm ${mine ? 'rounded-br-md bg-blue-600 text-white' : 'rounded-bl-md bg-gray-100 text-gray-800'}`}>
+              <div className={`max-w-[88%] rounded-2xl px-4 py-2.5 text-body-sm ${mine ? 'rounded-br-md bg-blue-600 text-white' : 'rounded-bl-md bg-gray-100 text-gray-800'}`}>
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
                 {m.attachments?.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {m.attachments.map((a) => (
-                      <a key={a.filename} href={fileUrl(a.path)} target="_blank" rel="noreferrer" className={`max-w-[180px] truncate rounded-md px-2 py-1 text-xs underline ${mine ? 'bg-white/15' : 'bg-white'}`}>
+                      <a key={a.filename} href={fileUrl(a.path)} target="_blank" rel="noreferrer" className={`max-w-[180px] truncate rounded-md px-2 py-1 text-caption underline ${mine ? 'bg-white/15' : 'bg-white'}`}>
                         {a.originalName || 'Attachment'}
                       </a>
                     ))}
                   </div>
                 )}
               </div>
-              <span className="mt-1 text-[11px] text-gray-400">{mine ? (m.authorName === user?.name ? 'You' : m.authorName) : m.authorName} · {timeAgo(m.createdAt)}</span>
+              <span className="mt-1 text-caption text-gray-400">{mine ? (m.authorName === user?.name ? 'You' : m.authorName) : m.authorName} · {timeAgo(m.createdAt)}</span>
             </div>
           );
         })}
@@ -323,15 +323,15 @@ function ThreadView({ ticketId, onChanged }) {
       </div>
 
       {ticket.status === 'closed' ? (
-        <p className="border-t border-gray-100 p-4 text-center text-sm text-gray-500">This request is closed. Start a new request if you need more help.</p>
+        <p className="border-t border-gray-100 p-4 text-center text-body-sm text-gray-500">This request is closed. Start a new request if you need more help.</p>
       ) : (
       <form onSubmit={reply} className="space-y-2 border-t border-gray-100 p-4">
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={10000} placeholder={isOpen ? 'Write a reply…' : 'Reply to open this request again…'} className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20" />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} maxLength={10000} placeholder={isOpen ? 'Write a reply…' : 'Reply to open this request again…'} className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-body focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20" />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <FilePicker files={files} setFiles={setFiles} />
           <div className="flex items-center gap-2">
-            {isOpen && <button type="button" onClick={resolve} className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">Mark resolved</button>}
-            <button type="submit" disabled={busy || !body.trim()} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">{busy ? 'Sending…' : 'Send'}</button>
+            {isOpen && <button type="button" onClick={resolve} className="rounded-lg px-3 py-2 text-label text-gray-600 hover:bg-gray-100">Mark resolved</button>}
+            <button type="submit" disabled={busy || !body.trim()} className="rounded-lg bg-blue-600 px-4 py-2 text-label text-white hover:bg-blue-700 disabled:opacity-50">{busy ? 'Sending…' : 'Send'}</button>
           </div>
         </div>
       </form>
@@ -412,7 +412,7 @@ export default function SupportPanel() {
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
             </button>
           )}
-          <h2 className="flex-1 text-base font-semibold text-gray-900">{title}</h2>
+          <h2 className="flex-1 text-body font-semibold text-gray-900">{title}</h2>
           <button type="button" onClick={() => setOpen(false)} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Close">
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>

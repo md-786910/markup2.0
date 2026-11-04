@@ -69,7 +69,7 @@ export default function SiteNoticePage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card title="Notice" className="lg:col-span-2">
           <div className="space-y-4">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-800">
+            <label className="flex items-center gap-2 text-body-sm font-medium text-gray-800">
               <input type="checkbox" checked={form.enabled} onChange={set('enabled')} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
               Show the notice
             </label>
@@ -82,7 +82,7 @@ export default function SiteNoticePage() {
                   {LEVELS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </Field>
-              <label className="flex items-center gap-2 pt-7 text-sm text-gray-700">
+              <label className="flex items-center gap-2 pt-7 text-body-sm text-gray-700">
                 <input type="checkbox" checked={form.dismissible} onChange={set('dismissible')} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
                 People can close it
               </label>
@@ -106,12 +106,12 @@ export default function SiteNoticePage() {
         </Card>
         <Card title="Preview">
           {form.message.trim() ? (
-            <div className={`rounded-xl px-4 py-2.5 text-sm shadow-lg ${tone}`}>
+            <div className={`rounded-xl px-4 py-2.5 text-body-sm shadow-lg ${tone}`}>
               {form.message}
               {form.link && <span className="ml-2 font-semibold underline">{form.linkText || 'Learn more'}</span>}
             </div>
           ) : (
-            <p className="text-sm text-gray-500">Write a message to see the banner.</p>
+            <p className="text-body-sm text-gray-500">Write a message to see the banner.</p>
           )}
         </Card>
       </div>

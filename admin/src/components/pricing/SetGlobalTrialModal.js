@@ -66,7 +66,7 @@ export default function SetGlobalTrialModal({
     <Modal isOpen={isOpen} onClose={onClose} title="Configure Global Trial Period" maxWidth="max-w-lg">
       <div className="space-y-5">
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+          <label className="block text-overline text-gray-500 mb-2">
             Default Evaluation Period
           </label>
           <div className="grid grid-cols-5 gap-2">
@@ -75,7 +75,7 @@ export default function SetGlobalTrialModal({
                 key={preset}
                 type="button"
                 onClick={() => setSelectedPreset(preset)}
-                className={`py-2 px-3 text-xs font-bold rounded-lg border transition-all ${
+                className={`py-2 px-3 text-caption font-semibold rounded-lg border transition-all ${
                   selectedPreset === preset
                     ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
                     : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
@@ -87,7 +87,7 @@ export default function SetGlobalTrialModal({
             <button
               type="button"
               onClick={() => setSelectedPreset('custom')}
-              className={`py-2 px-3 text-xs font-bold rounded-lg border transition-all ${
+              className={`py-2 px-3 text-caption font-semibold rounded-lg border transition-all ${
                 selectedPreset === 'custom'
                   ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
                   : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
@@ -114,11 +114,11 @@ export default function SetGlobalTrialModal({
 
         {/* Application Scope */}
         <div className="border-t border-gray-100 pt-4">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+          <label className="block text-overline text-gray-500 mb-2">
             Application Scope
           </label>
           <div className="space-y-2.5">
-            <label className="flex items-start gap-2.5 cursor-pointer text-xs text-gray-700">
+            <label className="flex items-start gap-2.5 cursor-pointer text-caption text-gray-700">
               <input
                 type="radio"
                 name="scope"
@@ -128,11 +128,11 @@ export default function SetGlobalTrialModal({
               />
               <div>
                 <span className="font-semibold text-gray-900">Apply to future signups only</span>
-                <p className="text-gray-500 text-[11px] mt-0.5">Existing workspaces keep their current expiration dates.</p>
+                <p className="text-gray-500 text-caption mt-0.5">Existing workspaces keep their current expiration dates.</p>
               </div>
             </label>
 
-            <label className="flex items-start gap-2.5 cursor-pointer text-xs text-gray-700">
+            <label className="flex items-start gap-2.5 cursor-pointer text-caption text-gray-700">
               <input
                 type="radio"
                 name="scope"
@@ -144,7 +144,7 @@ export default function SetGlobalTrialModal({
                 <span className="font-semibold text-gray-900">
                   Apply & sync across all active trial workspaces ({activeTrialOrgsCount} workspaces)
                 </span>
-                <p className="text-gray-500 text-[11px] mt-0.5">
+                <p className="text-gray-500 text-caption mt-0.5">
                   Recalculates trial end dates based on workspace creation date with at least 2 days grace period for older trials.
                 </p>
               </div>

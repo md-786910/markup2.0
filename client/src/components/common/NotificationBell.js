@@ -76,7 +76,7 @@ function dayGroup(dateStr) {
 const isMention = (n) => n.type === 'mention' || Boolean(n.metadata?.isMention);
 
 const BADGES = {
-  mention: { className: 'bg-blue-600', icon: <span className="text-[9px] font-bold leading-none">@</span> },
+  mention: { className: 'bg-blue-600', icon: <span className="text-caption font-semibold">@</span> },
   comment: { className: 'bg-blue-600', path: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
   pin_created: { className: 'bg-blue-600', path: 'M12 4v16m8-8H4' },
   pin_resolved: { className: 'bg-emerald-500', path: 'M5 13l4 4L19 7' },
@@ -270,7 +270,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
           />
         </svg>
         {scopedUnreadCount > 0 && (
-          <span className={`absolute top-1 right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white ring-2 ${dark ? 'ring-gray-900' : 'ring-white'}`}>
+          <span className={`absolute top-1 right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-600 text-caption font-semibold text-white ring-2 ${dark ? 'ring-gray-900' : 'ring-white'}`}>
             {scopedUnreadCount > 99 ? '99+' : scopedUnreadCount}
           </span>
         )}
@@ -280,12 +280,12 @@ export default function NotificationBell({ className = '', variant, projectId, o
         <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} mt-2 w-[calc(100vw-2rem)] max-w-[400px] bg-white rounded-2xl shadow-xl border border-gray-200 z-50 overflow-hidden animate-scale-in`}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
-            <h3 className="text-[15px] font-semibold text-gray-900">Notifications</h3>
+            <h3 className="text-body font-semibold text-gray-900">Notifications</h3>
             {scopedUnreadCount > 0 && (
               <button
                 type="button"
                 onClick={handleMarkAllRead}
-                className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                className="text-caption font-medium text-blue-600 hover:text-blue-700"
               >
                 Mark all as read
               </button>
@@ -293,7 +293,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
           </div>
 
           {/* Filter tabs */}
-          <div className="flex items-center gap-4 border-b border-gray-100 px-4 text-[13px]">
+          <div className="flex items-center gap-4 border-b border-gray-100 px-4 text-body-sm">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -305,7 +305,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
               >
                 {tab.label}
                 {tab.count > 0 && (
-                  <span className={`ml-1.5 rounded-full px-1.5 py-px text-[11px] ${filter === tab.id ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                  <span className={`ml-1.5 rounded-full px-1.5 py-px text-caption ${filter === tab.id ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
                     {tab.count}
                   </span>
                 )}
@@ -318,7 +318,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
             {loading && scopedNotifications.length === 0 ? (
               <div className="p-8 text-center text-gray-400">
                 <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-2" />
-                <p className="text-xs">Loading notifications…</p>
+                <p className="text-caption">Loading notifications…</p>
               </div>
             ) : filteredNotifications.length === 0 ? (
               <div className="px-6 py-10 text-center">
@@ -327,8 +327,8 @@ export default function NotificationBell({ className = '', variant, projectId, o
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-gray-800">You're all caught up</p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-body-sm font-medium text-gray-800">You're all caught up</p>
+                <p className="text-caption text-gray-500 mt-1">
                   {filter === 'unread'
                     ? 'No unread notifications.'
                     : filter === 'mention'
@@ -339,7 +339,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
             ) : (
               sections.map((section) => (
                 <div key={section.label}>
-                  <p className="sticky top-0 z-10 bg-white/95 px-4 pb-1 pt-3 text-xs font-medium text-gray-400 backdrop-blur">
+                  <p className="sticky top-0 z-10 bg-white/95 px-4 pb-1 pt-3 text-caption font-medium text-gray-400 backdrop-blur">
                     {section.label}
                   </p>
                   {section.items.map((notif) => {
@@ -366,7 +366,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
                           {notif.actor?.avatar ? (
                             <img src={uploadUrl(notif.actor.avatar)} alt="" className="w-9 h-9 rounded-full object-cover" />
                           ) : (
-                            <div className={`w-9 h-9 rounded-full ${actorColor.bg} ${actorColor.text} flex items-center justify-center text-xs font-semibold`}>
+                            <div className={`w-9 h-9 rounded-full ${actorColor.bg} ${actorColor.text} flex items-center justify-center text-caption font-semibold`}>
                               {getInitials(actorName)}
                             </div>
                           )}
@@ -377,17 +377,17 @@ export default function NotificationBell({ className = '', variant, projectId, o
 
                         {/* Who did what, where and when */}
                         <div className="min-w-0 flex-1 pr-5">
-                          <p className="text-[13px] leading-5 text-gray-600">
+                          <p className="text-body-sm text-gray-600">
                             <span className="font-semibold text-gray-900">{actorName}</span>
-                            {isGuest && <span className="ml-1 rounded bg-gray-100 px-1 py-px text-[10px] font-medium text-gray-500">Guest</span>}{' '}
+                            {isGuest && <span className="ml-1 rounded bg-gray-100 px-1 py-px text-caption font-medium text-gray-500">Guest</span>}{' '}
                             {actionText(notif, actorName)}
                           </p>
                           {preview && (
-                            <p className="mt-1 line-clamp-2 border-l-2 border-gray-200 pl-2 text-[13px] leading-5 text-gray-500">
+                            <p className="mt-1 line-clamp-2 border-l-2 border-gray-200 pl-2 text-body-sm text-gray-500">
                               {preview}
                             </p>
                           )}
-                          <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-gray-400">
+                          <p className="mt-1 flex min-w-0 items-center gap-1.5 text-caption text-gray-400">
                             {projName && !scopeProjectId && (
                               <>
                                 <span className="truncate">{projName}</span>
@@ -425,7 +425,7 @@ export default function NotificationBell({ className = '', variant, projectId, o
 
           {/* Email for this project (inside a project) */}
           {scopeProjectId && (
-            <div className="flex items-center justify-between gap-3 border-t border-gray-100 bg-gray-50 px-4 py-2.5 text-xs">
+            <div className="flex items-center justify-between gap-3 border-t border-gray-100 bg-gray-50 px-4 py-2.5 text-caption">
               <span className="font-medium text-gray-700">Email me about this project</span>
               <button
                 type="button"

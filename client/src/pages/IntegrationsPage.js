@@ -173,7 +173,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
   };
 
   const inputClass =
-    "w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 bg-white transition-shadow placeholder:text-gray-400";
+    "w-full px-3.5 py-2 border border-gray-300 rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 bg-white transition-shadow placeholder:text-gray-400";
 
   return (
     <div
@@ -190,10 +190,10 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-gray-900">{typeConfig.name}</h3>
+            <h3 className="text-body-sm font-semibold text-gray-900">{typeConfig.name}</h3>
             {existing && (
               <span
-                className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                className={`text-caption font-medium px-2 py-0.5 rounded-full ${
                   existing.enabled ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
                 }`}
               >
@@ -201,9 +201,9 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
               </span>
             )}
           </div>
-          <p className="text-[13px] text-gray-500 mt-0.5 truncate">{typeConfig.description}</p>
+          <p className="text-body-sm text-gray-500 mt-0.5 truncate">{typeConfig.description}</p>
         </div>
-        <span className="shrink-0 text-sm font-medium text-blue-600">
+        <span className="shrink-0 text-body-sm font-medium text-blue-600">
           {expanded ? "Close" : existing ? "Manage" : "Connect"}
         </span>
       </button>
@@ -217,7 +217,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
           {isWebhook && (
             <>
               <div>
-                <label className="text-sm text-gray-500 mb-1.5 block">
+                <label className="text-label text-gray-500 mb-1.5 block">
                   Webhook URL
                 </label>
                 <input
@@ -229,7 +229,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
                 />
               </div>
               <div>
-                <label className="text-sm text-gray-500 mb-3 block">
+                <label className="text-label text-gray-500 mb-3 block">
                   Events to notify
                 </label>
                 <div className="space-y-2">
@@ -248,7 +248,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
                         onChange={() => toggleEvent(evt.key)}
                         className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-offset-0"
                       />
-                      <span className="text-[13px] font-medium">
+                      <span className="text-body-sm font-medium">
                         {evt.label}
                       </span>
                     </label>
@@ -262,7 +262,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
           {typeConfig.fields === "jira" && (
             <>
               <div>
-                <label className="text-sm text-gray-500 mb-1.5 block">
+                <label className="text-label text-gray-500 mb-1.5 block">
                   Jira Domain
                 </label>
                 <input
@@ -274,7 +274,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
                 />
               </div>
               <div>
-                <label className="text-sm text-gray-500 mb-1.5 block">
+                <label className="text-label text-gray-500 mb-1.5 block">
                   Project Key
                 </label>
                 <input
@@ -286,7 +286,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
                 />
               </div>
               <div>
-                <label className="text-sm text-gray-500 mb-1.5 block">
+                <label className="text-label text-gray-500 mb-1.5 block">
                   Email Address
                 </label>
                 <input
@@ -298,7 +298,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
                 />
               </div>
               <div>
-                <label className="text-sm text-gray-500 mb-1.5 block">
+                <label className="text-label text-gray-500 mb-1.5 block">
                   API Token
                 </label>
                 <PasswordInput
@@ -307,12 +307,12 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
                   placeholder="Your Jira API token"
                   className={inputClass}
                 />
-                <p className="text-[11px] text-gray-400 mt-1">
+                <p className="text-caption text-gray-400 mt-1">
                   Generate at id.atlassian.com under Security &gt; API tokens
                 </p>
               </div>
               <div>
-                <label className="text-sm text-gray-500 mb-1.5 block">
+                <label className="text-label text-gray-500 mb-1.5 block">
                   Issue Type
                 </label>
                 <select
@@ -332,7 +332,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
                   onChange={(e) => setJiraSyncPins(e.target.checked)}
                   className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-[13px] font-medium text-gray-700">
+                <span className="text-body-sm font-medium text-gray-700">
                   Auto-create issues from new pins
                 </span>
               </label>
@@ -355,7 +355,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
                   d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
                 />
               </svg>
-              <p className="text-sm text-red-600">{error}</p>
+              <p className="text-body-sm text-red-600">{error}</p>
             </div>
           )}
           {testResult && (
@@ -388,7 +388,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
                 )}
               </svg>
               <p
-                className={`text-sm ${testResult.includes("success") ? "text-green-600" : "text-red-600"}`}
+                className={`text-body-sm ${testResult.includes("success") ? "text-green-600" : "text-red-600"}`}
               >
                 {testResult}
               </p>
@@ -400,7 +400,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
+              className="px-5 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
             >
               {saving ? "Saving..." : existing ? "Save changes" : "Connect"}
             </button>
@@ -408,7 +408,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
               <button
                 onClick={handleTest}
                 disabled={testing}
-                className="px-5 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                className="px-5 py-2.5 text-label text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors"
               >
                 {testing ? (
                   <span className="flex items-center gap-2">
@@ -423,7 +423,7 @@ function IntegrationCard({ typeConfig, existing, onSave, onDelete, onTest }) {
             {existing && (
               <button
                 onClick={() => onDelete(existing._id)}
-                className="px-5 py-2.5 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors ml-auto"
+                className="px-5 py-2.5 text-label text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors ml-auto"
               >
                 Disconnect
               </button>
@@ -498,10 +498,10 @@ export default function IntegrationsPage() {
               />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">
+          <h3 className="text-body-lg font-semibold text-gray-900 mb-1">
             Access Restricted
           </h3>
-          <p className="text-sm text-gray-500">
+          <p className="text-body-sm text-gray-500">
             Only workspace owners and admins can manage integrations.
           </p>
         </div>
@@ -512,7 +512,7 @@ export default function IntegrationsPage() {
   if (!included) {
     return (
       <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-3xl animate-page-enter">
-        <h2 className="text-2xl font-bold text-gray-900">Integrations</h2>
+        <h2 className="text-h3 font-semibold text-gray-900">Integrations</h2>
         <LockedFeature
           className="mt-8 rounded-xl border border-gray-200 bg-white"
           title="Slack, Jira, Discord, and Microsoft Teams"
@@ -546,8 +546,8 @@ export default function IntegrationsPage() {
     <div className="px-6 lg:px-8 py-6 lg:py-8 animate-page-enter">
       {/* Page header */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">Integrations</h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <h2 className="text-h3 font-semibold text-gray-900">Integrations</h2>
+        <p className="text-body-sm text-gray-500 mt-1">
           Connect your favorite tools to get notified about feedback in
           real-time.
         </p>
@@ -586,10 +586,10 @@ export default function IntegrationsPage() {
           />
         </svg>
         <div>
-          <p className="text-sm text-gray-600 font-medium">
+          <p className="text-body-sm text-gray-600 font-medium">
             How integrations work
           </p>
-          <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+          <p className="text-caption text-gray-500 mt-1">
             When feedback events happen (new pin, comment, or resolution),
             notifications are automatically sent to your connected services.
             Each integration can be configured to listen for specific events.

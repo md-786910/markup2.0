@@ -83,11 +83,11 @@ function TourRow({ row, index }) {
     <div ref={ref} id={row.id} className="grid scroll-mt-24 items-center gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-14">
       <div className={flipped ? 'lg:order-2' : ''} data-reveal>
         <span className="eyebrow">{row.eyebrow}</span>
-        <h3 className="mt-5 font-display text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-3xl">{row.title}</h3>
+        <h3 className="mt-5 text-h3 text-slate-950">{row.title}</h3>
         <p className="body-large mt-4">{row.copy}</p>
         <ul className="mt-6 space-y-3">
           {row.points.map((point) => (
-            <li key={point} className="flex items-start gap-3 text-[15px] text-slate-700">
+            <li key={point} className="flex items-start gap-3 text-body text-slate-700">
               <CheckIcon className="mt-1 h-4 w-4 flex-none text-[#003dff]" />
               {point}
             </li>
@@ -117,8 +117,8 @@ export default function ProductTour() {
           {DETAILS.map(([Icon, title, copy], index) => (
             <div key={title} className="rounded-2xl border border-slate-200 bg-white p-6" data-reveal data-delay={String((index % 3) + 1)}>
               <Icon className="h-5 w-5 text-[#003dff]" />
-              <h3 className="mt-4 font-semibold text-slate-950">{title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{copy}</p>
+              <h3 className="mt-4 text-body font-semibold text-slate-950">{title}</h3>
+              <p className="mt-2 text-body-sm text-slate-500">{copy}</p>
             </div>
           ))}
         </div>

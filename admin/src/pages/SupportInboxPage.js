@@ -58,7 +58,7 @@ export default function SupportInboxPage() {
       render: (row) => (
         <div className="min-w-[240px]">
           <p className="truncate font-medium text-gray-900">{row.subject}</p>
-          <p className="truncate text-xs text-gray-500">#{row.number} · {row.requester?.name || 'Deleted user'} · {timeAgo(row.createdAt)}</p>
+          <p className="truncate text-caption text-gray-500">#{row.number} · {row.requester?.name || 'Deleted user'} · {timeAgo(row.createdAt)}</p>
         </div>
       ),
     },
@@ -116,7 +116,7 @@ export default function SupportInboxPage() {
           </div>
           <FilterDropdown value={priority} onChange={(v) => setParam('priority', v)} placeholder="Any priority" options={[{ value: 'urgent', label: 'Urgent' }, { value: 'high', label: 'High' }, { value: 'normal', label: 'Normal' }]} />
           <FilterDropdown value={assignee} onChange={(v) => setParam('assignee', v)} placeholder="Anyone" label="Assignee" options={[{ value: 'me', label: 'Assigned to me' }, { value: 'none', label: 'Unassigned' }]} />
-          <label className="flex items-center gap-2 px-1 text-sm text-gray-700">
+          <label className="flex items-center gap-2 px-1 text-body-sm text-gray-700">
             <input type="checkbox" checked={overdue === '1'} onChange={(e) => setParam('overdue', e.target.checked ? '1' : null)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600" />
             Overdue only
           </label>
@@ -131,11 +131,11 @@ export default function SupportInboxPage() {
         <Pagination page={page} totalPages={data.totalPages} total={data.total} pageSize={PAGE_SIZE} onPageChange={(p) => setParam('page', p > 1 ? String(p) : null)} />
       </div>
       {stats?.overdue > 0 && view === 'open' && !overdue && (
-        <p className="mt-3 text-sm text-red-600">
+        <p className="mt-3 text-body-sm text-red-600">
           {stats.overdue} {stats.overdue === 1 ? 'request is' : 'requests are'} past the first-reply target. <button type="button" onClick={() => setParam('overdue', '1')} className="font-medium underline">Show them</button>
         </p>
       )}
-      <p className="mt-3 text-xs text-gray-400">First-reply targets come from each plan: Starter 48 h, Pro and trial 24 h, Enterprise 8 h.</p>
+      <p className="mt-3 text-caption text-gray-400">First-reply targets come from each plan: Starter 48 h, Pro and trial 24 h, Enterprise 8 h.</p>
     </div>
   );
 }

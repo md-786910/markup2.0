@@ -45,15 +45,15 @@ export default function DowngradeModal({ targetPlan, currentPlan, onClose, onDow
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-gray-900 tracking-tight text-center">Downgrade your plan</h3>
-          <p className="text-sm text-gray-500 mt-1.5 text-center">Confirm before we move you to a lower tier.</p>
+          <h3 className="text-h4 font-semibold text-gray-900 text-center">Downgrade your plan</h3>
+          <p className="text-body-sm text-gray-500 mt-1.5 text-center">Confirm before we move you to a lower tier.</p>
         </div>
 
         <div className="p-8 space-y-6 overflow-y-auto">
           <div className="flex items-center justify-between gap-3 bg-gray-50/80 p-4 rounded-2xl border border-gray-100">
             <div className="flex-1 text-center">
-              <p className="text-xs font-medium text-gray-500 mb-1.5">Current</p>
-              <p className="text-sm font-semibold text-gray-700">{currentPlan?.name || 'Current plan'}</p>
+              <p className="text-caption font-medium text-gray-500 mb-1.5">Current</p>
+              <p className="text-body-sm font-semibold text-gray-700">{currentPlan?.name || 'Current plan'}</p>
             </div>
             <div className="flex flex-col items-center justify-center text-amber-400 shrink-0 px-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
@@ -61,23 +61,23 @@ export default function DowngradeModal({ targetPlan, currentPlan, onClose, onDow
               </svg>
             </div>
             <div className="flex-1 text-center bg-white shadow-sm border border-amber-100 py-2.5 px-3 rounded-xl transform scale-105 transition-transform">
-              <p className="text-xs font-medium text-amber-700 mb-1">New plan</p>
-              <p className="text-sm font-bold text-amber-700">{targetPlan?.name}</p>
+              <p className="text-caption font-medium text-amber-700 mb-1">New plan</p>
+              <p className="text-body-sm font-semibold text-amber-700">{targetPlan?.name}</p>
             </div>
           </div>
 
           <div className="text-center py-2">
             <div className="flex items-baseline justify-center gap-1">
-              <span className="text-4xl font-extrabold text-gray-900 tracking-tight">{targetPlan?.priceLabel}</span>
+              <span className="text-h2 font-semibold text-gray-900">{targetPlan?.priceLabel}</span>
               {targetPlan?.period && (
-                <span className="text-base font-medium text-gray-500">{targetPlan.period}</span>
+                <span className="text-body font-medium text-gray-500">{targetPlan.period}</span>
               )}
             </div>
           </div>
 
           {losingFeatures.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-              <p className="text-sm font-semibold text-amber-900 mb-3 flex items-center gap-2">
+              <p className="text-body-sm font-semibold text-amber-900 mb-3 flex items-center gap-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
@@ -85,24 +85,24 @@ export default function DowngradeModal({ targetPlan, currentPlan, onClose, onDow
               </p>
               <ul className="space-y-2">
                 {losingFeatures.map((feature, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-amber-900">
+                  <li key={i} className="flex items-start gap-2.5 text-body-sm text-amber-900">
                     <div className="mt-0.5 w-4 h-4 rounded-full bg-amber-200 flex items-center justify-center shrink-0">
                       <svg className="w-2.5 h-2.5 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </div>
-                    <span className="leading-snug">{feature}</span>
+                    <span className="">{feature}</span>
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-amber-700 mt-3">
+              <p className="text-caption text-amber-700 mt-3">
                 Existing data is preserved, but new usage will be capped to the {targetPlan?.name} limits.
               </p>
             </div>
           )}
 
           {error && (
-            <div className="bg-red-50 text-red-600 border border-red-100 p-3 rounded-xl text-sm text-center flex items-center justify-center gap-2">
+            <div className="bg-red-50 text-red-600 border border-red-100 p-3 rounded-xl text-body-sm text-center flex items-center justify-center gap-2">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -115,14 +115,14 @@ export default function DowngradeModal({ targetPlan, currentPlan, onClose, onDow
           <button
             onClick={onClose}
             disabled={loading}
-            className="flex-1 px-5 py-3 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
+            className="flex-1 px-5 py-3 text-label text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
           >
             Keep current plan
           </button>
           <button
             onClick={handleConfirm}
             disabled={loading}
-            className="flex-[2] px-5 py-3 text-sm font-bold text-white bg-amber-600 rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-all shadow-sm hover:shadow flex items-center justify-center gap-2"
+            className="flex-[2] px-5 py-3 text-label text-white bg-amber-600 rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-all shadow-sm hover:shadow flex items-center justify-center gap-2"
           >
             {loading ? (
               <>

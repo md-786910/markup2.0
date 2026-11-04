@@ -73,18 +73,18 @@ export default function ApprovalsModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 print:hidden">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-semibold">
               ✓
             </div>
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Client Approvals & Sign-Off</h2>
-              <p className="text-xs text-gray-500">{project.name}</p>
+              <h2 className="text-body font-semibold text-gray-900">Client Approvals & Sign-Off</h2>
+              <p className="text-caption text-gray-500">{project.name}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 text-caption font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1.5"
               title="Print formal approval certificate"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,13 +107,13 @@ export default function ApprovalsModal({
         <div className="hidden print:block p-8 border-b border-gray-200">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Review Approval Certificate</h1>
-              <p className="text-sm text-gray-600 mt-1">Project: <strong>{project.name}</strong></p>
-              <p className="text-xs text-gray-400 mt-0.5">Target: {project.websiteUrl || 'Document'}</p>
+              <h1 className="text-h3 font-semibold text-gray-900">Review Approval Certificate</h1>
+              <p className="text-body-sm text-gray-600 mt-1">Project: <strong>{project.name}</strong></p>
+              <p className="text-caption text-gray-400 mt-0.5">Target: {project.websiteUrl || 'Document'}</p>
             </div>
             <div className="text-right">
-              <span className="text-xs text-gray-400">Generated</span>
-              <p className="text-sm font-semibold text-gray-800">{new Date().toLocaleString()}</p>
+              <span className="text-caption text-gray-400">Generated</span>
+              <p className="text-body-sm font-semibold text-gray-800">{new Date().toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -123,8 +123,8 @@ export default function ApprovalsModal({
           {/* Current Status Overview Card */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
-              <span className="text-xs text-gray-400 font-medium">Status</span>
-              <p className="text-sm font-semibold capitalize mt-1 flex items-center gap-1.5">
+              <span className="text-caption text-gray-400 font-medium">Status</span>
+              <p className="text-body-sm font-semibold capitalize mt-1 flex items-center gap-1.5">
                 {project.projectStatus === 'approved' ? (
                   <span className="text-emerald-600 flex items-center gap-1">● Approved</span>
                 ) : project.projectStatus === 'changes_requested' ? (
@@ -135,14 +135,14 @@ export default function ApprovalsModal({
               </p>
             </div>
             <div className="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
-              <span className="text-xs text-gray-400 font-medium">Open Items</span>
-              <p className="text-sm font-semibold text-gray-800 mt-1">
+              <span className="text-caption text-gray-400 font-medium">Open Items</span>
+              <p className="text-body-sm font-semibold text-gray-800 mt-1">
                 {openPinsCount} {openPinsCount === 1 ? 'pin' : 'pins'} unresolved
               </p>
             </div>
             <div className="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
-              <span className="text-xs text-gray-400 font-medium">Feedback Deadline</span>
-              <p className="text-sm font-semibold text-gray-800 mt-1">
+              <span className="text-caption text-gray-400 font-medium">Feedback Deadline</span>
+              <p className="text-body-sm font-semibold text-gray-800 mt-1">
                 {project.review?.deadlineAt ? (
                   <span className={isPastDeadline ? 'text-amber-600' : 'text-gray-700'}>
                     {new Date(project.review.deadlineAt).toLocaleDateString()}
@@ -159,12 +159,12 @@ export default function ApprovalsModal({
           {!showSignOff && !isPastDeadline && (
             <div className="flex justify-between items-center bg-blue-50/60 border border-blue-100 rounded-xl p-4 print:hidden">
               <div>
-                <p className="text-sm font-semibold text-blue-900">Record a sign-off decision</p>
-                <p className="text-xs text-blue-700 mt-0.5">Submit an approval or change request on behalf of the team</p>
+                <p className="text-body-sm font-semibold text-blue-900">Record a sign-off decision</p>
+                <p className="text-caption text-blue-700 mt-0.5">Submit an approval or change request on behalf of the team</p>
               </div>
               <button
                 onClick={() => setShowSignOff(true)}
-                className="px-3.5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
+                className="px-3.5 py-2 text-caption font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-colors"
               >
                 Sign Off Round
               </button>
@@ -175,11 +175,11 @@ export default function ApprovalsModal({
           {showSignOff && (
             <form onSubmit={handleDecisionSubmit} className="bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-3.5 animate-scale-in print:hidden">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-800">Your Sign-Off Decision</span>
+                <span className="text-caption font-semibold text-gray-800">Your Sign-Off Decision</span>
                 <button
                   type="button"
                   onClick={() => setShowSignOff(false)}
-                  className="text-xs text-gray-500 hover:text-gray-700"
+                  className="text-caption text-gray-500 hover:text-gray-700"
                 >
                   Cancel
                 </button>
@@ -190,7 +190,7 @@ export default function ApprovalsModal({
                   type="button"
                   onClick={() => setDecision('approved')}
                   disabled={isRequireResolvedBlocked}
-                  className={`py-2 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-colors ${
+                  className={`py-2 px-3 rounded-lg text-caption font-semibold border flex items-center justify-center gap-1.5 transition-colors ${
                     decision === 'approved'
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
                       : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
@@ -201,7 +201,7 @@ export default function ApprovalsModal({
                 <button
                   type="button"
                   onClick={() => setDecision('changes_requested')}
-                  className={`py-2 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition-colors ${
+                  className={`py-2 px-3 rounded-lg text-caption font-semibold border flex items-center justify-center gap-1.5 transition-colors ${
                     decision === 'changes_requested'
                       ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
                       : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
@@ -212,20 +212,20 @@ export default function ApprovalsModal({
               </div>
 
               {isRequireResolvedBlocked && decision === 'approved' && (
-                <p className="text-[11px] text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
+                <p className="text-caption text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
                   ⚠️ This project requires all pins to be resolved before approval ({openPinsCount} open).
                 </p>
               )}
 
               <div>
-                <label className="text-xs font-medium text-gray-700 mb-1 block">Decision Note (optional)</label>
+                <label className="text-label text-gray-700 mb-1 block">Decision Note (optional)</label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Add details, feedback, or conditions for this decision..."
                   rows={3}
                   maxLength={2000}
-                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
 
@@ -233,7 +233,7 @@ export default function ApprovalsModal({
                 <button
                   type="submit"
                   disabled={submitting || (decision === 'approved' && isRequireResolvedBlocked)}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 transition-colors shadow-sm"
+                  className="px-4 py-2 text-caption font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 transition-colors shadow-sm"
                 >
                   {submitting ? 'Submitting...' : 'Confirm Decision'}
                 </button>
@@ -243,16 +243,16 @@ export default function ApprovalsModal({
 
           {/* Audit History List */}
           <div>
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+            <h3 className="text-overline text-gray-400 mb-3">
               Decision History & Audit Trail ({approvals.length})
             </h3>
 
             {loading ? (
-              <div className="text-center py-8 text-xs text-gray-400">Loading history...</div>
+              <div className="text-center py-8 text-caption text-gray-400">Loading history...</div>
             ) : approvals.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                <p className="text-xs text-gray-500">No decisions recorded yet for this project.</p>
-                <p className="text-[11px] text-gray-400 mt-1">Clients can sign off from the shared review link.</p>
+                <p className="text-caption text-gray-500">No decisions recorded yet for this project.</p>
+                <p className="text-caption text-gray-400 mt-1">Clients can sign off from the shared review link.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -270,7 +270,7 @@ export default function ApprovalsModal({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1 ${
+                            className={`px-2 py-0.5 rounded-full text-caption font-semibold flex items-center gap-1 ${
                               isApproved
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                 : 'bg-rose-50 text-rose-700 border border-rose-200'
@@ -278,25 +278,25 @@ export default function ApprovalsModal({
                           >
                             {isApproved ? '✓ Approved' : '✎ Changes Requested'}
                           </span>
-                          <span className="text-xs font-medium text-gray-800">{reviewerName}</span>
+                          <span className="text-caption font-medium text-gray-800">{reviewerName}</span>
                           {isGuest && (
-                            <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.2 rounded border border-amber-200">
+                            <span className="text-caption bg-amber-50 text-amber-700 px-1.5 py-0.2 rounded border border-amber-200">
                               Guest
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-gray-400">
+                        <span className="text-caption text-gray-400">
                           {new Date(appr.createdAt).toLocaleString()}
                         </span>
                       </div>
 
                       {appr.note && (
-                        <p className="text-xs text-gray-700 bg-gray-50 p-2.5 rounded-lg border border-gray-100 whitespace-pre-wrap">
+                        <p className="text-caption text-gray-700 bg-gray-50 p-2.5 rounded-lg border border-gray-100 whitespace-pre-wrap">
                           "{appr.note}"
                         </p>
                       )}
 
-                      <div className="flex items-center gap-4 text-[10px] text-gray-400 pt-1">
+                      <div className="flex items-center gap-4 text-caption text-gray-400 pt-1">
                         {reviewerEmail && <span>Email: {reviewerEmail}</span>}
                         <span>Snapshot: {appr.openPinsAtDecision} open pins</span>
                         {appr.ip && <span className="print:inline">IP: {appr.ip}</span>}

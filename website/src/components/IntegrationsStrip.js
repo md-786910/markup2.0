@@ -27,7 +27,7 @@ export default function IntegrationsStrip() {
               </span>
               <div>
                 <p className="font-semibold text-slate-950">{name}</p>
-                <p className="text-sm text-slate-500">{copy}</p>
+                <p className="text-body-sm text-slate-500">{copy}</p>
               </div>
             </div>
           ))}

@@ -75,7 +75,7 @@ export default function PricingPage() {
         <section className="pb-16 sm:pb-20 lg:pb-24">
           <div className="site-container">
             <PlanCards />
-            <p className="mt-8 text-center text-sm font-medium text-slate-500">{TRIAL_NOTE}</p>
+            <p className="mt-8 text-center text-body-sm font-medium text-slate-500">{TRIAL_NOTE}</p>
           </div>
         </section>
 
@@ -86,16 +86,16 @@ export default function PricingPage() {
                 <span className="eyebrow">Compare</span>
                 <h2 className="section-heading mt-5">See what changes by tier.</h2>
                 <p className="body-copy mt-4">Every plan reviews websites, PDFs and images. Higher tiers add scale, client links, integrations and history.</p>
-                <p className="mt-4 text-sm font-semibold text-[#003dff]">{TRIAL_NOTE}</p>
+                <p className="mt-4 text-body-sm font-semibold text-[#003dff]">{TRIAL_NOTE}</p>
               </div>
               <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
                 <div className="min-w-[640px]">
-                  <div className="grid grid-cols-[1.6fr_repeat(4,0.7fr)] border-b border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700">
+                  <div className="grid grid-cols-[1.6fr_repeat(4,0.7fr)] border-b border-slate-200 bg-slate-50 px-5 py-3 text-body-sm font-semibold text-slate-700">
                     <span>Feature</span>
                     {COMPARE_PLANS.map((name) => <span key={name}>{name}</span>)}
                   </div>
                   {FEATURES.map(([feature, ...values]) => (
-                    <div key={feature} className="grid grid-cols-[1.6fr_repeat(4,0.7fr)] items-center border-b border-slate-100 px-5 py-3 text-sm last:border-0">
+                    <div key={feature} className="grid grid-cols-[1.6fr_repeat(4,0.7fr)] items-center border-b border-slate-100 px-5 py-3 text-body-sm last:border-0">
                       <span className="font-medium text-[#475569]">{feature}</span>
                       {values.map((value, index) => (
                         <span key={`${feature}-${index}`} className={value ? 'text-[#0f172a]' : 'text-[#94a3b8]'}>
@@ -120,7 +120,7 @@ export default function PricingPage() {
               <p className="body-large mt-4">Published prices of popular visual feedback tools, monthly billing.</p>
             </div>
             <div className="mt-10 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-[760px] text-left text-body-sm">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
                     <th scope="col" className="sticky left-0 z-10 bg-slate-50 px-5 py-3 font-semibold text-slate-700"><span className="sr-only">Compare</span></th>
@@ -143,7 +143,7 @@ export default function PricingPage() {
                 </tbody>
               </table>
             </div>
-            <p className="mx-auto mt-4 max-w-4xl text-center text-xs leading-5 text-slate-500">
+            <p className="mx-auto mt-4 max-w-4xl text-center text-caption text-slate-500">
               Prices from each vendor&rsquo;s pricing page, checked in {COMPARED_ON}:{' '}
               {COMPETITORS.filter((c) => c.url).map((c, i, list) => (
                 <React.Fragment key={c.name}>

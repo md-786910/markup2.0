@@ -145,7 +145,7 @@ export default function ProjectCard({
                   handleToggleEmailNotifications(e);
                 }}
                 disabled={emailToggling}
-                className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between transition-colors"
+                className="w-full text-left px-3.5 py-2 text-body-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between transition-colors"
               >
                 <span className="flex items-center gap-2.5">
                   <svg
@@ -164,7 +164,7 @@ export default function ProjectCard({
                   <span>Email Alerts</span>
                 </span>
                 <span
-                  className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+                  className={`text-caption font-semibold px-1.5 py-0.5 rounded ${
                     isEmailNotifEnabled
                       ? "bg-blue-50 text-blue-700"
                       : "bg-gray-100 text-gray-500"
@@ -184,7 +184,7 @@ export default function ProjectCard({
                       setMenuOpen(false);
                       onEdit(project);
                     }}
-                    className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
+                    className="w-full text-left px-3.5 py-2 text-body-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
                   >
                     <svg
                       className="w-4 h-4 text-gray-400"
@@ -203,7 +203,7 @@ export default function ProjectCard({
                   </button>
               {/* <button
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(false); navigate(`/project/${project._id}/members`); }}
-                className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
+                className="w-full text-left px-3.5 py-2 text-body-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
               >
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
@@ -220,7 +220,7 @@ export default function ProjectCard({
                     e.stopPropagation();
                     setStatusOpen(!statusOpen);
                   }}
-                  className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between transition-colors"
+                  className="w-full text-left px-3.5 py-2 text-body-sm text-gray-700 hover:bg-gray-50 flex items-center justify-between transition-colors"
                 >
                   <span className="flex items-center gap-2.5">
                     <div
@@ -253,7 +253,7 @@ export default function ProjectCard({
                           setStatusOpen(false);
                           if (onStatusChange) onStatusChange(project, s.value);
                         }}
-                        className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-white flex items-center gap-2 transition-colors rounded"
+                        className="w-full text-left px-3 py-1.5 text-caption text-gray-700 hover:bg-white flex items-center gap-2 transition-colors rounded"
                       >
                         <div
                           className={`w-2 h-2 rounded-full ${s.dot} shrink-0`}
@@ -289,7 +289,7 @@ export default function ProjectCard({
                   setMenuOpen(false);
                   onArchive(project);
                 }}
-                className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
+                className="w-full text-left px-3.5 py-2 text-body-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
               >
                 <svg
                   className="w-4 h-4 text-gray-400"
@@ -312,7 +312,7 @@ export default function ProjectCard({
                   setMenuOpen(false);
                   onConfirmDelete(project._id);
                 }}
-                className="w-full text-left px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors"
+                className="w-full text-left px-3.5 py-2 text-body-sm text-red-600 hover:bg-red-50 flex items-center gap-2.5 transition-colors"
               >
                 <svg
                   className="w-4 h-4"
@@ -364,10 +364,10 @@ export default function ProjectCard({
                       d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
                     />
                   </svg>
-                  <span className="text-xs font-medium">
+                  <span className="text-caption font-medium">
                     {project.documents[0]?.originalName}
                   </span>
-                  <span className="text-[10px]">
+                  <span className="text-caption">
                     {project.documents[0]?.pageCount || 1} page
                     {(project.documents[0]?.pageCount || 1) > 1 ? "s" : ""}
                   </span>
@@ -387,14 +387,14 @@ export default function ProjectCard({
           {/* Status badges */}
           <div className="absolute top-2 left-2 flex gap-1.5 z-20">
             {project.status === "archived" && (
-              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-gray-900/70 text-white backdrop-blur-sm">
+              <span className="text-caption font-semibold px-1.5 py-0.5 rounded-md bg-gray-900/70 text-white backdrop-blur-sm">
                 Archived
               </span>
             )}
             {project.projectStatus &&
               project.projectStatus !== "not_started" && (
                 <span
-                  className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md backdrop-blur-sm ${statusInfo.badge}`}
+                  className={`text-caption font-semibold px-1.5 py-0.5 rounded-md backdrop-blur-sm ${statusInfo.badge}`}
                 >
                   {statusInfo.label}
                 </span>
@@ -406,7 +406,7 @@ export default function ProjectCard({
             <Link
               to={`/project/${project._id}`}
               target="_blank"
-              className="pointer-events-auto px-5 py-2 bg-white text-gray-900 text-sm font-semibold rounded-full shadow-xl transform scale-90 group-hover:scale-100 hover:scale-105 active:scale-95 transition-all duration-200"
+              className="pointer-events-auto px-5 py-2 bg-white text-gray-900 text-label rounded-full shadow-xl transform scale-90 group-hover:scale-100 hover:scale-105 active:scale-95 transition-all duration-200"
             >
               Open
             </Link>
@@ -415,11 +415,11 @@ export default function ProjectCard({
 
       {/* Card body */}
       <div className="p-4">
-        <h3 className="text-sm font-semibold text-gray-900 leading-snug line-clamp-1 mb-1 pr-6">
+        <h3 className="text-body-sm font-semibold text-gray-900 line-clamp-1 mb-1 pr-6">
           {project.name}
         </h3>
 
-        <p className="text-xs text-gray-400 truncate mb-3">
+        <p className="text-caption text-gray-400 truncate mb-3">
           {domain} · Updated {timeAgo(project.updatedAt || project.createdAt)}
         </p>
 
@@ -432,14 +432,14 @@ export default function ProjectCard({
                   <div
                     key={m._id}
                     title={m.name || m.email}
-                    className={`w-6 h-6 rounded-full ${color.bg} ${color.text} border-2 border-white flex items-center justify-center text-[9px] font-bold`}
+                    className={`w-6 h-6 rounded-full ${color.bg} ${color.text} border-2 border-white flex items-center justify-center text-caption font-semibold`}
                   >
                     {(m.name || m.email || "?")[0].toUpperCase()}
                   </div>
                 );
               })}
               {members.length > 4 && (
-                <div className="w-6 h-6 rounded-full bg-gray-100 text-gray-500 border-2 border-white flex items-center justify-center text-[9px] font-medium">
+                <div className="w-6 h-6 rounded-full bg-gray-100 text-gray-500 border-2 border-white flex items-center justify-center text-caption font-medium">
                   +{members.length - 4}
                 </div>
               )}
@@ -453,7 +453,7 @@ export default function ProjectCard({
                 title={`${openCount} open comment${openCount === 1 ? "" : "s"}`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                <span className="text-[11px] font-semibold tabular-nums">{openCount} open</span>
+                <span className="text-caption font-semibold tabular-nums">{openCount} open</span>
               </div>
             )}
             <div className="flex items-center gap-1 text-gray-400" title="Comments">
@@ -470,7 +470,7 @@ export default function ProjectCard({
                   d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                 />
               </svg>
-              <span className="text-[11px]">{project.commentCount || 0}</span>
+              <span className="text-caption">{project.commentCount || 0}</span>
             </div>
           </div>
         </div>

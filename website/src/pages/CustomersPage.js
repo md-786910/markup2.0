@@ -74,10 +74,10 @@ export default function CustomersPage() {
               <div className="rounded-[20px] bg-white p-5 text-[#0f172a]">
                 <div className="flex items-center justify-between border-b border-slate-200 pb-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Review health</p>
-                    <h2 className="mt-1 font-display text-xl font-semibold">Campaign launch</h2>
+                    <p className="text-overline text-slate-400">Review health</p>
+                    <h2 className="mt-1 text-h4 font-semibold">Campaign launch</h2>
                   </div>
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-[#003dff]">On track</span>
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-caption font-semibold text-[#003dff]">On track</span>
                 </div>
                 {[
                   ['Homepage QA', '12 resolved', 'bg-[#eef3ff] text-[#0031d1]'],
@@ -91,7 +91,7 @@ export default function CustomersPage() {
                       </span>
                       <span className="font-medium text-[#475569]">{label}</span>
                     </div>
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${tone}`}>{value}</span>
+                    <span className={`rounded-full px-3 py-1 text-caption font-semibold ${tone}`}>{value}</span>
                   </div>
                 ))}
               </div>
@@ -111,11 +111,11 @@ export default function CustomersPage() {
                   <div className="icon-tile h-12 w-12">
                     <segment.icon className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-6 font-display text-2xl font-semibold text-[#0f172a]">{segment.title}</h3>
+                  <h3 className="mt-6 text-h3 font-semibold text-[#0f172a]">{segment.title}</h3>
                   <p className="body-copy mt-3">{segment.description}</p>
                   <ul className="mt-6 space-y-3">
                     {segment.metrics.map((metric) => (
-                      <li key={metric} className="flex items-center gap-3 text-sm font-medium text-[#475569]">
+                      <li key={metric} className="flex items-center gap-3 text-body-sm font-medium text-[#475569]">
                         <CheckIcon className="h-4 w-4 text-[#003dff]" />
                         {metric}
                       </li>
@@ -138,25 +138,25 @@ export default function CustomersPage() {
             </div>
             <div className="mt-12 grid gap-6 lg:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                <p className="font-display text-lg font-semibold text-slate-950">Access on each workspace and project</p>
-                <p className="mt-1 text-sm text-slate-500">Set it once on a workspace and it applies to every project inside.</p>
+                <p className="text-body-lg font-semibold text-slate-950">Access on each workspace and project</p>
+                <p className="mt-1 text-body-sm text-slate-500">Set it once on a workspace and it applies to every project inside.</p>
                 <ul className="mt-5 divide-y divide-slate-100">
                   {ACCESS_LEVELS.map(([level, copy]) => (
                     <li key={level} className="flex gap-4 py-3">
-                      <span className="w-28 shrink-0 text-sm font-semibold text-[#003dff]">{level}</span>
-                      <span className="text-sm leading-6 text-slate-600">{copy}</span>
+                      <span className="w-28 shrink-0 text-body-sm font-semibold text-[#003dff]">{level}</span>
+                      <span className="text-body-sm text-slate-600">{copy}</span>
                     </li>
                   ))}
                 </ul>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                <p className="font-display text-lg font-semibold text-slate-950">Roles in your organization</p>
-                <p className="mt-1 text-sm text-slate-500">Who can run the account, and who joins as a guest.</p>
+                <p className="text-body-lg font-semibold text-slate-950">Roles in your organization</p>
+                <p className="mt-1 text-body-sm text-slate-500">Who can run the account, and who joins as a guest.</p>
                 <ul className="mt-5 divide-y divide-slate-100">
                   {ORG_ROLES.map(([role, copy]) => (
                     <li key={role} className="flex gap-4 py-3">
-                      <span className="w-28 shrink-0 text-sm font-semibold text-slate-900">{role}</span>
-                      <span className="text-sm leading-6 text-slate-600">{copy}</span>
+                      <span className="w-28 shrink-0 text-body-sm font-semibold text-slate-900">{role}</span>
+                      <span className="text-body-sm text-slate-600">{copy}</span>
                     </li>
                   ))}
                 </ul>

@@ -72,25 +72,25 @@ export default function GlobalSearch() {
         }}
         placeholder="Search organizations and people"
         aria-label="Search organizations and people"
-        className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-10 text-sm placeholder:text-gray-400 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/15"
+        className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-10 text-body placeholder:text-gray-400 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/15"
       />
-      <kbd className={`pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 ${query ? 'hidden' : 'hidden sm:block'} rounded border border-gray-200 bg-white px-1.5 text-[11px] text-gray-400`}>/</kbd>
+      <kbd className={`pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 ${query ? 'hidden' : 'hidden sm:block'} rounded border border-gray-200 bg-white px-1.5 text-caption text-gray-400`}>/</kbd>
 
       {open && results && (
         <div className="absolute left-0 right-0 top-11 z-40 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
           {empty ? (
-            <p className="px-4 py-6 text-center text-sm text-gray-500">No organizations or people match “{query}”.</p>
+            <p className="px-4 py-6 text-center text-body-sm text-gray-500">No organizations or people match “{query}”.</p>
           ) : (
             <>
               {results.orgs.length > 0 && (
                 <div className="py-1.5">
-                  <p className="px-4 py-1 text-xs font-medium text-gray-400">Organizations</p>
+                  <p className="px-4 py-1 text-caption font-medium text-gray-400">Organizations</p>
                   {results.orgs.map((o) => (
                     <button key={o._id} type="button" onClick={() => go(`/organizations/${o._id}`)} className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-gray-50">
                       <Avatar name={o.name} size="sm" square />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-gray-900">{o.name}</span>
-                        <span className="block truncate text-xs text-gray-500">{o.owner?.email}</span>
+                        <span className="block truncate text-body-sm font-medium text-gray-900">{o.name}</span>
+                        <span className="block truncate text-caption text-gray-500">{o.owner?.email}</span>
                       </span>
                       <PlanBadge plan={o.plan} />
                     </button>
@@ -99,13 +99,13 @@ export default function GlobalSearch() {
               )}
               {results.users.length > 0 && (
                 <div className="border-t border-gray-100 py-1.5">
-                  <p className="px-4 py-1 text-xs font-medium text-gray-400">People</p>
+                  <p className="px-4 py-1 text-caption font-medium text-gray-400">People</p>
                   {results.users.map((u) => (
                     <button key={u._id} type="button" onClick={() => go(`/users/${u._id}`)} className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-gray-50">
                       <Avatar name={u.name} size="sm" />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-gray-900">{u.name}</span>
-                        <span className="block truncate text-xs text-gray-500">{u.email}{u.organization?.name ? ` · ${u.organization.name}` : ''}</span>
+                        <span className="block truncate text-body-sm font-medium text-gray-900">{u.name}</span>
+                        <span className="block truncate text-caption text-gray-500">{u.email}{u.organization?.name ? ` · ${u.organization.name}` : ''}</span>
                       </span>
                     </button>
                   ))}

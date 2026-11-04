@@ -34,27 +34,27 @@ export default function Footer() {
           <div className="max-w-sm">
             <a href="/" className="inline-flex items-center gap-3">
               <BrandMark className="h-9 w-9" />
-              <span className="font-display text-xl font-semibold tracking-tight">Kommently</span>
+              <span className="text-h4 font-semibold tracking-[-0.03em]">Kommently</span>
             </a>
-            <p className="mt-5 text-sm leading-7 text-slate-400">
+            <p className="mt-5 text-body-sm text-slate-400">
               Pin feedback on live websites, PDFs, and images. Review with your team and your clients in one place.
             </p>
           </div>
 
           {Object.entries(FOOTER_LINKS).map(([category, links]) => (
             <div key={category}>
-              <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">{category}</h3>
+              <h3 className="text-overline text-slate-300">{category}</h3>
               <ul className="mt-5 space-y-3">
                 {links.map((link) => (
                   <li key={link.label}>
-                    <a href={link.href} className="text-sm text-slate-400 transition-colors hover:text-white">
+                    <a href={link.href} className="text-body-sm text-slate-400 transition-colors hover:text-white">
                       {link.label}
                     </a>
                   </li>
                 ))}
                 {category === 'Legal' ? (
                   <li>
-                    <button type="button" onClick={openCookieSettings} className="text-sm text-slate-400 transition-colors hover:text-white">
+                    <button type="button" onClick={openCookieSettings} className="text-body-sm text-slate-400 transition-colors hover:text-white">
                       Cookie settings
                     </button>
                   </li>
@@ -64,7 +64,7 @@ export default function Footer() {
           ))}
         </div>
 
-        <div className="mt-14 border-t border-white/10 pt-8 text-sm text-slate-500">
+        <div className="mt-14 border-t border-white/10 pt-8 text-body-sm text-slate-500">
           <p>&copy; {new Date().getFullYear()} Kommently. All rights reserved.</p>
         </div>
       </div>

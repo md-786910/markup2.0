@@ -130,7 +130,7 @@ function InviteDialog({ isOpen, onClose, activeProjects, workspaces, onInvited }
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Invite people" size="lg">
       <form onSubmit={send} className="space-y-5">
-        <p className="text-sm text-gray-500 -mt-1">People already in your organization are added at once. Everyone else gets an email with a sign-up link.</p>
+        <p className="text-body-sm text-gray-500 -mt-1">People already in your organization are added at once. Everyone else gets an email with a sign-up link.</p>
 
         <Field label="Email addresses" hint="Press Enter or a comma after each address. You can paste a list.">
           <div
@@ -138,7 +138,7 @@ function InviteDialog({ isOpen, onClose, activeProjects, workspaces, onInvited }
             onClick={() => inputRef.current?.focus()}
           >
             {emails.map((m) => (
-              <span key={m} className="inline-flex items-center gap-1 rounded-md bg-gray-100 pl-2 pr-1 py-0.5 text-[13px] text-gray-700">
+              <span key={m} className="inline-flex items-center gap-1 rounded-md bg-gray-100 pl-2 pr-1 py-0.5 text-body-sm text-gray-700">
                 <span className="max-w-[200px] truncate">{m}</span>
                 <button type="button" aria-label={`Remove ${m}`} onClick={(ev) => { ev.stopPropagation(); setEmails((p) => p.filter((x) => x !== m)); }} className="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700">{Icon.close('w-3 h-3')}</button>
               </span>
@@ -159,7 +159,7 @@ function InviteDialog({ isOpen, onClose, activeProjects, workspaces, onInvited }
                 if (/[,\n\r\t ]/.test(text)) { ev.preventDefault(); addEmails(text); }
               }}
               placeholder={emails.length ? '' : 'name@company.com'}
-              className="min-w-[160px] flex-1 border-0 bg-transparent px-1 py-0.5 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+              className="min-w-[160px] flex-1 border-0 bg-transparent px-1 py-0.5 text-body text-gray-900 outline-none placeholder:text-gray-400"
             />
           </div>
         </Field>
@@ -175,7 +175,7 @@ function InviteDialog({ isOpen, onClose, activeProjects, workspaces, onInvited }
               onClick={() => setAccessOpen((o) => !o)}
               aria-haspopup="listbox"
               aria-expanded={accessOpen}
-              className={`w-full flex items-center justify-between gap-2 h-9 px-3 text-sm bg-white border rounded-lg transition-shadow ${accessOpen ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200 hover:border-gray-300'}`}
+              className={`w-full flex items-center justify-between gap-2 h-9 px-3 text-body-sm bg-white border rounded-lg transition-shadow ${accessOpen ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200 hover:border-gray-300'}`}
             >
               <span className={`truncate ${accessCount ? 'text-gray-900' : 'text-gray-400'}`}>{accessLabel}</span>
               <span className="flex items-center gap-2 shrink-0">
@@ -187,22 +187,22 @@ function InviteDialog({ isOpen, onClose, activeProjects, workspaces, onInvited }
               <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 animate-scale-in z-40 max-h-72 overflow-y-auto">
                 {role !== 'admin' && (
                   <>
-                    <p className="px-3.5 pt-1.5 pb-1 text-xs font-medium text-gray-500">Whole workspace</p>
+                    <p className="px-3.5 pt-1.5 pb-1 text-caption font-medium text-gray-500">Whole workspace</p>
                     {workspaces.map((w) => (
-                      <label key={w._id} className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-gray-50 ${workspaceIds.includes(w._id) ? 'bg-blue-50/60' : ''}`}>
+                      <label key={w._id} className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-body-sm transition-colors hover:bg-gray-50 ${workspaceIds.includes(w._id) ? 'bg-blue-50/60' : ''}`}>
                         <input type="checkbox" checked={workspaceIds.includes(w._id)} onChange={() => toggle(setWorkspaceIds, w._id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                         <span className="min-w-0 flex-1 truncate text-gray-700">{w.name}</span>
-                        <span className="text-xs text-gray-400">{w.projectCount} {w.projectCount === 1 ? 'project' : 'projects'}</span>
+                        <span className="text-caption text-gray-400">{w.projectCount} {w.projectCount === 1 ? 'project' : 'projects'}</span>
                       </label>
                     ))}
                     <div className="border-t border-gray-100 my-1" />
                   </>
                 )}
-                <p className="px-3.5 pt-1.5 pb-1 text-xs font-medium text-gray-500">Single projects</p>
+                <p className="px-3.5 pt-1.5 pb-1 text-caption font-medium text-gray-500">Single projects</p>
                 {activeProjects.length === 0 ? (
-                  <p className="px-3.5 py-2 text-sm text-gray-400">No active projects here yet.</p>
+                  <p className="px-3.5 py-2 text-body-sm text-gray-400">No active projects here yet.</p>
                 ) : activeProjects.map((p) => (
-                  <label key={p._id} className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-sm transition-colors hover:bg-gray-50 ${projectIds.includes(p._id) ? 'bg-blue-50/60' : ''}`}>
+                  <label key={p._id} className={`flex cursor-pointer items-center gap-3 px-3.5 py-2 text-body-sm transition-colors hover:bg-gray-50 ${projectIds.includes(p._id) ? 'bg-blue-50/60' : ''}`}>
                     <input type="checkbox" checked={projectIds.includes(p._id)} onChange={() => toggle(setProjectIds, p._id)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span className="min-w-0 flex-1 truncate text-gray-700">{p.name}</span>
                   </label>
@@ -212,7 +212,7 @@ function InviteDialog({ isOpen, onClose, activeProjects, workspaces, onInvited }
           </div>
         </Field>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-body-sm text-red-600">{error}</p>}
 
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
@@ -247,7 +247,7 @@ function RemoveDialog({ member, onClose, onRemoved }) {
   return (
     <Modal isOpen onClose={onClose} title="Remove from a project" size="sm">
       <div className="space-y-5">
-        <p className="text-sm text-gray-600">
+        <p className="text-body-sm text-gray-600">
           <span className="font-medium text-gray-900">{member.name || member.email}</span> loses access to the project you choose. They stay in your organization.
         </p>
         {(member.projects || []).length > 1 && (
@@ -398,7 +398,7 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
             />
           ) : (
             <>
-              <div className="hidden md:grid grid-cols-[minmax(0,1fr)_150px_minmax(0,260px)_40px] gap-4 px-6 py-3 border-b border-gray-100 text-xs font-medium text-gray-500">
+              <div className="hidden md:grid grid-cols-[minmax(0,1fr)_150px_minmax(0,260px)_40px] gap-4 px-6 py-3 border-b border-gray-100 text-caption font-medium text-gray-500">
                 <span>Person</span><span>Role</span><span>Projects in this workspace</span><span />
               </div>
               <ul className="divide-y divide-gray-100">
@@ -412,11 +412,11 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar name={m.name || m.email} />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
+                          <p className="text-body-sm font-medium text-gray-900 truncate">
                             {m.name || m.email}
-                            {isSelf && <span className="ml-1.5 text-xs font-normal text-gray-400">(you)</span>}
+                            {isSelf && <span className="ml-1.5 text-caption font-normal text-gray-400">(you)</span>}
                           </p>
-                          <p className="text-xs text-gray-500 truncate">{m.email}</p>
+                          <p className="text-caption text-gray-500 truncate">{m.email}</p>
                         </div>
                       </div>
                       <div className="justify-self-end md:justify-self-start">
@@ -435,15 +435,15 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                       </div>
                       <div className="col-span-2 md:col-span-1 flex flex-nowrap items-center gap-1.5 min-w-0 overflow-hidden">
                         {projectList.length === 0 ? (
-                          <span className="text-xs text-gray-400">{role === 'owner' || role === 'admin' ? 'All projects' : 'No projects here'}</span>
+                          <span className="text-caption text-gray-400">{role === 'owner' || role === 'admin' ? 'All projects' : 'No projects here'}</span>
                         ) : (
                           <>
                             {projectList.slice(0, 2).map((p) => (
-                              <button key={p._id} type="button" title={p.name} onClick={() => navigate(`/project/${p._id}`)} className="max-w-[104px] shrink-0 truncate rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                              <button key={p._id} type="button" title={p.name} onClick={() => navigate(`/project/${p._id}`)} className="max-w-[104px] shrink-0 truncate rounded-md bg-gray-100 px-2 py-0.5 text-caption text-gray-600 hover:bg-blue-50 hover:text-blue-700 transition-colors">
                                 {p.name}
                               </button>
                             ))}
-                            {projectList.length > 2 && <span className="shrink-0 text-xs text-gray-400" title={projectList.slice(2).map((p) => p.name).join(', ')}>+{projectList.length - 2}</span>}
+                            {projectList.length > 2 && <span className="shrink-0 text-caption text-gray-400" title={projectList.slice(2).map((p) => p.name).join(', ')}>+{projectList.length - 2}</span>}
                           </>
                         )}
                       </div>
@@ -488,8 +488,8 @@ export default function MembersTab({ members, projects, isAdmin, currentUserId, 
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
                       </span>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{inv.email}</p>
-                        <p className="text-xs text-gray-500 truncate">
+                        <p className="text-body-sm font-medium text-gray-900 truncate">{inv.email}</p>
+                        <p className="text-caption text-gray-500 truncate">
                           {inv.targetType === 'workspace' ? `Workspace · ${inv.target}` : inv.target} · {ROLE_LABEL[inv.role || 'member']}
                         </p>
                       </div>

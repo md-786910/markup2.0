@@ -73,18 +73,18 @@ export default function GuestWorkspacePage() {
           className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-8"
         >
           <BrandMark className="mx-auto mb-4 h-10 w-10" />
-          <h1 className="text-center text-lg font-semibold text-gray-900">Password required</h1>
-          <p className="mb-5 mt-1 text-center text-sm text-gray-500">Enter the password you were given to open this review.</p>
+          <h1 className="text-center text-body-lg font-semibold text-gray-900">Password required</h1>
+          <p className="mb-5 mt-1 text-center text-body-sm text-gray-500">Enter the password you were given to open this review.</p>
           <input
             type="password"
             autoFocus
             value={password}
             onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
             placeholder="Password"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-body focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
           />
-          {passwordError && <p className="mt-2 text-sm text-red-600">{passwordError}</p>}
-          <button type="submit" className="mt-4 w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700">
+          {passwordError && <p className="mt-2 text-body-sm text-red-600">{passwordError}</p>}
+          <button type="submit" className="mt-4 w-full rounded-lg bg-blue-600 py-2.5 text-label text-white hover:bg-blue-700">
             Open review
           </button>
         </form>
@@ -96,8 +96,8 @@ export default function GuestWorkspacePage() {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-50 p-4">
         <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-8 text-center">
-          <h1 className="text-lg font-semibold text-gray-900">This review isn't available</h1>
-          <p className="mt-1 text-sm text-gray-500">{error}</p>
+          <h1 className="text-body-lg font-semibold text-gray-900">This review isn't available</h1>
+          <p className="mt-1 text-body-sm text-gray-500">{error}</p>
         </div>
       </div>
     );
@@ -115,28 +115,28 @@ export default function GuestWorkspacePage() {
             <BrandMark className="h-8 w-8" />
           )}
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-gray-900">{organization.name}</p>
-            <p className="text-xs text-gray-500">Review</p>
+            <p className="truncate text-body-sm font-semibold text-gray-900">{organization.name}</p>
+            <p className="text-caption text-gray-500">Review</p>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <div className="flex items-center gap-3">
-          <WorkspaceTile name={workspace.name} className="h-10 w-10 text-base" />
+          <WorkspaceTile name={workspace.name} className="h-10 w-10 text-body" />
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">{workspace.name}</h1>
-            <p className="text-sm text-gray-500">
+            <h1 className="text-h3 font-semibold text-gray-900">{workspace.name}</h1>
+            <p className="text-body-sm text-gray-500">
               {projects.length} {projects.length === 1 ? 'project' : 'projects'} shared with you by {organization.name}
             </p>
           </div>
         </div>
 
         {workspace.allowComments && projects.length > 0 && (
-          <ol className="mt-6 grid gap-3 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600 sm:grid-cols-3">
+          <ol className="mt-6 grid gap-3 rounded-xl border border-gray-200 bg-white p-4 text-body-sm text-gray-600 sm:grid-cols-3">
             {['Open a project below', 'Switch to Comment and click the spot you mean', 'Write your note. Add your name once and you\'re done'].map((step, i) => (
               <li key={step} className="flex items-start gap-2.5">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700">{i + 1}</span>
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-50 text-caption font-semibold text-blue-700">{i + 1}</span>
                 {step}
               </li>
             ))}
@@ -144,7 +144,7 @@ export default function GuestWorkspacePage() {
         )}
 
         {projects.length === 0 ? (
-          <div className="mt-10 rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">
+          <div className="mt-10 rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-body-sm text-gray-500">
             Nothing to review yet. Check back soon.
           </div>
         ) : (
@@ -168,30 +168,30 @@ export default function GuestWorkspacePage() {
                       <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                       </svg>
-                      <span className="max-w-[80%] truncate text-xs font-medium">{p.cover?.name}</span>
+                      <span className="max-w-[80%] truncate text-caption font-medium">{p.cover?.name}</span>
                     </div>
                   )}
                 </div>
                 <div className="p-5">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="flex items-center gap-2 text-caption text-gray-500">
                   <span className="rounded-md bg-gray-100 px-1.5 py-0.5 font-medium text-gray-600">
                     {p.projectType === 'document' ? 'Document' : 'Website'}
                   </span>
                   <span>Updated {timeAgo(p.updatedAt)}</span>
                 </div>
-                <h2 className="mt-3 truncate text-base font-semibold text-gray-900 group-hover:text-blue-700">{p.name}</h2>
-                <p className="mt-0.5 truncate text-sm text-gray-500">
+                <h2 className="mt-3 truncate text-body font-semibold text-gray-900 group-hover:text-blue-700">{p.name}</h2>
+                <p className="mt-0.5 truncate text-body-sm text-gray-500">
                   {p.projectType === 'document'
                     ? `${p.documentCount} ${p.documentCount === 1 ? 'file' : 'files'}`
                     : hostOf(p.websiteUrl)}
                 </p>
                 {p.lastDecision && (
-                  <p className={`mt-3 text-xs font-medium ${p.lastDecision.decision === 'approved' ? 'text-emerald-700' : 'text-red-700'}`}>
+                  <p className={`mt-3 text-caption font-medium ${p.lastDecision.decision === 'approved' ? 'text-emerald-700' : 'text-red-700'}`}>
                     {p.lastDecision.decision === 'approved' ? 'Approved' : 'Changes requested'}
                     {p.lastDecision.by ? ` by ${p.lastDecision.by}` : ''}, {new Date(p.lastDecision.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
                 )}
-                <div className="mt-4 flex items-center justify-between text-sm">
+                <div className="mt-4 flex items-center justify-between text-body-sm">
                   <span className={p.openPinCount ? 'font-medium text-blue-700' : 'text-gray-400'}>
                     {p.openPinCount ? `${p.openPinCount} open ${p.openPinCount === 1 ? 'comment' : 'comments'}` : 'No open comments'}
                   </span>

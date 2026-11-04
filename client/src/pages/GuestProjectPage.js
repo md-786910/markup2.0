@@ -380,8 +380,8 @@ export default function GuestProjectPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 text-center mb-1">Password Required</h2>
-          <p className="text-sm text-gray-500 text-center mb-5">Enter the password to access this review.</p>
+          <h2 className="text-body-lg font-semibold text-gray-900 text-center mb-1">Password Required</h2>
+          <p className="text-body-sm text-gray-500 text-center mb-5">Enter the password to access this review.</p>
           <PasswordInput
             wrapperClassName="mb-3"
             value={password}
@@ -390,7 +390,7 @@ export default function GuestProjectPage() {
               if (passwordError) setPasswordError('');
             }}
             placeholder="Enter password"
-            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:ring-2 outline-none ${
+            className={`w-full px-3 py-2.5 text-body border rounded-lg focus:ring-2 outline-none ${
               passwordError
                 ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
                 : 'border-gray-200 focus:ring-blue-500 focus:border-blue-500'
@@ -398,17 +398,17 @@ export default function GuestProjectPage() {
             autoFocus
           />
           {passwordError && (
-            <p className="text-sm text-red-600 mb-3 flex items-center gap-1.5">
+            <p className="text-body-sm text-red-600 mb-3 flex items-center gap-1.5">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
               </svg>
               {passwordError}
             </p>
           )}
-          {error && !passwordError && <p className="text-sm text-red-500 mb-3">{error}</p>}
+          {error && !passwordError && <p className="text-body-sm text-red-500 mb-3">{error}</p>}
           <button
             type="submit"
-            className="w-full py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Access Review
           </button>
@@ -427,8 +427,8 @@ export default function GuestProjectPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Unable to Load</h2>
-          <p className="text-sm text-gray-500">{error}</p>
+          <h2 className="text-body-lg font-semibold text-gray-900 mb-1">Unable to Load</h2>
+          <p className="text-body-sm text-gray-500">{error}</p>
         </div>
       </div>
     );
@@ -443,15 +443,15 @@ export default function GuestProjectPage() {
   const identityModal = showIdentityForm && (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Details</h3>
-        <p className="text-sm text-gray-500 mb-4">Enter your name and email to leave feedback.</p>
+        <h3 className="text-body-lg font-semibold text-gray-900 mb-4">Your Details</h3>
+        <p className="text-body-sm text-gray-500 mb-4">Enter your name and email to leave feedback.</p>
         <div className="space-y-3 mb-5">
           <input
             type="text"
             value={guestName}
             onChange={(e) => setGuestName(e.target.value)}
             placeholder="Your name"
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-3 py-2.5 text-body border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             autoFocus
           />
           <input
@@ -459,20 +459,20 @@ export default function GuestProjectPage() {
             value={guestEmail}
             onChange={(e) => setGuestEmail(e.target.value)}
             placeholder="your@email.com"
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            className="w-full px-3 py-2.5 text-body border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
         <div className="flex gap-3">
           <button
             onClick={() => setShowIdentityForm(false)}
-            className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+            className="flex-1 px-4 py-2.5 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
           >
             Cancel
           </button>
           <button
             onClick={saveGuestIdentity}
             disabled={!guestName.trim() || !guestEmail.trim()}
-            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
             Continue
           </button>
@@ -488,7 +488,7 @@ export default function GuestProjectPage() {
         {/* Left: Brand + Project + URL */}
         <div className="flex items-center gap-3 min-w-0 z-10">
           {workspaceToken ? (
-            <Link to={`/review/w/${workspaceToken}`} className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 shrink-0" title="All projects">
+            <Link to={`/review/w/${workspaceToken}`} className="flex items-center gap-1.5 text-body-sm font-medium text-gray-500 hover:text-gray-900 shrink-0" title="All projects">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
@@ -498,9 +498,9 @@ export default function GuestProjectPage() {
             <BrandMark className="w-8 h-8" />
           )}
           <div className="w-px h-6 bg-gray-200/80 shrink-0" />
-          <h2 className="font-semibold text-gray-900 truncate text-[14px] tracking-tight">{project.name}</h2>
+          <h2 className="font-semibold text-gray-900 truncate text-body-sm">{project.name}</h2>
           {project.projectType === 'website' && project.websiteUrl && (
-            <div className="hidden lg:flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 cursor-default" title={project.websiteUrl}>
+            <div className="hidden lg:flex items-center gap-1.5 text-caption text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 cursor-default" title={project.websiteUrl}>
               <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
               </svg>
@@ -516,30 +516,30 @@ export default function GuestProjectPage() {
               <button
                 type="button"
                 onClick={() => { setCommentMode(false); setDraft(null); }}
-                className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ${!commentMode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-3 py-1.5 rounded-md text-label transition-colors ${!commentMode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 View
               </button>
               <button
                 type="button"
                 onClick={() => setCommentMode(true)}
-                className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ${commentMode ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-3 py-1.5 rounded-md text-label transition-colors ${commentMode ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
               >
                 Comment
               </button>
             </div>
           )}
-          <span className="hidden md:inline text-[11px] font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100/50">
+          <span className="hidden md:inline text-caption font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100/50">
             Guest Review
           </span>
           {hasIdentity && (
             <>
               <div className="hidden md:block w-px h-6 bg-gray-200/80" />
               <div className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full ${guestColor.bg} ${guestColor.text} flex items-center justify-center text-[10px] font-bold`}>
+                <div className={`w-7 h-7 rounded-full ${guestColor.bg} ${guestColor.text} flex items-center justify-center text-caption font-semibold`}>
                   {getInitials(guestName)}
                 </div>
-                <span className="hidden md:inline text-[13px] font-medium text-gray-700">{guestName}</span>
+                <span className="hidden md:inline text-body-sm font-medium text-gray-700">{guestName}</span>
               </div>
             </>
           )}
@@ -570,13 +570,13 @@ export default function GuestProjectPage() {
                     </svg>
                   </button>
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0 ${
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-caption font-semibold text-white shrink-0 ${
                       selectedPin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'
                     }`}>
                       {selectedPin.pinNumber}
                     </span>
-                    <span className="text-[14px] font-semibold text-gray-900">Pin #{selectedPin.pinNumber}</span>
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+                    <span className="text-body-sm font-semibold text-gray-900">Pin #{selectedPin.pinNumber}</span>
+                    <span className={`text-caption font-medium px-1.5 py-0.5 rounded-full ${
                       selectedPin.status === 'resolved'
                         ? 'bg-emerald-50 text-emerald-600'
                         : 'bg-amber-50 text-amber-600'
@@ -595,17 +595,17 @@ export default function GuestProjectPage() {
                       const color = getAvatarColor(authorId);
                       return (
                         <>
-                          <div className={`w-6 h-6 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-[9px] font-bold`}>
+                          <div className={`w-6 h-6 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-caption font-semibold`}>
                             {getInitials(authorName)}
                           </div>
-                          <span className="text-[13px] font-medium text-gray-700">{authorName}</span>
+                          <span className="text-body-sm font-medium text-gray-700">{authorName}</span>
                           {!selectedPin.createdBy && selectedPin.createdByGuest && (
-                            <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">(guest)</span>
+                            <span className="text-caption text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">(guest)</span>
                           )}
                         </>
                       );
                     })()}
-                    <span className="text-[11px] text-gray-400">{timeAgo(selectedPin.createdAt)}</span>
+                    <span className="text-caption text-gray-400">{timeAgo(selectedPin.createdAt)}</span>
                   </div>
                 </div>
 
@@ -618,8 +618,8 @@ export default function GuestProjectPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                         </svg>
                       </div>
-                      <p className="text-[13px] text-gray-400">No comments yet</p>
-                      <p className="text-[11px] text-gray-300 mt-0.5">Be the first to leave feedback</p>
+                      <p className="text-body-sm text-gray-400">No comments yet</p>
+                      <p className="text-caption text-gray-300 mt-0.5">Be the first to leave feedback</p>
                     </div>
                   )}
                   {comments.map((comment) => {
@@ -630,18 +630,18 @@ export default function GuestProjectPage() {
                     return (
                       <div key={comment._id} className="py-3">
                         <div className="flex items-start gap-2.5">
-                          <div className={`w-7 h-7 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5`}>
+                          <div className={`w-7 h-7 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-caption font-semibold shrink-0 mt-0.5`}>
                             {getInitials(authorName)}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-0.5">
-                              <span className="text-[13px] font-semibold text-gray-700">{authorName}</span>
+                              <span className="text-body-sm font-semibold text-gray-700">{authorName}</span>
                               {isGuest && (
-                                <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">(guest)</span>
+                                <span className="text-caption text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">(guest)</span>
                               )}
-                              <span className="text-[11px] text-gray-400">{timeAgo(comment.createdAt)}</span>
+                              <span className="text-caption text-gray-400">{timeAgo(comment.createdAt)}</span>
                             </div>
-                            <p className="text-[13px] text-gray-600 leading-relaxed">{renderCommentBody(comment.body)}</p>
+                            <p className="text-body-sm text-gray-600">{renderCommentBody(comment.body)}</p>
                             {comment.attachments?.length > 0 && (
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {comment.attachments.map((att, i) => (
@@ -666,27 +666,27 @@ export default function GuestProjectPage() {
                     {!identityConfirmed ? (
                       /* Inline identity prompt */
                       <div>
-                        <p className="text-[13px] text-gray-500 mb-2.5">Enter your details to leave feedback</p>
+                        <p className="text-body-sm text-gray-500 mb-2.5">Enter your details to leave feedback</p>
                         <div className="space-y-2 mb-2.5">
                           <input
                             type="text"
                             value={guestName}
                             onChange={(e) => setGuestName(e.target.value)}
                             placeholder="Your name"
-                            className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                           />
                           <input
                             type="email"
                             value={guestEmail}
                             onChange={(e) => setGuestEmail(e.target.value)}
                             placeholder="your@email.com"
-                            className="w-full px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                           />
                         </div>
                         <button
                           onClick={saveGuestIdentity}
                           disabled={!guestName.trim() || !guestEmail.trim()}
-                          className="w-full py-2 text-[13px] font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                          className="w-full py-2 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                         >
                           Continue
                         </button>
@@ -695,14 +695,14 @@ export default function GuestProjectPage() {
                       /* Comment textarea */
                       <div>
                         <div className="flex items-start gap-2.5">
-                          <div className={`w-7 h-7 rounded-full ${guestColor.bg} ${guestColor.text} flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5`}>
+                          <div className={`w-7 h-7 rounded-full ${guestColor.bg} ${guestColor.text} flex items-center justify-center text-caption font-semibold shrink-0 mt-0.5`}>
                             {getInitials(guestName)}
                           </div>
                           <textarea
                             value={commentBody}
                             onChange={(e) => setCommentBody(e.target.value)}
                             placeholder="Add a comment..."
-                            className="flex-1 px-3 py-2 text-[13px] border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            className="flex-1 px-3 py-2 text-body border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                             rows={2}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && !e.shiftKey) {
@@ -724,7 +724,7 @@ export default function GuestProjectPage() {
                           </div>
                         )}
                         <div className="flex items-center justify-between mt-2">
-                          <label className="cursor-pointer text-[11px] text-gray-500 hover:text-blue-600 transition-colors">
+                          <label className="cursor-pointer text-caption text-gray-500 hover:text-blue-600 transition-colors">
                             <input
                               type="file"
                               multiple
@@ -737,7 +737,7 @@ export default function GuestProjectPage() {
                           <button
                             onClick={handleAddComment}
                             disabled={!commentBody.trim() || submitting}
-                            className="px-4 py-1.5 text-[13px] font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                            className="px-4 py-1.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                           >
                             {submitting ? 'Sending...' : 'Send'}
                           </button>
@@ -762,9 +762,9 @@ export default function GuestProjectPage() {
                     <button
                       key={t.key}
                       onClick={() => setFilterStatus(t.key)}
-                      className={`text-[13px] pb-1 transition-all ${
+                      className={`text-label pb-1 transition-all ${
                         isActive
-                          ? 'font-semibold text-gray-900 border-b-2 border-gray-800'
+                          ? ' text-gray-900 border-b-2 border-gray-800'
                           : 'font-medium text-gray-400 hover:text-gray-600 border-b-2 border-transparent'
                       }`}
                     >
@@ -784,7 +784,7 @@ export default function GuestProjectPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-gray-400">
+                  <p className="text-body-sm font-medium text-gray-400">
                     {filterStatus === 'resolved'
                       ? 'No resolved feedback'
                       : filterStatus === 'open'
@@ -792,7 +792,7 @@ export default function GuestProjectPage() {
                       : 'No feedback yet'}
                   </p>
                   {filterStatus === 'open' && pins.length === 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-caption text-gray-500 mt-1">
                       {project.allowComments
                         ? <>Switch to <span className="font-semibold text-blue-600">Comment</span> and click anywhere on the page.</>
                         : 'Feedback will appear here.'}
@@ -815,7 +815,7 @@ export default function GuestProjectPage() {
                       <div className="px-4 pt-4 pb-3">
                         {/* Top row: pin badge */}
                         <div className="flex items-start justify-between mb-2">
-                          <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold text-white shrink-0 ${
+                          <span className={`w-8 h-8 rounded-full flex items-center justify-center text-body-sm font-semibold text-white shrink-0 ${
                             pin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'
                           }`}>
                             {pin.pinNumber}
@@ -825,31 +825,31 @@ export default function GuestProjectPage() {
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                             </svg>
-                            <span className="text-[11px]">{pin.commentsCount || 0}</span>
+                            <span className="text-caption">{pin.commentsCount || 0}</span>
                           </div>
                         </div>
 
                         {/* Author */}
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[13px] font-semibold text-gray-900">{authorName}</span>
+                          <span className="text-body-sm font-semibold text-gray-900">{authorName}</span>
                           {!pin.createdBy && pin.createdByGuest && (
-                            <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">(guest)</span>
+                            <span className="text-caption text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">(guest)</span>
                           )}
                         </div>
 
                         {/* Time */}
-                        <p className="text-[11px] text-gray-400 mb-1.5">{timeAgo(pin.createdAt)}</p>
+                        <p className="text-caption text-gray-400 mb-1.5">{timeAgo(pin.createdAt)}</p>
 
                         {/* Comment preview */}
                         {pin.firstComment ? (
-                          <div className="text-[13px] text-gray-700 leading-snug line-clamp-2">{renderCommentBody(pin.firstComment.body)}</div>
+                          <div className="text-body-sm text-gray-700 line-clamp-2">{renderCommentBody(pin.firstComment.body)}</div>
                         ) : (
-                          <p className="text-[12px] text-gray-300 italic">No comments</p>
+                          <p className="text-caption text-gray-300 italic">No comments</p>
                         )}
 
                         {/* Reply count */}
                         {pin.commentsCount > 1 && (
-                          <p className="text-[11px] text-gray-400 mt-1">
+                          <p className="text-caption text-gray-400 mt-1">
                             {pin.commentsCount - 1} {pin.commentsCount - 1 === 1 ? 'reply' : 'replies'}
                           </p>
                         )}
@@ -866,7 +866,7 @@ export default function GuestProjectPage() {
         {/* ─── Main content area ─── */}
         <div className={`${mobilePane === 'page' ? 'block' : 'hidden'} md:block flex-1 min-w-0 relative bg-gray-50 flex flex-col`}>
           {isFeedbackClosed && (
-            <div className="bg-amber-50/95 border-b border-amber-200 px-4 py-2.5 text-xs text-amber-900 flex items-center justify-between z-20 shrink-0">
+            <div className="bg-amber-50/95 border-b border-amber-200 px-4 py-2.5 text-caption text-amber-900 flex items-center justify-between z-20 shrink-0">
               <div className="flex items-center gap-2">
                 <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
@@ -875,7 +875,7 @@ export default function GuestProjectPage() {
                   <strong>Feedback closed:</strong> {project?.review?.deadlineMessage || `Feedback has closed for this review round (${new Date(project.review.deadlineAt).toLocaleDateString()}).`}
                 </span>
               </div>
-              <span className="font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-[10px]">Read-only mode</span>
+              <span className="font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-caption">Read-only mode</span>
             </div>
           )}
 
@@ -914,27 +914,27 @@ export default function GuestProjectPage() {
             {/* New comment on the clicked spot */}
             {draft && (
               <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-[min(420px,calc(100%-2rem))] rounded-2xl border border-gray-200 bg-white p-4 shadow-xl">
-                <p className="text-[13px] font-semibold text-gray-900 mb-2">New comment</p>
+                <p className="text-body-sm font-semibold text-gray-900 mb-2">New comment</p>
                 <textarea
                   autoFocus
                   rows={3}
                   value={draftBody}
                   onChange={(e) => setDraftBody(e.target.value)}
                   placeholder="What should change here?"
-                  className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
+                  className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-body outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                 />
                 {!hasIdentity && (
-                  <p className="mt-2 text-[12px] text-gray-500">You'll be asked for your name and email before posting.</p>
+                  <p className="mt-2 text-caption text-gray-500">You'll be asked for your name and email before posting.</p>
                 )}
                 <div className="mt-3 flex justify-end gap-2">
-                  <button type="button" onClick={() => setDraft(null)} className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100">
+                  <button type="button" onClick={() => setDraft(null)} className="px-3 py-2 rounded-lg text-label text-gray-600 hover:bg-gray-100">
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={handlePostPin}
                     disabled={!draftBody.trim() || postingPin}
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white text-label hover:bg-blue-700 disabled:opacity-50"
                   >
                     {postingPin ? 'Posting…' : 'Post'}
                   </button>
@@ -946,26 +946,26 @@ export default function GuestProjectPage() {
             {project?.review?.approvalsEnabled !== false && !isFeedbackClosed && project?.allowComments && (
               <div className="fixed bottom-4 right-6 z-40 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/90 px-4 py-3 flex items-center gap-4 animate-slide-up">
                 <div>
-                  <div className="text-xs font-semibold text-gray-900 flex items-center gap-2">
+                  <div className="text-caption font-semibold text-gray-900 flex items-center gap-2">
                     <span>Review Decision</span>
                     {openPinsCount === 0 ? (
-                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">
+                      <span className="text-caption font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">
                         All pins resolved
                       </span>
                     ) : (
-                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50">
+                      <span className="text-caption font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50">
                         {openPinsCount} open {openPinsCount === 1 ? 'pin' : 'pins'}
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-gray-500">Sign off on this round or request changes</p>
+                  <p className="text-caption text-gray-500">Sign off on this round or request changes</p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => { setDecisionType('changes_requested'); setDecisionModalOpen(true); }}
-                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+                    className="px-3 py-1.5 text-caption font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
                   >
                     Request changes
                   </button>
@@ -974,7 +974,7 @@ export default function GuestProjectPage() {
                     onClick={() => { setDecisionType('approved'); setDecisionModalOpen(true); }}
                     disabled={isRequireResolvedBlocked}
                     title={isRequireResolvedBlocked ? `All pins must be resolved before approval (${openPinsCount} open)` : ''}
-                    className="px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-sm transition-colors cursor-pointer flex items-center gap-1.5"
+                    className="px-3.5 py-1.5 text-caption font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-sm transition-colors cursor-pointer flex items-center gap-1.5"
                   >
                     <span>✓</span> Approve round
                   </button>
@@ -989,10 +989,10 @@ export default function GuestProjectPage() {
       {decisionModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100">
-            <h3 className="text-base font-semibold text-gray-900 mb-1">
+            <h3 className="text-body font-semibold text-gray-900 mb-1">
               {decisionType === 'approved' ? 'Approve Review Round' : 'Request Changes'}
             </h3>
-            <p className="text-xs text-gray-500 mb-4">
+            <p className="text-caption text-gray-500 mb-4">
               {decisionType === 'approved'
                 ? 'Sign off on this review round to notify the project team.'
                 : 'Request further updates or corrections from the project team.'}
@@ -1000,36 +1000,36 @@ export default function GuestProjectPage() {
 
             <form onSubmit={handleGuestDecisionSubmit} className="space-y-3.5">
               <div>
-                <label className="text-xs font-medium text-gray-700 block mb-1">Your Name</label>
+                <label className="text-label text-gray-700 block mb-1">Your Name</label>
                 <input
                   type="text"
                   required
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                   placeholder="e.g. Sarah Connor"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-700 block mb-1">Your Email</label>
+                <label className="text-label text-gray-700 block mb-1">Your Email</label>
                 <input
                   type="email"
                   required
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
                   placeholder="e.g. sarah@example.com"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-700 block mb-1">Feedback Note (optional)</label>
+                <label className="text-label text-gray-700 block mb-1">Feedback Note (optional)</label>
                 <textarea
                   rows={3}
                   maxLength={2000}
                   value={decisionNote}
                   onChange={(e) => setDecisionNote(e.target.value)}
                   placeholder="Add any sign-off notes or required updates..."
-                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -1037,14 +1037,14 @@ export default function GuestProjectPage() {
                 <button
                   type="button"
                   onClick={() => setDecisionModalOpen(false)}
-                  className="px-3.5 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                  className="px-3.5 py-2 text-caption font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingDecision}
-                  className={`px-4 py-2 text-xs font-semibold text-white rounded-lg shadow-sm transition-colors cursor-pointer ${
+                  className={`px-4 py-2 text-caption font-semibold text-white rounded-lg shadow-sm transition-colors cursor-pointer ${
                     decisionType === 'approved' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-blue-600 hover:bg-blue-700'
                   } disabled:opacity-50`}
                 >
@@ -1063,7 +1063,7 @@ export default function GuestProjectPage() {
             key={id}
             type="button"
             onClick={() => setMobilePane(id)}
-            className={`py-3 text-sm font-medium ${mobilePane === id ? 'text-blue-600' : 'text-gray-500'}`}
+            className={`py-3 text-label ${mobilePane === id ? 'text-blue-600' : 'text-gray-500'}`}
           >
             {label}
           </button>

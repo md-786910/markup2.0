@@ -244,17 +244,17 @@ export default function PricingPage() {
                 </label>
               </div>
 
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-h3 font-semibold text-gray-900">
                 {plan.price != null ? `$${plan.price}` : 'Custom'}
-                {plan.period && <span className="text-sm font-normal text-gray-500">{plan.period}</span>}
+                {plan.period && <span className="text-body-sm font-normal text-gray-500">{plan.period}</span>}
               </p>
               {plan.popular && (
-                <span className="inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                <span className="inline-block mt-1 text-caption font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
                   Most Popular
                 </span>
               )}
 
-              <div className="mt-4 space-y-2 text-sm">
+              <div className="mt-4 space-y-2 text-body-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Projects</span>
                   <span className="font-medium text-gray-900">{plan.limits.maxProjects >= 999 ? 'Unlimited' : plan.limits.maxProjects}</span>
@@ -277,8 +277,8 @@ export default function PricingPage() {
                 <div className="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-xs font-semibold text-emerald-900">Auto-assign to new signups</p>
-                      <p className="text-[10.5px] text-emerald-700 leading-snug mt-0.5">
+                      <p className="text-caption font-semibold text-emerald-900">Auto-assign to new signups</p>
+                      <p className="text-caption text-emerald-700 mt-0.5">
                         On: new orgs start on Free.<br />Off: new orgs get a {trialSettings?.defaultDays || 14}-day trial.
                       </p>
                     </div>
@@ -297,7 +297,7 @@ export default function PricingPage() {
 
               <button
                 onClick={() => handleEdit(key)}
-                className="w-full mt-4 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="w-full mt-4 px-3 py-2 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Edit Plan
               </button>
@@ -319,49 +319,49 @@ export default function PricingPage() {
           
           {/* General Section */}
           <section className="bg-gray-50/50 rounded-xl border border-gray-100 p-4 space-y-4">
-            <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <h4 className="text-body-sm font-semibold text-gray-900 flex items-center gap-2">
               <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               General Information
             </h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Plan Name</label>
+                <label className="block text-overline text-gray-500 mb-1.5">Plan Name</label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => updateField('name', e.target.value)}
                   maxLength={60}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Price (number)</label>
+                <label className="block text-overline text-gray-500 mb-1.5">Price (number)</label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 text-sm">$</span>
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 text-body-sm">$</span>
                   <input
                     type="number"
                     value={form.price}
                     onChange={(e) => updateField('price', e.target.value)}
                     placeholder="Custom"
-                    className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full pl-7 pr-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">INR price (Razorpay)</label>
+                <label className="block text-overline text-gray-500 mb-1.5">INR price (Razorpay)</label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 text-sm">₹</span>
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 text-body-sm">₹</span>
                   <input
                     type="number"
                     value={form.priceInr}
                     onChange={(e) => updateField('priceInr', e.target.value)}
                     placeholder={plans[editModal]?.priceInr != null && !plans[editModal]?.priceInrCustom ? `Auto from USD (now ₹${plans[editModal].priceInr})` : 'Auto from USD'}
-                    className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full pl-7 pr-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Price Label</label>
+                <label className="block text-overline text-gray-500 mb-1.5">Price Label</label>
                 <input
                   type="text"
                   // Starter and Pro always show the price they charge
@@ -371,26 +371,26 @@ export default function PricingPage() {
                   onChange={(e) => updateField('priceLabel', e.target.value)}
                   placeholder="$29 or Custom"
                   maxLength={40}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Period</label>
+                <label className="block text-overline text-gray-500 mb-1.5">Period</label>
                 <input
                   type="text"
                   value={form.period}
                   onChange={(e) => updateField('period', e.target.value)}
                   placeholder="/month, forever, ..."
                   maxLength={40}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Badge Color</label>
+                <label className="block text-overline text-gray-500 mb-1.5">Badge Color</label>
                 <select
                   value={form.badgeColor}
                   onChange={(e) => updateField('badgeColor', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
                   {BADGE_COLOR_OPTIONS.map((c) => (
                     <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
@@ -398,18 +398,18 @@ export default function PricingPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Order</label>
+                <label className="block text-overline text-gray-500 mb-1.5">Order</label>
                 <input
                   type="number"
                   value={form.order}
                   onChange={(e) => updateField('order', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
               <div className="flex items-center justify-between col-span-2 pt-1">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Most Popular Badge</p>
-                  <p className="text-xs text-gray-500">Highlight this plan as the most popular choice.</p>
+                  <p className="text-body-sm font-medium text-gray-900">Most Popular Badge</p>
+                  <p className="text-caption text-gray-500">Highlight this plan as the most popular choice.</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" checked={form.popular} onChange={(e) => updateField('popular', e.target.checked)} className="sr-only peer" />
@@ -421,21 +421,21 @@ export default function PricingPage() {
 
           {/* Razorpay Section */}
           <section className="bg-gray-50/50 rounded-xl border border-gray-100 p-4 space-y-3">
-            <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <h4 className="text-body-sm font-semibold text-gray-900 flex items-center gap-2">
               <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
               Billing (Razorpay)
             </h4>
             <div>
-              <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Razorpay Plan ID</label>
+              <label className="block text-overline text-gray-500 mb-1.5">Razorpay Plan ID</label>
               <input
                 type="text"
                 value={form.razorpayPlanId}
                 onChange={(e) => updateField('razorpayPlanId', e.target.value)}
                 placeholder="price_xxxxxxxxxxxxxx"
-                className="w-full px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full px-3 py-2 text-body font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               />
-              <p className="text-[10.5px] text-gray-500 mt-2 leading-relaxed">
-                Create a recurring Price in your Razorpay dashboard, then paste the <code className="bg-gray-100 text-gray-700 px-1 py-0.5 rounded text-[10px]">price_…</code> ID here. 
+              <p className="text-caption text-gray-500 mt-2">
+                Create a recurring Price in your Razorpay dashboard, then paste the <code className="bg-gray-100 text-gray-700 px-1 py-0.5 rounded text-caption">price_…</code> ID here. 
                 The display price above is just visual — customers are charged whatever this Razorpay Plan dictates. Keep them in sync!
               </p>
             </div>
@@ -449,48 +449,48 @@ export default function PricingPage() {
           {/* Limits Section */}
           <section className="bg-gray-50/50 rounded-xl border border-gray-100 p-4 space-y-4">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <h4 className="text-body-sm font-semibold text-gray-900 flex items-center gap-2">
                 <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                 Usage Limits
               </h4>
-              <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Use 999+ for unlimited</span>
+              <span className="text-caption text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">Use 999+ for unlimited</span>
             </div>
             
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Projects</label>
-                <input type="number" value={form.maxProjects} onChange={(e) => updateField('maxProjects', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
+                <label className="block text-overline text-gray-500 mb-1.5">Projects</label>
+                <input type="number" value={form.maxProjects} onChange={(e) => updateField('maxProjects', e.target.value)} className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
               </div>
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Members</label>
-                <input type="number" value={form.maxMembers} onChange={(e) => updateField('maxMembers', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
+                <label className="block text-overline text-gray-500 mb-1.5">Members</label>
+                <input type="number" value={form.maxMembers} onChange={(e) => updateField('maxMembers', e.target.value)} className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
               </div>
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Guests</label>
-                <input type="number" value={form.maxGuests} onChange={(e) => updateField('maxGuests', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
+                <label className="block text-overline text-gray-500 mb-1.5">Guests</label>
+                <input type="number" value={form.maxGuests} onChange={(e) => updateField('maxGuests', e.target.value)} className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
               </div>
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Workspaces</label>
-                <input type="number" value={form.maxWorkspaces} onChange={(e) => updateField('maxWorkspaces', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
+                <label className="block text-overline text-gray-500 mb-1.5">Workspaces</label>
+                <input type="number" value={form.maxWorkspaces} onChange={(e) => updateField('maxWorkspaces', e.target.value)} className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
               </div>
               <div className="col-span-2">
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Storage Limit (MB)</label>
-                <input type="number" value={form.maxStorageMB} onChange={(e) => updateField('maxStorageMB', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
+                <label className="block text-overline text-gray-500 mb-1.5">Storage Limit (MB)</label>
+                <input type="number" value={form.maxStorageMB} onChange={(e) => updateField('maxStorageMB', e.target.value)} className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white" />
               </div>
             </div>
           </section>
 
           {/* Features Toggle Section */}
           <section className="bg-gray-50/50 rounded-xl border border-gray-100 p-4 space-y-4">
-            <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <h4 className="text-body-sm font-semibold text-gray-900 flex items-center gap-2">
               <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
               Feature Access
             </h4>
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Integrations</p>
-                  <p className="text-[11px] text-gray-500">Allow Slack, Discord, and Jira integrations.</p>
+                  <p className="text-body-sm font-medium text-gray-900">Integrations</p>
+                  <p className="text-caption text-gray-500">Allow Slack, Discord, and Jira integrations.</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" checked={form.hasIntegrations} onChange={(e) => updateField('hasIntegrations', e.target.checked)} className="sr-only peer" />
@@ -500,8 +500,8 @@ export default function PricingPage() {
 
               <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Activity Logs</p>
-                  <p className="text-[11px] text-gray-500">Access to the project activity timeline.</p>
+                  <p className="text-body-sm font-medium text-gray-900">Activity Logs</p>
+                  <p className="text-caption text-gray-500">Access to the project activity timeline.</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" checked={form.hasActivityLogs} onChange={(e) => updateField('hasActivityLogs', e.target.checked)} className="sr-only peer" />
@@ -511,8 +511,8 @@ export default function PricingPage() {
 
               <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Version History</p>
-                  <p className="text-[11px] text-gray-500">Create and view project versions.</p>
+                  <p className="text-body-sm font-medium text-gray-900">Version History</p>
+                  <p className="text-caption text-gray-500">Create and view project versions.</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" checked={form.hasVersionHistory} onChange={(e) => updateField('hasVersionHistory', e.target.checked)} className="sr-only peer" />
@@ -522,8 +522,8 @@ export default function PricingPage() {
 
               <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Client Approvals & Sign-off</p>
-                  <p className="text-[11px] text-gray-500">Allow review rounds, sign-offs, and feedback deadlines.</p>
+                  <p className="text-body-sm font-medium text-gray-900">Client Approvals & Sign-off</p>
+                  <p className="text-caption text-gray-500">Allow review rounds, sign-offs, and feedback deadlines.</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" checked={form.hasApprovals} onChange={(e) => updateField('hasApprovals', e.target.checked)} className="sr-only peer" />
@@ -535,17 +535,17 @@ export default function PricingPage() {
 
           {/* Support SLA Section */}
           <section className="bg-gray-50/50 rounded-xl border border-gray-100 p-4 space-y-4">
-            <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <h4 className="text-body-sm font-semibold text-gray-900 flex items-center gap-2">
               <svg className="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
               Support SLA & Channels
             </h4>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Priority</label>
+                <label className="block text-overline text-gray-500 mb-1.5">Priority</label>
                 <select
                   value={form.support.priority}
                   onChange={(e) => updateSupportField('priority', e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
                 >
                   <option value="normal">Normal</option>
                   <option value="high">High</option>
@@ -553,23 +553,23 @@ export default function PricingPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] uppercase tracking-wider font-semibold text-gray-500 mb-1.5">Reply Target (Hours)</label>
+                <label className="block text-overline text-gray-500 mb-1.5">Reply Target (Hours)</label>
                 <input
                   type="number"
                   value={form.support.replyHours}
                   onChange={(e) => updateSupportField('replyHours', Number(e.target.value))}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
                 />
               </div>
               <div className="flex items-center justify-between col-span-2 pt-1">
-                <span className="text-sm text-gray-700">In-App Ticket System</span>
+                <span className="text-body-sm text-gray-700">In-App Ticket System</span>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" checked={form.support.tickets} onChange={(e) => updateSupportField('tickets', e.target.checked)} className="sr-only peer" />
                   <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
                 </label>
               </div>
               <div className="flex items-center justify-between col-span-2">
-                <span className="text-sm text-gray-700">Live Chat Support</span>
+                <span className="text-body-sm text-gray-700">Live Chat Support</span>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" checked={form.support.chat} onChange={(e) => updateSupportField('chat', e.target.checked)} className="sr-only peer" />
                   <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-500"></div>
@@ -581,18 +581,18 @@ export default function PricingPage() {
           {/* Features List Section */}
           <section className="bg-gray-50/50 rounded-xl border border-gray-100 p-4 space-y-3">
             <div className="flex items-center justify-between mb-1">
-              <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+              <h4 className="text-body-sm font-semibold text-gray-900 flex items-center gap-2">
                 <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
                 Marketing Bullet Points
               </h4>
-              <button type="button" onClick={addFeature} className="text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded-md transition-colors">
+              <button type="button" onClick={addFeature} className="text-caption font-medium text-blue-600 hover:text-blue-800 bg-blue-50 px-2 py-1 rounded-md transition-colors">
                 + Add Item
               </button>
             </div>
             
             <div className="space-y-2">
               {form.features.length === 0 && (
-                <p className="text-xs text-gray-400 italic text-center py-2">No features listed. Add some bullet points.</p>
+                <p className="text-caption text-gray-400 italic text-center py-2">No features listed. Add some bullet points.</p>
               )}
               {form.features.map((feat, i) => (
                 <div key={i} className="flex items-center gap-2 group">
@@ -603,7 +603,7 @@ export default function PricingPage() {
                     onChange={(e) => updateFeature(i, e.target.value)}
                     maxLength={200}
                     placeholder="e.g. Priority support"
-                    className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+                    className="flex-1 px-3 py-1.5 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
                   />
                   <button
                     type="button"
@@ -622,17 +622,17 @@ export default function PricingPage() {
 
           {impactWarning && (
             <div className="col-span-1 lg:col-span-2">
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-sm space-y-2">
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-body-sm space-y-2">
                 <div className="flex items-center gap-2 font-semibold text-amber-800">
                   <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                   Usage Impact Warning ({impactWarning.affectedCount} customer{impactWarning.affectedCount === 1 ? '' : 's'} affected)
                 </div>
-                <p className="text-xs text-amber-700">
+                <p className="text-caption text-amber-700">
                   Some organizations currently subscribed to this plan exceed the proposed lower limits:
                 </p>
                 <div className="space-y-1">
                   {(impactWarning.details || []).map((imp, idx) => (
-                    <div key={idx} className="text-xs flex items-center justify-between bg-white/70 px-2.5 py-1.5 rounded-lg border border-amber-200/50">
+                    <div key={idx} className="text-caption flex items-center justify-between bg-white/70 px-2.5 py-1.5 rounded-lg border border-amber-200/50">
                       <span className="font-medium text-gray-800">{imp.orgName}</span>
                       <span className="text-amber-800 font-mono">
                         {imp.limitKey}: {imp.currentUsage} used &gt; {imp.proposedLimit} new limit
@@ -644,14 +644,14 @@ export default function PricingPage() {
                   <button
                     type="button"
                     onClick={() => setImpactWarning(null)}
-                    className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
+                    className="px-3 py-1.5 text-caption font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
                   >
                     Adjust Limits
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSave(true)}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 rounded-lg hover:bg-amber-700"
+                    className="px-3 py-1.5 text-caption font-semibold text-white bg-amber-600 rounded-lg hover:bg-amber-700"
                   >
                     Proceed Anyway
                   </button>
@@ -663,7 +663,7 @@ export default function PricingPage() {
           {error && (
             <div className="col-span-1 lg:col-span-2">
 
-            <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg flex items-start gap-2">
+            <div className="p-3 bg-red-50 border border-red-100 text-red-600 text-body-sm rounded-lg flex items-start gap-2">
               <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               {error}
             </div>
@@ -672,10 +672,10 @@ export default function PricingPage() {
         </div>
 
         <div className="flex justify-end gap-3 mt-6 pt-5 border-t border-gray-100">
-          <button onClick={() => setEditModal(null)} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
+          <button onClick={() => setEditModal(null)} className="px-5 py-2.5 text-label text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors shadow-sm">
             Cancel
           </button>
-          <button onClick={() => handleSave()} disabled={saving} className="px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm hover:shadow-md flex items-center gap-2">
+          <button onClick={() => handleSave()} disabled={saving} className="px-5 py-2.5 text-label text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm hover:shadow-md flex items-center gap-2">
             {saving ? (
               <>
                 <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>

@@ -23,9 +23,9 @@ export default function AttachmentItem({ attachment, src, onImageClick }) {
       target="_blank"
       rel="noreferrer"
       download={attachment.originalName}
-      className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2.5 py-1.5 text-xs text-gray-600 border border-gray-200 hover:border-blue-400 hover:text-blue-600 transition-colors"
+      className="flex items-center gap-1.5 bg-gray-50 rounded-lg px-2.5 py-1.5 text-caption text-gray-600 border border-gray-200 hover:border-blue-400 hover:text-blue-600 transition-colors"
     >
-      <span className="shrink-0 px-1 py-0.5 rounded bg-gray-200 text-[9px] font-bold text-gray-500 leading-none">
+      <span className="shrink-0 px-1 py-0.5 rounded bg-gray-200 text-caption font-semibold text-gray-500">
         {getFileExtensionLabel(attachment.originalName)}
       </span>
       <span className="truncate max-w-[140px]">{attachment.originalName}</span>

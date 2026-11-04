@@ -93,8 +93,8 @@ export default function Navbar() {
       <a href="#main-content" className="skip-link">Skip to content</a>
       <div className={scrolled ? 'h-[104px]' : ''}>
         <div className="bg-[#0f172a] text-white">
-          <div className="site-container flex h-10 items-center justify-center gap-3 text-center text-[13px] font-medium">
-            <span className="rounded-full bg-[#003dff] px-2 py-0.5 text-[11px] font-semibold">New</span>
+          <div className="site-container flex h-10 items-center justify-center gap-3 text-center text-body-sm font-medium">
+            <span className="rounded-full bg-[#003dff] px-2 py-0.5 text-caption font-semibold">New</span>
             <span className="truncate text-white/80">
               <span className="sm:hidden">Workspaces: one place per client.</span>
               <span className="hidden sm:inline">Workspaces: one place and one review link for every client.</span>
@@ -110,7 +110,7 @@ export default function Navbar() {
               <div className="flex min-w-0 flex-1 items-center">
                 <Link to="/" className="flex items-center gap-3">
                   <BrandMark className="h-8 w-8" />
-                  <span className="font-display text-[1.25rem] font-semibold tracking-tight text-[#0f172a]">Kommently</span>
+                  <span className="text-h4 font-semibold tracking-[-0.03em] text-[#0f172a]">Kommently</span>
                 </Link>
               </div>
 
@@ -129,7 +129,7 @@ export default function Navbar() {
                       to={link.href}
                       data-active={active}
                       aria-current={active ? 'page' : undefined}
-                      className={`relative rounded-full px-3.5 py-1.5 text-[13.5px] font-medium transition-colors duration-300 ${
+                      className={`relative rounded-full px-3.5 py-1.5 text-label transition-colors duration-300 ${
                         active ? 'text-[#003dff]' : 'text-slate-600 hover:text-[#0f172a]'
                       }`}
                     >
@@ -140,12 +140,12 @@ export default function Navbar() {
               </div>
 
               <div className="hidden flex-1 items-center justify-end gap-5 md:flex">
-                <a href={`${APP_URL}/login`} className="text-[13.5px] font-medium text-[#475569] transition-colors hover:text-[#0f172a]">
+                <a href={`${APP_URL}/login`} className="text-label text-[#475569] transition-colors hover:text-[#0f172a]">
                   Login
                 </a>
                 <a
                   href={`${APP_URL}/onboarding`}
-                  className="inline-flex h-9 items-center rounded-full bg-[#003dff] px-4 text-[13.5px] font-semibold text-white transition-colors hover:bg-[#0031d1]"
+                  className="inline-flex h-9 items-center rounded-full bg-[#003dff] px-4 text-label text-white transition-colors hover:bg-[#0031d1]"
                 >
                   Sign up free
                 </a>
@@ -173,7 +173,7 @@ export default function Navbar() {
                         to={link.href}
                         aria-current={active ? 'page' : undefined}
                         onClick={() => setMobileOpen(false)}
-                        className={`rounded-lg px-3 py-3 text-sm font-medium transition-colors ${
+                        className={`rounded-lg px-3 py-3 text-label transition-colors ${
                           active ? 'bg-[#eef3ff] text-[#003dff]' : 'text-[#475569] hover:bg-[#f8fafc]'
                         }`}
                       >
@@ -184,13 +184,13 @@ export default function Navbar() {
                   <div className="mt-3 flex flex-col gap-2 border-t border-slate-200 pt-3">
                     <a
                       href={`${APP_URL}/login`}
-                      className="rounded-full border border-slate-300 px-4 py-3 text-center text-sm font-medium text-[#475569]"
+                      className="rounded-full border border-slate-300 px-4 py-3 text-center text-label text-[#475569]"
                     >
                       Login
                     </a>
                     <a
                       href={`${APP_URL}/onboarding`}
-                      className="rounded-full bg-[#003dff] px-4 py-3 text-center text-sm font-semibold text-white"
+                      className="rounded-full bg-[#003dff] px-4 py-3 text-center text-label text-white"
                     >
                       Sign up free
                     </a>

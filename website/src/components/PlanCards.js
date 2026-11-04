@@ -47,15 +47,15 @@ export default function PlanCards({ reveal = false }) {
           {...(reveal ? { 'data-reveal': true, 'data-delay': String(index + 1) } : {})}
         >
           {plan.popular && (
-            <span className="absolute -top-3 left-7 rounded-full bg-[#003dff] px-3 py-1 text-xs font-semibold text-white">Most popular</span>
+            <span className="absolute -top-3 left-7 rounded-full bg-[#003dff] px-3 py-1 text-caption font-semibold text-white">Most popular</span>
           )}
-          <h3 className="font-display text-xl font-bold text-slate-950">{plan.name}</h3>
-          <p className="mt-2 min-h-[3rem] text-sm xl:min-h-[4.5rem] leading-6 text-slate-500">{PLAN_COPY[plan.id]}</p>
+          <h3 className="text-h4 font-semibold text-slate-950">{plan.name}</h3>
+          <p className="mt-2 min-h-[3rem] text-body-sm xl:min-h-[4.5rem] text-slate-500">{PLAN_COPY[plan.id]}</p>
           <div className="mt-6 flex items-baseline gap-1.5">
-            <span className="font-display text-4xl font-bold tracking-tight text-slate-950">{plan.priceLabel}</span>
-            {plan.period ? <span className="text-sm text-slate-500">{plan.period}</span> : null}
+            <span className="text-h2 font-semibold text-slate-950">{plan.priceLabel}</span>
+            {plan.period ? <span className="text-body-sm text-slate-500">{plan.period}</span> : null}
           </div>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-caption text-slate-400">
             {plan.price ? 'Billed monthly' : plan.id === 'free' ? 'No card needed' : 'Talk to us'}
           </p>
           <a
@@ -67,7 +67,7 @@ export default function PlanCards({ reveal = false }) {
           </a>
           <ul className="mt-7 space-y-3 border-t border-slate-100 pt-6">
             {plan.features.map((feature) => (
-              <li key={feature} className="flex items-start gap-3 text-sm leading-6 text-slate-600">
+              <li key={feature} className="flex items-start gap-3 text-body-sm text-slate-600">
                 <CheckIcon className="mt-1 h-4 w-4 flex-none text-[#003dff]" />
                 {feature}
               </li>

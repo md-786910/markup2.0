@@ -58,15 +58,15 @@ export default function AppLayout() {
             </button>
             <div className="lg:hidden flex items-center gap-2">
               <BrandMark className="w-6 h-6" />
-              <span className="text-base font-display font-bold tracking-[-0.03em] text-gray-900">Kommently</span>
+              <span className="text-body font-semibold tracking-[-0.03em] text-gray-900">Kommently</span>
             </div>
-            <nav aria-label="Breadcrumb" className="hidden lg:flex min-w-0 items-center gap-2 text-sm">
+            <nav aria-label="Breadcrumb" className="hidden lg:flex min-w-0 items-center gap-2 text-body-sm">
               <span className="truncate text-gray-500">{user?.orgName}</span>
               {workspace && (
                 <>
                   <span className="text-gray-300">/</span>
                   <span className="flex min-w-0 items-center gap-2 text-gray-700">
-                    <WorkspaceTile name={workspace.name} className="h-5 w-5 text-[10px]" />
+                    <WorkspaceTile name={workspace.name} className="h-5 w-5 text-caption" />
                     <span className="truncate font-medium">{workspace.name}</span>
                   </span>
                 </>

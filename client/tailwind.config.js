@@ -26,12 +26,38 @@ const neutral = {
   950: '#020617',
 };
 
+// Typography (TYPOGRAPHY-README.md): the only allowed text styles. Same block in
+// client, admin and website; keep them in sync with src/styles/typography.css.
+// Use text-display/h1/h2/h3/h4/body-lg/body/body-sm/label/overline/caption,
+// never arbitrary sizes such as text-[13px]. The heaviest weight is 600.
+const fontFamily = {
+  sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+  serif: ['var(--font-serif)', 'Georgia', 'serif'],
+  mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+};
+const fontSize = {
+  display: ['clamp(44px, 7vw, 72px)', { lineHeight: '1.0', letterSpacing: '-0.03em', fontWeight: '600' }],
+  h1: ['clamp(36px, 5vw, 56px)', { lineHeight: '1.05', letterSpacing: '-0.025em', fontWeight: '600' }],
+  h2: ['clamp(28px, 3.5vw, 40px)', { lineHeight: '1.1', letterSpacing: '-0.02em', fontWeight: '600' }],
+  h3: ['24px', { lineHeight: '1.2', letterSpacing: '-0.01em', fontWeight: '600' }],
+  h4: ['20px', { lineHeight: '1.3', letterSpacing: '0', fontWeight: '600' }],
+  'body-lg': ['18px', { lineHeight: '1.6', letterSpacing: '0' }],
+  body: ['16px', { lineHeight: '1.5', letterSpacing: '0' }],
+  'body-sm': ['14px', { lineHeight: '1.5', letterSpacing: '0' }],
+  label: ['14px', { lineHeight: '1.2', letterSpacing: '0', fontWeight: '500' }],
+  overline: ['12px', { lineHeight: '1.2', letterSpacing: '0.06em', fontWeight: '500' }],
+  caption: ['12px', { lineHeight: '1.4', letterSpacing: '0' }],
+};
+const fontWeight = { normal: '400', medium: '500', semibold: '600' };
+
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
     "./src/**/*.{js,jsx}",
   ],
   theme: {
+    fontSize,
+    fontWeight,
     extend: {
       // Product palette: brand blue + neutral slate. The other hue names used
       // in components point at the brand blue, so every accent is the same blue.
@@ -51,11 +77,7 @@ module.exports = {
         lg: '0 12px 32px rgba(15, 23, 42, 0.10)',
         xl: '0 24px 60px rgba(15, 23, 42, 0.16)',
       },
-      fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        // Wordmark only ("Kommently" next to the logo), same as the website
-        display: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
-      },
+      fontFamily,
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',
         'slide-in': 'slideIn 0.2s ease-out',

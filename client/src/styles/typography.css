@@ -1,0 +1,61 @@
+/*
+ * Typography system: TYPOGRAPHY-README.md at the repo root.
+ * Same file in client, admin and website (src/styles/typography.css); keep them in sync.
+ * Fonts are loaded once, in public/index.html. Sizes, weights, line heights and
+ * letter spacing come from the tokens below and the matching Tailwind
+ * `fontSize` scale (text-display, text-h1 … text-caption) in tailwind.config.js.
+ * Imported after index.css so these element rules sit on top of Tailwind's
+ * preflight; utility classes still win (class beats element selector).
+ */
+:root {
+  /* Families */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-heading: var(--font-sans); /* USE_SERIF_HEADINGS = false */
+
+  /* Sizes */
+  --text-display: clamp(44px, 7vw, 72px);
+  --text-h1: clamp(36px, 5vw, 56px);
+  --text-h2: clamp(28px, 3.5vw, 40px);
+  --text-h3: 24px;
+  --text-h4: 20px;
+  --text-body-lg: 18px;
+  --text-body: 16px;
+  --text-body-sm: 14px;
+  --text-label: 14px;
+  --text-overline: 12px;
+  --text-caption: 12px;
+
+  /* Weights */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: var(--weight-regular);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+}
+
+h1 { font-family: var(--font-heading); font-size: var(--text-h1); font-weight: var(--weight-semibold); line-height: 1.05; letter-spacing: -0.025em; }
+h2 { font-family: var(--font-heading); font-size: var(--text-h2); font-weight: var(--weight-semibold); line-height: 1.1;  letter-spacing: -0.02em; }
+h3 { font-size: var(--text-h3); font-weight: var(--weight-semibold); line-height: 1.2; letter-spacing: -0.01em; }
+h4 { font-size: var(--text-h4); font-weight: var(--weight-semibold); line-height: 1.3; }
+
+/* The heaviest weight is 600 (browsers default these to bold) */
+b, strong, th { font-weight: var(--weight-semibold); }
+
+/* Tailwind generates size/weight/tracking for these from the fontSize scale;
+   overline also needs the mono family and uppercase. */
+.text-overline { font-family: var(--font-mono); text-transform: uppercase; }
+.text-display, .text-h1, .text-h2 { font-family: var(--font-heading); }
+
+code, kbd, samp, .text-code { font-family: var(--font-mono); font-size: 0.9em; }

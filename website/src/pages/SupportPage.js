@@ -118,9 +118,9 @@ export default function SupportPage() {
                 <span className="icon-tile">
                   <Icon className="h-5 w-5" />
                 </span>
-                <h2 className="mt-5 font-display text-lg font-semibold text-slate-950">{title}</h2>
-                <p className="mt-1 text-sm font-medium text-slate-500">{meta}</p>
-                <p className="mt-3 text-[15px] leading-7 text-slate-600">{copy}</p>
+                <h2 className="mt-5 text-body-lg font-semibold text-slate-950">{title}</h2>
+                <p className="mt-1 text-body-sm font-medium text-slate-500">{meta}</p>
+                <p className="mt-3 text-body text-slate-600">{copy}</p>
                 <div className="mt-auto">{action}</div>
               </article>
             ))}
@@ -142,7 +142,7 @@ export default function SupportPage() {
           <div className="site-container grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
             <div>
               <span className="eyebrow">Contact</span>
-              <h2 className="section-heading mt-5 lg:text-4xl">Tell us what is blocking your review.</h2>
+              <h2 className="section-heading mt-5">Tell us what is blocking your review.</h2>
               <p className="body-copy mt-4">
                 Include the project type, affected workflow, and any links or screenshots your team can safely share.
               </p>
@@ -152,7 +152,7 @@ export default function SupportPage() {
                   [ShieldIcon, 'Security and billing requests are handled privately'],
                   [UsersIcon, 'Enterprise teams can request onboarding help'],
                 ].map(([Icon, text]) => (
-                  <div key={text} className="flex items-center gap-3 text-sm font-medium text-[#475569]">
+                  <div key={text} className="flex items-center gap-3 text-body-sm font-medium text-[#475569]">
                     <Icon className="h-5 w-5 text-[#003dff]" />
                     {text}
                   </div>
@@ -163,34 +163,34 @@ export default function SupportPage() {
             <form onSubmit={handleSubmit} className="relative rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="text-sm font-medium text-slate-700" htmlFor="support-name">Name</label>
+                  <label className="text-label text-slate-700" htmlFor="support-name">Name</label>
                   <input
                     id="support-name"
                     required
                     value={form.name}
                     onChange={(event) => setForm({ ...form, name: event.target.value })}
-                    className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3.5 text-sm outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
+                    className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3.5 text-body outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700" htmlFor="support-email">Email</label>
+                  <label className="text-label text-slate-700" htmlFor="support-email">Email</label>
                   <input
                     id="support-email"
                     type="email"
                     required
                     value={form.email}
                     onChange={(event) => setForm({ ...form, email: event.target.value })}
-                    className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3.5 text-sm outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
+                    className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3.5 text-body outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
                   />
                 </div>
               </div>
               <div className="mt-4">
-                <label className="text-sm font-medium text-slate-700" htmlFor="support-topic">Topic</label>
+                <label className="text-label text-slate-700" htmlFor="support-topic">Topic</label>
                 <select
                   id="support-topic"
                   value={form.topic}
                   onChange={(event) => setForm({ ...form, topic: event.target.value })}
-                  className="mt-2 h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
+                  className="mt-2 h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-body outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
                 >
                   <option>Product support</option>
                   <option>Billing</option>
@@ -201,14 +201,14 @@ export default function SupportPage() {
                 </select>
               </div>
               <div className="mt-4">
-                <label className="text-sm font-medium text-slate-700" htmlFor="support-message">Message</label>
+                <label className="text-label text-slate-700" htmlFor="support-message">Message</label>
                 <textarea
                   id="support-message"
                   required
                   rows="5"
                   value={form.message}
                   onChange={(event) => setForm({ ...form, message: event.target.value })}
-                  className="mt-2 w-full resize-none rounded-lg border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
+                  className="mt-2 w-full resize-none rounded-lg border border-slate-300 px-3.5 py-3 text-body outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
                   placeholder="Share what you were trying to do and what happened."
                 />
               </div>
@@ -226,18 +226,18 @@ export default function SupportPage() {
               <button
                 type="submit"
                 disabled={status.state === 'sending'}
-                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#003dff] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#0031d1] disabled:opacity-60"
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#003dff] px-6 py-3.5 text-label text-white transition hover:bg-[#0031d1] disabled:opacity-60"
               >
                 {status.state === 'sending' ? 'Sending…' : 'Send support request'}
                 <ArrowRightIcon className="h-4 w-4" />
               </button>
               {status.state === 'sent' ? (
-                <p role="status" className="mt-4 rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+                <p role="status" className="mt-4 rounded-2xl bg-green-50 px-4 py-3 text-body-sm font-medium text-green-700">
                   Thanks, your message was sent. We'll reply by email.
                 </p>
               ) : null}
               {status.state === 'error' ? (
-                <p role="alert" className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                <p role="alert" className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-body-sm font-medium text-red-700">
                   {status.message} You can also email <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
                 </p>
               ) : null}

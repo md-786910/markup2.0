@@ -62,7 +62,7 @@ export default function AboutPage() {
               <span className="eyebrow">Why we built it</span>
               <h2 className="section-heading mt-5">Reviews shouldn't live in screenshots and email threads.</h2>
             </div>
-            <div className="space-y-5 text-[17px] leading-8 text-slate-600">
+            <div className="space-y-5 text-body-lg text-slate-600">
               <p>
                 Anyone who has shipped a website knows the routine: a client sends a screenshot with a red circle, a
                 teammate replies in a chat, someone else forwards an email with &ldquo;a few small changes&rdquo;. By
@@ -93,8 +93,8 @@ export default function AboutPage() {
                   <span className="icon-tile">
                     <Icon className="h-5 w-5" />
                   </span>
-                  <h3 className="mt-5 font-display text-lg font-semibold text-slate-950">{title}</h3>
-                  <p className="mt-2 text-[15px] leading-7 text-slate-600">{copy}</p>
+                  <h3 className="mt-5 text-body-lg font-semibold text-slate-950">{title}</h3>
+                  <p className="mt-2 text-body text-slate-600">{copy}</p>
                 </div>
               ))}
             </div>
@@ -112,7 +112,7 @@ export default function AboutPage() {
             </div>
             <ul className="space-y-3">
               {PROMISES.map((item) => (
-                <li key={item} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-5 py-4 text-[15px] text-slate-700">
+                <li key={item} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-5 py-4 text-body text-slate-700">
                   <CheckIcon className="mt-1 h-4 w-4 flex-none text-[#003dff]" />
                   {item}
                 </li>
@@ -125,7 +125,7 @@ export default function AboutPage() {
           <div className="site-container">
             <div className="flex flex-col items-start justify-between gap-6 rounded-2xl border border-slate-200 bg-slate-50 p-8 sm:flex-row sm:items-center">
               <div>
-                <h2 className="font-display text-2xl font-semibold text-slate-950">Talk to us</h2>
+                <h2 className="text-h3 font-semibold text-slate-950">Talk to us</h2>
                 <p className="mt-2 text-slate-600">
                   Questions, feedback on the product, or a partnership idea: write to{' '}
                   <a href="mailto:hello@kommently.app" className="font-medium text-[#003dff] hover:underline">hello@kommently.app</a>.

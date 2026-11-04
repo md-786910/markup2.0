@@ -12,18 +12,18 @@ export default function LockedFeature({ title, plan, description, className = ''
           <path strokeLinecap="round" d="M8 11V7a4 4 0 018 0v4" />
         </svg>
       </div>
-      <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-      <p className="mt-1.5 max-w-xs text-sm leading-6 text-gray-500">{description}</p>
-      <p className="mt-1 text-xs font-medium text-blue-600">Included on the {plan} plan</p>
+      <h3 className="text-body-sm font-semibold text-gray-900">{title}</h3>
+      <p className="mt-1.5 max-w-xs text-body-sm text-gray-500">{description}</p>
+      <p className="mt-1 text-caption font-medium text-blue-600">Included on the {plan} plan</p>
       {isOwner ? (
         <Link
           to="/settings?tab=billing"
-          className="mt-5 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="mt-5 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-label text-white hover:bg-blue-700"
         >
           See plans
         </Link>
       ) : (
-        <p className="mt-5 text-xs text-gray-400">Ask your workspace owner to upgrade.</p>
+        <p className="mt-5 text-caption text-gray-400">Ask your workspace owner to upgrade.</p>
       )}
     </div>
   );

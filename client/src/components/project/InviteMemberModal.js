@@ -220,7 +220,7 @@ export default function InviteMemberModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Invite Member">
       {error && (
-        <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm flex items-center gap-2">
+        <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-body-sm flex items-center gap-2">
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -237,7 +237,7 @@ export default function InviteMemberModal({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-label transition-colors ${
                   active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -267,25 +267,25 @@ export default function InviteMemberModal({
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Member Email</label>
+              <label className="block text-label text-gray-700 mb-1.5">Member Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
                 placeholder="member@example.com"
               />
-              <p className="mt-1.5 text-xs text-gray-400">
+              <p className="mt-1.5 text-caption text-gray-400">
                 Use this to invite someone new by email.
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
+              <label className="block text-label text-gray-700 mb-1.5">Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white transition-shadow"
+                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body bg-white transition-shadow"
               >
                 <option value="admin">Admin - Can manage projects & members</option>
                 <option value="member">Member - Can create pins & comments</option>
@@ -298,14 +298,14 @@ export default function InviteMemberModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              className="px-4 py-2.5 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="px-4 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {loading ? 'Submitting...' : 'Submit'}
             </button>
@@ -316,7 +316,7 @@ export default function InviteMemberModal({
       {activeTab === 'existing' && (
         <div className="space-y-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Existing Members</p>
+            <p className="text-overline text-gray-500 mb-2">Existing Members</p>
             <div className="max-h-72 overflow-y-auto rounded-xl border border-gray-200 divide-y divide-gray-100 bg-white">
               {existingMembers.length > 0 ? (
                 existingMembers.map((member) => {
@@ -328,15 +328,15 @@ export default function InviteMemberModal({
                       key={member._id}
                       className={`flex items-center gap-3 px-3.5 py-3 ${isOwner ? 'bg-gray-50/80' : 'hover:bg-gray-50'} transition-colors`}
                     >
-                      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-caption font-semibold shrink-0">
                         {(member.name || member.email || '?')[0].toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-sm font-medium text-gray-900 truncate">
+                          <span className="text-body-sm font-medium text-gray-900 truncate">
                             {member.name || member.email || 'Unknown member'}
                           </span>
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${
+                          <span className={`text-caption font-medium px-1.5 py-0.5 rounded-full shrink-0 ${
                             roleLabel === 'owner'
                               ? 'bg-amber-100 text-amber-700'
                               : roleLabel === 'admin'
@@ -348,7 +348,7 @@ export default function InviteMemberModal({
                             {roleLabel}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-400 truncate">{member.email}</p>
+                        <p className="text-caption text-gray-400 truncate">{member.email}</p>
                       </div>
 
                       {!isOwner && (
@@ -367,7 +367,7 @@ export default function InviteMemberModal({
                   );
                 })
               ) : (
-                <div className="px-3.5 py-6 text-sm text-gray-500">
+                <div className="px-3.5 py-6 text-body-sm text-gray-500">
                   No members are currently assigned to this project.
                 </div>
               )}
@@ -378,7 +378,7 @@ export default function InviteMemberModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              className="px-4 py-2.5 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
               Close
             </button>
@@ -391,21 +391,21 @@ export default function InviteMemberModal({
           <div>
             <div className="flex items-center justify-between mb-2">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Add Members</p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-overline text-gray-500">Add Members</p>
+                <p className="text-caption text-gray-400 mt-1">
                   Select workspace members who are not yet on this project. Type <span className="font-medium">@</span> to quick-filter the list.
                 </p>
               </div>
-              <span className="text-[11px] text-gray-400">{selectedWorkspaceMemberIds.length} selected</span>
+              <span className="text-caption text-gray-400">{selectedWorkspaceMemberIds.length} selected</span>
             </div>
 
             {selectedWorkspaceMembers.length > 0 && (
               <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
                 <div className="flex items-center justify-between gap-3 mb-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+                  <p className="text-overline text-emerald-700">
                     Selected Members
                   </p>
-                  <span className="text-[11px] text-emerald-700/80">
+                  <span className="text-caption text-emerald-700/80">
                     {selectedWorkspaceMembers.length} picked
                   </span>
                 </div>
@@ -415,12 +415,12 @@ export default function InviteMemberModal({
                     return (
                       <div
                         key={member._id}
-                        className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-sm text-gray-700 shadow-sm"
+                        className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-body-sm text-gray-700 shadow-sm"
                       >
                         <span className="max-w-[180px] truncate font-medium">
                           {member.name || member.email || 'Unknown member'}
                         </span>
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-overline text-emerald-700">
                           {selectedRole}
                         </span>
                         <button
@@ -445,7 +445,7 @@ export default function InviteMemberModal({
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
               placeholder="Search by name, email, or @name"
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm mb-3"
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body mb-3"
             />
 
             <div className="max-h-72 overflow-y-auto rounded-xl border border-gray-200 divide-y divide-gray-100 bg-white">
@@ -454,7 +454,7 @@ export default function InviteMemberModal({
                   <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
                 </div>
               ) : workspaceError ? (
-                <div className="px-3.5 py-6 text-sm text-red-600 bg-red-50">
+                <div className="px-3.5 py-6 text-body-sm text-red-600 bg-red-50">
                   {workspaceError}
                 </div>
               ) : filteredWorkspaceMembers.length > 0 ? (
@@ -473,23 +473,23 @@ export default function InviteMemberModal({
                         onChange={() => toggleWorkspaceMember(member)}
                         className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-2"
                       />
-                      <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                      <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center text-caption font-semibold shrink-0 mt-0.5">
                         {(member.name || member.email || '?')[0].toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-sm font-medium text-gray-900 truncate">
+                          <span className="text-body-sm font-medium text-gray-900 truncate">
                             {member.name || member.email || 'Unknown member'}
                           </span>
-                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 shrink-0 capitalize">
+                          <span className="text-caption font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 shrink-0 capitalize">
                             {member.role || 'member'}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-400 truncate">{member.email}</p>
+                        <p className="text-caption text-gray-400 truncate">{member.email}</p>
 
                         {checked && (
                           <div className="mt-2">
-                            <label className="block text-[11px] font-medium text-gray-500 mb-1">Project Role</label>
+                            <label className="block text-label text-gray-500 mb-1">Project Role</label>
                             <select
                               value={selectedRole}
                               onChange={(e) => setSelectedWorkspaceMemberRoles((prev) => ({
@@ -497,7 +497,7 @@ export default function InviteMemberModal({
                                 [member._id]: e.target.value,
                               }))}
                               onClick={(e) => e.stopPropagation()}
-                              className="w-full sm:w-48 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                              className="w-full sm:w-48 px-3 py-2 text-body border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             >
                               <option value="admin">Admin</option>
                               <option value="member">Member</option>
@@ -510,7 +510,7 @@ export default function InviteMemberModal({
                   );
                 })
               ) : (
-                <div className="px-3.5 py-6 text-sm text-gray-500">
+                <div className="px-3.5 py-6 text-body-sm text-gray-500">
                   No workspace members match your search.
                 </div>
               )}
@@ -521,14 +521,14 @@ export default function InviteMemberModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              className="px-4 py-2.5 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="px-4 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {loading ? 'Submitting...' : 'Submit'}
             </button>
@@ -539,14 +539,14 @@ export default function InviteMemberModal({
       {removeTarget && (
         <Modal isOpen={!!removeTarget} onClose={() => setRemoveTarget(null)} title="Remove Member" size="sm">
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-body-sm text-gray-600">
               Remove <span className="font-medium text-gray-900">{removeTarget.name || removeTarget.email}</span> from this project?
             </p>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setRemoveTarget(null)}
-                className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="px-4 py-2.5 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Cancel
               </button>
@@ -554,7 +554,7 @@ export default function InviteMemberModal({
                 type="button"
                 onClick={handleRemoveMember}
                 disabled={removeLoading}
-                className="px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                className="px-4 py-2.5 text-label text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
                 {removeLoading ? 'Removing...' : 'Remove'}
               </button>

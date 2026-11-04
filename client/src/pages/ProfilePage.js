@@ -17,15 +17,15 @@ import { toastError } from '../utils/toast';
 function FieldRow({ label, children }) {
   return (
     <div className="flex flex-col gap-2 py-5 sm:flex-row sm:items-start sm:gap-8 sm:py-6">
-      <label className="text-sm font-medium text-gray-700 sm:w-40 sm:pt-2.5 shrink-0">{label}</label>
+      <label className="text-label text-gray-700 sm:w-40 sm:pt-2.5 shrink-0">{label}</label>
       <div className="w-full min-w-0 max-w-lg sm:flex-1">{children}</div>
     </div>
   );
 }
 
 function StatusMessage({ error, success }) {
-  if (error) return <p className="text-xs text-red-500 mt-1.5">{error}</p>;
-  if (success) return <p className="text-xs text-green-600 mt-1.5">{success}</p>;
+  if (error) return <p className="text-caption text-red-500 mt-1.5">{error}</p>;
+  if (success) return <p className="text-caption text-green-600 mt-1.5">{success}</p>;
   return null;
 }
 
@@ -39,7 +39,7 @@ function PasswordInput({ value, onChange, placeholder, autoComplete = 'off', cla
         onChange={onChange}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className={`w-full pl-3.5 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow ${className}`}
+        className={`w-full pl-3.5 pr-10 py-2.5 border border-gray-200 rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow ${className}`}
       />
       <button
         type="button"
@@ -208,7 +208,7 @@ export default function ProfilePage() {
     <div className="px-6 lg:px-8 py-6 lg:py-8 max-w-3xl animate-page-enter">
       {/* Page header */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-gray-900">Profile</h2>
+        <h2 className="text-h3 font-semibold text-gray-900">Profile</h2>
       </div>
 
       {/* Name */}
@@ -218,12 +218,12 @@ export default function ProfilePage() {
             type="text"
             value={name}
             onChange={(e) => { setName(e.target.value); setNameError(''); setNameSuccess(''); }}
-            className="flex-1 min-w-0 px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow"
+            className="flex-1 min-w-0 px-3.5 py-2.5 border border-gray-200 rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 transition-shadow"
           />
           <button
             onClick={handleNameUpdate}
             disabled={nameLoading || name.trim() === user?.name}
-            className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0"
+            className="px-4 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0"
           >
             {nameLoading ? 'Saving…' : 'Save'}
           </button>
@@ -240,9 +240,9 @@ export default function ProfilePage() {
           value={user?.email || ''}
           readOnly
           disabled
-          className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-100 text-gray-500 cursor-not-allowed"
+          className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-body bg-gray-100 text-gray-500 cursor-not-allowed"
         />
-        <p className="text-xs text-gray-400 mt-1.5">Email cannot be changed. Contact support if you need to update it.</p>
+        <p className="text-caption text-gray-400 mt-1.5">Email cannot be changed. Contact support if you need to update it.</p>
       </FieldRow>
 
       <div className="border-t border-gray-100" />
@@ -256,7 +256,7 @@ export default function ProfilePage() {
             placeholder="Current password"
             autoComplete="current-password"
           />
-          <Link to="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+          <Link to="/forgot-password" className="text-caption text-blue-600 hover:text-blue-700 font-medium">
             Forgot password
           </Link>
         </div>
@@ -277,12 +277,12 @@ export default function ProfilePage() {
           <button
             onClick={handlePasswordChange}
             disabled={pwLoading || !currentPassword || !newPassword}
-            className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0"
+            className="px-4 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0"
           >
             {pwLoading ? 'Saving…' : 'Change password'}
           </button>
         </div>
-        <p className="text-xs text-gray-400 mt-1.5">Must be at least 8 characters</p>
+        <p className="text-caption text-gray-400 mt-1.5">Must be at least 8 characters</p>
         <StatusMessage error={pwError} success={pwSuccess} />
       </FieldRow>
 
@@ -307,14 +307,14 @@ export default function ProfilePage() {
               className="w-10 h-10 rounded-full object-cover border border-gray-200"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold">
+            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-body-sm font-semibold">
               {(user?.name || '?').slice(0, 2).toUpperCase()}
             </div>
           )}
           <button
             onClick={() => fileRef.current?.click()}
             disabled={avatarLoading}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 text-label text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
           >
             {avatarLoading ? 'Uploading…' : 'Change avatar'}
           </button>
@@ -326,7 +326,7 @@ export default function ProfilePage() {
             className="hidden"
           />
         </div>
-        {avatarError && <p className="text-xs text-red-500 mt-1.5">{avatarError}</p>}
+        {avatarError && <p className="text-caption text-red-500 mt-1.5">{avatarError}</p>}
       </FieldRow>
 
       <div className="border-t border-gray-200 my-4" />
@@ -334,8 +334,8 @@ export default function ProfilePage() {
       {/* All notification emails */}
       <div className="py-6 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-base font-semibold text-gray-900">Notification emails</h3>
-          <p className="text-xs text-gray-500 mt-1">
+          <h3 className="text-body font-semibold text-gray-900">Notification emails</h3>
+          <p className="text-caption text-gray-500 mt-1">
             Pin, comment, mention and status emails for all projects. Account and billing emails are always sent.
           </p>
         </div>
@@ -364,8 +364,8 @@ export default function ProfilePage() {
       {/* Project Email Notifications */}
       <div className="py-6">
         <div className="mb-4">
-          <h3 className="text-base font-semibold text-gray-900">Email notifications per project</h3>
-          <p className="text-xs text-gray-500 mt-1">
+          <h3 className="text-body font-semibold text-gray-900">Email notifications per project</h3>
+          <p className="text-caption text-gray-500 mt-1">
             Turn email notifications on or off independently for each project. When muted, you will not receive comment, mention, or status emails for that project.
           </p>
         </div>
@@ -373,10 +373,10 @@ export default function ProfilePage() {
         {projectsLoading ? (
           <div className="py-6 text-center text-gray-400">
             <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-2" />
-            <p className="text-xs">Loading projects...</p>
+            <p className="text-caption">Loading projects...</p>
           </div>
         ) : projects.length === 0 ? (
-          <div className="p-4 bg-gray-50 rounded-xl text-center text-xs text-gray-400 border border-gray-100">
+          <div className="p-4 bg-gray-50 rounded-xl text-center text-caption text-gray-400 border border-gray-100">
             No projects found in this workspace.
           </div>
         ) : (
@@ -403,15 +403,15 @@ export default function ProfilePage() {
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{proj.name}</p>
-                      <p className="text-xs text-gray-400 truncate">
+                      <p className="text-body-sm font-medium text-gray-900 truncate">{proj.name}</p>
+                      <p className="text-caption text-gray-400 truncate">
                         {proj.projectType === 'document' ? 'Document project' : proj.websiteUrl || 'Website'}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className={`text-xs font-medium ${isEnabled ? 'text-blue-600' : 'text-gray-400'}`}>
+                    <span className={`text-caption font-medium ${isEnabled ? 'text-blue-600' : 'text-gray-400'}`}>
                       {isEnabled ? 'On' : 'Muted'}
                     </span>
                     <button
@@ -442,9 +442,9 @@ export default function ProfilePage() {
 
       {/* Delete Account */}
       <div className="py-6">
-        <h3 className="text-base font-semibold text-gray-900 mb-3">Delete your account</h3>
+        <h3 className="text-body font-semibold text-gray-900 mb-3">Delete your account</h3>
         {isOwner ? (
-          <p className="max-w-xl text-sm leading-6 text-gray-500">
+          <p className="max-w-xl text-body-sm text-gray-500">
             You own this organization, so your account is closed together with it. To delete everything, go to{' '}
             <Link to="/settings" className="font-medium text-blue-600 hover:text-blue-700">Settings → Organization</Link>{' '}
             and delete the organization. It is removed after a 7-day grace period.
@@ -452,26 +452,26 @@ export default function ProfilePage() {
         ) : !showDeleteConfirm ? (
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+            className="px-4 py-2 text-label text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
           >
             Delete account…
           </button>
         ) : (
           <div className="bg-red-50 border border-red-200 rounded-xl p-5">
-            <p className="text-sm text-red-800 mb-4">
+            <p className="text-body-sm text-red-800 mb-4">
               This permanently deletes your account and removes you from this organization's projects. Projects you created are deleted with their pins and comments. Your comments on other projects stay, shown as "Deleted user". This cannot be undone.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2.5 text-label text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteAccount}
                 disabled={deleteLoading}
-                className="px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                className="px-4 py-2.5 text-label text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
                 {deleteLoading ? 'Deleting...' : 'Yes, delete my account'}
               </button>

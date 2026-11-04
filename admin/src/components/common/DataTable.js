@@ -19,8 +19,8 @@ export default function DataTable({ columns, data, loading, onRowClick, emptyMes
   if (!data || data.length === 0) {
     return (
       <div className="px-6 py-12 text-center">
-        <p className="text-sm font-medium text-gray-700">{emptyMessage}</p>
-        {emptyDescription && <p className="mt-1 text-sm text-gray-500">{emptyDescription}</p>}
+        <p className="text-body-sm font-medium text-gray-700">{emptyMessage}</p>
+        {emptyDescription && <p className="mt-1 text-body-sm text-gray-500">{emptyDescription}</p>}
       </div>
     );
   }
@@ -34,7 +34,7 @@ export default function DataTable({ columns, data, loading, onRowClick, emptyMes
               <th
                 key={col.key}
                 scope="col"
-                className={`whitespace-nowrap px-5 py-2.5 text-xs font-medium text-gray-500 ${col.align === 'right' ? 'text-right' : 'text-left'}`}
+                className={`whitespace-nowrap px-5 py-2.5 text-caption font-medium text-gray-500 ${col.align === 'right' ? 'text-right' : 'text-left'}`}
               >
                 {col.label}
               </th>
@@ -51,7 +51,7 @@ export default function DataTable({ columns, data, loading, onRowClick, emptyMes
               {columns.map((col) => (
                 <td
                   key={col.key}
-                  className={`px-5 py-3 text-sm text-gray-700 ${col.align === 'right' ? 'text-right tabular-nums' : ''} ${col.className || ''}`}
+                  className={`px-5 py-3 text-body-sm text-gray-700 ${col.align === 'right' ? 'text-right tabular-nums' : ''} ${col.className || ''}`}
                 >
                   {col.render ? col.render(row) : row[col.key]}
                 </td>

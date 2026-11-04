@@ -278,7 +278,7 @@ export default function CommentSidebar({
                 </svg>
               </button>
             )}
-            <span className="text-sm font-bold text-gray-900">
+            <span className="text-body-sm font-semibold text-gray-900">
               #{pin.pinNumber || currentIndex + 1}
             </span>
             <span
@@ -286,7 +286,7 @@ export default function CommentSidebar({
                 pin.status === "resolved" ? "bg-emerald-500" : "bg-amber-500"
               }`}
             ></span>
-            <span className="text-[12px] text-gray-400" title={formatFullTimestamp(pin.createdAt)}>
+            <span className="text-caption text-gray-400" title={formatFullTimestamp(pin.createdAt)}>
               {pin.createdBy?.name || pin.createdByGuest?.name || "Unknown"} &middot;{" "}
               {formatDateTime(pin.createdAt)}
             </span>
@@ -343,13 +343,13 @@ export default function CommentSidebar({
                     onDelete(pin._id);
                     setConfirmDeletePin(false);
                   }}
-                  className="text-[11px] px-1.5 py-0.5 rounded font-medium text-white bg-red-600 hover:bg-red-700"
+                  className="text-caption px-1.5 py-0.5 rounded font-medium text-white bg-red-600 hover:bg-red-700"
                 >
                   Yes
                 </button>
                 <button
                   onClick={() => setConfirmDeletePin(false)}
-                  className="text-[11px] px-1.5 py-0.5 rounded font-medium text-gray-600 bg-gray-100 hover:bg-gray-200"
+                  className="text-caption px-1.5 py-0.5 rounded font-medium text-gray-600 bg-gray-100 hover:bg-gray-200"
                 >
                   No
                 </button>
@@ -401,16 +401,16 @@ export default function CommentSidebar({
       </div>
 
       {/* Task workflow properties */}
-      <div className="px-4 py-2.5 bg-gray-50/80 border-b border-gray-100 text-xs space-y-2">
+      <div className="px-4 py-2.5 bg-gray-50/80 border-b border-gray-100 text-caption space-y-2">
         <div className="grid grid-cols-2 gap-2">
           {/* Status */}
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Status</label>
+            <label className="block text-overline text-gray-400 mb-0.5">Status</label>
             <select
               disabled={readOnly}
               value={pin.status === 'pending' ? 'open' : (pin.status || 'open')}
               onChange={(e) => handleStatusSelect(e.target.value)}
-              className="w-full text-xs font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full text-body font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="open">Open</option>
               <option value="in_progress">In Progress</option>
@@ -420,12 +420,12 @@ export default function CommentSidebar({
           </div>
           {/* Priority */}
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Priority</label>
+            <label className="block text-overline text-gray-400 mb-0.5">Priority</label>
             <select
               disabled={readOnly}
               value={pin.priority || 'normal'}
               onChange={(e) => handlePrioritySelect(e.target.value)}
-              className="w-full text-xs font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full text-body font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="low">Low</option>
               <option value="normal">Normal</option>
@@ -438,12 +438,12 @@ export default function CommentSidebar({
         <div className="grid grid-cols-2 gap-2">
           {/* Assignee */}
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Assignee</label>
+            <label className="block text-overline text-gray-400 mb-0.5">Assignee</label>
             <select
               disabled={readOnly}
               value={pin.assignee?._id || pin.assignee || ''}
               onChange={(e) => handleAssigneeSelect(e.target.value)}
-              className="w-full text-xs font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 truncate focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full text-body font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 truncate focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">Unassigned</option>
               {members.map((m) => (
@@ -455,13 +455,13 @@ export default function CommentSidebar({
           </div>
           {/* Due date */}
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Due date</label>
+            <label className="block text-overline text-gray-400 mb-0.5">Due date</label>
             <input
               type="date"
               disabled={readOnly}
               value={pin.dueAt ? String(pin.dueAt).slice(0, 10) : ''}
               onChange={(e) => handleDueDateSelect(e.target.value)}
-              className="w-full text-xs font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full text-body font-medium py-1 px-1.5 bg-white border border-gray-200 rounded text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -469,20 +469,20 @@ export default function CommentSidebar({
         {/* Labels / Tags */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Labels</label>
+            <label className="block text-overline text-gray-400">Labels</label>
           </div>
           <div className="flex flex-wrap items-center gap-1">
             {(pin.labels || []).map((label, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center gap-1 bg-white border border-gray-200 text-gray-700 text-[11px] px-1.5 py-0.5 rounded-full"
+                className="inline-flex items-center gap-1 bg-white border border-gray-200 text-gray-700 text-caption px-1.5 py-0.5 rounded-full"
               >
                 <span>{label}</span>
                 {!readOnly && (
                   <button
                     type="button"
                     onClick={() => handleRemoveLabel(idx)}
-                    className="text-gray-400 hover:text-red-500 text-[12px] font-bold leading-none"
+                    className="text-gray-400 hover:text-red-500 text-caption font-semibold"
                   >
                     &times;
                   </button>
@@ -496,7 +496,7 @@ export default function CommentSidebar({
                 value={newLabelInput}
                 onChange={(e) => setNewLabelInput(e.target.value)}
                 onKeyDown={handleAddLabelKeyDown}
-                className="text-[11px] bg-white border border-dashed border-gray-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-blue-500 max-w-[120px]"
+                className="text-body bg-white border border-dashed border-gray-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-blue-500 max-w-[160px]"
               />
             )}
           </div>
@@ -511,8 +511,8 @@ export default function CommentSidebar({
           </div>
         ) : comments.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-sm text-gray-400">No comments yet</p>
-            <p className="text-xs text-gray-300 mt-1">
+            <p className="text-body-sm text-gray-400">No comments yet</p>
+            <p className="text-caption text-gray-300 mt-1">
               Add the first comment below
             </p>
           </div>
@@ -521,16 +521,16 @@ export default function CommentSidebar({
           comments.map((comment) => (
             <div key={comment._id} className="group">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold shrink-0">
+                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-caption font-semibold shrink-0">
                   {(comment.author?.name || comment.authorGuest?.name || "?")[0].toUpperCase()}
                 </div>
-                <span className="text-sm font-medium text-gray-800 truncate">
+                <span className="text-body-sm font-medium text-gray-800 truncate">
                   {comment.author?.name || comment.authorGuest?.name || "Unknown"}
                 </span>
                 {!comment.author && comment.authorGuest?.name && comment.authorGuest.name !== "Deleted user" && (
-                  <span className="text-[11px] text-gray-400 shrink-0">Guest</span>
+                  <span className="text-caption text-gray-400 shrink-0">Guest</span>
                 )}
-                <span className="text-[11px] text-gray-400 shrink-0" title={formatFullTimestamp(comment.createdAt)}>
+                <span className="text-caption text-gray-400 shrink-0" title={formatFullTimestamp(comment.createdAt)}>
                   {formatDateTime(comment.createdAt)}
                 </span>
                 {/* Edit / Delete actions */}
@@ -542,7 +542,7 @@ export default function CommentSidebar({
                           setEditingComment(comment._id);
                           setEditBody(stripHtmlForEdit(comment.body));
                         }}
-                        className="text-[11px] text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-caption text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         Edit
                       </button>
@@ -555,13 +555,13 @@ export default function CommentSidebar({
                             handleDelete(comment._id);
                             setConfirmDeleteComment(null);
                           }}
-                          className="text-[11px] px-1.5 py-0.5 rounded font-medium text-white bg-red-600 hover:bg-red-700"
+                          className="text-caption px-1.5 py-0.5 rounded font-medium text-white bg-red-600 hover:bg-red-700"
                         >
                           Yes
                         </button>
                         <button
                           onClick={() => setConfirmDeleteComment(null)}
-                          className="text-[11px] px-1.5 py-0.5 rounded font-medium text-gray-600 bg-gray-100 hover:bg-gray-200"
+                          className="text-caption px-1.5 py-0.5 rounded font-medium text-gray-600 bg-gray-100 hover:bg-gray-200"
                         >
                           No
                         </button>
@@ -569,7 +569,7 @@ export default function CommentSidebar({
                     ) : (
                       <button
                         onClick={() => setConfirmDeleteComment(comment._id)}
-                        className="text-[11px] text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-caption text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         Delete
                       </button>
@@ -587,13 +587,13 @@ export default function CommentSidebar({
                       placeholder="Edit comment... (@ to mention)"
                       multiline={true}
                       rows={3}
-                      className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white"
+                      className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white"
                     />
                     <div className="flex items-center gap-2 mt-1.5">
                       <button
                         onClick={() => handleEdit(comment._id)}
                         disabled={!editBody.trim()}
-                        className="px-2.5 py-1 bg-blue-600 text-white text-[11px] font-medium rounded-md hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                        className="px-2.5 py-1 bg-blue-600 text-white text-caption font-medium rounded-md hover:bg-blue-700 disabled:opacity-40 transition-colors"
                       >
                         Save
                       </button>
@@ -602,14 +602,14 @@ export default function CommentSidebar({
                           setEditingComment(null);
                           setEditBody("");
                         }}
-                        className="px-2.5 py-1 text-gray-600 text-[11px] font-medium rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
+                        className="px-2.5 py-1 text-gray-600 text-caption font-medium rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
                       >
                         Cancel
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-600 leading-relaxed break-words">
+                  <p className="text-body-sm text-gray-600 break-words">
                     {renderCommentBody(comment.body)}
                   </p>
                 )}
@@ -630,7 +630,7 @@ export default function CommentSidebar({
       </div>
 
       {readOnly ? (
-        <p className="p-3 border-t border-gray-200 bg-gray-50 text-center text-xs text-gray-500 shrink-0">You can view this project but not comment.</p>
+        <p className="p-3 border-t border-gray-200 bg-gray-50 text-center text-caption text-gray-500 shrink-0">You can view this project but not comment.</p>
       ) : (<>
       {/* Comment Input */}
       <form
@@ -646,7 +646,7 @@ export default function CommentSidebar({
           multiline={true}
           rows={3}
           disabled={loading}
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-body focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white"
         />
         {files.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap mt-2">
@@ -660,7 +660,7 @@ export default function CommentSidebar({
           </div>
         )}
         <div className="flex items-center justify-between mt-2">
-          <label className="cursor-pointer text-xs text-gray-500 hover:text-blue-600 transition-colors">
+          <label className="cursor-pointer text-caption text-gray-500 hover:text-blue-600 transition-colors">
             <input
               type="file"
               multiple
@@ -673,7 +673,7 @@ export default function CommentSidebar({
           <button
             type="submit"
             disabled={loading || !body.trim()}
-            className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
+            className="px-3 py-1.5 bg-blue-600 text-white text-caption font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors"
           >
             {loading ? "Sending..." : "Comment"}
           </button>
@@ -684,7 +684,7 @@ export default function CommentSidebar({
       {/* Screenshot */}
       {pin.screenshot?.path ? (
         <div className="px-3 py-1.5 border-b border-gray-200 shrink-0">
-          <p className="text-[10px] text-gray-400 mb-1 font-medium">
+          <p className="text-caption text-gray-400 mb-1 font-medium">
             Screenshot
           </p>
           <button
@@ -698,7 +698,7 @@ export default function CommentSidebar({
                 className="w-full h-full object-cover blur-sm scale-110"
               />
             </div>
-            <span className="flex-1 text-center text-[11px] text-gray-500 font-medium">
+            <span className="flex-1 text-center text-caption text-gray-500 font-medium">
               View screenshot
             </span>
             <svg
@@ -717,9 +717,9 @@ export default function CommentSidebar({
           </button>
         </div>
       ) : (pin?.pageUrl && !pin.pageUrl.startsWith('doc:') ? (
-        <div className="px-3 py-1.5 border-b border-gray-100 shrink-0 flex items-center justify-between text-[11px] text-gray-400">
+        <div className="px-3 py-1.5 border-b border-gray-100 shrink-0 flex items-center justify-between text-caption text-gray-400">
           <span>Screenshot</span>
-          <span className="text-[10px] text-gray-400 italic">Not available</span>
+          <span className="text-caption text-gray-400 italic">Not available</span>
         </div>
       ) : null)}
 
@@ -738,7 +738,7 @@ export default function CommentSidebar({
           <button
             disabled={!hasPrev}
             onClick={() => hasPrev && onNavigate(pins[currentIndex - 1])}
-            className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1 text-caption font-medium text-gray-600 hover:text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             <svg
               className="w-4 h-4"
@@ -755,13 +755,13 @@ export default function CommentSidebar({
             </svg>
             Prev
           </button>
-          <span className="text-[11px] text-gray-400">
+          <span className="text-caption text-gray-400">
             {currentIndex + 1} / {pins.length}
           </span>
           <button
             disabled={!hasNext}
             onClick={() => hasNext && onNavigate(pins[currentIndex + 1])}
-            className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1 text-caption font-medium text-gray-600 hover:text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             Next
             <svg
@@ -907,7 +907,7 @@ export default function CommentSidebar({
             </div>
             {/* Copy toast */}
             {copyToast && (
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-white rounded-lg shadow-lg text-sm font-medium text-gray-800">
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-white rounded-lg shadow-lg text-body-sm font-medium text-gray-800">
                 Copied to clipboard
               </div>
             )}
@@ -918,7 +918,7 @@ export default function CommentSidebar({
       {copyToast &&
         !lightbox &&
         createPortal(
-          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] px-4 py-2 bg-white rounded-lg shadow-lg text-sm font-medium text-gray-800">
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] px-4 py-2 bg-white rounded-lg shadow-lg text-body-sm font-medium text-gray-800">
             Copied to clipboard
           </div>,
           document.body,

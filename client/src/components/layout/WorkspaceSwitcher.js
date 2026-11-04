@@ -12,7 +12,7 @@ export function workspaceColor(name = '') {
   return TILE_COLORS[h % TILE_COLORS.length];
 }
 
-export function WorkspaceTile({ name, className = 'w-8 h-8 text-sm' }) {
+export function WorkspaceTile({ name, className = 'w-8 h-8 text-body-sm' }) {
   return (
     <span className={`inline-flex items-center justify-center rounded-lg font-semibold text-white shrink-0 ${workspaceColor(name)} ${className}`}>
       {(name || '?')[0].toUpperCase()}
@@ -85,8 +85,8 @@ export default function WorkspaceSwitcher({ onNavigate }) {
       >
         <WorkspaceTile name={name} />
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-semibold text-white truncate">{name}</p>
-          <p className="text-xs text-gray-400 truncate">{user?.orgName}</p>
+          <p className="text-body-sm font-semibold text-white truncate">{name}</p>
+          <p className="text-caption text-gray-400 truncate">{user?.orgName}</p>
         </div>
         <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
@@ -95,7 +95,7 @@ export default function WorkspaceSwitcher({ onNavigate }) {
 
       {open && (
         <div role="menu" className="absolute left-3 right-3 top-full mt-1.5 z-50 rounded-xl border border-gray-700 bg-gray-800 py-1.5 shadow-xl animate-scale-in">
-          <p className="px-3 pt-1 pb-1.5 text-xs font-medium text-gray-400">Workspaces in {user?.orgName}</p>
+          <p className="px-3 pt-1 pb-1.5 text-caption font-medium text-gray-400">Workspaces in {user?.orgName}</p>
           <div className="max-h-64 overflow-y-auto scrollbar-thin">
             {workspaces.map((w) => (
               <button
@@ -105,9 +105,9 @@ export default function WorkspaceSwitcher({ onNavigate }) {
                 onClick={() => go(w._id)}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-left hover:bg-gray-700/60 transition-colors"
               >
-                <WorkspaceTile name={w.name} className="w-6 h-6 text-xs" />
-                <span className="min-w-0 flex-1 truncate text-sm text-gray-100">{w.name}</span>
-                <span className="text-xs text-gray-500 tabular-nums">{w.projectCount}</span>
+                <WorkspaceTile name={w.name} className="w-6 h-6 text-caption" />
+                <span className="min-w-0 flex-1 truncate text-body-sm text-gray-100">{w.name}</span>
+                <span className="text-caption text-gray-500 tabular-nums">{w.projectCount}</span>
                 {current?._id === w._id && (
                   <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-label="Selected">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -128,13 +128,13 @@ export default function WorkspaceSwitcher({ onNavigate }) {
                     onChange={(e) => setNewName(e.target.value)}
                     maxLength={60}
                     placeholder="Workspace name, e.g. Client X"
-                    className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-body text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
                   />
                   <div className="mt-2 flex justify-end gap-2">
-                    <button type="button" onClick={() => setCreating(false)} className="px-2.5 py-1.5 text-xs font-medium text-gray-300 hover:text-white">
+                    <button type="button" onClick={() => setCreating(false)} className="px-2.5 py-1.5 text-caption font-medium text-gray-300 hover:text-white">
                       Cancel
                     </button>
-                    <button type="submit" disabled={!newName.trim() || saving} className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                    <button type="submit" disabled={!newName.trim() || saving} className="rounded-md bg-blue-600 px-3 py-1.5 text-caption font-medium text-white hover:bg-blue-700 disabled:opacity-50">
                       {saving ? 'Creating…' : 'Create'}
                     </button>
                   </div>
@@ -144,7 +144,7 @@ export default function WorkspaceSwitcher({ onNavigate }) {
                   type="button"
                   role="menuitem"
                   onClick={() => setCreating(true)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-gray-200 hover:bg-gray-700/60 transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-body-sm text-gray-200 hover:bg-gray-700/60 transition-colors"
                 >
                   <span className="inline-flex w-6 h-6 items-center justify-center rounded-lg border border-dashed border-gray-500 text-gray-400">
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -158,7 +158,7 @@ export default function WorkspaceSwitcher({ onNavigate }) {
                 type="button"
                 role="menuitem"
                 onClick={() => { setOpen(false); navigate('/settings?tab=workspaces'); onNavigate?.(); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-body-sm text-gray-400 hover:text-white hover:bg-gray-700/60 transition-colors"
               >
                 <span className="inline-flex w-6 h-6 items-center justify-center">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>

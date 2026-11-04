@@ -77,12 +77,12 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create project">
       {workspace && (
-        <p className="-mt-2 mb-4 text-sm text-gray-500">
+        <p className="-mt-2 mb-4 text-body-sm text-gray-500">
           In <span className="font-medium text-gray-900">{workspace.name}</span>
         </p>
       )}
       {error && (
-        <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm flex items-center gap-2">
+        <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-body-sm flex items-center gap-2">
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -108,8 +108,8 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
             </svg>
           </div>
-          <span className={`text-sm font-semibold ${projectType === 'website' ? 'text-blue-700' : 'text-gray-700'}`}>Website</span>
-          <span className="text-[11px] text-gray-400 leading-tight">Live URL to review</span>
+          <span className={`text-body-sm font-semibold ${projectType === 'website' ? 'text-blue-700' : 'text-gray-700'}`}>Website</span>
+          <span className="text-caption text-gray-400">Live URL to review</span>
           {projectType === 'website' && (
             <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
               <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
@@ -135,8 +135,8 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
           </div>
-          <span className={`text-sm font-semibold ${projectType === 'document' ? 'text-violet-700' : 'text-gray-700'}`}>Document</span>
-          <span className="text-[11px] text-gray-400 leading-tight">PDF or images to review</span>
+          <span className={`text-body-sm font-semibold ${projectType === 'document' ? 'text-violet-700' : 'text-gray-700'}`}>Document</span>
+          <span className="text-caption text-gray-400">PDF or images to review</span>
           {projectType === 'document' && (
             <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
               <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
@@ -149,32 +149,32 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Project name</label>
+          <label className="block text-label text-gray-700 mb-1.5">Project name</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
             placeholder={projectType === 'website' ? 'My Website Review' : 'My Document Review'}
           />
         </div>
 
         {projectType === 'website' ? (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Website URL</label>
+            <label className="block text-label text-gray-700 mb-1.5">Website URL</label>
             <input
               type="url"
               value={websiteUrl}
               onChange={(e) => setWebsiteUrl(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
               placeholder="https://example.com"
             />
           </div>
         ) : (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Upload Documents</label>
+            <label className="block text-label text-gray-700 mb-1.5">Upload Documents</label>
             <div
               className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
               onClick={() => fileInputRef.current?.click()}
@@ -184,8 +184,8 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
               <svg className="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
-              <p className="text-sm text-gray-600 font-medium">Drop files here or click to browse</p>
-              <p className="text-xs text-gray-400 mt-1">PDF, PNG, JPG, GIF, WebP (max 20 MB each)</p>
+              <p className="text-body-sm text-gray-600 font-medium">Drop files here or click to browse</p>
+              <p className="text-caption text-gray-400 mt-1">PDF, PNG, JPG, GIF, WebP (max 20 MB each)</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -208,8 +208,8 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
                           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
                         )}
                       </svg>
-                      <span className="text-sm text-gray-700 truncate">{file.name}</span>
-                      <span className="text-xs text-gray-400 shrink-0">{formatFileSize(file.size)}</span>
+                      <span className="text-body-sm text-gray-700 truncate">{file.name}</span>
+                      <span className="text-caption text-gray-400 shrink-0">{formatFileSize(file.size)}</span>
                     </div>
                     <button
                       type="button"
@@ -231,14 +231,14 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            className="px-4 py-2.5 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="px-4 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Creating...' : 'Create project'}
           </button>

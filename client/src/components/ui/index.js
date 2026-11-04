@@ -1,7 +1,7 @@
 // Shared building blocks for the app's pages, cut from the dashboard (page
 // header, "New project" button, FilterBar pills and search, project cards), so
 // every page looks and behaves the same. Brand blue + slate, rounded-lg
-// controls, rounded-xl cards and menus, text-[13px] controls, sentence case.
+// controls, rounded-xl cards and menus, text-label controls, sentence case.
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -88,8 +88,8 @@ export function PageHeader({ title, subtitle, actions }) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
       <div className="min-w-0">
-        <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-        {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+        <h2 className="text-h3 font-semibold text-gray-900">{title}</h2>
+        {subtitle && <p className="text-body-sm text-gray-500 mt-1">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-3 shrink-0">{actions}</div>}
     </div>
@@ -106,8 +106,8 @@ const BUTTON_VARIANTS = {
   link: 'text-blue-600 hover:text-blue-700 px-0',
 };
 const BUTTON_SIZES = {
-  sm: 'h-8 px-3 text-[13px] gap-1.5',
-  md: 'h-9 px-3.5 text-[13px] gap-1.5',
+  sm: 'h-8 px-3 text-label gap-1.5',
+  md: 'h-9 px-3.5 text-label gap-1.5',
 };
 
 export function Spinner({ className = 'w-3.5 h-3.5' }) {
@@ -115,7 +115,7 @@ export function Spinner({ className = 'w-3.5 h-3.5' }) {
 }
 
 export function Button({ variant = 'secondary', size = 'md', loading = false, icon = null, className = '', children, disabled, type = 'button', ...props }) {
-  const sizeCls = variant === 'link' ? 'h-auto text-[13px] gap-1.5' : BUTTON_SIZES[size];
+  const sizeCls = variant === 'link' ? 'h-auto text-label gap-1.5' : BUTTON_SIZES[size];
   return (
     <button
       type={type}
@@ -151,8 +151,8 @@ export function Card({ title, description, actions, children, flush = false, cla
       {(title || actions) && (
         <div className="flex flex-col gap-3 px-6 py-5 border-b border-gray-100 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
           <div className="min-w-0 max-w-2xl">
-            {title && <h3 className="text-base font-semibold text-gray-900">{title}</h3>}
-            {description && <p className="text-sm text-gray-500 mt-1">{description}</p>}
+            {title && <h3 className="text-body font-semibold text-gray-900">{title}</h3>}
+            {description && <p className="text-body-sm text-gray-500 mt-1">{description}</p>}
           </div>
           {actions && <div className="flex flex-wrap items-center gap-2 shrink-0">{actions}</div>}
         </div>
@@ -168,8 +168,8 @@ export function SettingRow({ label, hint, children, last = false }) {
   return (
     <div className={`flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-8 ${last ? '' : 'pb-6 mb-6 border-b border-gray-100'}`}>
       <div className="sm:w-48 shrink-0 sm:pt-2">
-        <p className="text-[13px] font-medium text-gray-900">{label}</p>
-        {hint && <p className="text-xs text-gray-500 mt-0.5">{hint}</p>}
+        <p className="text-label text-gray-900">{label}</p>
+        {hint && <p className="text-caption text-gray-500 mt-0.5">{hint}</p>}
       </div>
       <div className="min-w-0 flex-1">{children}</div>
     </div>
@@ -177,15 +177,15 @@ export function SettingRow({ label, hint, children, last = false }) {
 }
 
 // ── Form controls ────────────────────────────────────────────────────────────
-export const inputClass = 'w-full h-9 px-3 text-sm text-gray-900 bg-white border border-gray-200 rounded-lg placeholder:text-gray-400 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-shadow disabled:bg-gray-50 disabled:text-gray-500';
-export const textareaClass = 'w-full px-3 py-2 text-sm text-gray-900 bg-white border border-gray-200 rounded-lg placeholder:text-gray-400 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-shadow resize-y';
+export const inputClass = 'w-full h-9 px-3 text-body text-gray-900 bg-white border border-gray-200 rounded-lg placeholder:text-gray-400 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-shadow disabled:bg-gray-50 disabled:text-gray-500';
+export const textareaClass = 'w-full px-3 py-2 text-body text-gray-900 bg-white border border-gray-200 rounded-lg placeholder:text-gray-400 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-shadow resize-y';
 
 export function Field({ label, hint, error, htmlFor, children }) {
   return (
     <div>
-      {label && <label htmlFor={htmlFor} className="block text-[13px] font-medium text-gray-700 mb-1.5">{label}</label>}
+      {label && <label htmlFor={htmlFor} className="block text-label text-gray-700 mb-1.5">{label}</label>}
       {children}
-      {error ? <p className="text-xs text-red-600 mt-1.5">{error}</p> : hint && <p className="text-xs text-gray-500 mt-1.5">{hint}</p>}
+      {error ? <p className="text-caption text-red-600 mt-1.5">{error}</p> : hint && <p className="text-caption text-gray-500 mt-1.5">{hint}</p>}
     </div>
   );
 }
@@ -199,8 +199,8 @@ export function Checkbox({ checked, onChange, label, description, disabled }) {
     <label className={`flex items-start gap-3 ${disabled ? 'opacity-60' : 'cursor-pointer'}`}>
       <input type="checkbox" checked={checked} onChange={onChange} disabled={disabled} className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
       <span>
-        <span className="block text-sm text-gray-900">{label}</span>
-        {description && <span className="block text-xs text-gray-500 mt-0.5">{description}</span>}
+        <span className="block text-body-sm text-gray-900">{label}</span>
+        {description && <span className="block text-caption text-gray-500 mt-0.5">{description}</span>}
       </span>
     </label>
   );
@@ -224,19 +224,19 @@ function MenuOption({ selected, onClick, children, description, disabled = false
       aria-disabled={disabled}
       disabled={disabled}
       onClick={onClick}
-      className={`w-full text-left px-3.5 py-2 text-sm flex items-center justify-between gap-3 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${selected ? 'text-blue-700 bg-blue-50/60' : 'text-gray-700 hover:bg-gray-50'}`}
+      className={`w-full text-left px-3.5 py-2 text-body-sm flex items-center justify-between gap-3 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${selected ? 'text-blue-700 bg-blue-50/60' : 'text-gray-700 hover:bg-gray-50'}`}
     >
       <span className="min-w-0">
         <span className="flex items-center gap-2.5">{children}</span>
-        {description && <span className={`block text-xs mt-0.5 ${selected ? 'text-blue-600/80' : 'text-gray-500'}`}>{description}</span>}
+        {description && <span className={`block text-caption mt-0.5 ${selected ? 'text-blue-600/80' : 'text-gray-500'}`}>{description}</span>}
       </span>
       {selected && <span className="text-blue-600 shrink-0">{Icon.check()}</span>}
     </button>
   );
 }
 
-const pillClass = (active) => `flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] border transition-colors duration-150 ${active
-  ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium'
+const pillClass = (active) => `flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-label border transition-colors duration-150 ${active
+  ? 'bg-blue-50 border-blue-200 text-blue-700'
   : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'}`;
 
 // Filter pill: "Status ▾" → menu with "All" plus the options (value null = all)
@@ -279,8 +279,8 @@ export function SelectMenu({ value, options, onChange, disabled = false, variant
   useDismiss(ref, open, () => setOpen(false), panelRef);
   const selected = options.find((o) => o.value === value);
   const trigger = variant === 'field'
-    ? `w-full flex items-center justify-between gap-2 h-9 px-3 text-sm bg-white border rounded-lg transition-shadow ${open ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200 hover:border-gray-300'}`
-    : 'flex items-center gap-1.5 h-8 pl-2.5 pr-2 rounded-lg text-[13px] border bg-white border-gray-200 text-gray-700 hover:border-gray-300 hover:text-gray-900 transition-colors';
+    ? `w-full flex items-center justify-between gap-2 h-9 px-3 text-body bg-white border rounded-lg transition-shadow ${open ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-gray-200 hover:border-gray-300'}`
+    : 'flex items-center gap-1.5 h-8 pl-2.5 pr-2 rounded-lg text-label border bg-white border-gray-200 text-gray-700 hover:border-gray-300 hover:text-gray-900 transition-colors';
   return (
     <div ref={ref} className={`relative ${variant === 'field' ? 'w-full' : ''}`}>
       <button type="button" disabled={disabled} onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel} className={`${trigger} disabled:opacity-50 disabled:pointer-events-none ${className}`}>
@@ -323,7 +323,7 @@ export function ActionMenu({ label = 'Actions', items }) {
                 role="menuitem"
                 disabled={item.disabled}
                 onClick={() => { setOpen(false); item.onClick(); }}
-                className={`w-full text-left px-3.5 py-2 text-sm flex items-center gap-2.5 transition-colors disabled:opacity-50 ${item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-gray-50'}`}
+                className={`w-full text-left px-3.5 py-2 text-body-sm flex items-center gap-2.5 transition-colors disabled:opacity-50 ${item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-gray-50'}`}
               >
                 {item.icon && <span className={item.danger ? 'text-red-500' : 'text-gray-400'}>{item.icon}</span>}
                 {item.label}
@@ -359,7 +359,7 @@ export function SearchField({ value, onChange, placeholder = 'Search…', label 
           onKeyDown={(e) => { if (e.key === 'Escape' && !alwaysOpen) { onChange(''); setExpanded(false); } }}
           placeholder={placeholder}
           aria-label={label}
-          className="w-56 pl-9 pr-8 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm"
+          className="w-56 pl-9 pr-8 py-2 text-body bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm"
         />
         {value && (
           <button type="button" onClick={() => onChange('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
@@ -380,8 +380,8 @@ export function SearchField({ value, onChange, placeholder = 'Search…', label 
 export function ClearFilters({ count, onClear }) {
   if (!count) return null;
   return (
-    <button type="button" onClick={onClear} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-100">
-      <span className="rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center" style={{ width: '18px', height: '18px' }}>{count}</span>
+    <button type="button" onClick={onClear} className="flex items-center gap-1.5 px-2.5 py-1.5 text-caption font-medium text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-100">
+      <span className="rounded-full bg-blue-100 text-blue-700 text-caption font-semibold flex items-center justify-center" style={{ width: '18px', height: '18px' }}>{count}</span>
       <span>Clear all</span>
       {Icon.close('w-3 h-3')}
     </button>
@@ -411,11 +411,11 @@ export function Tabs({ tabs, active, onChange, className = 'mb-8' }) {
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(t.id)}
-            className={`relative shrink-0 whitespace-nowrap pb-3 -mb-px text-sm font-medium transition-colors flex items-center gap-2 border-b-2 ${isActive ? 'text-blue-600 border-blue-600' : 'text-gray-500 hover:text-gray-900 border-transparent'}`}
+            className={`relative shrink-0 whitespace-nowrap pb-3 -mb-px text-label transition-colors flex items-center gap-2 border-b-2 ${isActive ? 'text-blue-600 border-blue-600' : 'text-gray-500 hover:text-gray-900 border-transparent'}`}
           >
             {t.label}
             {t.count != null && (
-              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${isActive ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{t.count}</span>
+              <span className={`text-caption font-semibold px-1.5 py-0.5 rounded-full ${isActive ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>{t.count}</span>
             )}
             {t.dot && <span title={t.dotTitle} className="w-2 h-2 rounded-full bg-red-500" />}
           </button>
@@ -436,7 +436,7 @@ const BADGE_TONES = {
 export function Badge({ tone = 'gray', dot = false, children, className = '' }) {
   const dotTone = { gray: 'bg-gray-400', blue: 'bg-blue-500', green: 'bg-emerald-500', amber: 'bg-amber-500', red: 'bg-red-500' }[tone];
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${BADGE_TONES[tone]} ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-caption font-medium whitespace-nowrap ${BADGE_TONES[tone]} ${className}`}>
       {dot && <span className={`w-1.5 h-1.5 rounded-full ${dotTone}`} />}
       {children}
     </span>
@@ -452,7 +452,7 @@ const AVATAR_COLORS = [
   'bg-gray-200 text-gray-700',
 ];
 export function Avatar({ name, src, size = 'md' }) {
-  const sz = { sm: 'w-7 h-7 text-[11px]', md: 'w-9 h-9 text-sm', lg: 'w-12 h-12 text-base' }[size];
+  const sz = { sm: 'w-7 h-7 text-caption', md: 'w-9 h-9 text-body-sm', lg: 'w-12 h-12 text-body' }[size];
   if (src) return <img src={src} alt="" className={`${sz} rounded-full object-cover shrink-0`} />;
   const hash = (name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   return (
@@ -466,8 +466,8 @@ export function EmptyState({ icon, title, description, action }) {
   return (
     <div className="px-6 py-14 text-center">
       {icon && <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto mb-3 text-gray-400">{icon}</div>}
-      <p className="text-sm font-semibold text-gray-900">{title}</p>
-      {description && <p className="text-sm text-gray-500 mt-1 max-w-sm mx-auto">{description}</p>}
+      <p className="text-body-sm font-semibold text-gray-900">{title}</p>
+      {description && <p className="text-body-sm text-gray-500 mt-1 max-w-sm mx-auto">{description}</p>}
       {action && <div className="mt-4 flex justify-center">{action}</div>}
     </div>
   );
@@ -483,7 +483,7 @@ export function Notice({ tone = 'blue', children, action }) {
     gray: 'bg-gray-50 border-gray-200 text-gray-700',
   };
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm ${tones[tone]}`}>
+    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-body-sm ${tones[tone]}`}>
       <div className="min-w-0">{children}</div>
       {action}
     </div>

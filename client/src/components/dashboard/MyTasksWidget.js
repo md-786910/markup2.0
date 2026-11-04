@@ -64,18 +64,18 @@ export default function MyTasksWidget() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-gray-900">My Assigned Tasks</h3>
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+              <h3 className="text-body font-semibold text-gray-900">My Assigned Tasks</h3>
+              <span className="text-caption font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
                 {data.total}
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">Tasks assigned to you across all your projects</p>
+            <p className="text-caption text-gray-500 mt-0.5">Tasks assigned to you across all your projects</p>
           </div>
         </div>
 
         {/* Filter pills & Collapse */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-gray-100/80 p-0.5 rounded-lg text-xs font-medium">
+          <div className="flex items-center bg-gray-100/80 p-0.5 rounded-lg text-caption font-medium">
             <button
               onClick={() => setActiveTab('all')}
               className={`px-3 py-1 rounded-md transition-all ${
@@ -92,7 +92,7 @@ export default function MyTasksWidget() {
                 }`}
               >
                 <span>Overdue</span>
-                <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                <span className="bg-rose-100 text-rose-800 text-caption font-semibold px-1.5 py-0.2 rounded-full">
                   {data.overdue.length}
                 </span>
               </button>
@@ -105,7 +105,7 @@ export default function MyTasksWidget() {
                 }`}
               >
                 <span>Due this week</span>
-                <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                <span className="bg-amber-100 text-amber-800 text-caption font-semibold px-1.5 py-0.2 rounded-full">
                   {data.dueSoon.length}
                 </span>
               </button>
@@ -153,20 +153,20 @@ export default function MyTasksWidget() {
                 <div>
                   {/* Top: Project pill & Priority */}
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-[11px] font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md truncate max-w-[150px]">
+                    <span className="text-caption font-semibold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-md truncate max-w-[150px]">
                       {task.project?.name || 'Project'}
                     </span>
-                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${priorityCls}`}>
+                    <span className={`text-overline px-2 py-0.5 rounded-full border ${priorityCls}`}>
                       {task.priority || 'normal'}
                     </span>
                   </div>
 
                   {/* Pin Number & Title preview */}
                   <div className="mb-2">
-                    <span className="text-xs font-bold text-blue-600 group-hover:underline mr-1.5">
+                    <span className="text-caption font-semibold text-blue-600 group-hover:underline mr-1.5">
                       #{task.pinNumber || '?'}
                     </span>
-                    <span className="text-xs text-gray-700 line-clamp-2">
+                    <span className="text-caption text-gray-700 line-clamp-2">
                       {task.pageUrl ? task.pageUrl.replace(/^https?:\/\//, '') : 'Task'}
                     </span>
                   </div>
@@ -175,27 +175,27 @@ export default function MyTasksWidget() {
                   {task.labels && task.labels.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-3">
                       {task.labels.slice(0, 3).map((l, i) => (
-                        <span key={i} className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                        <span key={i} className="text-caption bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
                           #{l}
                         </span>
                       ))}
                       {task.labels.length > 3 && (
-                        <span className="text-[10px] text-gray-400">+{task.labels.length - 3}</span>
+                        <span className="text-caption text-gray-400">+{task.labels.length - 3}</span>
                       )}
                     </div>
                   )}
                 </div>
 
                 {/* Bottom row: status pill + due date */}
-                <div className="flex items-center justify-between pt-3 border-t border-gray-100 text-[11px]">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusCls}`}>
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100 text-caption">
+                  <span className={`text-caption font-semibold px-2 py-0.5 rounded-full border ${statusCls}`}>
                     {statusLabel}
                   </span>
 
                   {task.dueAt ? (
                     <span
                       className={`inline-flex items-center gap-1 font-medium ${
-                        isOverdue ? 'text-rose-600 font-bold' : 'text-gray-500'
+                        isOverdue ? 'text-rose-600 font-semibold' : 'text-gray-500'
                       }`}
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -205,7 +205,7 @@ export default function MyTasksWidget() {
                       {new Date(task.dueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                     </span>
                   ) : (
-                    <span className="text-[10px] text-gray-400">No due date</span>
+                    <span className="text-caption text-gray-400">No due date</span>
                   )}
                 </div>
               </div>

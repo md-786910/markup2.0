@@ -38,7 +38,7 @@ export default function SiteNoticeBanner() {
 
   return (
     <div role="status" className="pointer-events-none fixed inset-x-0 bottom-4 z-[70] flex justify-center px-4">
-      <div className={`pointer-events-auto flex max-w-2xl items-start gap-3 rounded-xl px-4 py-2.5 text-sm shadow-lg ${TONES[notice.level] || TONES.info}`}>
+      <div className={`pointer-events-auto flex max-w-2xl items-start gap-3 rounded-xl px-4 py-2.5 text-body-sm shadow-lg ${TONES[notice.level] || TONES.info}`}>
         <p className="min-w-0 flex-1">
           {notice.message}
           {notice.link && (

@@ -89,7 +89,7 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
         {!showCreate ? (
           <button
             onClick={() => setShowCreate(true)}
-            className="w-full flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 py-2 text-label text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -103,27 +103,27 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Version name (e.g. Round 2)"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               autoFocus
             />
             <textarea
               value={newNotes}
               onChange={(e) => setNewNotes(e.target.value)}
               placeholder="Notes (optional)"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               rows={2}
             />
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowCreate(false); setNewName(''); setNewNotes(''); }}
-                className="flex-1 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="flex-1 py-1.5 text-caption font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
                 disabled={creating}
-                className="flex-1 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="flex-1 py-1.5 text-caption font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {creating ? 'Saving...' : 'Save'}
               </button>
@@ -140,12 +140,12 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
         }`}
       >
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-700">All feedback</span>
+          <span className="text-body-sm font-medium text-gray-700">All feedback</span>
           {!selectedVersionId && (
             <span className="w-2 h-2 bg-blue-500 rounded-full" />
           )}
         </div>
-        <p className="text-xs text-gray-400 mt-0.5">Every pin, including the current round</p>
+        <p className="text-caption text-gray-400 mt-0.5">Every pin, including the current round</p>
       </button>
 
       {/* Version list */}
@@ -155,8 +155,8 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
             <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
-            <p className="text-sm">No versions yet</p>
-            <p className="text-xs mt-1">Save a version when a review round ends. Its pins are grouped under it, and new pins start the next round.</p>
+            <p className="text-body-sm">No versions yet</p>
+            <p className="text-caption mt-1">Save a version when a review round ends. Its pins are grouped under it, and new pins start the next round.</p>
           </div>
         ) : (
           versions.map((version) => (
@@ -169,10 +169,10 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
             >
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold flex items-center justify-center">
+                  <span className="w-6 h-6 rounded-md bg-blue-50 text-blue-700 text-caption font-semibold flex items-center justify-center">
                     v{version.versionNumber}
                   </span>
-                  <span className="text-sm font-medium text-gray-700">{version.name}</span>
+                  <span className="text-body-sm font-medium text-gray-700">{version.name}</span>
                 </div>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDelete(version._id); }}
@@ -184,13 +184,13 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
                   </svg>
                 </button>
               </div>
-              <div className="flex items-center gap-3 text-xs text-gray-400">
+              <div className="flex items-center gap-3 text-caption text-gray-400">
                 <span>{version.pinSnapshot} pins</span>
                 <span>{version.resolvedSnapshot} resolved</span>
                 <span>{timeAgo(version.createdAt)}</span>
               </div>
               {version.notes && (
-                <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">{version.notes}</p>
+                <p className="text-caption text-gray-500 mt-1.5 line-clamp-2">{version.notes}</p>
               )}
             </div>
           ))

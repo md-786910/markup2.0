@@ -35,12 +35,12 @@ export default function TrialBadge() {
             <svg className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            <span className="text-xs font-medium text-gray-400">Free plan</span>
+            <span className="text-caption font-medium text-gray-400">Free plan</span>
           </div>
         </div>
         <button
           onClick={() => navigate('/settings?tab=billing')}
-          className="w-full py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+          className="w-full py-1.5 text-caption font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
         >
           Upgrade to Starter
         </button>
@@ -61,9 +61,9 @@ export default function TrialBadge() {
           <svg className={`w-3.5 h-3.5 ${colors.icon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className="text-xs font-medium text-gray-400">Trial</span>
+          <span className="text-caption font-medium text-gray-400">Trial</span>
         </div>
-        <span className={`text-xs font-semibold ${colors.text}`}>
+        <span className={`text-caption font-semibold ${colors.text}`}>
           {daysLeft} {dayLabel} left
         </span>
       </div>
@@ -79,7 +79,7 @@ export default function TrialBadge() {
       {/* Upgrade button */}
       <button
         onClick={() => navigate('/settings?tab=billing')}
-        className="w-full py-1.5 text-xs font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+        className="w-full py-1.5 text-caption font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
       >
         Upgrade
       </button>

@@ -410,8 +410,8 @@ export default function PinListSidebar({
                   <button
                     key={t.key}
                     onClick={() => setFilterStatus(t.key)}
-                    className={`text-[13px] pb-1 transition-all ${isActive
-                      ? 'font-semibold text-gray-900 border-b-2 border-gray-800'
+                    className={`text-label pb-1 transition-all ${isActive
+                      ? ' text-gray-900 border-b-2 border-gray-800'
                       : 'font-medium text-gray-400 hover:text-gray-600 border-b-2 border-transparent'
                       }`}
                   >
@@ -455,7 +455,7 @@ export default function PinListSidebar({
                             </svg>
                           )}
                         </span>
-                        <span className={`text-[13px] ${sortBy === opt.key ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                        <span className={`text-body-sm ${sortBy === opt.key ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
                           {opt.label}
                         </span>
                       </button>
@@ -466,7 +466,7 @@ export default function PinListSidebar({
                       <div className="border-t border-gray-100 mt-1 pt-1">
                         <button
                           onClick={() => { setSortBy('page'); setSortOpen(false); }}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-[12px] text-blue-600 hover:bg-blue-50 font-medium transition-colors"
+                          className="w-full flex items-center gap-2 px-4 py-2 text-caption text-blue-600 hover:bg-blue-50 font-medium transition-colors"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -511,7 +511,7 @@ export default function PinListSidebar({
                           </svg>
                         )}
                       </span>
-                      <span className={`text-[13px] flex-1 ${filterOption === 'on_this_page' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                      <span className={`text-body-sm flex-1 ${filterOption === 'on_this_page' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
                         On this page
                       </span>
                     </button>
@@ -538,7 +538,7 @@ export default function PinListSidebar({
                             </svg>
                           )}
                         </span>
-                        <span className={`text-[13px] flex-1 truncate ${filterOption === 'mentions' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                        <span className={`text-body-sm flex-1 truncate ${filterOption === 'mentions' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
                           {selectedMentionUser ? `Mentions: ${selectedMentionUser.name}` : 'Mentions'}
                         </span>
                         <svg className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${mentionModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -559,7 +559,7 @@ export default function PinListSidebar({
                           onClick={(e) => e.stopPropagation()}
                         >
                           <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/70">
-                            <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Project Members</span>
+                            <span className="text-overline text-gray-600">Project Members</span>
                             {selectedMentionUser && (
                               <button
                                 onClick={() => {
@@ -568,7 +568,7 @@ export default function PinListSidebar({
                                   setMentionModalOpen(false);
                                   setFilterOpen(false);
                                 }}
-                                className="text-[11px] text-blue-600 hover:text-blue-800 font-medium"
+                                className="text-caption text-blue-600 hover:text-blue-800 font-medium"
                               >
                                 Clear
                               </button>
@@ -583,7 +583,7 @@ export default function PinListSidebar({
                                 value={memberSearch}
                                 onChange={(e) => setMemberSearch(e.target.value)}
                                 placeholder="Search user..."
-                                className="w-full text-[12px] px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                                className="w-full text-body px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
                               />
                             </div>
                           )}
@@ -591,7 +591,7 @@ export default function PinListSidebar({
                           {/* User List */}
                           <div className="overflow-y-auto max-h-56 py-1">
                             {filteredMembers.length === 0 ? (
-                              <div className="p-4 text-center text-xs text-gray-400">No project members found</div>
+                              <div className="p-4 text-center text-caption text-gray-400">No project members found</div>
                             ) : (
                               filteredMembers.map((member) => {
                                 const isUserSelected = selectedMentionUser && (selectedMentionUser._id === member._id);
@@ -615,15 +615,15 @@ export default function PinListSidebar({
                                     }`}
                                   >
                                     {/* User Avatar */}
-                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
+                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-caption font-semibold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
                                       {getInitials(member.name)}
                                     </span>
                                     <div className="flex-1 min-w-0">
-                                      <p className={`text-[12px] truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
+                                      <p className={`text-caption truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
                                         {member.name}
                                       </p>
                                       {member.email && (
-                                        <p className="text-[10px] text-gray-400 truncate">{member.email}</p>
+                                        <p className="text-caption text-gray-400 truncate">{member.email}</p>
                                       )}
                                     </div>
                                     {/* Checkbox Icon */}
@@ -668,7 +668,7 @@ export default function PinListSidebar({
                             </svg>
                           )}
                         </span>
-                        <span className={`text-[13px] flex-1 truncate ${filterOption === 'assignee' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                        <span className={`text-body-sm flex-1 truncate ${filterOption === 'assignee' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
                           {selectedAssigneeUsers.length > 0
                             ? `Author (${selectedAssigneeUsers.length})`
                             : 'Author'}
@@ -691,7 +691,7 @@ export default function PinListSidebar({
                           onClick={(e) => e.stopPropagation()}
                         >
                           <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/70">
-                            <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
+                            <span className="text-overline text-gray-600">
                               Assignee ({selectedAssigneeUsers.length}/{members.length})
                             </span>
                             <div className="flex items-center gap-2">
@@ -701,7 +701,7 @@ export default function PinListSidebar({
                                     setSelectedAssigneeUsers([]);
                                     setFilterOption(null);
                                   }}
-                                  className="text-[11px] text-blue-600 hover:text-blue-800 font-medium"
+                                  className="text-caption text-blue-600 hover:text-blue-800 font-medium"
                                 >
                                   Clear
                                 </button>
@@ -712,7 +712,7 @@ export default function PinListSidebar({
                                     setSelectedAssigneeUsers([...members]);
                                     setFilterOption('assignee');
                                   }}
-                                  className="text-[11px] text-gray-500 hover:text-gray-800 font-medium"
+                                  className="text-caption text-gray-500 hover:text-gray-800 font-medium"
                                 >
                                   Select All
                                 </button>
@@ -728,7 +728,7 @@ export default function PinListSidebar({
                                 value={assigneeMemberSearch}
                                 onChange={(e) => setAssigneeMemberSearch(e.target.value)}
                                 placeholder="Search user..."
-                                className="w-full text-[12px] px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                                className="w-full text-body px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
                               />
                             </div>
                           )}
@@ -736,7 +736,7 @@ export default function PinListSidebar({
                           {/* User List with multi-select */}
                           <div className="overflow-y-auto max-h-56 py-1">
                             {filteredAssigneeMembers.length === 0 ? (
-                              <div className="p-4 text-center text-xs text-gray-400">No project members found</div>
+                              <div className="p-4 text-center text-caption text-gray-400">No project members found</div>
                             ) : (
                               filteredAssigneeMembers.map((member) => {
                                 const isUserSelected = selectedAssigneeUsers.some((u) => u._id === member._id);
@@ -759,15 +759,15 @@ export default function PinListSidebar({
                                     }`}
                                   >
                                     {/* User Avatar */}
-                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
+                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-caption font-semibold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
                                       {getInitials(member.name)}
                                     </span>
                                     <div className="flex-1 min-w-0">
-                                      <p className={`text-[12px] truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
+                                      <p className={`text-caption truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
                                         {member.name}
                                       </p>
                                       {member.email && (
-                                        <p className="text-[10px] text-gray-400 truncate">{member.email}</p>
+                                        <p className="text-caption text-gray-400 truncate">{member.email}</p>
                                       )}
                                     </div>
                                     {/* Checkbox Icon */}
@@ -795,7 +795,7 @@ export default function PinListSidebar({
                       <div className="border-t border-gray-100 mt-1 pt-1">
                         <button
                           onClick={handleClearAllFilters}
-                          className="w-full flex items-center gap-2.5 px-4 py-2 text-[12px] text-blue-600 hover:bg-blue-50 font-medium transition-colors"
+                          className="w-full flex items-center gap-2.5 px-4 py-2 text-caption text-blue-600 hover:bg-blue-50 font-medium transition-colors"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -822,7 +822,7 @@ export default function PinListSidebar({
 
           {/* Active Filters Bar — Unified for all active filters, sorting, and search */}
           {hasActiveFilters && (
-            <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 bg-slate-50 border-b border-gray-200 text-[11px] animate-fadeIn">
+            <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 bg-slate-50 border-b border-gray-200 text-caption animate-fadeIn">
               <span className="text-gray-400 font-medium mr-0.5">Filtered:</span>
 
               {filterOption === 'on_this_page' && (
@@ -903,7 +903,7 @@ export default function PinListSidebar({
               {/* Clear Filters button */}
               <button
                 onClick={handleClearAllFilters}
-                className="ml-auto text-[11px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-blue-50 transition-colors"
+                className="ml-auto text-caption text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-blue-50 transition-colors"
                 title="Reset all filters, sorting, and search"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -926,7 +926,7 @@ export default function PinListSidebar({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search comments..."
-                className="w-full text-[12px] pl-8 pr-7 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:bg-white placeholder-gray-400 transition-all"
+                className="w-full text-body pl-8 pr-7 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:bg-white placeholder-gray-400 transition-all"
               />
               {searchQuery && (
                 <button
@@ -951,7 +951,7 @@ export default function PinListSidebar({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                 </svg>
               </div>
-              <p className="text-sm font-medium text-gray-400">
+              <p className="text-body-sm font-medium text-gray-400">
                 {searchQuery
                   ? 'No matching comments'
                   : filterOption === 'mentions'
@@ -971,7 +971,7 @@ export default function PinListSidebar({
               {hasActiveFilters && (
                 <button
                   onClick={handleClearAllFilters}
-                  className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors shadow-sm"
+                  className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-caption font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors shadow-sm"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -980,7 +980,7 @@ export default function PinListSidebar({
                 </button>
               )}
               {!searchQuery && filterStatus === 'open' && pins.length === 0 && (
-                <p className="text-xs text-gray-500 mt-1">Switch to <span className="font-semibold text-blue-600">Comment</span> and click anywhere on the page.</p>
+                <p className="text-caption text-gray-500 mt-1">Switch to <span className="font-semibold text-blue-600">Comment</span> and click anywhere on the page.</p>
               )}
             </div>
           )}
@@ -995,10 +995,10 @@ export default function PinListSidebar({
                     onClick={() => toggleGroup(path)}
                     className="w-full px-4 py-2 flex items-center gap-2 bg-gray-50/60 hover:bg-gray-100/60 transition-colors text-left"
                   >
-                    <span className="text-[10px] font-medium text-gray-400 truncate flex-1" title={path}>
+                    <span className="text-caption font-medium text-gray-400 truncate flex-1" title={path}>
                       {getGroupLabel(pagePins[0]?.pageUrl || path)}
                     </span>
-                    <span className="text-[10px] text-gray-300 shrink-0">{pagePins.length}</span>
+                    <span className="text-caption text-gray-300 shrink-0">{pagePins.length}</span>
                     <svg
                       className={`w-3 h-3 text-gray-300 shrink-0 transition-transform duration-200 ${isGroupCollapsed ? '-rotate-90' : ''}`}
                       fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -1023,7 +1023,7 @@ export default function PinListSidebar({
                         {/* Top row: pin badge + action icons */}
                         <div className="flex items-start justify-between mb-2">
                           {/* Pin number badge — large filled circle */}
-                          <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold text-white shrink-0 ${pin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'
+                          <span className={`w-8 h-8 rounded-full flex items-center justify-center text-body-sm font-semibold text-white shrink-0 ${pin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'
                             }`}>
                             {pin.pinNumber || (idx + 1)}
                           </span>
@@ -1049,7 +1049,7 @@ export default function PinListSidebar({
                                       navigator.clipboard.writeText(link);
                                       setConfirmDelete(null);
                                     }}
-                                    className="w-full px-4 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
+                                    className="w-full px-4 py-2 text-left text-body-sm text-gray-700 hover:bg-gray-50 transition-colors"
                                   >
                                     Copy link
                                   </button>
@@ -1058,7 +1058,7 @@ export default function PinListSidebar({
                                       onPinClick(pin);
                                       setConfirmDelete(null);
                                     }}
-                                    className="w-full px-4 py-2 text-left text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
+                                    className="w-full px-4 py-2 text-left text-body-sm text-gray-700 hover:bg-gray-50 transition-colors"
                                   >
                                     Get info
                                   </button>
@@ -1086,14 +1086,14 @@ export default function PinListSidebar({
 
                         {/* Author + New badge + Unread comments badge */}
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[13px] font-semibold text-gray-900 truncate">
+                          <span className="text-body-sm font-semibold text-gray-900 truncate">
                             {pin.createdBy?.name || pin.createdByGuest?.name || 'Unknown'}
                           </span>
                           {!pin.createdBy && pin.createdByGuest?.name && (
-                            <span className="text-[11px] font-medium text-gray-400">Guest</span>
+                            <span className="text-caption font-medium text-gray-400">Guest</span>
                           )}
                           {!readPins.has(pin._id) && (
-                            <span className="text-[11px] font-medium px-1.5 py-px rounded-full bg-blue-50 text-blue-700">
+                            <span className="text-caption font-medium px-1.5 py-px rounded-full bg-blue-50 text-blue-700">
                               New
                             </span>
                           )}
@@ -1102,7 +1102,7 @@ export default function PinListSidebar({
                               const lastRead = readComments[pin._id] || 0;
                               const commentTime = new Date(pin.latestComment.createdAt).getTime();
                               return commentTime > lastRead ? (
-                                <span className="text-[11px] font-medium px-1.5 py-px rounded-full bg-blue-50 text-blue-700">
+                                <span className="text-caption font-medium px-1.5 py-px rounded-full bg-blue-50 text-blue-700">
                                   New reply
                                 </span>
                               ) : null;
@@ -1111,20 +1111,20 @@ export default function PinListSidebar({
                         </div>
 
                         {/* Time */}
-                        <p className="text-[11px] text-gray-400 mb-1.5 tabular-nums" title={formatFullTimestamp(pin.createdAt)}>{timeAgo(pin.createdAt)}</p>
+                        <p className="text-caption text-gray-400 mb-1.5 tabular-nums" title={formatFullTimestamp(pin.createdAt)}>{timeAgo(pin.createdAt)}</p>
 
                         {/* Comment preview — first comment as title */}
                         {pin.firstComment ? (
-                          <p className="text-[13px] text-gray-700 leading-snug line-clamp-2">
+                          <p className="text-body-sm text-gray-700 line-clamp-2">
                             {renderCommentBody(pin.firstComment.body)}
                           </p>
                         ) : (
-                          <p className="text-[12px] text-gray-300 italic">No comments</p>
+                          <p className="text-caption text-gray-300 italic">No comments</p>
                         )}
 
                         {/* Comment count indicator */}
                         {pin.commentsCount > 1 && (
-                          <p className="text-[11px] text-gray-400 mt-1">
+                          <p className="text-caption text-gray-400 mt-1">
                             {pin.commentsCount - 1} {pin.commentsCount - 1 === 1 ? 'reply' : 'replies'}
                           </p>
                         )}

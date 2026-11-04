@@ -70,7 +70,7 @@ function PaypalQuickPay({ inv, onClose, onPaid }) {
       <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden">
         <div className="px-6 pt-6 pb-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-base font-bold text-gray-900">Pay invoice via PayPal</h3>
+          <h3 className="text-body font-semibold text-gray-900">Pay invoice via PayPal</h3>
           <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -78,12 +78,12 @@ function PaypalQuickPay({ inv, onClose, onPaid }) {
           </button>
         </div>
         <div className="p-6 space-y-4">
-          <div className="text-sm text-gray-700">
-            Amount: <span className="font-bold text-gray-900">{formatAmount(inv.amount, inv.currency)}</span>
+          <div className="text-body-sm text-gray-700">
+            Amount: <span className="font-semibold text-gray-900">{formatAmount(inv.amount, inv.currency)}</span>
           </div>
           <div ref={containerRef} />
           {error && (
-            <div className="bg-red-50 text-red-600 border border-red-100 p-3 rounded-xl text-sm">
+            <div className="bg-red-50 text-red-600 border border-red-100 p-3 rounded-xl text-body-sm">
               {error}
             </div>
           )}
@@ -175,7 +175,7 @@ export default function PendingPaymentBanner() {
         <svg className={`w-4 h-4 shrink-0 ${overdueLikely ? 'text-red-600' : 'text-amber-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <p className={`text-sm ${overdueLikely ? 'text-red-800' : 'text-amber-800'}`}>
+        <p className={`text-body-sm ${overdueLikely ? 'text-red-800' : 'text-amber-800'}`}>
           <span className="font-medium">Unpaid invoice ({formatAmount(inv.amount, inv.currency)}).</span>
           {' '}
           {error
@@ -189,7 +189,7 @@ export default function PendingPaymentBanner() {
         <button
           onClick={handlePayNow}
           disabled={paying}
-          className={`px-3 py-1 text-sm font-medium rounded-lg transition-colors shrink-0 disabled:opacity-50 ${
+          className={`px-3 py-1 text-label rounded-lg transition-colors shrink-0 disabled:opacity-50 ${
             overdueLikely
               ? 'text-red-800 bg-red-100 hover:bg-red-200'
               : 'text-amber-800 bg-amber-100 hover:bg-amber-200'

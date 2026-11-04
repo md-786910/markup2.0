@@ -24,7 +24,7 @@ export default function SearchInput({ value, onChange, placeholder = 'Search…'
         value={local}
         onChange={handleChange}
         placeholder={placeholder}
-        className="h-9 w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-sm placeholder:text-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15"
+        className="h-9 w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-body placeholder:text-gray-400 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15"
       />
     </div>
   );

@@ -36,9 +36,9 @@ export default function HowItWorks() {
                 <span className="icon-tile">
                   <Icon className="h-5 w-5" />
                 </span>
-                <span className="text-sm font-semibold text-slate-400">Step {index + 1}</span>
+                <span className="text-body-sm font-semibold text-slate-400">Step {index + 1}</span>
               </div>
-              <h3 className="mt-6 font-display text-xl font-semibold text-slate-950">{title}</h3>
+              <h3 className="mt-6 text-h4 font-semibold text-slate-950">{title}</h3>
               <p className="body-copy mt-3">{copy}</p>
             </li>
           ))}

@@ -127,7 +127,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Share Project</h3>
+          <h3 className="text-body-lg font-semibold text-gray-900">Share Project</h3>
           <button
             onClick={onClose}
             className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -148,7 +148,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
           {/* Share link */}
           {isSharing && shareUrl && (
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
+              <label className="text-overline text-gray-500 mb-2 block">
                 Review Link
               </label>
               <div className="flex gap-2">
@@ -156,11 +156,11 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
                   type="text"
                   value={shareUrl}
                   readOnly
-                  className="flex-1 px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-600 truncate"
+                  className="flex-1 px-3 py-2 text-body bg-gray-50 border border-gray-200 rounded-lg text-gray-600 truncate"
                 />
                 <button
                   onClick={handleCopy}
-                  className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shrink-0 ${copied
+                  className={`px-4 py-2 text-label rounded-lg transition-colors shrink-0 ${copied
                       ? 'bg-green-100 text-green-700'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
@@ -168,7 +168,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
-              <p className="text-xs text-gray-400 mt-1.5">
+              <p className="text-caption text-gray-400 mt-1.5">
                 Anyone with this link can view and leave feedback on your project.
               </p>
             </div>
@@ -178,7 +178,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
           {isSharing && <div className="space-y-4">
             {/* Password */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1.5 block">
+              <label className="text-label text-gray-700 mb-1.5 block">
                 Password protection (optional)
               </label>
               <input
@@ -186,15 +186,15 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Leave empty for no password"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               />
             </div>
 
             {/* Allow comments toggle */}
             <label className="flex items-center justify-between cursor-pointer">
               <div>
-                <p className="text-sm font-medium text-gray-700">Allow guest comments</p>
-                <p className="text-xs text-gray-400">Guests can add pins and comments</p>
+                <p className="text-body-sm font-medium text-gray-700">Allow guest comments</p>
+                <p className="text-caption text-gray-400">Guests can add pins and comments</p>
               </div>
               <div
                 className={`relative w-11 h-6 rounded-full transition-colors ${allowComments ? 'bg-blue-600' : 'bg-gray-200'
@@ -211,8 +211,8 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
             {/* Team console errors capture toggle */}
             <label className="flex items-center justify-between cursor-pointer">
               <div>
-                <p className="text-sm font-medium text-gray-700">Capture team console errors</p>
-                <p className="text-xs text-gray-400">Collect browser errors and network logs for pins created by team</p>
+                <p className="text-body-sm font-medium text-gray-700">Capture team console errors</p>
+                <p className="text-caption text-gray-400">Collect browser errors and network logs for pins created by team</p>
               </div>
               <div
                 className={`relative w-11 h-6 rounded-full transition-colors ${captureConsoleErrors ? 'bg-blue-600' : 'bg-gray-200'}`}
@@ -227,8 +227,8 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
             {/* Guest console errors capture toggle */}
             <label className="flex items-center justify-between cursor-pointer">
               <div>
-                <p className="text-sm font-medium text-gray-700">Capture guest console errors</p>
-                <p className="text-xs text-gray-400">Collect browser errors and network logs from guest reviewers</p>
+                <p className="text-body-sm font-medium text-gray-700">Capture guest console errors</p>
+                <p className="text-caption text-gray-400">Collect browser errors and network logs from guest reviewers</p>
               </div>
               <div
                 className={`relative w-11 h-6 rounded-full transition-colors ${guestConsoleCapture ? 'bg-blue-600' : 'bg-gray-200'}`}
@@ -241,15 +241,15 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
             </label>
 
             <div className="pt-2 border-t border-gray-100">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">
+              <span className="text-overline text-gray-400 block mb-3">
                 Review & Approvals Policy
               </span>
 
               {/* Approvals enabled toggle */}
               <label className="flex items-center justify-between cursor-pointer mb-3">
                 <div>
-                  <p className="text-sm font-medium text-gray-700">Enable client sign-off</p>
-                  <p className="text-xs text-gray-400">Reviewers can formally approve or request changes</p>
+                  <p className="text-body-sm font-medium text-gray-700">Enable client sign-off</p>
+                  <p className="text-caption text-gray-400">Reviewers can formally approve or request changes</p>
                 </div>
                 <div
                   className={`relative w-11 h-6 rounded-full transition-colors ${approvalsEnabled ? 'bg-blue-600' : 'bg-gray-200'}`}
@@ -264,8 +264,8 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
               {/* Require all resolved toggle */}
               <label className="flex items-center justify-between cursor-pointer mb-3">
                 <div>
-                  <p className="text-sm font-medium text-gray-700">Require all pins resolved</p>
-                  <p className="text-xs text-gray-400">Approval is locked until all pins are marked resolved</p>
+                  <p className="text-body-sm font-medium text-gray-700">Require all pins resolved</p>
+                  <p className="text-caption text-gray-400">Approval is locked until all pins are marked resolved</p>
                 </div>
                 <div
                   className={`relative w-11 h-6 rounded-full transition-colors ${requireAllResolved ? 'bg-blue-600' : 'bg-gray-200'}`}
@@ -279,25 +279,25 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
 
               {/* Feedback deadline */}
               <div className="space-y-1.5 mb-3">
-                <label className="text-sm font-medium text-gray-700 block">Feedback deadline (optional)</label>
-                <p className="text-xs text-gray-400">New feedback is politely refused after this time</p>
+                <label className="text-label text-gray-700 block">Feedback deadline (optional)</label>
+                <p className="text-caption text-gray-400">New feedback is politely refused after this time</p>
                 <input
                   type="datetime-local"
                   value={deadlineAt}
                   onChange={(e) => setDeadlineAt(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
 
               {deadlineAt && (
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-700 block">Closed feedback notice</label>
+                  <label className="text-label text-gray-700 block">Closed feedback notice</label>
                   <input
                     type="text"
                     value={deadlineMessage}
                     onChange={(e) => setDeadlineMessage(e.target.value)}
                     placeholder="e.g. Feedback for this round closed on 30 Oct."
-                    className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
               )}
@@ -305,7 +305,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
           </div>}
 
           {error && (
-            <p className="text-sm text-red-500 text-center">{error}</p>
+            <p className="text-body-sm text-red-500 text-center">{error}</p>
           )}
 
           {/* Actions */}
@@ -315,14 +315,14 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
                 <button
                   onClick={onClose}
                   disabled={loading}
-                  className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                  className="px-4 py-2.5 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
                   disabled={loading}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  className="flex-1 px-4 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
                   {loading ? 'Saving...' : 'Save Settings'}
                 </button>

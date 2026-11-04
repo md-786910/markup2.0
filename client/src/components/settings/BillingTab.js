@@ -22,8 +22,8 @@ function UsageBar({ label, used, max }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[13px] font-medium text-gray-700">{label}</span>
-        <span className={`text-xs font-medium tabular-nums ${isNearLimit ? 'text-amber-700' : 'text-gray-500'}`}>
+        <span className="text-body-sm font-medium text-gray-700">{label}</span>
+        <span className={`text-caption font-medium tabular-nums ${isNearLimit ? 'text-amber-700' : 'text-gray-500'}`}>
           {used} / {isUnlimited ? 'Unlimited' : max}
         </span>
       </div>
@@ -174,24 +174,24 @@ export default function BillingTab() {
           )}
         >
           <div className="flex items-center gap-2.5">
-            <p className="text-2xl font-bold text-gray-900 tracking-tight">{planName}</p>
+            <p className="text-h3 font-semibold text-gray-900">{planName}</p>
             {currentPlanId !== 'trial' && !user?.orgLocked && <Badge tone={cancelAtPeriodEnd ? 'amber' : 'green'} dot>{cancelAtPeriodEnd ? 'Cancelling' : 'Active'}</Badge>}
             {user?.orgLocked && <Badge tone="red" dot>Locked</Badge>}
           </div>
           {currentPlanId !== 'trial' && (
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-body-sm text-gray-500 mt-1">
               {livePlans[currentPlanId]?.priceLabel} <span className="text-gray-400">{livePlans[currentPlanId]?.period}</span>
             </p>
           )}
           {isTrialActive && (
-            <p className="text-sm text-gray-500 mt-1">{daysLeft} day{daysLeft !== 1 ? 's' : ''} left of your {trialDays}-day trial with every Pro feature.</p>
+            <p className="text-body-sm text-gray-500 mt-1">{daysLeft} day{daysLeft !== 1 ? 's' : ''} left of your {trialDays}-day trial with every Pro feature.</p>
           )}
           {!isTrialActive && currentPlanId === 'trial' && user?.orgLocked && (
             <div className="mt-3"><Notice tone="red">Your trial has ended. Choose a plan below to keep working.</Notice></div>
           )}
           {periodEnd && (
             <div className="mt-5 pt-5 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
-              <p className={`text-sm ${cancelAtPeriodEnd ? 'text-amber-700' : 'text-gray-600'}`}>
+              <p className={`text-body-sm ${cancelAtPeriodEnd ? 'text-amber-700' : 'text-gray-600'}`}>
                 {cancelAtPeriodEnd ? `Cancelled. You keep this plan until ${periodEnd}.` : `Renews on ${periodEnd}. We email an invoice before then.`}
               </p>
               {isOwner && (
@@ -204,8 +204,8 @@ export default function BillingTab() {
           {isTrialActive && (
             <div className="mt-5 pt-5 border-t border-gray-100">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[13px] font-medium text-gray-700">Trial</span>
-                <span className={`text-xs font-medium ${urgency === 'critical' ? 'text-red-600' : urgency === 'warning' ? 'text-amber-700' : 'text-blue-700'}`}>
+                <span className="text-body-sm font-medium text-gray-700">Trial</span>
+                <span className={`text-caption font-medium ${urgency === 'critical' ? 'text-red-600' : urgency === 'warning' ? 'text-amber-700' : 'text-blue-700'}`}>
                   {daysLeft} day{daysLeft !== 1 ? 's' : ''} left
                 </span>
               </div>
@@ -252,25 +252,25 @@ export default function BillingTab() {
               return (
                 <div key={plan.id} className={`relative flex flex-col rounded-xl p-5 transition-colors ${highlighted ? 'border-2 border-blue-600 bg-blue-50/30' : 'border border-gray-200 hover:border-gray-300'}`}>
                   <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-sm font-semibold text-gray-900">{plan.name}</h4>
+                    <h4 className="text-body-sm font-semibold text-gray-900">{plan.name}</h4>
                     {isTrying ? <Badge tone="blue">Your trial</Badge> : isCurrent ? <Badge tone="blue">Current</Badge> : plan.popular ? <Badge tone="blue">Most popular</Badge> : null}
                   </div>
                   <div className="flex items-baseline gap-1 mt-2">
-                    <span className="text-2xl font-bold text-gray-900 tracking-tight">{plan.priceLabel}</span>
-                    {plan.period && <span className="text-sm text-gray-500">{plan.period}</span>}
+                    <span className="text-h3 font-semibold text-gray-900">{plan.priceLabel}</span>
+                    {plan.period && <span className="text-body-sm text-gray-500">{plan.period}</span>}
                   </div>
                   <ul className="space-y-2.5 my-5 flex-1">
                     {(plan.features || []).map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-[13px] text-gray-600">
+                      <li key={i} className="flex items-start gap-2.5 text-body-sm text-gray-600">
                         <span className="mt-0.5 w-4 h-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                           <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                         </span>
-                        <span className="leading-snug">{feature}</span>
+                        <span className="">{feature}</span>
                       </li>
                     ))}
                   </ul>
                   <div className="pt-4 border-t border-gray-100">
-                    {trialFree && <p className="h-9 flex items-center justify-center text-[13px] text-gray-500">Free forever, no card needed</p>}
+                    {trialFree && <p className="h-9 flex items-center justify-center text-body-sm text-gray-500">Free forever, no card needed</p>}
                     {isCurrent && <Button className="w-full" variant="secondary" disabled>Current plan</Button>}
                     {isUpgrade && isOwner && <Button className="w-full" variant="primary" onClick={() => setUpgradeTarget(plan)}>Upgrade to {plan.name}</Button>}
                     {isUpgrade && !isOwner && <Button className="w-full" variant="secondary" disabled title="Only the organization owner can upgrade">Ask the owner to upgrade</Button>}

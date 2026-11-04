@@ -8,23 +8,23 @@ export default function AuthShell({ title, description, children, footer }) {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
           <BrandMark className="h-11 w-11" />
-          <h1 className="mt-4 text-xl font-semibold tracking-tight text-gray-900">{title}</h1>
-          {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
+          <h1 className="mt-4 text-h4 font-semibold text-gray-900">{title}</h1>
+          {description && <p className="mt-1 text-body-sm text-gray-500">{description}</p>}
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-6">{children}</div>
-        {footer && <div className="mt-6 text-center text-sm text-gray-500">{footer}</div>}
-        <p className="mt-8 text-center text-xs text-gray-400">Kommently admin · for staff only</p>
+        {footer && <div className="mt-6 text-center text-body-sm text-gray-500">{footer}</div>}
+        <p className="mt-8 text-center text-caption text-gray-400">Kommently admin · for staff only</p>
       </div>
     </div>
   );
 }
 
 export const authInputClass =
-  'h-10 w-full rounded-lg border border-gray-200 px-3 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15';
+  'h-10 w-full rounded-lg border border-gray-200 px-3 text-body focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15';
 
 export function AuthError({ children }) {
   if (!children) return null;
-  return <div role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{children}</div>;
+  return <div role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-body-sm text-red-700">{children}</div>;
 }
 
 export function SubmitButton({ loading, children, loadingLabel }) {
@@ -32,7 +32,7 @@ export function SubmitButton({ loading, children, loadingLabel }) {
     <button
       type="submit"
       disabled={loading}
-      className="h-10 w-full rounded-lg bg-blue-600 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+      className="h-10 w-full rounded-lg bg-blue-600 text-label text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
     >
       {loading ? loadingLabel : children}
     </button>

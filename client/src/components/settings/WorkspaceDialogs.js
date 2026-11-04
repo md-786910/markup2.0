@@ -129,7 +129,7 @@ export function WorkspaceMembersDialog({ workspace, onClose, onSaved }) {
 
   return (
     <Modal isOpen onClose={onClose} title={`Members of ${workspace.name}`} size="md">
-      <p className="-mt-1 mb-4 text-sm text-gray-500">
+      <p className="-mt-1 mb-4 text-body-sm text-gray-500">
         People with access here get it on every project in this workspace, including new ones. Owners and admins can manage
         everything; guests can comment at most.
       </p>
@@ -160,7 +160,7 @@ export function WorkspaceMembersDialog({ workspace, onClose, onSaved }) {
         {invitations.length > 0 && (
           <ul className="mt-3 divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
             {invitations.map((inv) => (
-              <li key={inv._id} className="flex items-center gap-2 px-3 py-2 text-sm">
+              <li key={inv._id} className="flex items-center gap-2 px-3 py-2 text-body-sm">
                 <span className="min-w-0 flex-1 truncate text-gray-700">{inv.email}</span>
                 <Badge tone="amber" dot>Pending · {ROLE_LABEL[inv.role] || inv.role}</Badge>
                 <Button size="sm" variant="ghost" onClick={() => resendInvite(inv)}>Resend</Button>
@@ -175,21 +175,21 @@ export function WorkspaceMembersDialog({ workspace, onClose, onSaved }) {
       </div>
       <div className="max-h-72 divide-y divide-gray-100 overflow-y-auto rounded-xl border border-gray-200">
         {loading ? (
-          <p className="p-4 text-center text-sm text-gray-400">Loading…</p>
+          <p className="p-4 text-center text-body-sm text-gray-400">Loading…</p>
         ) : shown.length === 0 ? (
-          <p className="p-4 text-center text-sm text-gray-400">No one found. Invite people from the Team page first.</p>
+          <p className="p-4 text-center text-body-sm text-gray-400">No one found. Invite people from the Team page first.</p>
         ) : shown.map((p) => {
           const always = p.role === 'owner' || p.role === 'admin';
           return (
             <div key={p._id} className="flex items-center gap-3 px-3.5 py-2.5">
               <Avatar name={p.name || p.email} size="sm" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-gray-900">{p.name || p.email}</span>
-                <span className="block truncate text-xs text-gray-500">{p.email}</span>
+                <span className="block truncate text-body-sm font-medium text-gray-900">{p.name || p.email}</span>
+                <span className="block truncate text-caption text-gray-500">{p.email}</span>
               </span>
-              <span className="text-xs text-gray-400">{ROLE_LABEL[p.role] || p.role}</span>
+              <span className="text-caption text-gray-400">{ROLE_LABEL[p.role] || p.role}</span>
               {always ? (
-                <span className="w-36 text-right text-xs text-gray-500">Manages all</span>
+                <span className="w-36 text-right text-caption text-gray-500">Manages all</span>
               ) : (
                 <div className="w-36 flex justify-end">
                   <SelectMenu
@@ -279,7 +279,7 @@ export function WorkspaceShareDialog({ workspace, onClose, onSaved }) {
     <Modal isOpen onClose={onClose} title={`Share ${workspace.name}`} size="md">
       {!share ? (
         <div>
-          <p className="text-sm leading-6 text-gray-600">
+          <p className="text-body-sm text-gray-600">
             Create one link for clients to review every project in this workspace. They pick a project and comment, with just a name
             and email. New projects show up automatically.
           </p>

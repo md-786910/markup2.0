@@ -22,15 +22,15 @@ export default function GlobalTrialConfigCard({
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h3 className="text-base font-bold text-gray-900">Global Workspace Trial Period</h3>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800">
+              <h3 className="text-body font-semibold text-gray-900">Global Workspace Trial Period</h3>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-caption font-semibold bg-blue-100 text-blue-800">
                 {defaultDays} Days
               </span>
             </div>
-            <p className="text-xs text-gray-500 mt-1 max-w-xl">
+            <p className="text-caption text-gray-500 mt-1 max-w-xl">
               Configures the default trial duration granted to new workspaces upon signup. Changes can be applied to future signups or synced across all active trials.
             </p>
-            <div className="flex items-center gap-4 mt-2 text-[11.5px] text-gray-400">
+            <div className="flex items-center gap-4 mt-2 text-caption text-gray-400">
               <span>Active trial workspaces: <strong className="text-gray-700">{activeCount}</strong></span>
               {trialSettings?.updatedAt && (
                 <span>&bull; Last modified: <strong className="text-gray-600">{new Date(trialSettings.updatedAt).toLocaleDateString()}</strong></span>

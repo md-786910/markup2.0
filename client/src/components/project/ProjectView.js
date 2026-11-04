@@ -615,7 +615,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       />
       <button
         onClick={() => setPinMode(false)}
-        className={`relative z-10 flex-1 text-center py-1 px-4 md:px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
+        className={`relative z-10 flex-1 text-center py-1 px-4 md:px-5 rounded-md text-label whitespace-nowrap transition-colors duration-200 ${
           !pinMode ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'
         }`}
       >
@@ -623,7 +623,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       </button>
       <button
         onClick={() => setPinMode(true)}
-        className={`relative z-10 flex-1 text-center py-1 px-4 md:px-5 rounded-md text-[13px] font-medium whitespace-nowrap transition-colors duration-200 ${
+        className={`relative z-10 flex-1 text-center py-1 px-4 md:px-5 rounded-md text-label whitespace-nowrap transition-colors duration-200 ${
           pinMode ? 'text-white' : 'text-gray-500 hover:text-gray-700'
         }`}
       >
@@ -637,10 +637,11 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       {/* Toolbar */}
       <div className="bg-white border-b border-gray-200/80 px-4 h-14 flex items-center justify-between relative">
         {/* Left: Brand + Project + URL */}
-        <div className="flex items-center gap-3 min-w-0 z-10">
+        {/* Stops before the centered device switcher; the URL pill truncates instead of running under it */}
+        <div className="flex items-center gap-3 min-w-0 z-10 md:max-w-[calc(50%-5rem)]">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors shrink-0 group"
+            className="flex items-center gap-1.5 text-body-sm text-gray-500 hover:text-gray-800 transition-colors shrink-0 group"
           >
             <BrandMark className="w-8 h-8" />
             <svg className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -648,11 +649,11 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             </svg>
           </button>
           <div className="w-px h-6 bg-gray-200/80 shrink-0"></div>
-          <h2 className="min-w-0 max-w-[160px] truncate font-semibold text-gray-900 text-[14px] tracking-tight sm:max-w-[220px] xl:max-w-none xl:shrink-0" title={project.name}>{project.name}</h2>
+          <h2 className="min-w-0 max-w-[160px] truncate font-semibold text-gray-900 text-body-sm sm:max-w-[220px] xl:max-w-none xl:shrink-0" title={project.name}>{project.name}</h2>
           {project.projectStatus === 'approved' && (
             <button
               onClick={() => setShowApprovals(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/60 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
+              className="hidden sm:inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 text-caption font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/60 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
               title="Click to view sign-off details"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -662,7 +663,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           {project.projectStatus === 'in_review' && (
             <button
               onClick={() => setShowApprovals(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/60 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
+              className="hidden sm:inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 text-caption font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/60 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
               title="Click to view review progress"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
@@ -672,7 +673,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           {project.projectStatus === 'changes_requested' && (
             <button
               onClick={() => setShowApprovals(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/60 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
+              className="hidden sm:inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 text-caption font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/60 px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
               title="Click to view requested changes"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
@@ -684,7 +685,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           <div className="hidden sm:flex items-center bg-gray-100/90 rounded-lg p-0.5 border border-gray-200/70">
             <button
               onClick={() => setViewLayout('canvas')}
-              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1 text-caption font-medium rounded-md transition-all ${
                 viewLayout === 'canvas' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
               title="Canvas / Website view"
@@ -702,7 +703,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
                 }
                 setViewLayout('board');
               }}
-              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1 text-caption font-medium rounded-md transition-all ${
                 viewLayout === 'board' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
               title={limits.hasTaskWorkflow ? "Kanban Task Board" : "Kanban Task Board (Upgrade to Starter/Pro)"}
@@ -712,11 +713,11 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               </svg>
               <span>Board</span>
               {!limits.hasTaskWorkflow && (
-                <span className="text-[9px] bg-amber-100 text-amber-700 font-bold px-1 rounded">PRO</span>
+                <span className="text-caption bg-amber-100 text-amber-700 font-semibold px-1 rounded">PRO</span>
               )}
             </button>
           </div>
-          <div className="hidden xl:flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 hover:bg-gray-100/60 transition-colors cursor-default" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
+          <div className="hidden xl:flex items-center gap-1.5 text-caption text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 hover:bg-gray-100/60 transition-colors cursor-default" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
             {isDocumentProject ? (
               <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -736,7 +737,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             {deviceButtons}
           </div>
         ) : (
-          <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 text-xs text-gray-500 bg-gray-50/80 px-3 py-1.5 rounded-lg border border-gray-100/80">
+          <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 text-caption text-gray-500 bg-gray-50/80 px-3 py-1.5 rounded-lg border border-gray-100/80">
             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
             </svg>
@@ -754,7 +755,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           <div tabIndex={0} className="hidden lg:flex items-center -space-x-2 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
             {memberPresence.slice(0, 5).map((p) => (
               <div key={p.member._id} className="relative transition-transform hover:-translate-y-0.5 hover:z-10">
-                <div className={`w-8 h-8 rounded-full ${p.color.bg} ${p.color.text} flex items-center justify-center text-[11px] font-bold border-[2.5px] border-white`}>
+                <div className={`w-8 h-8 rounded-full ${p.color.bg} ${p.color.text} flex items-center justify-center text-caption font-semibold border-[2.5px] border-white`}>
                   {p.initials}
                 </div>
                 <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-[2px] border-white ${
@@ -763,7 +764,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               </div>
             ))}
             {memberPresence.length > 5 && (
-              <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs font-bold border-[2.5px] border-white">
+              <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-caption font-semibold border-[2.5px] border-white">
                 +{memberPresence.length - 5}
               </div>
             )}
@@ -777,7 +778,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
           <button
             onClick={() => setShowApprovals(true)}
-            className="flex items-center gap-1.5 px-2.5 lg:px-3 py-2 text-gray-600 text-[13px] font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 lg:px-3 py-2 text-gray-600 text-label rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
             title="Review approvals & sign-off history"
             aria-label="Approvals"
           >
@@ -790,7 +791,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           {canManageProject && (
             <button
               onClick={() => setShowShare(true)}
-              className="flex items-center gap-1.5 px-2.5 lg:px-3 py-2 text-gray-600 text-[13px] font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 lg:px-3 py-2 text-gray-600 text-label rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
               title="Share with guests"
               aria-label="Share"
             >
@@ -804,7 +805,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           {canManageProject && (
             <button
               onClick={() => setShowInvite(true)}
-              className="flex items-center gap-1.5 px-2.5 lg:px-3.5 py-2 bg-blue-600 text-white text-[13px] font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 lg:px-3.5 py-2 bg-blue-600 text-white text-label rounded-lg hover:bg-blue-700 transition-colors"
               title="Invite people"
               aria-label="Invite"
             >
@@ -929,14 +930,14 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             />
           )}
           {selectedVersion && (
-            <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white py-1.5 pl-4 pr-1.5 text-sm shadow-md">
+            <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white py-1.5 pl-4 pr-1.5 text-body-sm shadow-md">
               <span className="text-gray-600">
                 Showing <span className="font-medium text-gray-900">{selectedVersion.name}</span> ({shownAllPins.length} {shownAllPins.length === 1 ? 'pin' : 'pins'})
               </span>
               <button
                 type="button"
                 onClick={() => setSelectedVersion(null)}
-                className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-200"
+                className="rounded-full bg-gray-100 px-3 py-1 text-caption font-medium text-gray-700 hover:bg-gray-200"
               >
                 Show all
               </button>
@@ -950,10 +951,10 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                   </svg>
                 </div>
-                <h3 className="text-base font-semibold text-gray-900">
+                <h3 className="text-body font-semibold text-gray-900">
                   {iframeState.blocked.kind === 'blocked' ? 'This site blocks review tools' : "This site couldn't be reached"}
                 </h3>
-                <p className="mt-2 text-sm text-gray-600">
+                <p className="mt-2 text-body-sm text-gray-600">
                   {iframeState.blocked.kind === 'blocked'
                     ? `${iframeState.blocked.domain || 'The site'} uses firewall protection that stops it from loading here. You can still collect feedback on screenshots or a PDF of the pages.`
                     : `${iframeState.blocked.domain || 'The site'} didn't respond. Check the address, or try again in a moment.`}
@@ -962,7 +963,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
                   <button
                     type="button"
                     onClick={() => window.location.reload()}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-label text-gray-700 hover:bg-gray-50"
                   >
                     Try again
                   </button>
@@ -970,7 +971,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
                     href={targetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-label text-gray-700 hover:bg-gray-50"
                   >
                     Open the site
                   </a>
@@ -978,7 +979,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
                     <button
                       type="button"
                       onClick={() => navigate('/dashboard?create=document')}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-label text-white hover:bg-blue-700"
                     >
                       Upload screenshots or a PDF
                     </button>
@@ -998,7 +999,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             type="button"
             onClick={() => setMobilePane(id)}
             aria-pressed={mobilePane === id}
-            className={`py-3 text-sm font-medium ${mobilePane === id ? 'text-blue-600' : 'text-gray-500'}`}
+            className={`py-3 text-label ${mobilePane === id ? 'text-blue-600' : 'text-gray-500'}`}
           >
             {label}
           </button>

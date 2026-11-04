@@ -12,7 +12,7 @@ export default function ProductShot({ src, alt, url, eager = false, className = 
           <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
         </div>
         {url ? (
-          <div className="mx-auto hidden max-w-sm flex-1 truncate rounded-md border border-slate-200 bg-white px-3 py-1 text-center text-xs text-slate-500 sm:block">
+          <div className="mx-auto hidden max-w-sm flex-1 truncate rounded-md border border-slate-200 bg-white px-3 py-1 text-center text-caption text-slate-500 sm:block">
             {url}
           </div>
         ) : null}

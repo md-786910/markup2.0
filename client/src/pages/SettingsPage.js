@@ -108,16 +108,16 @@ export default function SettingsPage() {
                   </Button>
                 </form>
               ) : (
-                <p className="text-sm text-gray-900 pt-2">{user?.orgName || 'Unnamed organization'}</p>
+                <p className="text-body-sm text-gray-900 pt-2">{user?.orgName || 'Unnamed organization'}</p>
               )}
-              {nameError && <p className="text-xs text-red-600 mt-1.5">{nameError}</p>}
+              {nameError && <p className="text-caption text-red-600 mt-1.5">{nameError}</p>}
             </SettingRow>
             <SettingRow label="Icon" hint="Square image, at least 256 × 256 px (PNG or JPG)." last>
               <div className="flex items-center gap-4">
                 {user?.orgLogo ? (
                   <img src={uploadUrl(user.orgLogo)} alt="Organization icon" className="w-12 h-12 rounded-xl object-cover border border-gray-200" />
                 ) : (
-                  <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white text-lg font-bold">{orgInitial}</div>
+                  <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white text-body-lg font-semibold">{orgInitial}</div>
                 )}
                 {isOwner ? (
                   <>
@@ -127,10 +127,10 @@ export default function SettingsPage() {
                     <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={handleLogoUpload} className="hidden" />
                   </>
                 ) : (
-                  <p className="text-xs text-gray-500">Only the owner can change the icon.</p>
+                  <p className="text-caption text-gray-500">Only the owner can change the icon.</p>
                 )}
               </div>
-              {logoError && <p className="text-xs text-red-600 mt-1.5">{logoError}</p>}
+              {logoError && <p className="text-caption text-red-600 mt-1.5">{logoError}</p>}
             </SettingRow>
           </Card>
           <DataPrivacySection />

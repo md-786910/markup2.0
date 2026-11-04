@@ -26,9 +26,9 @@ export function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose 
       <button
         onClick={onToggle}
         className={`
-          flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[13px] border transition-colors duration-150
+          flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-label border transition-colors duration-150
           ${isActive
-            ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium'
+            ? 'bg-blue-50 border-blue-200 text-blue-700'
             : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900'
           }
         `}
@@ -51,7 +51,7 @@ export function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose 
         <div className="absolute left-0 top-full mt-1.5 w-64 bg-white border border-gray-200 rounded-xl shadow-xl py-1.5 animate-scale-in z-40">
           <button
             onClick={() => { onChange({ preset: null, start: '', end: '' }); onClose(); }}
-            className={`w-full text-left px-3.5 py-2 text-sm flex items-center justify-between transition-colors ${
+            className={`w-full text-left px-3.5 py-2 text-body-sm flex items-center justify-between transition-colors ${
               !dateRange.preset ? 'text-blue-700 bg-blue-50/60' : 'text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -74,7 +74,7 @@ export function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose 
                 });
                 if (option.value !== 'custom') onClose();
               }}
-              className={`w-full text-left px-3.5 py-2 text-sm flex items-center justify-between transition-colors ${
+              className={`w-full text-left px-3.5 py-2 text-body-sm flex items-center justify-between transition-colors ${
                 option.value === dateRange.preset ? 'text-blue-700 bg-blue-50/60' : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -90,21 +90,21 @@ export function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose 
           {dateRange.preset === 'custom' && (
             <div className="border-t border-gray-100 mt-1 px-3.5 py-3 space-y-2">
               <div>
-                <label className="block text-[11px] font-medium text-gray-500 mb-1">Start date</label>
+                <label className="block text-label text-gray-500 mb-1">Start date</label>
                 <input
                   type="date"
                   value={dateRange.start}
                   onChange={(e) => updateDateRange({ preset: 'custom', start: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-gray-500 mb-1">End date</label>
+                <label className="block text-label text-gray-500 mb-1">End date</label>
                 <input
                   type="date"
                   value={dateRange.end}
                   onChange={(e) => updateDateRange({ preset: 'custom', end: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
             </div>

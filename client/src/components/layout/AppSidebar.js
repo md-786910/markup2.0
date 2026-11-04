@@ -115,7 +115,7 @@ export default function AppSidebar({ collapsed, onToggle, onNavigate }) {
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-4 h-14 shrink-0 border-b border-gray-800">
           <BrandMark className="w-8 h-8" />
-          <span className="text-lg font-display font-bold tracking-[-0.03em]">Kommently</span>
+          <span className="text-body-lg font-semibold tracking-[-0.03em]">Kommently</span>
         </div>
 
         {/* Workspace switcher */}
@@ -132,7 +132,7 @@ export default function AppSidebar({ collapsed, onToggle, onNavigate }) {
                 key={item.id}
                 onClick={() => handleNavClick(item)}
                 className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                  w-full flex items-center gap-3 px-3 py-2 rounded-lg text-label transition-colors
                   ${isActive
                     ? 'bg-gray-800 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-gray-800/60'
@@ -168,7 +168,7 @@ export default function AppSidebar({ collapsed, onToggle, onNavigate }) {
             <div className="absolute bottom-full left-3 right-3 mb-2 bg-gray-800 border border-gray-700 rounded-xl shadow-xl py-1.5 animate-scale-in">
               <button
                 onClick={() => { setUserMenuOpen(false); navigate('/profile'); onNavigate?.(); }}
-                className="w-full text-left px-3.5 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700/60 flex items-center gap-2.5 transition-colors"
+                className="w-full text-left px-3.5 py-2 text-body-sm text-gray-300 hover:text-white hover:bg-gray-700/60 flex items-center gap-2.5 transition-colors"
               >
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -177,7 +177,7 @@ export default function AppSidebar({ collapsed, onToggle, onNavigate }) {
               </button>
               <button
                 onClick={() => { setUserMenuOpen(false); openSupport(); }}
-                className="w-full text-left px-3.5 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700/60 flex items-center gap-2.5 transition-colors"
+                className="w-full text-left px-3.5 py-2 text-body-sm text-gray-300 hover:text-white hover:bg-gray-700/60 flex items-center gap-2.5 transition-colors"
               >
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3m.1 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -187,7 +187,7 @@ export default function AppSidebar({ collapsed, onToggle, onNavigate }) {
               <div className="border-t border-gray-700 my-1" />
               <button
                 onClick={() => { setUserMenuOpen(false); logout(); }}
-                className="w-full text-left px-3.5 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-gray-700/60 flex items-center gap-2.5 transition-colors"
+                className="w-full text-left px-3.5 py-2 text-body-sm text-red-400 hover:text-red-300 hover:bg-gray-700/60 flex items-center gap-2.5 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -209,13 +209,13 @@ export default function AppSidebar({ collapsed, onToggle, onNavigate }) {
                 className="w-8 h-8 rounded-full object-cover shrink-0"
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold shrink-0">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-body-sm font-semibold shrink-0">
                 {(user?.name || '?')[0].toUpperCase()}
               </div>
             )}
             <div className="min-w-0 flex-1 text-left">
-              <p className="text-[13px] font-medium text-gray-100 truncate">{user?.name}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+              <p className="text-body-sm font-medium text-gray-100 truncate">{user?.name}</p>
+              <p className="text-caption text-gray-500 truncate">{user?.email}</p>
             </div>
             <svg className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />

@@ -27,11 +27,11 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <AuthShell title="Check your email" footer={backToSignIn}>
-        <p className="text-sm leading-6 text-gray-600">
+        <p className="text-body-sm text-gray-600">
           If <span className="font-medium text-gray-900">{email}</span> is an admin account, we've sent a link to reset the password.
           The link works for 30 minutes.
         </p>
-        <p className="mt-3 text-sm leading-6 text-gray-500">
+        <p className="mt-3 text-body-sm text-gray-500">
           Your two-step sign-in stays on: after the reset you still need your authenticator app or a recovery code.
         </p>
       </AuthShell>
@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <AuthError>{error}</AuthError>
         <div>
-          <label htmlFor="forgot-email" className="mb-1.5 block text-sm font-medium text-gray-700">Email</label>
+          <label htmlFor="forgot-email" className="mb-1.5 block text-label text-gray-700">Email</label>
           <input
             id="forgot-email"
             type="email"

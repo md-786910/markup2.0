@@ -31,16 +31,16 @@ function ReviewIllustration() {
         </div>
       </div>
       {/* Pins */}
-      <span className="absolute left-[54%] top-[34%] flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white ring-2 ring-white shadow-lg">1</span>
-      <span className="absolute left-[16%] top-[66%] flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-[11px] font-bold text-white ring-2 ring-white shadow-lg">2</span>
+      <span className="absolute left-[54%] top-[34%] flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-caption font-semibold text-white ring-2 ring-white shadow-lg">1</span>
+      <span className="absolute left-[16%] top-[66%] flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-caption font-semibold text-white ring-2 ring-white shadow-lg">2</span>
       {/* Comment */}
       <div className="absolute -right-6 top-[44%] w-52 rounded-xl bg-white p-3 text-left shadow-2xl shadow-black/40">
         <div className="flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700">M</span>
-          <span className="text-[11px] font-semibold text-gray-900">Maya</span>
-          <span className="text-[10px] text-gray-400">just now</span>
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-caption font-semibold text-blue-700">M</span>
+          <span className="text-caption font-semibold text-gray-900">Maya</span>
+          <span className="text-caption text-gray-400">just now</span>
         </div>
-        <p className="mt-1.5 text-[11px] leading-4 text-gray-600">Can we make this headline one line on desktop?</p>
+        <p className="mt-1.5 text-caption text-gray-600">Can we make this headline one line on desktop?</p>
       </div>
     </div>
   );
@@ -59,17 +59,17 @@ export default function AuthLayout({ children }) {
         <div className="relative z-10 flex flex-col justify-between p-12 w-full text-white">
           <div className="flex items-center gap-2.5">
             <BrandMark className="w-9 h-9" />
-            <span className="text-xl font-display font-bold tracking-[-0.03em]">Kommently</span>
+            <span className="text-h4 font-semibold tracking-[-0.03em]">Kommently</span>
           </div>
 
           <div>
-            <h1 className="text-[34px] xl:text-[40px] font-bold leading-[1.1] tracking-tight">
+            <h1 className="text-h2">
               Feedback on any website.
               <span className="block text-blue-400">No install needed.</span>
             </h1>
             <ul className="mt-7 space-y-3">
               {POINTS.map((point) => (
-                <li key={point} className="flex items-center gap-3 text-[15px] text-gray-300">
+                <li key={point} className="flex items-center gap-3 text-body text-gray-300">
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600/20 text-blue-400">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -84,7 +84,7 @@ export default function AuthLayout({ children }) {
             </div>
           </div>
 
-          <p className="text-xs text-gray-500">&copy; {new Date().getFullYear()} Kommently</p>
+          <p className="text-caption text-gray-500">&copy; {new Date().getFullYear()} Kommently</p>
         </div>
       </div>
 
@@ -94,7 +94,7 @@ export default function AuthLayout({ children }) {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
             <BrandMark className="w-8 h-8" />
-            <span className="text-xl font-display font-bold tracking-[-0.03em] text-gray-900">Kommently</span>
+            <span className="text-h4 font-semibold tracking-[-0.03em] text-gray-900">Kommently</span>
           </div>
           {children}
         </div>

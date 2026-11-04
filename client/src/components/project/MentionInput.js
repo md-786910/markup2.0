@@ -205,12 +205,12 @@ const MentionInput = forwardRef(function MentionInput({
                 idx === highlightedIndex ? 'bg-blue-50' : 'hover:bg-gray-50'
               }`}
             >
-              <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[11px] font-bold shrink-0">
+              <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-caption font-semibold shrink-0">
                 {(member.name || '?')[0].toUpperCase()}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-semibold text-gray-900 truncate">{member.name}</p>
-                <p className="text-[11px] text-gray-400 truncate">{member.email}</p>
+                <p className="text-caption font-semibold text-gray-900 truncate">{member.name}</p>
+                <p className="text-caption text-gray-400 truncate">{member.email}</p>
               </div>
             </button>
           ))}

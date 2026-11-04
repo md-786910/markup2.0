@@ -48,7 +48,7 @@ export default function Toaster() {
             <path strokeLinecap="round" strokeLinejoin="round" d={ICON[item.type]} />
           </svg>
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-gray-800">{item.message}</p>
+            <p className="text-body-sm text-gray-800">{item.message}</p>
             {item.action ? (
               <button
                 type="button"
@@ -57,7 +57,7 @@ export default function Toaster() {
                   if (item.action.to) navigate(item.action.to);
                   else if (item.action.onClick) item.action.onClick();
                 }}
-                className="mt-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                className="mt-1.5 text-label text-blue-600 hover:text-blue-700"
               >
                 {item.action.label}
               </button>

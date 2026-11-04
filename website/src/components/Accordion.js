@@ -13,7 +13,7 @@ export default function Accordion({ items, idPrefix = 'faq', defaultOpen = 0, cl
         const id = `${idPrefix}-${index}`;
         return (
           <div key={item.question} className="border-b border-slate-200 last:border-b-0">
-            <h3>
+            <h3 className="text-body sm:text-body-lg">
               <button
                 type="button"
                 onClick={() => setOpenIndex(isOpen ? -1 : index)}
@@ -21,7 +21,7 @@ export default function Accordion({ items, idPrefix = 'faq', defaultOpen = 0, cl
                 aria-controls={id}
                 className="flex w-full items-center justify-between gap-6 py-5 text-left"
               >
-                <span className="text-base font-semibold text-slate-950 sm:text-[17px]">{item.question}</span>
+                <span className="text-body font-semibold text-slate-950 sm:text-body-lg">{item.question}</span>
                 <ChevronDownIcon className={`h-5 w-5 flex-none text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-[#003dff]' : ''}`} />
               </button>
             </h3>
@@ -36,7 +36,7 @@ export default function Accordion({ items, idPrefix = 'faq', defaultOpen = 0, cl
                   transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
                   className="overflow-hidden"
                 >
-                  <p className="max-w-[65ch] pb-6 text-[15px] leading-7 text-slate-600">{item.answer}</p>
+                  <p className="max-w-[65ch] pb-6 text-body text-slate-600">{item.answer}</p>
                 </motion.div>
               )}
             </AnimatePresence>

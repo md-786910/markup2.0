@@ -70,7 +70,7 @@ function ChangePlanDialog({ org, onClose, onDone }) {
 
   return (
     <Modal isOpen onClose={onClose} title="Change plan" size="sm">
-      <p className="mb-4 text-sm text-gray-500">Sets the plan without taking a payment, for deals, comps and corrections. Starter and Pro are invoiced as usual from the end date on.</p>
+      <p className="mb-4 text-body-sm text-gray-500">Sets the plan without taking a payment, for deals, comps and corrections. Starter and Pro are invoiced as usual from the end date on.</p>
       <div className="space-y-4">
         <Field label="Plan">
           <select value={plan} onChange={(e) => setPlan(e.target.value)} className={inputClass}>
@@ -129,7 +129,7 @@ function ExtendTrialDialog({ org, onClose, onDone }) {
     <Modal isOpen onClose={onClose} title={title} maxWidth="max-w-md">
       <div className="space-y-4">
         {/* Current Trial Info Banner */}
-        <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3.5 text-xs text-gray-700">
+        <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3.5 text-caption text-gray-700">
           <div className="flex items-center justify-between">
             <span className="text-gray-500 font-medium">Workspace:</span>
             <span className="font-semibold text-gray-900">{org.name}</span>
@@ -148,7 +148,7 @@ function ExtendTrialDialog({ org, onClose, onDone }) {
 
         {/* Extra days selector */}
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-2">
+          <label className="block text-overline text-gray-600 mb-2">
             Add Extra Days (Extend By)
           </label>
           <div className="grid grid-cols-6 gap-1.5">
@@ -157,7 +157,7 @@ function ExtendTrialDialog({ org, onClose, onDone }) {
                 key={p}
                 type="button"
                 onClick={() => setSelectedPreset(p)}
-                className={`py-2 px-1 text-center text-xs font-bold rounded-lg border transition-all ${
+                className={`py-2 px-1 text-center text-caption font-semibold rounded-lg border transition-all ${
                   selectedPreset === p
                     ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
                     : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
@@ -169,7 +169,7 @@ function ExtendTrialDialog({ org, onClose, onDone }) {
             <button
               type="button"
               onClick={() => setSelectedPreset('custom')}
-              className={`py-2 px-1 text-center text-xs font-bold rounded-lg border transition-all ${
+              className={`py-2 px-1 text-center text-caption font-semibold rounded-lg border transition-all ${
                 selectedPreset === 'custom'
                   ? 'bg-blue-50 border-blue-600 text-blue-700 shadow-sm'
                   : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
@@ -197,21 +197,21 @@ function ExtendTrialDialog({ org, onClose, onDone }) {
 
         {/* Calculation Result */}
         {isValidDays ? (
-          <div className="rounded-xl bg-emerald-50/80 border border-emerald-200 p-3.5 text-xs text-emerald-950">
+          <div className="rounded-xl bg-emerald-50/80 border border-emerald-200 p-3.5 text-caption text-emerald-950">
             <div className="flex items-center justify-between font-semibold">
               <span className="text-emerald-800">Additional Extension:</span>
-              <span className="text-emerald-700 font-bold">+{effectiveDays} extra days</span>
+              <span className="text-emerald-700 font-semibold">+{effectiveDays} extra days</span>
             </div>
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-emerald-200/60">
               <span className="text-emerald-800 font-medium">New Trial Expiration:</span>
-              <span className="font-bold text-emerald-900">
+              <span className="font-semibold text-emerald-900">
                 {formatDate(until)} ({relativeDays(until)})
               </span>
             </div>
-            <p className="mt-1 text-[11px] text-emerald-700">Reminder emails and access are automatically updated.</p>
+            <p className="mt-1 text-caption text-emerald-700">Reminder emails and access are automatically updated.</p>
           </div>
         ) : (
-          <div className="rounded-xl bg-gray-50 border border-gray-200/70 p-3 text-xs text-gray-500 text-center">
+          <div className="rounded-xl bg-gray-50 border border-gray-200/70 p-3 text-caption text-gray-500 text-center">
             Select an extension preset (+3d, +7d, +14d, +30d) or enter custom days to add.
           </div>
         )}
@@ -269,7 +269,7 @@ function LimitsDialog({ org, limits, planSupport, onClose, onDone }) {
 
   return (
     <Modal isOpen onClose={onClose} title="Custom limits" size="lg">
-      <p className="mb-4 text-sm text-gray-500">Overrides on top of the {PLAN_LABELS[org.plan]} plan. Leave a field empty to use the plan's value.</p>
+      <p className="mb-4 text-body-sm text-gray-500">Overrides on top of the {PLAN_LABELS[org.plan]} plan. Leave a field empty to use the plan's value.</p>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {LIMIT_FIELDS.map(([key, label]) => (
           <Field key={key} label={label}>
@@ -293,8 +293,8 @@ function LimitsDialog({ org, limits, planSupport, onClose, onDone }) {
           </Field>
         ))}
       </div>
-      <h3 className="mb-1 mt-6 text-sm font-semibold text-gray-900">Support</h3>
-      <p className="mb-4 text-sm text-gray-500">The plan gives: {describeSupport(planSupport)}.</p>
+      <h3 className="mb-1 mt-6 text-body-sm font-semibold text-gray-900">Support</h3>
+      <p className="mb-4 text-body-sm text-gray-500">The plan gives: {describeSupport(planSupport)}.</p>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {[['supportTickets', 'In-app requests'], ['supportChat', 'Live chat']].map(([key, label]) => (
           <Field key={key} label={label}>
@@ -347,7 +347,7 @@ function LockDialog({ org, onClose, onDone }) {
   };
   return (
     <Modal isOpen onClose={onClose} title={`Lock ${org.name}?`} size="sm">
-      <p className="mb-4 text-sm text-gray-500">Members can still sign in and read, but can't create or change anything until you unlock it.</p>
+      <p className="mb-4 text-body-sm text-gray-500">Members can still sign in and read, but can't create or change anything until you unlock it.</p>
       <Field label="Reason" hint="Shown to the organization's members.">
         <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={300} className={`${inputClass} h-auto py-2`} placeholder="e.g. Suspected abuse, contact support" />
       </Field>
@@ -386,7 +386,7 @@ function CustomDealDialog({ org, onClose, onDone }) {
 
   return (
     <Modal isOpen onClose={onClose} title={`Custom Deal: ${org.name}`} size="md">
-      <p className="mb-4 text-sm text-gray-500">
+      <p className="mb-4 text-body-sm text-gray-500">
         Set a negotiated monthly price for this organization. This overrides the plan list price for MRR and future renewal invoices.
       </p>
       <div className="space-y-4">
@@ -485,20 +485,20 @@ function OverviewTab({ data, onOpenNotes }) {
           <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Overall Health Score</span>
+                <span className="text-overline text-gray-500">Overall Health Score</span>
                 <div className="mt-1 flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-gray-900">{data.health?.score != null ? data.health.score : 50}/100</span>
+                  <span className="text-h3 font-semibold text-gray-900">{data.health?.score != null ? data.health.score : 50}/100</span>
                   <HealthBadge health={data.health} />
                 </div>
               </div>
               {data.health?.computedAt && (
-                <span className="text-xs text-gray-400">Calculated {timeAgo(data.health.computedAt)}</span>
+                <span className="text-caption text-gray-400">Calculated {timeAgo(data.health.computedAt)}</span>
               )}
             </div>
             {data.health?.reasons?.length > 0 && (
               <div className="mt-3 border-t border-gray-200 pt-2">
-                <span className="text-xs font-medium text-gray-500">Risk signals & deductions:</span>
-                <ul className="mt-1 list-disc pl-5 text-xs text-red-600 space-y-0.5">
+                <span className="text-caption font-medium text-gray-500">Risk signals & deductions:</span>
+                <ul className="mt-1 list-disc pl-5 text-caption text-red-600 space-y-0.5">
                   {data.health.reasons.map((r, i) => (
                     <li key={i}>{r}</li>
                   ))}
@@ -518,8 +518,8 @@ function OverviewTab({ data, onOpenNotes }) {
               ['Pins resolved', pinStats.total ? `${pinStats.resolved} of ${pinStats.total} (${Math.round((pinStats.resolved / pinStats.total) * 100)}%)` : '—'],
             ].map(([label, value]) => (
               <div key={label}>
-                <p className="text-xs text-gray-500">{label}</p>
-                <p className="mt-1 text-sm font-medium text-gray-900">{value}</p>
+                <p className="text-caption text-gray-500">{label}</p>
+                <p className="mt-1 text-body-sm font-medium text-gray-900">{value}</p>
               </div>
             ))}
           </div>
@@ -534,16 +534,16 @@ function OverviewTab({ data, onOpenNotes }) {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                   <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-xs text-gray-500">Active users (30d)</p>
-                    <p className="mt-1 text-xl font-bold text-gray-900">{data.posthog.activeUsers30d || 0}</p>
+                    <p className="text-caption text-gray-500">Active users (30d)</p>
+                    <p className="mt-1 text-h4 font-semibold text-gray-900">{data.posthog.activeUsers30d || 0}</p>
                   </div>
                   <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-xs text-gray-500">Total sessions (30d)</p>
-                    <p className="mt-1 text-xl font-bold text-gray-900">{data.posthog.sessions || 0}</p>
+                    <p className="text-caption text-gray-500">Total sessions (30d)</p>
+                    <p className="mt-1 text-h4 font-semibold text-gray-900">{data.posthog.sessions || 0}</p>
                   </div>
                   <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-xs text-gray-500">Time in app (30d)</p>
-                    <p className="mt-1 text-xl font-bold text-gray-900">
+                    <p className="text-caption text-gray-500">Time in app (30d)</p>
+                    <p className="mt-1 text-h4 font-semibold text-gray-900">
                       {data.posthog.timeInAppMinutes30d == null
                         ? '—'
                         : `${Math.floor(data.posthog.timeInAppMinutes30d / 60)}h ${data.posthog.timeInAppMinutes30d % 60}m`}
@@ -553,10 +553,10 @@ function OverviewTab({ data, onOpenNotes }) {
 
                 {data.posthog.topEvents?.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Top In-App Interactions</p>
+                    <p className="text-overline text-gray-500">Top In-App Interactions</p>
                     <div className="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-100">
                       {data.posthog.topEvents.map((evt, idx) => (
-                        <div key={idx} className="flex items-center justify-between px-3 py-2 text-xs">
+                        <div key={idx} className="flex items-center justify-between px-3 py-2 text-caption">
                           <span className="font-medium text-gray-700">{evt.event}</span>
                           <span className="font-semibold text-gray-900">{evt.count} times</span>
                         </div>
@@ -567,13 +567,13 @@ function OverviewTab({ data, onOpenNotes }) {
               </div>
             ) : (
               <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 text-center">
-                <p className="text-xs text-gray-500">
+                <p className="text-caption text-gray-500">
                   {data.posthog.reason === 'unconfigured'
                     ? 'PostHog is not connected.'
                     : 'PostHog did not answer. Try again in a few minutes.'}
                 </p>
                 {data.posthog.reason === 'unconfigured' && (
-                  <p className="mt-1 text-[11px] text-gray-400">Set POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID on the server to see sessions, time in app and top pages.</p>
+                  <p className="mt-1 text-caption text-gray-400">Set POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID on the server to see sessions, time in app and top pages.</p>
                 )}
               </div>
             )}
@@ -602,13 +602,13 @@ function OverviewTab({ data, onOpenNotes }) {
           />
         </Card>
 
-        <Card title="Pinned notes" actions={<button type="button" onClick={onOpenNotes} className="text-sm font-medium text-blue-600 hover:text-blue-700">All notes</button>}>
+        <Card title="Pinned notes" actions={<button type="button" onClick={onOpenNotes} className="text-label text-blue-600 hover:text-blue-700">All notes</button>}>
           {pinned.length === 0 ? (
-            <p className="text-sm text-gray-500">Pin a note to keep it here, e.g. a deal, a promise or who to talk to.</p>
+            <p className="text-body-sm text-gray-500">Pin a note to keep it here, e.g. a deal, a promise or who to talk to.</p>
           ) : (
             <ul className="space-y-3">
               {pinned.map((n) => (
-                <li key={n._id} className="whitespace-pre-wrap rounded-lg bg-amber-50/60 px-3 py-2 text-sm text-gray-800">{n.body}</li>
+                <li key={n._id} className="whitespace-pre-wrap rounded-lg bg-amber-50/60 px-3 py-2 text-body-sm text-gray-800">{n.body}</li>
               ))}
             </ul>
           )}
@@ -628,7 +628,7 @@ function PeopleTab({ data }) {
           <Avatar name={row.name} size="sm" />
           <span className="min-w-0">
             <span className="block truncate font-medium text-gray-900 hover:text-blue-700">{row.name}</span>
-            <span className="block truncate text-xs text-gray-500">{row.email}</span>
+            <span className="block truncate text-caption text-gray-500">{row.email}</span>
           </span>
         </Link>
       ),
@@ -647,9 +647,9 @@ function PeopleTab({ data }) {
         <Card title="Pending invitations" padded={false}>
           <div className="divide-y divide-gray-100">
             {data.invitations.map((inv) => (
-              <div key={inv._id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+              <div key={inv._id} className="flex items-center justify-between gap-3 px-5 py-3 text-body-sm">
                 <span className="truncate text-gray-900">{inv.email}</span>
-                <span className="flex shrink-0 items-center gap-3 text-xs text-gray-500">
+                <span className="flex shrink-0 items-center gap-3 text-caption text-gray-500">
                   <RoleBadge role={inv.role} />
                   Expires {relativeDays(inv.expiresAt)}
                 </span>
@@ -672,7 +672,7 @@ function ProjectsTab({ data }) {
       render: (row) => (
         <div className="min-w-[180px]">
           <p className="font-medium text-gray-900">{row.name}</p>
-          <p className="max-w-[260px] truncate text-xs text-gray-500">
+          <p className="max-w-[260px] truncate text-caption text-gray-500">
             {row.projectType === 'website' ? row.websiteUrl?.replace(/^https?:\/\//, '') : `${row.documents?.length || 0} files`}
           </p>
         </div>
@@ -689,13 +689,13 @@ function ProjectsTab({ data }) {
       <Card title="Workspaces" padded={false}>
         <div className="divide-y divide-gray-100">
           {data.workspaces.map((w) => (
-            <div key={w._id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
+            <div key={w._id} className="flex items-center justify-between gap-3 px-5 py-3 text-body-sm">
               <span className="flex min-w-0 items-center gap-3">
                 <Avatar name={w.name} size="sm" square />
                 <span className="truncate font-medium text-gray-900">{w.name}</span>
-                {w.isDefault && <span className="text-xs text-gray-400">Default</span>}
+                {w.isDefault && <span className="text-caption text-gray-400">Default</span>}
               </span>
-              <span className="flex shrink-0 items-center gap-4 text-xs text-gray-500">
+              <span className="flex shrink-0 items-center gap-4 text-caption text-gray-500">
                 <span>{w.projectCount} {w.projectCount === 1 ? 'project' : 'projects'}</span>
                 <span>{w.memberCount} {w.memberCount === 1 ? 'member' : 'members'}</span>
                 {w.shared && <Pill tone="green">Link on</Pill>}
@@ -716,15 +716,15 @@ function BillingTab({ data, onRefund, onOpenDeal, busy }) {
   const sub = org.subscription || {};
   const columns = [
     { key: 'createdAt', label: 'Date', render: (row) => <span className="whitespace-nowrap">{formatDate(row.createdAt)}</span> },
-    { key: 'invoiceNumber', label: 'Invoice', render: (row) => row.invoiceNumber ? <span className="font-mono text-xs">{row.invoiceNumber}</span> : <span className="text-gray-400">—</span> },
+    { key: 'invoiceNumber', label: 'Invoice', render: (row) => row.invoiceNumber ? <span className="font-mono text-caption">{row.invoiceNumber}</span> : <span className="text-gray-400">—</span> },
     { key: 'plan', label: 'Plan', render: (row) => <PlanBadge plan={row.plan} /> },
     {
       key: 'period',
       label: 'Period',
       render: (row) => row.billingMonth
-        ? <span className="font-mono text-xs">{row.billingMonth}</span>
+        ? <span className="font-mono text-caption">{row.billingMonth}</span>
         : row.periodStart && row.periodEnd
-          ? <span className="whitespace-nowrap text-xs text-gray-600">{formatDate(row.periodStart)} – {formatDate(row.periodEnd)}</span>
+          ? <span className="whitespace-nowrap text-caption text-gray-600">{formatDate(row.periodStart)} – {formatDate(row.periodEnd)}</span>
           : <span className="text-gray-400">—</span>,
     },
     { key: 'amount', label: 'Amount', align: 'right', render: (row) => <span className="font-medium text-gray-900">{formatMoney(row.amount, row.currency)}</span> },
@@ -763,26 +763,26 @@ function BillingTab({ data, onRefund, onOpenDeal, busy }) {
         }
       >
         {org.deal?.price != null ? (
-          <div className="space-y-2 text-sm">
+          <div className="space-y-2 text-body-sm">
             <div className="flex flex-wrap items-baseline gap-2">
-              <span className="text-2xl font-bold text-gray-900">
+              <span className="text-h3 font-semibold text-gray-900">
                 {formatMoney(org.deal.price * 100, org.deal.currency || 'USD')}
               </span>
               <span className="text-gray-500">/ month</span>
               {org.deal.until && (
-                <span className="ml-2 rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-700">
+                <span className="ml-2 rounded-full bg-purple-50 px-2.5 py-0.5 text-caption font-medium text-purple-700">
                   Valid until {formatDate(org.deal.until)} ({relativeDays(org.deal.until)})
                 </span>
               )}
             </div>
             {org.deal.note && (
-              <p className="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+              <p className="text-caption text-gray-600 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                 {org.deal.note}
               </p>
             )}
           </div>
         ) : (
-          <p className="text-sm text-gray-500">
+          <p className="text-body-sm text-gray-500">
             No custom deal active. Standard list price applies to billing and revenue calculations.
           </p>
         )}
@@ -803,8 +803,8 @@ function SupportTab({ orgId }) {
       .then(({ data }) => setTickets(data.tickets))
       .catch(() => setTickets([]));
   }, [orgId]);
-  if (!tickets) return <Card><p className="py-6 text-center text-sm text-gray-400">Loading…</p></Card>;
-  if (!tickets.length) return <Card><p className="py-6 text-center text-sm text-gray-500">No support requests from this organization.</p></Card>;
+  if (!tickets) return <Card><p className="py-6 text-center text-body-sm text-gray-400">Loading…</p></Card>;
+  if (!tickets.length) return <Card><p className="py-6 text-center text-body-sm text-gray-500">No support requests from this organization.</p></Card>;
   return (
     <Card padded={false}>
       <ul className="divide-y divide-gray-100">
@@ -812,8 +812,8 @@ function SupportTab({ orgId }) {
           <li key={t._id}>
             <Link to={`/support/${t._id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50">
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-gray-900">{t.subject}</span>
-                <span className="block text-xs text-gray-500">#{t.number} · {t.requester?.name || '—'} · {timeAgo(t.createdAt)}</span>
+                <span className="block truncate text-body-sm font-medium text-gray-900">{t.subject}</span>
+                <span className="block text-caption text-gray-500">#{t.number} · {t.requester?.name || '—'} · {timeAgo(t.createdAt)}</span>
               </span>
               <PriorityPill priority={t.priority} />
               <TicketStatusPill status={t.status} />
@@ -826,7 +826,7 @@ function SupportTab({ orgId }) {
 }
 
 function ActivityTab({ data }) {
-  if (!data.activity.length) return <Card><p className="py-6 text-center text-sm text-gray-500">No activity yet.</p></Card>;
+  if (!data.activity.length) return <Card><p className="py-6 text-center text-body-sm text-gray-500">No activity yet.</p></Card>;
   return (
     <Card padded={false}>
       <ol className="divide-y divide-gray-100">
@@ -835,7 +835,7 @@ function ActivityTab({ data }) {
           return (
             <li key={a._id} className="flex items-start gap-3 px-5 py-3">
               <Avatar name={actorName(a, '?')} size="sm" />
-              <div className="min-w-0 flex-1 text-sm">
+              <div className="min-w-0 flex-1 text-body-sm">
                 <p className="text-gray-700">
                   <span className="font-medium text-gray-900">{actorName(a)}</span>
                   {byAdmin && <span className="ml-1.5"><Pill tone="red">Admin</Pill></span>}
@@ -843,7 +843,7 @@ function ActivityTab({ data }) {
                   {describeAction(a)}
                   {a.project?.name && <span className="text-gray-500"> in {a.project.name}</span>}
                 </p>
-                <p className="mt-0.5 text-xs text-gray-400" title={formatDateTime(a.createdAt)}>{timeAgo(a.createdAt)}</p>
+                <p className="mt-0.5 text-caption text-gray-400" title={formatDateTime(a.createdAt)}>{timeAgo(a.createdAt)}</p>
               </div>
             </li>
           );
@@ -914,13 +914,13 @@ function NotesTab({ data, onChange }) {
             {data.notes.map((n) => (
               <li key={n._id} className="px-5 py-4">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="whitespace-pre-wrap text-sm text-gray-800">{n.body}</p>
+                  <p className="whitespace-pre-wrap text-body-sm text-gray-800">{n.body}</p>
                   <div className="flex shrink-0 gap-1">
                     <Button size="sm" variant="ghost" onClick={() => togglePin(n)}>{n.pinned ? 'Unpin' : 'Pin'}</Button>
                     <Button size="sm" variant="ghost" onClick={() => remove(n)}>Delete</Button>
                   </div>
                 </div>
-                <p className="mt-1.5 text-xs text-gray-400">
+                <p className="mt-1.5 text-caption text-gray-400">
                   {n.pinned && <span className="mr-1.5 font-medium text-amber-600">Pinned ·</span>}
                   {n.author?.name || 'Admin'} · <span title={formatDateTime(n.createdAt)}>{timeAgo(n.createdAt)}</span>
                 </p>
@@ -1008,7 +1008,7 @@ export default function OrganizationDetailPage() {
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
-        <Link to="/organizations" className="mb-3 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
+        <Link to="/organizations" className="mb-3 inline-flex items-center gap-1 text-body-sm text-gray-500 hover:text-gray-800">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
@@ -1019,12 +1019,12 @@ export default function OrganizationDetailPage() {
             <Avatar name={org.name} size="lg" square />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-2xl font-bold tracking-tight text-gray-900 leading-tight">{org.name}</h1>
+                <h1 className="text-h3 font-semibold text-gray-900">{org.name}</h1>
                 <PlanBadge plan={org.plan} />
                 <StatusBadge status={data.status} trialEndsAt={org.trialEndsAt} />
                 <HealthBadge health={data.health} />
               </div>
-              <p className="mt-1.5 text-sm text-gray-500">
+              <p className="mt-1.5 text-body-sm text-gray-500">
                 {org.owner ? <>Owner <Link to={`/users/${org.owner._id}`} className="font-medium text-gray-700 hover:text-blue-700">{org.owner.name}</Link> · {org.owner.email}</> : 'No owner'}
                 {' · '}Customer since {formatDate(org.createdAt)}
               </p>
@@ -1046,7 +1046,7 @@ export default function OrganizationDetailPage() {
       </div>
 
       {org.isLocked && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-body-sm text-red-800">
           <span className="font-medium">Locked.</span> {org.lockedReason || 'No reason given.'}
         </div>
       )}

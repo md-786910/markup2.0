@@ -237,8 +237,8 @@ export default function DashboardPage() {
       {/* Page header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">{pageTitle}</h2>
-          <p className="text-sm text-gray-500 mt-1">{pageSubtitle}</p>
+          <h2 className="text-h3 font-semibold text-gray-900">{pageTitle}</h2>
+          <p className="text-body-sm text-gray-500 mt-1">{pageSubtitle}</p>
         </div>
         <div className="flex items-center gap-3">
           {tab === 'members' && isAdmin && (
@@ -328,20 +328,20 @@ export default function DashboardPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">Delete Project</h3>
-            <p className="text-sm text-gray-500 text-center mb-6">
+            <h3 className="text-body-lg font-semibold text-gray-900 text-center mb-2">Delete Project</h3>
+            <p className="text-body-sm text-gray-500 text-center mb-6">
               This will permanently delete the project, all pins, and all comments. This action cannot be undone.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmDelete(null)}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex-1 px-4 py-2.5 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(confirmDelete)}
-                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+                className="flex-1 px-4 py-2.5 text-label text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
               >
                 Delete
               </button>
@@ -380,7 +380,7 @@ function EditProjectModal({ project, onClose, onSave }) {
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scale-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900">Edit project</h3>
+          <h3 className="text-body-lg font-semibold text-gray-900">Edit project</h3>
           <button onClick={onClose} className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -389,22 +389,22 @@ function EditProjectModal({ project, onClose, onSave }) {
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Project name</label>
+            <label className="block text-label text-gray-700 mb-1.5">Project name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
             />
           </div>
           {workspaces.length > 1 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Workspace</label>
+              <label className="block text-label text-gray-700 mb-1.5">Workspace</label>
               <select
                 value={workspaceId}
                 onChange={(e) => setWorkspaceId(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white text-body focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 {workspaces.map((w) => (
                   <option key={w._id} value={w._id}>{w.name}</option>
@@ -413,20 +413,20 @@ function EditProjectModal({ project, onClose, onSave }) {
             </div>
           )}
           {/* <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Website URL</label>
+            <label className="block text-body-sm font-medium text-gray-700 mb-1.5">Website URL</label>
             <input
               type="url"
               value={websiteUrl}
               onChange={(e) => setWebsiteUrl(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
             />
           </div> */}
           <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+            <button type="button" onClick={onClose} className="px-4 py-2.5 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={loading} className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
+            <button type="submit" disabled={loading} className="px-4 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
               {loading ? 'Saving...' : 'Save changes'}
             </button>
           </div>

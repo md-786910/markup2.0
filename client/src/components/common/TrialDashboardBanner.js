@@ -50,10 +50,10 @@ export default function TrialDashboardBanner() {
 
       {/* Text */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-gray-900">
+        <p className="text-body-sm font-semibold text-gray-900">
           You have {daysLeft} {dayLabel} left in your free trial
         </p>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <p className="text-caption text-gray-500 mt-0.5">
           Upgrade to Pro to unlock unlimited projects, members, and premium features.
         </p>
       </div>
@@ -62,7 +62,7 @@ export default function TrialDashboardBanner() {
       <div className="flex items-center gap-2 shrink-0">
         <button
           onClick={() => navigate('/settings?tab=billing')}
-          className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
         >
           Upgrade to Pro
         </button>

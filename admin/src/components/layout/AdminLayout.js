@@ -32,7 +32,7 @@ export default function AdminLayout() {
           <GlobalSearch />
         </header>
         {remindTwoFactor && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 lg:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-body-sm text-amber-900 lg:px-8">
             <span>Your admin account is protected by a password only.</span>
             <Link to="/account?setup=2fa" className="font-medium text-amber-900 underline underline-offset-2 hover:text-amber-950">Turn on two-step sign-in</Link>
           </div>

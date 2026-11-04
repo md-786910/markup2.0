@@ -74,7 +74,7 @@ export default function DataPrivacySection() {
 
   return (
     <Card title="Your data" description="Download everything this organization stores, or delete it for good.">
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+      {error && <p className="text-body-sm text-red-600 mb-4">{error}</p>}
       <SettingRow label="Export" hint="Workspaces, projects, pins, comments, members and invoices as one JSON file." last={!isOwner}>
         <Button variant="secondary" loading={exporting} onClick={handleExport}>{exporting ? 'Preparing export…' : 'Export data (JSON)'}</Button>
       </SettingRow>
@@ -89,7 +89,7 @@ export default function DataPrivacySection() {
             <Button variant="danger-soft" onClick={() => setShowDelete(true)}>Delete organization…</Button>
           ) : (
             <form onSubmit={handleDelete} className="max-w-md space-y-4 rounded-xl border border-red-200 bg-red-50/40 p-4">
-              <p className="text-sm text-gray-700">
+              <p className="text-body-sm text-gray-700">
                 All workspaces, projects, pins, comments, files and members are deleted after 7 days. Everything is read-only until then and you can still cancel. Invoices are kept for tax records.
               </p>
               <Field label={<>Type <span className="font-semibold text-gray-900">{user?.orgName}</span> to confirm</>}>

@@ -65,8 +65,8 @@ export default function AdminSidebar({ open, onClose }) {
       >
         <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-gray-800 px-4">
           <BrandMark className="h-8 w-8" />
-          <span className="font-display text-lg font-bold tracking-[-0.03em]">Kommently</span>
-          <span className="ml-auto rounded-md bg-gray-800 px-1.5 py-0.5 text-[11px] font-medium text-gray-300">Admin</span>
+          <span className="text-body-lg font-semibold tracking-[-0.03em]">Kommently</span>
+          <span className="ml-auto rounded-md bg-gray-800 px-1.5 py-0.5 text-caption font-medium text-gray-300">Admin</span>
         </div>
 
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4 scrollbar-thin">
@@ -74,7 +74,7 @@ export default function AdminSidebar({ open, onClose }) {
             .filter((group) => group.items.length > 0)
             .map((group, i) => (
             <div key={group.label || i}>
-              {group.label && <p className="mb-1.5 px-3 text-xs font-medium text-gray-500">{group.label}</p>}
+              {group.label && <p className="mb-1.5 px-3 text-caption font-medium text-gray-500">{group.label}</p>}
               <div className="space-y-0.5">
                 {group.items.map((item) => (
                   <NavLink
@@ -82,7 +82,7 @@ export default function AdminSidebar({ open, onClose }) {
                     to={item.to}
                     onClick={onClose}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      `flex items-center gap-3 rounded-lg px-3 py-2 text-body-sm font-medium transition-colors ${
                         isActive ? 'bg-gray-800 text-white' : 'text-gray-400 hover:bg-gray-800/60 hover:text-white'
                       }`
                     }
@@ -90,7 +90,7 @@ export default function AdminSidebar({ open, onClose }) {
                     <Icon d={item.icon} />
                     {item.label}
                     {item.badge === 'support' && openTickets > 0 && (
-                      <span className="ml-auto rounded-full bg-blue-600 px-1.5 py-px text-[11px] font-semibold text-white">{openTickets}</span>
+                      <span className="ml-auto rounded-full bg-blue-600 px-1.5 py-px text-caption font-semibold text-white">{openTickets}</span>
                     )}
                   </NavLink>
                 ))}
@@ -104,8 +104,8 @@ export default function AdminSidebar({ open, onClose }) {
             <NavLink to="/account" onClick={onClose} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-gray-800/60" title="Your account">
               <Avatar name={user?.name || 'Admin'} size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{user?.name || 'Admin'}</p>
-                <p className="truncate text-xs text-gray-400">{user?.email}</p>
+                <p className="truncate text-body-sm font-medium">{user?.name || 'Admin'}</p>
+                <p className="truncate text-caption text-gray-400">{user?.email}</p>
               </div>
             </NavLink>
             <button

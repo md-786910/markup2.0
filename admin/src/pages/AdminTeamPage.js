@@ -47,7 +47,7 @@ function InviteDialog({ onClose, onInvited }) {
   return (
     <Modal isOpen onClose={onClose} title="Add an admin" size="sm">
       <form onSubmit={submit} className="space-y-4">
-        <p className="text-sm text-gray-500">
+        <p className="text-body-sm text-gray-500">
           They get an email to set a password (valid for 72 hours), then turn on two-step sign-in.
         </p>
         <Field label="Name">
@@ -108,9 +108,9 @@ export default function AdminTeamPage() {
           <div className="min-w-0">
             <p className="truncate font-medium text-gray-900">
               {row.name}
-              {row.isYou && <span className="ml-1.5 text-xs font-normal text-gray-400">(you)</span>}
+              {row.isYou && <span className="ml-1.5 text-caption font-normal text-gray-400">(you)</span>}
             </p>
-            <p className="truncate text-xs text-gray-500">{row.email}</p>
+            <p className="truncate text-caption text-gray-500">{row.email}</p>
           </div>
         </div>
       ),
@@ -135,7 +135,7 @@ export default function AdminTeamPage() {
       render: (row) => (
         <span className="whitespace-nowrap text-gray-500">
           {formatDate(row.createdAt)}
-          {row.invitedBy && <span className="block text-xs">by {row.invitedBy}</span>}
+          {row.invitedBy && <span className="block text-caption">by {row.invitedBy}</span>}
         </span>
       ),
     },
@@ -215,7 +215,7 @@ export default function AdminTeamPage() {
         actions={<Button variant="primary" onClick={() => setInviting(true)}>Add admin</Button>}
       />
       {without2fa > 0 && (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-body-sm text-amber-900">
           {without2fa} active {without2fa === 1 ? 'admin has' : 'admins have'} not turned on two-step sign-in yet. They are asked to at their next sign-in.
         </div>
       )}

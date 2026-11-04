@@ -33,7 +33,7 @@ export default function ResetPasswordPage() {
   if (done) {
     return (
       <AuthShell title={isInvite ? 'Your admin account is ready' : 'Password changed'} footer={<Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">Sign in</Link>}>
-        <p className="text-sm leading-6 text-gray-600">
+        <p className="text-body-sm text-gray-600">
           {isInvite
             ? 'Sign in with your email and new password. You will then turn on two-step sign-in with an authenticator app.'
             : 'Your new password is set and every other session is signed out. Sign in with it now.'}
@@ -56,11 +56,11 @@ export default function ResetPasswordPage() {
             : <> <Link to="/forgot-password" className="font-medium underline">Get a new link</Link></>)}
         </AuthError>
         <div>
-          <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium text-gray-700">New password</label>
+          <label htmlFor="new-password" className="mb-1.5 block text-label text-gray-700">New password</label>
           <PasswordInput id="new-password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" autoFocus />
         </div>
         <div>
-          <label htmlFor="confirm-password" className="mb-1.5 block text-sm font-medium text-gray-700">Repeat it</label>
+          <label htmlFor="confirm-password" className="mb-1.5 block text-label text-gray-700">Repeat it</label>
           <PasswordInput id="confirm-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
         </div>
         <SubmitButton loading={loading} loadingLabel="Saving…">Set new password</SubmitButton>

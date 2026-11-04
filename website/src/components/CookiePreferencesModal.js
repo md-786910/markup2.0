@@ -6,8 +6,8 @@ function PreferenceToggle({ title, description, checked, disabled, onChange }) {
   return (
     <div className="flex items-start justify-between gap-4 py-3.5">
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
-        <p className="mt-0.5 text-sm leading-6 text-slate-500">{description}</p>
+        <p className="text-body-sm font-semibold text-slate-900">{title}</p>
+        <p className="mt-0.5 text-body-sm text-slate-500">{description}</p>
       </div>
       <button
         type="button"
@@ -63,8 +63,8 @@ export default function CookiePreferencesModal({
           >
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
               <div>
-                <h2 id="cookie-preferences-title" className="text-lg font-semibold text-slate-900">Cookie settings</h2>
-                <p className="mt-1 text-sm text-slate-500">Essential cookies are always on. The rest are your choice.</p>
+                <h2 id="cookie-preferences-title" className="text-body-lg font-semibold text-slate-900">Cookie settings</h2>
+                <p className="mt-1 text-body-sm text-slate-500">Essential cookies are always on. The rest are your choice.</p>
               </div>
               <button
                 type="button"
@@ -104,12 +104,12 @@ export default function CookiePreferencesModal({
             </div>
 
             <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-6 py-4">
-              <Link to="/cookie-policy" onClick={onClose} className="text-sm text-slate-500 hover:text-slate-900 hover:underline">Cookie policy</Link>
+              <Link to="/cookie-policy" onClick={onClose} className="text-body-sm text-slate-500 hover:text-slate-900 hover:underline">Cookie policy</Link>
               <div className="flex gap-2">
-                <button type="button" onClick={onRejectAll} className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300">
+                <button type="button" onClick={onRejectAll} className="rounded-lg border border-slate-200 px-3.5 py-2 text-label text-slate-700 hover:border-slate-300">
                   Reject all
                 </button>
-                <button type="button" onClick={onSave} className="rounded-lg bg-[#003dff] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[#0031d1]">
+                <button type="button" onClick={onSave} className="rounded-lg bg-[#003dff] px-3.5 py-2 text-label text-white hover:bg-[#0031d1]">
                   Save
                 </button>
               </div>

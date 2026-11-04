@@ -66,7 +66,7 @@ export default function TechnicalDetails({ context, pageUrl, deviceMode }) {
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-gray-50/60 overflow-hidden text-xs my-2">
+    <div className="border border-gray-200 rounded-lg bg-gray-50/60 overflow-hidden text-caption my-2">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -83,7 +83,7 @@ export default function TechnicalDetails({ context, pageUrl, deviceMode }) {
           </svg>
           Technical Details
           {(consoleErrors.length > 0 || failedRequests.length > 0) && (
-            <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-700">
+            <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-caption font-semibold bg-rose-100 text-rose-700">
               {consoleErrors.length + failedRequests.length} issues
             </span>
           )}
@@ -92,7 +92,7 @@ export default function TechnicalDetails({ context, pageUrl, deviceMode }) {
           role="button"
           tabIndex={0}
           onClick={handleCopyMarkdown}
-          className="text-primary hover:text-primary-dark underline text-[11px] font-normal"
+          className="text-primary hover:text-primary-dark underline text-caption font-normal"
         >
           Copy Markdown
         </span>
@@ -100,36 +100,36 @@ export default function TechnicalDetails({ context, pageUrl, deviceMode }) {
 
       {isOpen && (
         <div className="px-3 pb-3 pt-1 border-t border-gray-100 space-y-2 text-gray-600">
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="grid grid-cols-2 gap-2 text-caption">
             {(ctx.browser || ctx.os) && (
               <div>
-                <span className="text-gray-400 block text-[10px] uppercase font-semibold">Browser / OS</span>
+                <span className="text-gray-400 block text-overline">Browser / OS</span>
                 <span className="font-medium text-gray-800">{ctx.browser || 'Unknown'} on {ctx.os || 'Unknown'}</span>
               </div>
             )}
             {hasScreen && (
               <div>
-                <span className="text-gray-400 block text-[10px] uppercase font-semibold">Screen & DPR</span>
+                <span className="text-gray-400 block text-overline">Screen & DPR</span>
                 <span className="font-medium text-gray-800">{ctx.screen.w}×{ctx.screen.h} @ {ctx.screen.dpr || 1}x</span>
               </div>
             )}
             {deviceMode && (
               <div>
-                <span className="text-gray-400 block text-[10px] uppercase font-semibold">Device Mode</span>
+                <span className="text-gray-400 block text-overline">Device Mode</span>
                 <span className="font-medium capitalize text-gray-800">{deviceMode}</span>
               </div>
             )}
             {(ctx.timeZone || ctx.language) && (
               <div>
-                <span className="text-gray-400 block text-[10px] uppercase font-semibold">Locale</span>
+                <span className="text-gray-400 block text-overline">Locale</span>
                 <span className="font-medium text-gray-800">{[ctx.language, ctx.timeZone].filter(Boolean).join(' · ')}</span>
               </div>
             )}
           </div>
 
           {pageUrl && (
-            <div className="text-[11px]">
-              <span className="text-gray-400 block text-[10px] uppercase font-semibold">Page URL</span>
+            <div className="text-caption">
+              <span className="text-gray-400 block text-overline">Page URL</span>
               <a
                 href={pageUrl}
                 target="_blank"
@@ -142,8 +142,8 @@ export default function TechnicalDetails({ context, pageUrl, deviceMode }) {
           )}
 
           {ctx.elementText && (
-            <div className="text-[11px]">
-              <span className="text-gray-400 block text-[10px] uppercase font-semibold">Clicked Element</span>
+            <div className="text-caption">
+              <span className="text-gray-400 block text-overline">Clicked Element</span>
               <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-gray-200 text-gray-700 block truncate">
                 {ctx.elementText}
               </span>
@@ -161,13 +161,13 @@ export default function TechnicalDetails({ context, pageUrl, deviceMode }) {
                 <button
                   type="button"
                   onClick={() => setShowErrors(!showErrors)}
-                  className={`flex items-center gap-1 font-semibold ${btnColor} text-[11px]`}
+                  className={`flex items-center gap-1 font-semibold ${btnColor} text-caption`}
                 >
                   <span>{showErrors ? '▼' : '▶'}</span>
                   <span>{label}</span>
                 </button>
                 {showErrors && (
-                  <div className="mt-1.5 max-h-40 overflow-y-auto space-y-1 bg-white p-2 rounded border border-gray-200 text-[10px] font-mono">
+                  <div className="mt-1.5 max-h-40 overflow-y-auto space-y-1 bg-white p-2 rounded border border-gray-200 text-caption font-mono">
                     {consoleErrors.map((err, i) => (
                       <div key={i} className={`p-1 rounded ${err.level === 'warn' ? 'bg-amber-50 text-amber-800' : 'bg-rose-50 text-rose-800'}`}>
                         <div className="font-semibold">{err.level === 'warn' ? '⚠️ WARN' : '🚨 ERROR'}</div>
@@ -185,16 +185,16 @@ export default function TechnicalDetails({ context, pageUrl, deviceMode }) {
               <button
                 type="button"
                 onClick={() => setShowRequests(!showRequests)}
-                className="flex items-center gap-1 font-semibold text-amber-600 hover:text-amber-700 text-[11px]"
+                className="flex items-center gap-1 font-semibold text-amber-600 hover:text-amber-700 text-caption"
               >
                 <span>{showRequests ? '▼' : '▶'}</span>
                 <span>{failedRequests.length} Failed network request{failedRequests.length > 1 ? 's' : ''}</span>
               </button>
               {showRequests && (
-                <div className="mt-1.5 max-h-40 overflow-y-auto space-y-1 bg-white p-2 rounded border border-gray-200 text-[10px] font-mono">
+                <div className="mt-1.5 max-h-40 overflow-y-auto space-y-1 bg-white p-2 rounded border border-gray-200 text-caption font-mono">
                   {failedRequests.map((req, i) => (
                     <div key={i} className="p-1 rounded bg-amber-50 text-amber-800">
-                      <span className="font-bold">{req.method}</span> <span className="font-semibold text-rose-600">[{req.status || 'FAILED'}]</span> {req.url}
+                      <span className="font-semibold">{req.method}</span> <span className="font-semibold text-rose-600">[{req.status || 'FAILED'}]</span> {req.url}
                     </div>
                   ))}
                 </div>

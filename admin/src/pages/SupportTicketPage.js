@@ -16,17 +16,17 @@ function Message({ m }) {
   const tone = m.internal ? 'border-amber-200 bg-amber-50' : fromCustomer ? 'border-gray-200 bg-white' : 'border-blue-100 bg-blue-50/60';
   return (
     <div className={`rounded-xl border p-4 ${tone}`}>
-      <div className="mb-2 flex items-center gap-2 text-sm">
+      <div className="mb-2 flex items-center gap-2 text-body-sm">
         <Avatar name={m.authorName || '?'} size="sm" />
         <span className="font-medium text-gray-900">{m.authorName}</span>
-        {!fromCustomer && <span className="text-xs text-gray-500">{m.internal ? 'Internal note' : 'Kommently'}</span>}
-        <span className="ml-auto text-xs text-gray-400" title={formatDateTime(m.createdAt)}>{timeAgo(m.createdAt)}</span>
+        {!fromCustomer && <span className="text-caption text-gray-500">{m.internal ? 'Internal note' : 'Kommently'}</span>}
+        <span className="ml-auto text-caption text-gray-400" title={formatDateTime(m.createdAt)}>{timeAgo(m.createdAt)}</span>
       </div>
-      <p className="whitespace-pre-wrap break-words text-sm text-gray-800">{m.body}</p>
+      <p className="whitespace-pre-wrap break-words text-body-sm text-gray-800">{m.body}</p>
       {m.attachments?.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {m.attachments.map((a) => (
-            <a key={a.filename} href={`${SERVER_URL}/${a.path}`} target="_blank" rel="noreferrer" className="max-w-[220px] truncate rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-blue-700 hover:underline">
+            <a key={a.filename} href={`${SERVER_URL}/${a.path}`} target="_blank" rel="noreferrer" className="max-w-[220px] truncate rounded-md border border-gray-200 bg-white px-2 py-1 text-caption text-blue-700 hover:underline">
               {a.originalName || 'Attachment'}
             </a>
           ))}
@@ -98,7 +98,7 @@ export default function SupportTicketPage() {
           ? <Button onClick={() => update({ status: 'resolved' }, 'Request resolved. The customer was told by email.')}>Mark resolved</Button>
           : <Button onClick={() => update({ status: 'open' }, 'Request reopened.')}>Reopen</Button>}
       >
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-500">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-body-sm text-gray-500">
           <span>#{t.number}</span>
           <TicketStatusPill status={t.status} />
           <PriorityPill priority={t.priority} />
@@ -114,7 +114,7 @@ export default function SupportTicketPage() {
           <div ref={endRef} />
 
           <Card padded>
-            <div className="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1 text-sm">
+            <div className="mb-3 flex gap-1 rounded-lg bg-gray-100 p-1 text-body-sm">
               {[[false, 'Reply to customer'], [true, 'Internal note']].map(([value, label]) => (
                 <button
                   key={label}
@@ -150,14 +150,14 @@ export default function SupportTicketPage() {
         <div className="space-y-6">
           <Card title="Request">
             <div className="space-y-4">
-              <label className="block text-sm">
+              <label className="block text-label">
                 <span className="mb-1.5 block text-gray-500">Assignee</span>
                 <select value={t.assignee?._id || ''} onChange={(e) => update({ assignee: e.target.value || null })} className={inputClass}>
                   <option value="">Unassigned</option>
                   {admins.map((a) => <option key={a._id} value={a._id}>{a.name}</option>)}
                 </select>
               </label>
-              <label className="block text-sm">
+              <label className="block text-label">
                 <span className="mb-1.5 block text-gray-500">Priority</span>
                 <select value={t.priority} onChange={(e) => update({ priority: e.target.value })} className={inputClass}>
                   <option value="urgent">Urgent</option>
@@ -165,7 +165,7 @@ export default function SupportTicketPage() {
                   <option value="normal">Normal</option>
                 </select>
               </label>
-              <label className="block text-sm">
+              <label className="block text-label">
                 <span className="mb-1.5 block text-gray-500">Status</span>
                 <select value={t.status} onChange={(e) => update({ status: e.target.value })} className={inputClass}>
                   <option value="open">Open</option>
@@ -182,12 +182,12 @@ export default function SupportTicketPage() {
               <Link to={`/organizations/${org._id}`} className="mb-3 flex items-center gap-3 rounded-lg border border-gray-200 p-3 hover:border-gray-300">
                 <Avatar name={org.name} square />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-gray-900">{org.name}</span>
-                  {org.isLocked && <span className="text-xs font-medium text-red-600">Locked</span>}
+                  <span className="block truncate text-body-sm font-medium text-gray-900">{org.name}</span>
+                  {org.isLocked && <span className="text-caption font-medium text-red-600">Locked</span>}
                 </span>
                 <PlanBadge plan={org.plan} />
               </Link>
-            ) : <p className="mb-3 text-sm text-gray-500">Organization deleted.</p>}
+            ) : <p className="mb-3 text-body-sm text-gray-500">Organization deleted.</p>}
             <DefinitionList
               items={[
                 ['From', t.requester ? <Link to={`/users/${t.requester._id}`} className="hover:text-blue-700">{t.requester.name}</Link> : '—'],
@@ -206,10 +206,10 @@ export default function SupportTicketPage() {
             <Card title="Recent activity">
               <ul className="space-y-2.5">
                 {customer.recentActivity.map((a) => (
-                  <li key={a._id} className="text-sm">
+                  <li key={a._id} className="text-body-sm">
                     <span className="font-medium text-gray-900">{actorName(a)}</span>{' '}
                     <span className="text-gray-600">{describeAction(a)}{a.project?.name ? ` in ${a.project.name}` : ''}</span>
-                    <span className="block text-xs text-gray-400">{timeAgo(a.createdAt)}</span>
+                    <span className="block text-caption text-gray-400">{timeAgo(a.createdAt)}</span>
                   </li>
                 ))}
               </ul>
@@ -219,11 +219,11 @@ export default function SupportTicketPage() {
           <Card title="Context">
             <DefinitionList
               items={[
-                t.context?.url && ['Page', <span className="break-all text-xs">{t.context.url}</span>],
+                t.context?.url && ['Page', <span className="break-all text-caption">{t.context.url}</span>],
                 t.context?.project && ['Project', t.context.project.name],
                 ['Plan then', t.context?.plan || '—'],
                 t.context?.viewport && ['Window', t.context.viewport],
-                t.context?.userAgent && ['Browser', <span className="text-xs">{t.context.userAgent.slice(0, 80)}</span>],
+                t.context?.userAgent && ['Browser', <span className="text-caption">{t.context.userAgent.slice(0, 80)}</span>],
               ]}
             />
           </Card>
@@ -233,7 +233,7 @@ export default function SupportTicketPage() {
               <ul className="divide-y divide-gray-100">
                 {customer.otherTickets.map((o) => (
                   <li key={o._id}>
-                    <Link to={`/support/${o._id}`} className="flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-gray-50">
+                    <Link to={`/support/${o._id}`} className="flex items-center justify-between gap-3 px-5 py-3 text-body-sm hover:bg-gray-50">
                       <span className="min-w-0 truncate">#{o.number} {o.subject}</span>
                       <TicketStatusPill status={o.status} />
                     </Link>

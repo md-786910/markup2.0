@@ -29,7 +29,7 @@ function SignupChart({ rows }) {
     <div className="flex h-40 items-end gap-3">
       {months.map((m) => (
         <div key={m.key} className="flex flex-1 flex-col items-center gap-2">
-          <span className="text-xs font-medium tabular-nums text-gray-700">{m.count}</span>
+          <span className="text-caption font-medium tabular-nums text-gray-700">{m.count}</span>
           <div className="flex h-24 w-full items-end">
             <div
               className="w-full rounded-md bg-blue-600/85 transition-all"
@@ -37,7 +37,7 @@ function SignupChart({ rows }) {
               title={`${m.count} signups`}
             />
           </div>
-          <span className="text-xs text-gray-500">{m.label}</span>
+          <span className="text-caption text-gray-500">{m.label}</span>
         </div>
       ))}
     </div>
@@ -57,7 +57,7 @@ function PlanMix({ breakdown, total }) {
       </div>
       <ul className="mt-4 space-y-2.5">
         {PLAN_ORDER.map((p) => (
-          <li key={p} className="flex items-center justify-between text-sm">
+          <li key={p} className="flex items-center justify-between text-body-sm">
             <Link to={`/organizations?plan=${p}`} className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
               <span className={`h-2 w-2 rounded-full ${PLAN_BAR[p]}`} />
               {PLAN_LABELS[p]}
@@ -74,8 +74,8 @@ function AttentionRow({ to, title, detail, badge }) {
   return (
     <Link to={to} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-gray-50">
       <span className="min-w-0">
-        <span className="block truncate text-sm font-medium text-gray-900">{title}</span>
-        <span className="block truncate text-xs text-gray-500">{detail}</span>
+        <span className="block truncate text-body-sm font-medium text-gray-900">{title}</span>
+        <span className="block truncate text-caption text-gray-500">{detail}</span>
       </span>
       {badge}
     </Link>
@@ -163,7 +163,7 @@ export default function DashboardPage() {
           padded={false}
         >
           {attentionCount === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-gray-500">Nothing needs attention right now.</p>
+            <p className="px-5 py-8 text-center text-body-sm text-gray-500">Nothing needs attention right now.</p>
           ) : (
             <div className="divide-y divide-gray-100">
               {atRisk.map((org) => (
@@ -172,7 +172,7 @@ export default function DashboardPage() {
                   to={`/organizations/${org._id}`}
                   title={org.name}
                   detail={`Health score ${org.health?.score != null ? org.health.score : 0}/100 · ${org.health?.reasons?.[0] || 'At risk of churn'}`}
-                  badge={<span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">At risk</span>}
+                  badge={<span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-caption font-medium text-red-700">At risk</span>}
                 />
               ))}
               {attention.overdueInvoices.map((inv) => (
@@ -181,7 +181,7 @@ export default function DashboardPage() {
                   to={`/organizations/${inv.organization?._id}?tab=billing`}
                   title={inv.organization?.name || 'Organization'}
                   detail={`Invoice ${formatMoney(inv.amount, inv.currency)} was due ${relativeDays(inv.dueAt)}`}
-                  badge={<span className="shrink-0 text-xs font-medium text-red-600">Overdue</span>}
+                  badge={<span className="shrink-0 text-caption font-medium text-red-600">Overdue</span>}
                 />
               ))}
               {attention.trialsEnding.map((org) => (
@@ -190,7 +190,7 @@ export default function DashboardPage() {
                   to={`/organizations/${org._id}`}
                   title={org.name}
                   detail={`Trial ends ${relativeDays(org.trialEndsAt)} · last active ${timeAgo(org.lastActiveAt)}`}
-                  badge={<span className="shrink-0 text-xs font-medium text-amber-600">Trial ending</span>}
+                  badge={<span className="shrink-0 text-caption font-medium text-amber-600">Trial ending</span>}
                 />
               ))}
               {overdueTickets.map((tk) => (
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                   to={`/support/${tk._id}`}
                   title={`#${tk.number} ${tk.subject}`}
                   detail={`${tk.organization?.name || 'Organization'} · first reply was due ${relativeDays(tk.dueAt)}`}
-                  badge={<span className="shrink-0 text-xs font-medium text-red-600">Reply overdue</span>}
+                  badge={<span className="shrink-0 text-caption font-medium text-red-600">Reply overdue</span>}
                 />
               ))}
               {attention.lockedOrgs.map((org) => (
@@ -208,28 +208,28 @@ export default function DashboardPage() {
                   to={`/organizations/${org._id}`}
                   title={org.name}
                   detail={org.lockedReason || 'Locked'}
-                  badge={<span className="shrink-0 text-xs font-medium text-red-600">Locked</span>}
+                  badge={<span className="shrink-0 text-caption font-medium text-red-600">Locked</span>}
                 />
               ))}
             </div>
           )}
         </Card>
 
-        <Card title="Recent signups" padded={false} actions={<Link to="/users" className="text-sm font-medium text-blue-600 hover:text-blue-700">View all</Link>}>
+        <Card title="Recent signups" padded={false} actions={<Link to="/users" className="text-body-sm font-medium text-blue-600 hover:text-blue-700">View all</Link>}>
           {data.recentSignups.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-gray-500">No signups yet.</p>
+            <p className="px-5 py-8 text-center text-body-sm text-gray-500">No signups yet.</p>
           ) : (
             <div className="divide-y divide-gray-100">
               {data.recentSignups.map((u) => (
                 <Link key={u._id} to={`/users/${u._id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50">
                   <Avatar name={u.name} size="sm" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-gray-900">{u.name}</span>
-                    <span className="block truncate text-xs text-gray-500">{u.organization?.name || u.email}</span>
+                    <span className="block truncate text-body-sm font-medium text-gray-900">{u.name}</span>
+                    <span className="block truncate text-caption text-gray-500">{u.organization?.name || u.email}</span>
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
                     {u.organization?.plan && <PlanBadge plan={u.organization.plan} />}
-                    <span className="text-xs text-gray-400">{timeAgo(u.createdAt)}</span>
+                    <span className="text-caption text-gray-400">{timeAgo(u.createdAt)}</span>
                   </span>
                 </Link>
               ))}
@@ -237,20 +237,20 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        <Card title="Admin actions" padded={false} actions={<Link to="/audit" className="text-sm font-medium text-blue-600 hover:text-blue-700">View log</Link>}>
+        <Card title="Admin actions" padded={false} actions={<Link to="/audit" className="text-body-sm font-medium text-blue-600 hover:text-blue-700">View log</Link>}>
           {data.recentAdminActions.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-gray-500">Plan changes, trial extensions, locks and refunds show up here.</p>
+            <p className="px-5 py-8 text-center text-body-sm text-gray-500">Plan changes, trial extensions, locks and refunds show up here.</p>
           ) : (
             <div className="divide-y divide-gray-100">
               {data.recentAdminActions.map((a) => (
                 <div key={a._id} className="px-5 py-3">
-                  <p className="text-sm text-gray-700">
+                  <p className="text-body-sm text-gray-700">
                     <span className="font-medium text-gray-900">{actorName(a, 'Admin')}</span> {describeAction(a)}
                     {a.organization && (
                       <> · <Link to={`/organizations/${a.organization._id}`} className="font-medium text-gray-900 hover:text-blue-700">{a.organization.name}</Link></>
                     )}
                   </p>
-                  <p className="mt-0.5 text-xs text-gray-400">{timeAgo(a.createdAt)}</p>
+                  <p className="mt-0.5 text-caption text-gray-400">{timeAgo(a.createdAt)}</p>
                 </div>
               ))}
             </div>
@@ -267,16 +267,16 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
               {data.activationFunnel.steps.map((step, idx) => (
                 <div key={step.key} className="relative rounded-lg border border-gray-100 bg-gray-50 p-4">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  <div className="text-overline text-gray-400">
                     Step {idx + 1}
                   </div>
-                  <div className="mt-1 text-sm font-medium text-gray-900 truncate" title={step.label}>
+                  <div className="mt-1 text-body-sm font-medium text-gray-900 truncate" title={step.label}>
                     {step.label}
                   </div>
-                  <div className="mt-2 text-2xl font-bold text-gray-900">
+                  <div className="mt-2 text-h3 font-semibold text-gray-900">
                     {step.count}
                   </div>
-                  <div className="mt-1 flex items-center text-xs font-medium text-gray-500">
+                  <div className="mt-1 flex items-center text-caption font-medium text-gray-500">
                     <span className="font-semibold text-blue-600">{step.conversionRate}%</span>
                     <span className="ml-1 text-gray-400">conversion</span>
                   </div>
