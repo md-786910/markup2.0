@@ -4,7 +4,7 @@ const projectAccess = require('../middleware/projectAccess');
 const { requireAccess } = projectAccess;
 const { canCreateProject } = require('../middleware/workspaceAccess');
 const { enforceStorageQuota } = require('../utils/storage');
-const { checkOrgNotLocked, checkProjectLimit, checkMemberLimit, checkGuestLimit, checkActivityLogsLimit, checkShareLinksAllowed, checkApprovalsLimit } = require('../middleware/orgLimits');
+const { checkOrgNotLocked, checkProjectLimit, checkMemberLimit, checkGuestLimit, checkActivityLogsLimit, checkShareLinksAllowed, checkDeadlinesLimit } = require('../middleware/orgLimits');
 const uploadDocument = require('../middleware/uploadDocument');
 const {
   createProject,
@@ -23,8 +23,6 @@ const {
   disableShare,
   updateProjectEmailNotifications,
   updateReviewSettings,
-  recordMemberDecision,
-  getApprovals,
 } = require('../controllers/project.controller');
 
 router.use(auth);
@@ -45,8 +43,6 @@ router.get('/:projectId/activity', projectAccess, checkActivityLogsLimit, getAct
 router.post('/:projectId/share', projectAccess, requireAccess('manage'), checkOrgNotLocked, checkShareLinksAllowed, enableShare);
 router.patch('/:projectId/share', projectAccess, requireAccess('manage'), checkOrgNotLocked, updateShare);
 router.delete('/:projectId/share', projectAccess, requireAccess('manage'), disableShare);
-router.patch('/:projectId/review', projectAccess, requireAccess('manage'), checkOrgNotLocked, checkApprovalsLimit, updateReviewSettings);
-router.post('/:projectId/decision', projectAccess, requireAccess('comment'), checkOrgNotLocked, checkApprovalsLimit, recordMemberDecision);
-router.get('/:projectId/approvals', projectAccess, requireAccess('manage'), getApprovals);
+router.patch('/:projectId/review', projectAccess, requireAccess('manage'), checkOrgNotLocked, checkDeadlinesLimit, updateReviewSettings);
 
 module.exports = router;

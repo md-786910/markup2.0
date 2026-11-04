@@ -185,15 +185,15 @@ const checkVersionHistoryLimit = asyncHandler(async (req, res, next) => {
 });
 
 /**
- * Block approvals configuration if plan does not allow it.
+ * Block feedback-deadline settings if the plan does not include them.
  */
-const checkApprovalsLimit = asyncHandler(async (req, res, next) => {
+const checkDeadlinesLimit = asyncHandler(async (req, res, next) => {
   const org = req.organization;
   if (!org) return next();
 
-  if (org.limits.hasApprovals === false) {
+  if (org.limits.hasDeadlines === false) {
     return res.status(403).json({
-      message: 'Client approvals are not available on your current plan. Upgrade your plan to enable client approvals.',
+      message: 'Feedback deadlines are not available on your current plan. Upgrade your plan to set a feedback deadline.',
       code: 'FEATURE_NOT_AVAILABLE',
     });
   }
@@ -211,5 +211,5 @@ module.exports = {
   checkIntegrationsLimit,
   checkActivityLogsLimit,
   checkVersionHistoryLimit,
-  checkApprovalsLimit,
+  checkDeadlinesLimit,
 };

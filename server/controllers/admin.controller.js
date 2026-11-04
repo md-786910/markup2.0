@@ -670,8 +670,8 @@ exports.updatePlan = asyncHandler(async (req, res) => {
   if (b.hasVersionHistory !== undefined) {
     $set['limits.hasVersionHistory'] = !!b.hasVersionHistory;
   }
-  if (b.hasApprovals !== undefined) {
-    $set['limits.hasApprovals'] = !!b.hasApprovals;
+  if (b.hasDeadlines !== undefined) {
+    $set['limits.hasDeadlines'] = !!b.hasDeadlines;
   }
 
   // Support channel SLA overrides

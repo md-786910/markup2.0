@@ -20,7 +20,7 @@ const planConfigSchema = new mongoose.Schema({
     hasIntegrations: { type: Boolean, default: null },
     hasActivityLogs: { type: Boolean, default: null },
     hasVersionHistory: { type: Boolean, default: null },
-    hasApprovals: { type: Boolean, default: null },
+    hasDeadlines: { type: Boolean, default: null },
   },
   // Support channel SLA overrides (Phase 6)
   support: {

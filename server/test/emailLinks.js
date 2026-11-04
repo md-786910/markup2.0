@@ -145,13 +145,6 @@ function verifyMail(mail, externalOk = []) {
   if (replyMail) verifyMail(replyMail);
   const replyLink = replyMail && linksOf(replyMail).find((l) => l.includes('support='));
   check('reply link opens the request in the app', !!replyLink && new URL(replyLink).pathname === '/dashboard' && new URL(replyLink).searchParams.get('support') === String(ticketId));
-  // 7. A client signs off → the project's managers get an email that opens the project
-  r('utils/reviewNotify').notifyReviewDecision({ project, actorName: 'Grace Guest', decision: 'approved', note: 'Ship it', openPinsAtDecision: 0 });
-  await wait(800);
-  const decision = take().find((m) => m.to === 'owner@links.test' && /approved/i.test(m.subject));
-  check('review decision email sent to the project manager', !!decision);
-  if (decision) verifyMail(decision);
-  check('review decision email opens the project', !!decision && linksOf(decision).some((l) => l === `${ENVS[MODE].APP_URL}/project/${project._id}`));
 
   // 8. Feedback deadline in 24 h → members open the project, guests the review link
   await Project.updateOne({ _id: project._id }, { $set: { 'review.deadlineAt': new Date(Date.now() + 6 * 3600e3), shareSettings: { enabled: true, token: 'linksreviewtoken', allowComments: true } } });

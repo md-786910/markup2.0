@@ -171,6 +171,10 @@ connectDB()
     require("./utils/migrateAdmins").migrateLegacyAdmins().catch((err) =>
       console.error("[admins] moving legacy admin accounts failed:", err),
     );
+    // Client approvals were removed: their plan switch is now hasDeadlines
+    require("./utils/migrateDeadlineFlag").migrateDeadlineFlag().catch((err) =>
+      console.error("[migrate] hasApprovals -> hasDeadlines failed:", err),
+    );
 
     // Background jobs: email batches (Redis only) and daily billing/trials
     startEmailWorker();

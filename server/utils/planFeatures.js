@@ -44,9 +44,9 @@ function derivePlanFeatures(plan, extraFeatures = []) {
     }
   }
 
-  // 6. Client approvals & deadlines
-  if (limits.hasApprovals) {
-    bullets.push('Client approvals & feedback deadlines');
+  // 6. Feedback deadlines
+  if (limits.hasDeadlines) {
+    bullets.push('Feedback deadlines');
   }
 
   // 6b. Task workflow & Kanban board

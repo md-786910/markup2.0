@@ -35,7 +35,7 @@ const organizationSchema = new mongoose.Schema({
     hasIntegrations: { type: Boolean, default: false },
     hasActivityLogs: { type: Boolean, default: false },
     hasVersionHistory: { type: Boolean, default: false },
-    hasApprovals: { type: Boolean, default: false },
+    hasDeadlines: { type: Boolean, default: false },
   },
   trialDays: {
     type: Number,
@@ -102,7 +102,7 @@ const organizationSchema = new mongoose.Schema({
     hasIntegrations: { type: Boolean },
     hasActivityLogs: { type: Boolean },
     hasVersionHistory: { type: Boolean },
-    hasApprovals: { type: Boolean },
+    hasDeadlines: { type: Boolean },
     // Support channels (config/plans.js getSupportForOrg); unset keys use the plan's
     supportTickets: { type: Boolean },
     supportChat: { type: Boolean },

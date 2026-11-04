@@ -100,9 +100,6 @@ async function sendSupportTicketToTeam(toEmail, data) {
 }
 
 // Review decisions (client sign-off) to the project's managers
-async function sendReviewDecisionEmail(toEmail, data) {
-  await send(toEmail, templates.reviewDecision(data), { notification: true });
-}
 
 // Feedback deadline in 24 h (members and guest reviewers)
 async function sendDeadlineReminderEmail(toEmail, data) {
@@ -177,7 +174,6 @@ module.exports = {
   sendSupportTicketToTeam,
   sendSupportReplyEmail,
   sendAdminAlertEmail,
-  sendReviewDecisionEmail,
   sendDeadlineReminderEmail,
   sendInvitationEmail,
   sendPinNotificationEmail,

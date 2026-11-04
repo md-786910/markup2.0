@@ -13,14 +13,12 @@ const ACTION_MESSAGES = {
   'comment.created': (d) => `${d.actorName} commented on pin #${d.pinNumber} in **${d.projectName}**`,
   'pin.resolved': (d) => `Pin #${d.pinNumber} resolved in **${d.projectName}** by ${d.actorName}`,
   'pin.reopened': (d) => `Pin #${d.pinNumber} reopened in **${d.projectName}** by ${d.actorName}`,
-  'review.decision': (d) => `${d.actorName} ${d.decision === 'approved' ? 'approved' : 'requested changes on'} the review round of **${d.projectName}**`,
 };
 
 const ACTION_COLORS = {
   'pin.created': 'accent',
   'comment.created': 'accent',
   'pin.resolved': 'good',
-  'review.decision': 'good',
   'pin.reopened': 'warning',
 };
 

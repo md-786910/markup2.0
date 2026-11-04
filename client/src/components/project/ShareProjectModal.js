@@ -19,8 +19,6 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
   const [allowComments, setAllowComments] = useState(true);
   const [captureConsoleErrors, setCaptureConsoleErrors] = useState(true);
   const [guestConsoleCapture, setGuestConsoleCapture] = useState(false);
-  const [approvalsEnabled, setApprovalsEnabled] = useState(true);
-  const [requireAllResolved, setRequireAllResolved] = useState(false);
   const [deadlineAt, setDeadlineAt] = useState('');
   const [deadlineMessage, setDeadlineMessage] = useState('');
   const [shareUrl, setShareUrl] = useState('');
@@ -42,8 +40,6 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
       setGuestConsoleCapture(!!project.settings.guestConsoleCapture);
     }
     if (project?.review) {
-      setApprovalsEnabled(project.review.approvalsEnabled !== false);
-      setRequireAllResolved(!!project.review.requireAllResolved);
       setDeadlineAt(project.review.deadlineAt ? toLocalInputValue(project.review.deadlineAt) : '');
       setDeadlineMessage(project.review.deadlineMessage || '');
     }
@@ -97,8 +93,6 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
         },
       });
       const reviewRes = await updateReviewSettingsApi(project._id, {
-        approvalsEnabled,
-        requireAllResolved,
         deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : null,
         deadlineMessage,
       });
@@ -242,40 +236,8 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
 
             <div className="pt-2 border-t border-gray-100">
               <span className="text-overline text-gray-400 block mb-3">
-                Review & Approvals Policy
+                Review policy
               </span>
-
-              {/* Approvals enabled toggle */}
-              <label className="flex items-center justify-between cursor-pointer mb-3">
-                <div>
-                  <p className="text-body-sm font-medium text-gray-700">Enable client sign-off</p>
-                  <p className="text-caption text-gray-400">Reviewers can formally approve or request changes</p>
-                </div>
-                <div
-                  className={`relative w-11 h-6 rounded-full transition-colors ${approvalsEnabled ? 'bg-blue-600' : 'bg-gray-200'}`}
-                  onClick={() => setApprovalsEnabled(!approvalsEnabled)}
-                >
-                  <div
-                    className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${approvalsEnabled ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
-                  />
-                </div>
-              </label>
-
-              {/* Require all resolved toggle */}
-              <label className="flex items-center justify-between cursor-pointer mb-3">
-                <div>
-                  <p className="text-body-sm font-medium text-gray-700">Require all pins resolved</p>
-                  <p className="text-caption text-gray-400">Approval is locked until all pins are marked resolved</p>
-                </div>
-                <div
-                  className={`relative w-11 h-6 rounded-full transition-colors ${requireAllResolved ? 'bg-blue-600' : 'bg-gray-200'}`}
-                  onClick={() => setRequireAllResolved(!requireAllResolved)}
-                >
-                  <div
-                    className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${requireAllResolved ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
-                  />
-                </div>
-              </label>
 
               {/* Feedback deadline */}
               <div className="space-y-1.5 mb-3">

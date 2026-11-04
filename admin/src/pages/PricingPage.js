@@ -27,7 +27,7 @@ function emptyForm() {
     hasIntegrations: false,
     hasActivityLogs: false,
     hasVersionHistory: false,
-    hasApprovals: false,
+    hasDeadlines: false,
     support: {
       tickets: true,
       chat: false,
@@ -100,7 +100,7 @@ export default function PricingPage() {
       hasIntegrations: !!plan.limits?.hasIntegrations,
       hasActivityLogs: !!plan.limits?.hasActivityLogs,
       hasVersionHistory: !!plan.limits?.hasVersionHistory,
-      hasApprovals: !!plan.limits?.hasApprovals,
+      hasDeadlines: !!plan.limits?.hasDeadlines,
       support: {
         tickets: plan.support?.tickets !== false,
         chat: !!plan.support?.chat,
@@ -165,7 +165,7 @@ export default function PricingPage() {
         hasIntegrations: form.hasIntegrations,
         hasActivityLogs: form.hasActivityLogs,
         hasVersionHistory: form.hasVersionHistory,
-        hasApprovals: form.hasApprovals,
+        hasDeadlines: form.hasDeadlines,
       };
 
       // Check usage impact first if not explicitly confirmed
@@ -522,11 +522,11 @@ export default function PricingPage() {
 
               <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
                 <div>
-                  <p className="text-body-sm font-medium text-gray-900">Client Approvals & Sign-off</p>
-                  <p className="text-caption text-gray-500">Allow review rounds, sign-offs, and feedback deadlines.</p>
+                  <p className="text-body-sm font-medium text-gray-900">Feedback deadlines</p>
+                  <p className="text-caption text-gray-500">Let teams close a review on a set date.</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" checked={form.hasApprovals} onChange={(e) => updateField('hasApprovals', e.target.checked)} className="sr-only peer" />
+                  <input type="checkbox" checked={form.hasDeadlines} onChange={(e) => updateField('hasDeadlines', e.target.checked)} className="sr-only peer" />
                   <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:border-gray-300 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
                 </label>
               </div>

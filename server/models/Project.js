@@ -81,8 +81,6 @@ const projectSchema = new Schema({
     guestConsoleCapture: { type: Boolean, default: false },
   },
   review: {
-    approvalsEnabled: { type: Boolean, default: true },
-    requireAllResolved: { type: Boolean, default: false },
     deadlineAt: { type: Date, default: null },
     deadlineMessage: { type: String, default: '' },
     // The deadline the 24 h reminder was sent for (a new deadline gets a new one)

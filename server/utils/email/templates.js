@@ -572,36 +572,6 @@ function trialExpired({ orgName, planUrl }) {
   };
 }
 
-function reviewDecision({ actorName, projectName, decision, note, openPins, projectUrl }) {
-  const approved = decision === 'approved';
-  const actionText = approved ? 'approved' : 'requested changes on';
-  const subject = `[${projectName}] Review round ${approved ? 'approved' : 'changes requested'} by ${actorName}`;
-  return {
-    subject,
-    ...renderEmail({
-      preheader: `${actorName} ${actionText} ${projectName}.`,
-      eyebrow: 'Client review',
-      tone: approved ? 'brand' : 'warning',
-      title: approved ? 'Review round approved' : 'Changes requested',
-      blocks: [
-        {
-          type: 'p',
-          text: `**${actorName}** ${approved ? 'approved' : 'requested changes on'} the review round for **${projectName}**.`,
-        },
-        note ? { type: 'callout', tone: 'neutral', text: note } : null,
-        {
-          type: 'note',
-          text: `Snapshot at decision: **${openPins || 0}** open ${plural(openPins || 0, 'pin')}.`,
-        },
-        { type: 'button', label: 'Open the project', url: projectUrl },
-      ].filter(Boolean),
-      ...projectFooter(projectName),
-    }),
-  };
-}
-
-// Feedback deadline in 24 h: to the project's members and to guest reviewers
-// who commented (they get the review link, members the project)
 function deadlineReminder({ projectName, deadlineAt, url, forGuest = false, deadlineMessage = '' }) {
   const when = new Date(deadlineAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' });
   return {
@@ -653,7 +623,6 @@ module.exports = {
   comment,
   mention,
   pinStatus,
-  reviewDecision,
   digest,
   passwordReset,
   adminInvite,

@@ -82,9 +82,9 @@
       "path": "/use-cases",
       "title": "Kommently Use Cases | Visual Review for Agencies, Product, and Web Teams",
       "description": "See how agencies, product teams, and web operations teams use Kommently to collect clearer feedback, reduce revision loops, and speed up approval cycles.",
-      "keywords": "customer review workflow, agency feedback software, product team review, client approval tool",
+      "keywords": "customer review workflow, agency feedback software, product team review, client feedback tool",
       "h1": "Review workflows that feel clear to every stakeholder.",
-      "summary": "Use Kommently to keep client approvals, QA notes, and web launch reviews clear across every stakeholder group.",
+      "summary": "Use Kommently to keep client feedback, QA notes, and web launch reviews clear across every stakeholder group.",
       "changefreq": "monthly",
       "priority": 0.8,
       "schema": [

@@ -39,6 +39,8 @@ const activitySchema = new Schema({
       'member.invited', 'member.joined', 'member.removed', 'member.role_changed',
       'share.enabled', 'share.disabled',
       'guest.commented', 'guest.pin_created',
+      // review.approved / review.changes_requested: client approvals were removed;
+      // kept so older activity entries stay valid
       'review.approved', 'review.changes_requested', 'review.deadline_set',
       // Org-scoped events
       'org.name_updated', 'org.logo_updated',

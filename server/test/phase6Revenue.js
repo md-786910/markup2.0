@@ -50,7 +50,7 @@ function check(name, cond, extra = '') {
         maxMembers: 5,
         maxGuests: 999,
         maxStorageMB: 10240, // 10 GB
-        hasApprovals: true,
+        hasDeadlines: true,
         hasIntegrations: true,
         hasActivityLogs: true,
         hasVersionHistory: true,
@@ -66,7 +66,7 @@ function check(name, cond, extra = '') {
     check('Derives unlimited projects', bullets.includes('Unlimited projects'));
     check('Derives workspaces correctly', bullets.includes('10 workspaces'));
     check('Derives 10 GB storage correctly', bullets.includes('10 GB storage'));
-    check('Derives client approvals feature', bullets.includes('Client approvals & feedback deadlines'));
+    check('Derives feedback deadlines feature', bullets.includes('Feedback deadlines'));
     check('Derives integrations feature', bullets.includes('Slack, Jira, Discord & Teams integrations'));
     check('Derives activity log & version history', bullets.includes('Activity log & version history'));
     check('Derives priority support & chat', bullets.includes('Priority support and live chat'));
@@ -80,7 +80,7 @@ function check(name, cond, extra = '') {
         maxProjects: 20,
         maxWorkspaces: 3,
         maxStorageMB: 2048,
-        hasApprovals: true,
+        hasDeadlines: true,
       },
       support: {
         tickets: true,
@@ -94,7 +94,7 @@ function check(name, cond, extra = '') {
     const mergedPlans = await getPlansWithOverrides();
     check('Starter maxWorkspaces overridden to 3', mergedPlans.starter.limits.maxWorkspaces === 3);
     check('Starter maxStorageMB overridden to 2048', mergedPlans.starter.limits.maxStorageMB === 2048);
-    check('Starter hasApprovals overridden to true', mergedPlans.starter.limits.hasApprovals === true);
+    check('Starter hasDeadlines overridden to true', mergedPlans.starter.limits.hasDeadlines === true);
 
     const mergedStarterLimits = await getLimitsForPlanAsync('starter');
     check('getLimitsForPlanAsync starter maxWorkspaces is 3', mergedStarterLimits.maxWorkspaces === 3);

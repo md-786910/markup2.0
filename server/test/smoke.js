@@ -997,50 +997,34 @@ function check(name, cond, extra = '') {
     clearPlanCache();
   }
 
-  // --- Launch fixes: approvals and feedback deadlines over the real API
+  // --- Feedback deadlines over the real API (client approvals were removed)
   {
-    const Approval = r('models/Approval');
-    const Version = r('models/Version');
     const revOwner = await mkUser('revowner', 'owner');
     const revMember = await mkUser('revmember', 'member');
     const revOrg = await Organization.create({ name: 'Review Co', slug: 'review-co-e2e', owner: revOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() + 9e8) });
     for (const u of [revOwner, revMember]) { u.organization = revOrg._id; await u.save({ validateBeforeSave: false }); }
     const revProject = await Project.create({ name: 'Review site', projectType: 'website', websiteUrl: 'https://example.com', owner: revOwner._id, organization: revOrg._id, members: [revOwner._id, revMember._id], shareSettings: { enabled: true, token: 'sharetokenReview', allowComments: true } });
     const revPin = await Pin.create({ project: revProject._id, pageUrl: 'https://example.com/', xPercent: 1, yPercent: 1, pinNumber: 1, createdBy: revMember._id });
-    // A saved version tags that pin; a newer pin stays untagged (the next round)
-    await Version.create({ project: revProject._id, versionNumber: 1, name: 'Round 1', createdBy: revOwner._id }).catch(() => {});
-    await Pin.updateOne({ _id: revPin._id }, { $set: { status: 'resolved' } });
-    await Pin.create({ project: revProject._id, pageUrl: 'https://example.com/', xPercent: 2, yPercent: 2, pinNumber: 2, createdBy: revMember._id, version: null });
-    const ga = (await call('GET', '/api/guest/sharetokenReview')).data?.guestAccessToken;
-    const gHeaders = ga ? { 'X-Guest-Access': ga } : {};
-    const decide = (body) => call('POST', '/api/guest/sharetokenReview/decision', { headers: gHeaders, body: { name: 'Grace', email: 'grace@client.test', ...body } });
 
-    await call('PATCH', `/api/projects/${revProject._id}/review`, { user: revOwner, body: { requireAllResolved: true } });
-    const blocked = await decide({ decision: 'approved' });
-    check('"require all resolved" counts pins posted after the last version', blocked.status === 400 && blocked.data?.code === 'PINS_NOT_RESOLVED', `${blocked.status} ${blocked.data?.code}`);
-    await call('PATCH', `/api/projects/${revProject._id}/review`, { user: revOwner, body: { requireAllResolved: false } });
-    const first = await decide({ decision: 'changes_requested', note: 'Fix the header' });
-    const second = await decide({ decision: 'approved', note: 'All good now' });
-    check('a guest can sign off on the review link', first.status === 201 && second.status === 201, `${first.status} ${second.status}`);
-    const records = await Approval.find({ project: revProject._id }).sort({ createdAt: 1 }).lean();
-    check('every decision is kept as its own dated record', records.length === 2 && records[0].decision === 'changes_requested' && records[1].decision === 'approved' && records[0].note === 'Fix the header');
-    check('open pins at the decision include the newer pin', records[1].openPinsAtDecision === 1, String(records[1].openPinsAtDecision));
-    await new Promise((res) => setTimeout(res, 300));
-    const decisionMails = sentMailArgs.filter((m) => m.name === 'sendReviewDecisionEmail' && m.args?.[0]?.projectName === 'Review site');
-    check('the decision is emailed to the project managers only', decisionMails.length >= 2 && decisionMails.every((m) => m.to === 'revowner@e2e.test'), decisionMails.map((m) => m.to).join(','));
+    // The approval endpoints are gone
+    check('the guest decision endpoint no longer exists', (await call('POST', '/api/guest/sharetokenReview/decision', { body: { decision: 'approved', name: 'Grace' } })).status === 404);
+    check('the member decision endpoint no longer exists', (await call('POST', `/api/projects/${revProject._id}/decision`, { user: revOwner, body: { decision: 'approved' } })).status === 404);
+    check('the approvals history endpoint no longer exists', (await call('GET', `/api/projects/${revProject._id}/approvals`, { user: revOwner })).status === 404);
+    const guestView = (await call('GET', '/api/guest/sharetokenReview')).data?.project?.review || {};
+    check('the review page gets no approval settings', guestView.approvalsEnabled === undefined && guestView.requireAllResolved === undefined, JSON.stringify(guestView));
 
     // Deadline passed: comment-level members are refused, managers can still reply
-    await call('PATCH', `/api/projects/${revProject._id}/review`, { user: revOwner, body: { deadlineAt: new Date(Date.now() - 60e3).toISOString() } });
+    const setDeadline = await call('PATCH', `/api/projects/${revProject._id}/review`, { user: revOwner, body: { deadlineAt: new Date(Date.now() - 60e3).toISOString() } });
+    check('a manager can set a feedback deadline', setDeadline.status === 200 && !!setDeadline.data?.review?.deadlineAt, setDeadline.status);
     const memberReply = await call('POST', `/api/pins/${revPin._id}/comments`, { user: revMember, body: { body: '<p>One more thing</p>' } });
     check('after the deadline a comment-level member is refused', memberReply.status === 423 && memberReply.data?.code === 'FEEDBACK_CLOSED', memberReply.status);
     const managerReply = await call('POST', `/api/pins/${revPin._id}/comments`, { user: revOwner, body: { body: '<p>Thanks, on it</p>' } });
     check('after the deadline a manager can still reply', managerReply.status === 201, `${managerReply.status} ${managerReply.data?.code || ''}`);
-    check('after the deadline guests cannot decide', (await decide({ decision: 'approved' })).status === 423);
+
+    // Deadlines are a paid feature (hasDeadlines)
     await Organization.updateOne({ _id: revOrg._id }, { $set: { plan: 'free' } });
-    const onFree = await decide({ decision: 'approved' });
-    check('on a plan without approvals a guest cannot decide', onFree.status === 403 && onFree.data?.code === 'FEATURE_NOT_AVAILABLE', onFree.status);
-    check('on a plan without approvals the review page hides the decision bar', (await call('GET', '/api/guest/sharetokenReview')).data?.project?.review?.approvalsEnabled === false);
-    check('on a plan without approvals a member cannot decide', (await call('POST', `/api/projects/${revProject._id}/decision`, { user: revOwner, body: { decision: 'approved' } })).status === 403);
+    const onFree = await call('PATCH', `/api/projects/${revProject._id}/review`, { user: revOwner, body: { deadlineAt: null } });
+    check('on a plan without deadlines the deadline cannot be changed', onFree.status === 403 && onFree.data?.code === 'FEATURE_NOT_AVAILABLE', onFree.status);
   }
 
   // --- Launch fixes: customer health counts only invoices that are really overdue
@@ -1138,16 +1122,14 @@ function check(name, cond, extra = '') {
       await fetch(`${base}/api/email/unsubscribe?token=${encodeURIComponent(tok)}`, { method: 'POST' });
       check('a guest who unsubscribes is remembered', !!(await EmailOptOut.exists({ email: 'newguest@client.test' })));
     }
-    // A sign-off then a new pin: back in review; changes requested has its own status
+    // An approved project (status set by hand) goes back in review on new feedback
     await Project.updateOne({ _id: dProject._id }, { $set: { projectStatus: 'approved', 'review.deadlineAt': null } });
     const ga = (await call('GET', '/api/guest/sharetokenDeadline')).data?.guestAccessToken;
     await call('POST', '/api/guest/sharetokenDeadline/pins', { headers: ga ? { 'X-Guest-Access': ga } : {}, body: { guestName: 'Gina', guestEmail: 'gina@client.test', pageUrl: 'https://example.com/', xPercent: 3, yPercent: 3 } });
     check('new feedback on an approved project puts it back in review', (await Project.findById(dProject._id).lean()).projectStatus === 'in_review');
-    const changes = await call('POST', '/api/guest/sharetokenDeadline/decision', { headers: ga ? { 'X-Guest-Access': ga } : {}, body: { name: 'Gina', email: 'gina@client.test', decision: 'changes_requested' } });
-    check('"changes requested" is its own project status', changes.data?.projectStatus === 'changes_requested' && (await Project.findById(dProject._id).lean()).projectStatus === 'changes_requested', changes.status);
   }
 
-  // --- Launch fixes: site notice, error-spike alert, workspace decisions, person analytics
+  // --- Launch fixes: site notice, error-spike alert, workspace review page, person analytics
   {
     check('a site notice link must be a web address or an app path', (await adminCall('PATCH', '/api/admin/site-notice', { body: { link: 'javascript:alert(1)' } })).status === 400);
     check('a site notice needs valid dates', (await adminCall('PATCH', '/api/admin/site-notice', { body: { startsAt: 'soon' } })).status === 400);
@@ -1171,17 +1153,16 @@ function check(name, cond, extra = '') {
     delete process.env.ADMIN_ALERTS_EMAIL;
     resetErrorSpike();
 
-    // Workspace review page shows each project's latest decision
+    // Workspace review page lists the workspace's projects
     const Workspace = r('models/Workspace');
     const wOwner = await mkUser('wsdecisionowner', 'owner');
     const wOrg = await Organization.create({ name: 'WS Decision Co', slug: 'ws-decision-e2e', owner: wOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() + 9e8) });
     wOwner.organization = wOrg._id; await wOwner.save({ validateBeforeSave: false });
     const ws = await Workspace.create({ name: 'Client A', organization: wOrg._id, shareSettings: { enabled: true, token: 'abcdef0123456789abcdef01', allowComments: true } });
     const wp = await Project.create({ name: 'Client A site', projectType: 'website', websiteUrl: 'https://example.com', owner: wOwner._id, organization: wOrg._id, members: [wOwner._id], workspace: ws._id });
-    await r('models/Approval').create({ project: wp._id, organization: wOrg._id, decision: 'approved', reviewer: { guestName: 'Clara', guestEmail: 'clara@client.test' }, openPinsAtDecision: 0 });
     const wsPage = await call('GET', '/api/guest/workspace/abcdef0123456789abcdef01');
     const card = wsPage.data?.projects?.find((p) => String(p._id) === String(wp._id));
-    check('the workspace review page shows the latest decision', card?.lastDecision?.decision === 'approved' && card.lastDecision.by === 'Clara' && !JSON.stringify(card).includes('clara@client.test'), JSON.stringify(card?.lastDecision));
+    check('the workspace review page lists the project without a decision', !!card && card.lastDecision === undefined, JSON.stringify(card || {}).slice(0, 120));
 
     const person = await adminCall('GET', `/api/admin/users/${wOwner._id}`);
     check('the admin person page includes product analytics (or why not)', person.status === 200 && person.data?.posthog && typeof person.data.posthog.available === 'boolean');

@@ -72,13 +72,6 @@ export const deleteVersionApi = (projectId, versionId) =>
 export const updateProjectEmailNotificationsApi = (projectId, enabled) =>
   api.patch(`/projects/${projectId}/email-notifications`, { enabled });
 
-export const recordMemberDecisionApi = (projectId, data) =>
-  api.post(`/projects/${projectId}/decision`, data)
-    .then((res) => { track('decision_recorded', { projectId, decision: data?.decision }); return res; });
-
-export const getApprovalsApi = (projectId) =>
-  api.get(`/projects/${projectId}/approvals`);
-
 export const updateReviewSettingsApi = (projectId, data) =>
   api.patch(`/projects/${projectId}/review`, data);
 

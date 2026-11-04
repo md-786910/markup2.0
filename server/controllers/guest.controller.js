@@ -5,19 +5,11 @@ const Project = require('../models/Project');
 const Pin = require('../models/Pin');
 const Comment = require('../models/Comment');
 const Organization = require('../models/Organization');
-const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const { logGuestActivity } = require('../utils/activityLogger');
 const { metric } = require('../instrument');
-const { notifyReviewDecision, publicApproval } = require('../utils/reviewNotify');
-const { getEffectiveLimitsAsync } = require('../config/plans');
 const { captureServerEvent } = require('../utils/posthogCapture');
 
-// Client approvals are a paid feature (hasApprovals): off when the plan lacks it
-async function approvalsOnPlan(orgId) {
-  const org = await Organization.findById(orgId).select('plan limitOverrides trialEndsAt');
-  return !!org && (await getEffectiveLimitsAsync(org)).hasApprovals !== false;
-}
 const { createProjectNotifications } = require('../utils/notificationHelper');
 const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { reserveStorage, discardUploads } = require('../utils/storage');
@@ -159,10 +151,7 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
       documents: project.documents,
       projectStatus: project.projectStatus,
       allowComments: share.allowComments,
-      review: {
-        ...(project.review?.toObject ? project.review.toObject() : project.review || {}),
-        approvalsEnabled: project.review?.approvalsEnabled !== false && (await approvalsOnPlan(project.organization)),
-      },
+      review: project.review?.toObject ? project.review.toObject() : project.review || {},
     },
   });
 });
@@ -201,14 +190,6 @@ exports.getGuestWorkspace = asyncHandler(async (req, res) => {
   ]);
   const openBy = new Map(counts.map((c) => [c._id.toString(), c.open]));
 
-  // The latest decision per project (reviewer's name and date, nothing else)
-  const decisions = await require('../models/Approval').aggregate([
-    { $match: { project: { $in: projects.map((p) => p._id) } } },
-    { $sort: { createdAt: -1 } },
-    { $group: { _id: '$project', decision: { $first: '$decision' }, at: { $first: '$createdAt' }, guestName: { $first: '$reviewer.guestName' }, user: { $first: '$reviewer.user' } } },
-  ]);
-  const userNames = new Map((await User.find({ _id: { $in: decisions.map((d) => d.user).filter(Boolean) } }).select('name').lean()).map((u) => [String(u._id), u.name]));
-  const decisionBy = new Map(decisions.map((d) => [String(d._id), { decision: d.decision, at: d.at, by: d.guestName || userNames.get(String(d.user)) || null }]));
 
   res.json({
     guestAccessToken: hasPassword(share) ? signGuestAccessToken(scope, share) : undefined,
@@ -223,7 +204,6 @@ exports.getGuestWorkspace = asyncHandler(async (req, res) => {
       cover: p.documents?.[0] ? { path: p.documents[0].path, mimetype: p.documents[0].mimetype, name: p.documents[0].originalName, pages: p.documents[0].pageCount || 1 } : null,
       updatedAt: p.updatedAt,
       openPinCount: openBy.get(p._id.toString()) || 0,
-      lastDecision: decisionBy.get(p._id.toString()) || null,
       shareToken: composeWorkspaceToken(workspaceToken, p._id),
     })),
   });
@@ -479,131 +459,4 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
 
   metric('comment.created', { source: 'guest' });
   res.status(201).json({ comment });
-});
-
-/**
- * POST /api/guest/:shareToken/decision
- * Public endpoint — guest approves or requests changes for the current review round.
- */
-exports.recordGuestDecision = asyncHandler(async (req, res) => {
-  const project = await loadSharedProject(req, res, { write: true });
-  if (!project) return;
-
-  if (!req.share.allowComments) {
-    return res.status(403).json({ message: 'Guest commenting is disabled for this project.' });
-  }
-
-  const { decision, note, name, email } = req.body || {};
-  if (!['approved', 'changes_requested'].includes(decision)) {
-    return res.status(400).json({ message: 'Valid decision ("approved" or "changes_requested") is required.' });
-  }
-  if (!name || !email) {
-    return res.status(400).json({ message: 'Reviewer name and email are required.' });
-  }
-
-  // Check if approvals are enabled on this project and included in the plan
-  if (!(await approvalsOnPlan(project.organization))) {
-    return res.status(403).json({ message: 'Client approvals are not available on this plan.', code: 'FEATURE_NOT_AVAILABLE' });
-  }
-  if (project.review?.approvalsEnabled === false) {
-    return res.status(403).json({ message: 'Approvals are not enabled for this project.' });
-  }
-
-  // If deadline is set and passed:
-  if (project.review?.deadlineAt && new Date() > new Date(project.review.deadlineAt)) {
-    return res.status(423).json({
-      code: 'FEEDBACK_CLOSED',
-      message: project.review.deadlineMessage || 'Feedback has closed for this review round.',
-      deadlineAt: project.review.deadlineAt,
-    });
-  }
-
-  const Version = require('../models/Version');
-  const Approval = require('../models/Approval');
-
-  // Find latest version (round). If none, null represents current round.
-  const latestVersion = await Version.findOne({ project: project._id })
-    .sort({ versionNumber: -1 })
-    .select('_id versionNumber');
-  const currentVersionId = latestVersion?._id || null;
-
-  // Every open pin counts, including ones posted since the last saved version
-  // (the review page shows the same number); else "require all resolved" could
-  // be passed while new feedback is still open
-  const openPinsAtDecision = await Pin.countDocuments({ project: project._id, status: { $ne: 'resolved' } });
-
-  if (project.review?.requireAllResolved && decision === 'approved' && openPinsAtDecision > 0) {
-    return res.status(400).json({
-      code: 'PINS_NOT_RESOLVED',
-      message: `All pins must be resolved before this round can be approved (${openPinsAtDecision} open pins remaining).`,
-      openPinsAtDecision,
-    });
-  }
-
-  const cleanEmail = String(email).trim().toLowerCase();
-  const cleanName = String(name).trim().slice(0, 80);
-
-  // Every decision is its own dated record: a later one never rewrites an
-  // earlier sign-off (the history shows them all, newest first)
-  const approval = await Approval.create({
-      project: project._id,
-      organization: project.organization,
-      version: currentVersionId,
-      decision,
-      note: (note || '').slice(0, 2000),
-      reviewer: {
-        user: null,
-        guestName: cleanName,
-        guestEmail: cleanEmail,
-      },
-      openPinsAtDecision,
-      ip: req.ip,
-      userAgent: req.headers['user-agent'] || null,
-    });
-
-  // Project status follows the latest decision
-  const newStatus = decision === 'approved' ? 'approved' : 'changes_requested';
-  await Project.updateOne({ _id: project._id }, { $set: { projectStatus: newStatus } });
-
-  // Log activity
-  logGuestActivity(
-    project._id,
-    cleanName,
-    cleanEmail,
-    decision === 'approved' ? 'review.approved' : 'review.changes_requested',
-    {
-      decision,
-      openPinsAtDecision,
-      round: latestVersion ? `Version ${latestVersion.versionNumber}` : 'Current round',
-    }
-  );
-
-  // In-app notifications to project members
-  createProjectNotifications({
-    io: req.app.get('io'),
-    projectId: project._id,
-    actorGuest: { name: cleanName, email: cleanEmail },
-    type: 'review_decision',
-    metadata: {
-      decision,
-      reviewerName: cleanName,
-      openPinsAtDecision,
-      note: (note || '').slice(0, 200),
-    },
-  }).catch(() => {});
-
-  // Email to the project's managers, and Slack/Teams/Discord
-  notifyReviewDecision({ project, actorName: cleanName, decision, note, openPinsAtDecision });
-
-  // Socket emit (without the reviewer's IP and browser)
-  const io = req.app.get('io');
-  if (io) {
-    io.to(`project:${project._id}`).emit('project:review_decision', {
-      approval: publicApproval(approval),
-      projectStatus: newStatus,
-    });
-  }
-
-  metric('review.decision', { decision, source: 'guest' });
-  res.status(201).json({ approval, projectStatus: newStatus });
 });

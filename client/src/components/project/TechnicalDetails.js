@@ -92,7 +92,7 @@ export default function TechnicalDetails({ context, pageUrl, deviceMode }) {
           role="button"
           tabIndex={0}
           onClick={handleCopyMarkdown}
-          className="text-primary hover:text-primary-dark underline text-caption font-normal"
+          className="text-gray-700 hover:text-gray-900 underline text-caption font-normal"
         >
           Copy Markdown
         </span>

@@ -146,9 +146,6 @@ async function createProjectNotifications({
       } else if (notifType === 'member_removed') {
         const targetDesc = metadata?.targetMemberName || 'a member';
         title = `${actorName} removed ${targetDesc} from ${project.name}`;
-      } else if (notifType === 'review_decision') {
-        const actionWord = metadata?.decision === 'approved' ? 'approved this review round' : 'requested changes on this review round';
-        title = `${actorName} ${actionWord}`;
       } else {
         title = `${actorName} updated project`;
       }

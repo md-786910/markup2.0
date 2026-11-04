@@ -47,7 +47,7 @@ const notificationSchema = new Schema({
       'member_invited',
       'member_removed',
       'support_reply',
-      'review_decision',
+      'review_decision', // client approvals were removed; kept for older notifications
       'pin_assigned',
       'pin_in_review',
       'pin_status_changed',

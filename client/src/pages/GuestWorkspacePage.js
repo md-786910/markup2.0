@@ -185,12 +185,6 @@ export default function GuestWorkspacePage() {
                     ? `${p.documentCount} ${p.documentCount === 1 ? 'file' : 'files'}`
                     : hostOf(p.websiteUrl)}
                 </p>
-                {p.lastDecision && (
-                  <p className={`mt-3 text-caption font-medium ${p.lastDecision.decision === 'approved' ? 'text-emerald-700' : 'text-red-700'}`}>
-                    {p.lastDecision.decision === 'approved' ? 'Approved' : 'Changes requested'}
-                    {p.lastDecision.by ? ` by ${p.lastDecision.by}` : ''}, {new Date(p.lastDecision.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
-                )}
                 <div className="mt-4 flex items-center justify-between text-body-sm">
                   <span className={p.openPinCount ? 'font-medium text-blue-700' : 'text-gray-400'}>
                     {p.openPinCount ? `${p.openPinCount} open ${p.openPinCount === 1 ? 'comment' : 'comments'}` : 'No open comments'}

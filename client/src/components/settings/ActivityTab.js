@@ -173,7 +173,7 @@ function SkeletonRow() {
 const TYPE_OPTIONS = [
   { value: 'project', label: 'Projects', match: (a) => /^(project|version)\./.test(a) },
   { value: 'feedback', label: 'Pins and comments', match: (a) => /^(pin|comment|guest)\./.test(a) },
-  { value: 'review', label: 'Approvals', match: (a) => /^review\./.test(a) },
+  { value: 'review', label: 'Review deadlines', match: (a) => /^review\./.test(a) },
   { value: 'people', label: 'People and access', match: (a) => /^member\./.test(a) || a === 'workspace.members_updated' },
   { value: 'sharing', label: 'Review links', match: (a) => /^(share|workspace\.share)/.test(a) },
   { value: 'workspace', label: 'Workspaces', match: (a) => /^workspace\.(created|renamed|deleted)$/.test(a) },

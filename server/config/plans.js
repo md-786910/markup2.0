@@ -5,7 +5,7 @@ const PLANS = {
     price: 0,
     priceLabel: '$0',
     period: 'forever',
-    limits: { maxProjects: 2, maxWorkspaces: 1, maxMembers: 5, maxGuests: 2, maxStorageMB: 200, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false, hasApprovals: false, hasTaskWorkflow: false },
+    limits: { maxProjects: 2, maxWorkspaces: 1, maxMembers: 5, maxGuests: 2, maxStorageMB: 200, hasIntegrations: false, hasActivityLogs: false, hasVersionHistory: false, hasDeadlines: false, hasTaskWorkflow: false },
     features: [
       '2 projects',
       '1 workspace',
@@ -26,7 +26,7 @@ const PLANS = {
     price: 12,
     priceLabel: '$12',
     period: '/month',
-    limits: { maxProjects: 15, maxWorkspaces: 3, maxMembers: 25, maxGuests: 10, maxStorageMB: 5120, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: false, hasApprovals: true, hasTaskWorkflow: true },
+    limits: { maxProjects: 15, maxWorkspaces: 3, maxMembers: 25, maxGuests: 10, maxStorageMB: 5120, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: false, hasDeadlines: true, hasTaskWorkflow: true },
     features: [
       '15 projects',
       '3 workspaces',
@@ -51,7 +51,7 @@ const PLANS = {
     period: '/month',
     popular: true,
     razorpayPlanId: process.env.RAZORPAY_PRO_PLAN_ID || null,
-    limits: { maxProjects: 999, maxWorkspaces: 999, maxMembers: 999, maxGuests: 50, maxStorageMB: 25600, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true, hasApprovals: true, hasTaskWorkflow: true },
+    limits: { maxProjects: 999, maxWorkspaces: 999, maxMembers: 999, maxGuests: 50, maxStorageMB: 25600, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true, hasDeadlines: true, hasTaskWorkflow: true },
     features: [
       'Unlimited projects',
       'Unlimited workspaces',
@@ -73,7 +73,7 @@ const PLANS = {
     price: null,
     priceLabel: 'Custom',
     period: '',
-    limits: { maxProjects: 9999, maxWorkspaces: 9999, maxMembers: 9999, maxGuests: 9999, maxStorageMB: 102400, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true, hasApprovals: true, hasTaskWorkflow: true },
+    limits: { maxProjects: 9999, maxWorkspaces: 9999, maxMembers: 9999, maxGuests: 9999, maxStorageMB: 102400, hasIntegrations: true, hasActivityLogs: true, hasVersionHistory: true, hasDeadlines: true, hasTaskWorkflow: true },
     features: [
       'Everything in Pro',
       '100 GB storage',
