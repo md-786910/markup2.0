@@ -1,17 +1,22 @@
 import React, { useState, useMemo } from 'react';
 
 const COLUMNS = [
-  { id: 'open', title: 'Open', color: 'border-amber-400', badge: 'bg-amber-100 text-amber-800' },
-  { id: 'in_progress', title: 'In Progress', color: 'border-blue-500', badge: 'bg-blue-100 text-blue-800' },
-  { id: 'in_review', title: 'In Review', color: 'border-purple-500', badge: 'bg-purple-100 text-purple-800' },
-  { id: 'resolved', title: 'Resolved', color: 'border-emerald-500', badge: 'bg-emerald-100 text-emerald-800' },
+  { id: 'open', title: 'Open', dot: 'bg-blue-600' },
+  { id: 'in_progress', title: 'In Progress', dot: 'bg-amber-500' },
+  { id: 'in_review', title: 'In Review', dot: 'bg-sky-500' },
+  { id: 'resolved', title: 'Resolved', dot: 'bg-emerald-500' },
 ];
 
-const PRIORITY_THEME = {
-  urgent: 'bg-rose-100 text-rose-700 border-rose-200',
-  high: 'bg-amber-100 text-amber-700 border-amber-200',
-  normal: 'bg-blue-50 text-blue-600 border-blue-200',
-  low: 'bg-gray-100 text-gray-600 border-gray-200',
+// Left strip of each card shows its priority; the tag only appears for high/urgent
+const PRIORITY_STRIP = {
+  urgent: 'border-l-red-500',
+  high: 'border-l-amber-500',
+  normal: 'border-l-blue-400',
+  low: 'border-l-gray-300',
+};
+const PRIORITY_TAG = {
+  urgent: 'bg-red-50 text-red-700',
+  high: 'bg-amber-50 text-amber-700',
 };
 
 function getInitials(name) {
@@ -34,6 +39,7 @@ export default function TaskBoard({
   const [assigneeFilter, setAssigneeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [draggingPinId, setDraggingPinId] = useState(null);
+  const [dragOverCol, setDragOverCol] = useState(null);
 
   // Normalize pins status ('pending' maps to 'open')
   const normalizedPins = useMemo(() => {
@@ -106,6 +112,7 @@ export default function TaskBoard({
     e.preventDefault();
     const pinId = e.dataTransfer.getData('text/plain') || draggingPinId;
     setDraggingPinId(null);
+    setDragOverCol(null);
     if (!pinId || !onPinUpdate || readOnly) return;
 
     const pin = normalizedPins.find((p) => String(p._id) === String(pinId));
@@ -119,37 +126,30 @@ export default function TaskBoard({
     onPinUpdate(pinId, { status: targetStatus });
   };
 
+  const controlCls =
+    'h-8 rounded-lg border border-gray-200 bg-white text-body-sm text-gray-700 transition-colors hover:border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15';
+  const hasFilters = search || assigneeFilter !== 'all' || priorityFilter !== 'all';
+
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
-      {/* Top Filter & Action Bar */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search box */}
+    <div className="flex flex-col h-full bg-white overflow-hidden">
+      {/* Filters */}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
+            <svg className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             <input
               type="text"
-              placeholder="Filter tasks or #number..."
+              placeholder="Filter tasks or #number…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="text-body py-1.5 pl-8 pr-3 border border-gray-300 rounded-lg w-48 sm:w-60 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className={`${controlCls} w-48 pl-8 pr-3 placeholder:text-gray-400 sm:w-60`}
+              aria-label="Filter tasks"
             />
-            <svg
-              className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
           </div>
-
-          {/* Assignee Filter */}
-          <select
-            value={assigneeFilter}
-            onChange={(e) => setAssigneeFilter(e.target.value)}
-            className="text-body py-1.5 px-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="all">All Assignees</option>
+          <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} className={`${controlCls} px-2.5`} aria-label="Assignee">
+            <option value="all">All assignees</option>
             <option value="unassigned">Unassigned</option>
             {members.map((m) => (
               <option key={m._id} value={m._id}>
@@ -157,177 +157,169 @@ export default function TaskBoard({
               </option>
             ))}
           </select>
-
-          {/* Priority Filter */}
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="text-body py-1.5 px-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            <option value="all">All Priorities</option>
+          <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className={`${controlCls} px-2.5`} aria-label="Priority">
+            <option value="all">All priorities</option>
             <option value="urgent">Urgent</option>
             <option value="high">High</option>
             <option value="normal">Normal</option>
             <option value="low">Low</option>
           </select>
-
-          {(search || assigneeFilter !== 'all' || priorityFilter !== 'all') && (
+          {hasFilters && (
             <button
               onClick={() => {
                 setSearch('');
                 setAssigneeFilter('all');
                 setPriorityFilter('all');
               }}
-              className="text-caption text-blue-600 hover:text-blue-800 font-medium"
+              className="inline-flex h-8 items-center rounded-lg px-2.5 text-label text-blue-600 hover:bg-blue-50"
             >
               Reset filters
             </button>
           )}
         </div>
 
-        {/* Right Switch Button */}
         {onSwitchToCanvas && (
           <button
             onClick={onSwitchToCanvas}
-            className="inline-flex items-center gap-1.5 text-caption font-semibold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition-colors"
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 text-label text-gray-700 transition-colors hover:bg-gray-50"
           >
-            <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="h-3.5 w-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
             </svg>
-            Switch to Canvas View
+            Switch to Canvas view
           </button>
         )}
       </div>
 
-      {/* Columns Container */}
-      <div className="flex-1 overflow-x-auto p-6 flex gap-6 items-start">
+      {/* Columns: full-height lanes */}
+      <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto bg-gray-50/60 p-4">
         {COLUMNS.map((col) => {
           const colPins = columnData[col.id] || [];
+          const isDropTarget = dragOverCol === col.id && draggingPinId;
           return (
-            <div
+            <section
               key={col.id}
-              onDragOver={handleDragOver}
+              onDragOver={(e) => {
+                handleDragOver(e);
+                if (dragOverCol !== col.id) setDragOverCol(col.id);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget)) setDragOverCol(null);
+              }}
               onDrop={(e) => handleDrop(e, col.id)}
-              className="w-80 shrink-0 bg-white rounded-xl shadow-sm border border-gray-200/90 flex flex-col max-h-full"
+              className={`flex w-72 shrink-0 flex-col rounded-xl transition-colors ${
+                isDropTarget ? 'bg-blue-100/70 ring-2 ring-blue-400/60' : 'bg-blue-50/70'
+              }`}
+              aria-label={`${col.title}, ${colPins.length} ${colPins.length === 1 ? 'task' : 'tasks'}`}
             >
-              {/* Column Header */}
-              <div className={`p-3.5 border-t-4 ${col.color} border-b border-gray-100 flex items-center justify-between`}>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-body-sm text-gray-800">{col.title}</h3>
-                  <span className={`text-caption font-semibold px-2 py-0.5 rounded-full ${col.badge}`}>
-                    {colPins.length}
-                  </span>
-                </div>
+              {/* Column header */}
+              <div className="flex h-11 shrink-0 items-center gap-2 px-3">
+                <span className={`h-2 w-2 rounded-full ${col.dot}`} />
+                <h3 className="text-label text-gray-900">{col.title}</h3>
+                <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-md border border-gray-200 bg-white px-1.5 text-caption font-medium text-gray-600">
+                  {colPins.length}
+                </span>
               </div>
 
-              {/* Task Cards Scroll List */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-[150px]">
+              {/* Cards */}
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-2">
                 {colPins.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-center text-gray-400">
-                    <p className="text-caption">No tasks in this column</p>
-                    {canEdit && (
-                      <span className="text-caption text-gray-300 mt-1">Drag tasks here</span>
-                    )}
+                  <div className="flex h-24 flex-col items-center justify-center rounded-lg border border-dashed border-gray-300/80 text-center">
+                    <p className="text-caption text-gray-500">No tasks</p>
+                    {canEdit && !readOnly && <p className="text-caption text-gray-400">Drop a task here</p>}
                   </div>
                 ) : (
                   colPins.map((pin) => {
                     const isOverdue = pin.dueAt && new Date(pin.dueAt) < new Date() && pin.status !== 'resolved';
-                    const priorityCls = PRIORITY_THEME[pin.priority] || PRIORITY_THEME.normal;
+                    const priority = pin.priority || 'normal';
+                    const text = pin.firstComment?.body ? pin.firstComment.body.replace(/<[^>]*>?/gm, '') : '';
+                    const assigneeName = pin.assignee ? pin.assignee.name || pin.assignee.email || 'Member' : '';
+                    const hasFooter = Boolean(pin.dueAt || pin.assignee);
 
                     return (
-                      <div
+                      <article
                         key={pin._id}
                         draggable={canEdit && !readOnly}
                         onDragStart={(e) => handleDragStart(e, pin._id)}
+                        onDragEnd={() => {
+                          setDraggingPinId(null);
+                          setDragOverCol(null);
+                        }}
                         onClick={() => onPinClick && onPinClick(pin)}
-                        className={`bg-white border rounded-lg p-3.5 shadow-sm hover:shadow-md transition-all cursor-pointer group ${
-                          draggingPinId === pin._id ? 'opacity-40 border-dashed border-blue-400' : 'border-gray-200'
-                        }`}
+                        className={`group overflow-hidden rounded-lg border border-l-[3px] border-gray-200/80 bg-white shadow-sm transition-all hover:border-gray-300 hover:shadow-md ${
+                          PRIORITY_STRIP[priority] || PRIORITY_STRIP.normal
+                        } ${draggingPinId === pin._id ? 'opacity-40' : ''} ${canEdit && !readOnly ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
                       >
-                        {/* Top row: #number & priority pill */}
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-caption font-semibold text-blue-600 group-hover:underline">
-                            #{pin.pinNumber || '?'}
-                          </span>
-                          <span className={`text-overline px-2 py-0.5 rounded-full border ${priorityCls}`}>
-                            {pin.priority || 'normal'}
-                          </span>
-                        </div>
-
-                        {/* First comment body or fallback */}
-                        <p className="text-caption text-gray-800 line-clamp-3 mb-2.5">
-                          {pin.firstComment?.body
-                            ? pin.firstComment.body.replace(/<[^>]*>?/gm, '')
-                            : 'No description added.'}
-                        </p>
-
-                        {/* Labels row */}
-                        {pin.labels && pin.labels.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mb-2.5">
-                            {pin.labels.map((l, i) => (
-                              <span key={i} className="text-caption bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
-                                #{l}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Bottom row: Due date & Assignee & Quick Move */}
-                        <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-caption text-gray-500">
-                          {/* Due Date badge */}
-                          {pin.dueAt ? (
-                            <span
-                              className={`inline-flex items-center gap-1 font-medium ${
-                                isOverdue ? 'text-rose-600 font-semibold' : 'text-gray-500'
-                              }`}
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              {isOverdue && '! '}
-                              {new Date(pin.dueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                            </span>
-                          ) : (
-                            <span className="text-caption text-gray-400">No due date</span>
-                          )}
-
-                          {/* Assignee Avatar / Name */}
-                          <div className="flex items-center gap-1.5">
-                            {pin.assignee ? (
-                              <div
-                                className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-caption font-semibold"
-                                title={`Assigned to ${pin.assignee.name || pin.assignee.email || 'Member'}`}
-                              >
-                                {getInitials(pin.assignee.name || pin.assignee.email)}
-                              </div>
-                            ) : (
-                              <span className="text-caption text-gray-400">Unassigned</span>
+                        <div className="px-3 pb-2.5 pt-2">
+                          {/* Number, priority tag, quick move */}
+                          <div className="flex h-6 items-center gap-1.5">
+                            <span className="text-caption font-medium text-gray-500 group-hover:text-blue-600">#{pin.pinNumber || '?'}</span>
+                            {PRIORITY_TAG[priority] && (
+                              <span className={`rounded px-1.5 text-caption font-medium capitalize ${PRIORITY_TAG[priority]}`}>{priority}</span>
                             )}
-
-                            {/* Quick status cycle button */}
                             {canEdit && !readOnly && (
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity ml-1" onClick={(e) => e.stopPropagation()}>
+                              <div className="ml-auto opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
                                 <select
                                   value={pin.status}
                                   onChange={(e) => handleQuickMove(pin._id, e.target.value)}
-                                  className="text-body py-0.5 px-1 bg-gray-50 border border-gray-200 rounded text-gray-600 focus:outline-none"
+                                  className="h-6 rounded-md border border-gray-200 bg-white px-1 text-caption text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/15"
+                                  aria-label={`Move task #${pin.pinNumber || ''}`}
+                                  title="Move to…"
                                 >
                                   {COLUMNS.map((c) => (
                                     <option key={c.id} value={c.id}>
-                                      &rarr; {c.title}
+                                      {c.title}
                                     </option>
                                   ))}
                                 </select>
                               </div>
                             )}
                           </div>
+
+                          <p className={`mt-0.5 line-clamp-3 break-words text-body-sm ${text ? 'text-gray-900' : 'italic text-gray-400'}`}>
+                            {text || 'No description added.'}
+                          </p>
+
+                          {pin.labels && pin.labels.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {pin.labels.map((l, i) => (
+                                <span key={i} className="rounded bg-gray-100 px-1.5 text-caption text-gray-600">
+                                  {l}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
+
+                        {hasFooter && (
+                          <div className="flex h-8 items-center justify-between border-t border-gray-100 bg-gray-50/70 px-3">
+                            {pin.dueAt ? (
+                              <span className={`inline-flex items-center gap-1 text-caption ${isOverdue ? 'font-medium text-red-600' : 'text-gray-500'}`}>
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                {isOverdue ? 'Overdue · ' : ''}
+                                {new Date(pin.dueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            ) : (
+                              <span />
+                            )}
+                            {pin.assignee && (
+                              <span
+                                className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-caption font-semibold text-blue-700 ring-2 ring-white"
+                                title={`Assigned to ${assigneeName}`}
+                              >
+                                {getInitials(assigneeName)}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </article>
                     );
                   })
                 )}
               </div>
-            </div>
+            </section>
           );
         })}
       </div>

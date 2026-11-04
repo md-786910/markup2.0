@@ -42,6 +42,11 @@
   line-height: 1.5;
   color: #1e293b;
 }
+/* New-pin popup: taller editor beside the details panel */
+.markup-quill-wrapper.markup-quill-tall .ql-editor {
+  min-height: 220px;
+  max-height: 340px;
+}
 .markup-quill-wrapper .ql-editor.ql-blank::before {
   color: #94a3b8;
   font-style: normal;

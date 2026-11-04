@@ -7,7 +7,6 @@ import MembersTab from '../components/dashboard/MembersTab';
 import NewProjectDropdown from '../components/dashboard/NewProjectDropdown';
 import FilterBar from '../components/dashboard/FilterBar';
 import TrialDashboardBanner from '../components/common/TrialDashboardBanner';
-import MyTasksWidget from '../components/dashboard/MyTasksWidget';
 import {
   getProjectsApi,
   updateProjectApi,
@@ -256,7 +255,6 @@ export default function DashboardPage() {
       </div>
 
       {/* My Tasks Cross-Project Queue */}
-      {tab !== 'members' && tab !== 'archived' && <MyTasksWidget />}
 
       {/* Filter Bar (projects only; the team list is not filtered) */}
       {tab !== 'members' && (

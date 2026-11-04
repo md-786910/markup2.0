@@ -35,6 +35,4 @@ export const deletePinApi = (projectId, pinId) =>
 export const reorderPinsApi = (projectId, moves) =>
   api.patch(`/projects/${projectId}/pins/reorder`, { moves });
 
-export const getMyTasksApi = () =>
-  api.get("/my-tasks");
 
