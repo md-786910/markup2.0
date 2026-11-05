@@ -3,13 +3,16 @@ import { useAuth } from '../../hooks/useAuth';
 import { updateOrganizationApi } from '../../services/authService';
 import { uploadUrl } from '../../utils/uploadUrl';
 import { toast } from '../../utils/toast';
-import { Button, Field, Input, Row, Section } from '../kc';
+import { Button, Field, Input, Row, Section, Select } from '../kc';
+import { useWorkspaces } from '../../contexts/WorkspaceContext';
 import SettingsLayout from './SettingsLayout';
 
 // Settings → General: the organization's name and icon.
 // Deleting the organization lives in Data and privacy.
 export default function GeneralTab() {
   const { user, isOwner, updateUser } = useAuth();
+  const { workspaces } = useWorkspaces();
+  const defaultWorkspace = workspaces.find((w) => w.isDefault) || workspaces[0];
   const savedName = user?.orgName || '';
   const [name, setName] = useState(savedName);
   const [saving, setSaving] = useState(false);
@@ -83,6 +86,16 @@ export default function GeneralTab() {
               onChange={(e) => { setName(e.target.value); setNameError(''); }}
             />
           </Field>
+          {workspaces.length > 0 && (
+            <Field id="default-workspace" label="Default workspace" hint="New projects land here unless another workspace is chosen.">
+              <Select
+                id="default-workspace"
+                value={defaultWorkspace?._id || ''}
+                options={workspaces.map((w) => ({ value: w._id, label: w.name }))}
+                disabled
+              />
+            </Field>
+          )}
           <Field label="Icon" error={logoError}>
             <Row title="Square image" description={isOwner ? 'At least 256 × 256 px, PNG or JPG.' : 'Only the owner can change the icon.'}>
               <div className="flex items-center gap-3 shrink-0">

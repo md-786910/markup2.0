@@ -6,7 +6,7 @@ import { updateProjectEmailNotificationsApi } from '../../services/projectServic
 import { uploadUrl } from '../../utils/uploadUrl';
 import { toastError } from '../../utils/toast';
 import { openSupport } from '../../utils/supportPanel';
-import { IconButton } from '../kc';
+import { IconButton, Icon, cx } from '../kc';
 
 // Design system: every avatar is brand blue with white initials
 const AVATAR_COLORS = [
@@ -298,35 +298,45 @@ export default function NotificationBell({ className = '', variant, projectId, o
       )}
 
       {isOpen && (
-        <div role="dialog" aria-label="Notifications" className={`absolute ${rail ? 'left-[calc(100%+12px)] bottom-0' : `${align === 'left' ? 'left-0' : 'right-0'} mt-2`} w-[calc(100vw-2rem)] max-w-[380px] bg-white rounded-xl shadow-[var(--shadow-menu)] border border-gray-200 z-50 overflow-hidden`}>
+        <div role="dialog" aria-label="Notifications" className={`kc-menu kc-notif ${rail ? 'kc-rail-notif' : `absolute ${align === 'left' ? 'left-0' : 'right-0'} mt-2`}`} style={{ zIndex: 'var(--z-menu)' }}>
           {/* Header */}
-          <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
-            <h3 className="text-body font-semibold text-gray-900">Notifications</h3>
+          <div className="nh">
+            <span>Notifications</span>
             {scopedUnreadCount > 0 && (
               <button
                 type="button"
                 onClick={handleMarkAllRead}
-                className="text-caption font-medium text-blue-600 hover:text-blue-700"
+                className="kc-link"
+                style={{ fontSize: 12, border: 0, background: 'none', padding: 0, cursor: 'pointer' }}
               >
-                Mark all as read
+                Mark all read
               </button>
             )}
           </div>
 
           {/* Filter tabs */}
-          <div className="flex items-center gap-4 border-b border-gray-100 px-4 text-body-sm">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--border)', padding: '6px 14px', fontSize: 12 }}>
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setFilter(tab.id)}
-                className={`-mb-px border-b-2 pb-2 pt-1 font-medium transition-colors ${
-                  filter === tab.id ? 'border-blue-600 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
+                style={{
+                  background: 'none',
+                  border: 0,
+                  padding: '4px 0',
+                  fontWeight: filter === tab.id ? 600 : 500,
+                  color: filter === tab.id ? 'var(--brand-600)' : 'var(--slate-500)',
+                  borderBottom: filter === tab.id ? '2px solid var(--brand-600)' : '2px solid transparent',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
               >
-                {tab.label}
+                <span>{tab.label}</span>
                 {tab.count > 0 && (
-                  <span className={`ml-1.5 rounded-full px-1.5 py-px text-caption ${filter === tab.id ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                  <span style={{ fontSize: 11, padding: '1px 5px', borderRadius: 'var(--radius-pill)', background: filter === tab.id ? 'var(--brand-50)' : 'var(--slate-100)', color: filter === tab.id ? 'var(--brand-600)' : 'var(--slate-600)' }}>
                     {tab.count}
                   </span>
                 )}
@@ -335,136 +345,102 @@ export default function NotificationBell({ className = '', variant, projectId, o
           </div>
 
           {/* List */}
-          <div className="max-h-[420px] overflow-y-auto scrollbar-thin">
+          <div className="list">
             {loading && scopedNotifications.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">
-                <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-2" />
-                <p className="text-caption">Loading notifications…</p>
+              <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--slate-400)', fontSize: 12 }}>
+                Loading notifications…
               </div>
             ) : filteredNotifications.length === 0 ? (
-              <div className="px-6 py-10 text-center">
-                <div className="w-11 h-11 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-3">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.75}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                  </svg>
-                </div>
-                <p className="text-body-sm font-medium text-gray-800">You're all caught up</p>
-                <p className="text-caption text-gray-500 mt-1">
+              <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--slate-500)' }}>
+                <b style={{ display: 'block', color: 'var(--slate-800)', marginBottom: 4, fontSize: 13 }}>You're all caught up</b>
+                <small style={{ color: 'var(--slate-500)', fontSize: 11.5 }}>
                   {filter === 'unread'
                     ? 'No unread notifications.'
                     : filter === 'mention'
                     ? 'Nobody has mentioned you yet.'
                     : 'Comments, mentions and resolved pins will show up here.'}
-                </p>
+                </small>
               </div>
             ) : (
-              sections.map((section) => (
-                <div key={section.label}>
-                  <p className="sticky top-0 z-10 bg-white/95 px-4 pb-1 pt-3 text-caption font-medium text-gray-400 backdrop-blur">
-                    {section.label}
-                  </p>
-                  {section.items.map((notif) => {
-                    const isGuest = !notif.actor && Boolean(notif.actorGuest?.name);
-                    const actorName = notif.actor?.name || notif.actorGuest?.name
-                      || (notif.type === 'support_reply' ? `${notif.metadata?.adminName || 'Support'} (Kommently)` : 'Someone');
-                    const actorColor = getAvatarColor(notif.actor?._id || notif.actorGuest?.email);
-                    const projName = notif.project?.name || notif.metadata?.projectName;
-                    const preview = cleanText(notif.message);
+              filteredNotifications.map((notif) => {
+                const isGuest = !notif.actor && Boolean(notif.actorGuest?.name);
+                const actorName = notif.actor?.name || notif.actorGuest?.name
+                  || (notif.type === 'support_reply' ? `${notif.metadata?.adminName || 'Support'} (Kommently)` : 'Someone');
+                const projName = notif.project?.name || notif.metadata?.projectName;
+                const pinNum = notif.pin?.pinNumber || notif.metadata?.pinNumber;
+                const isResolved = notif.type === 'pin_resolved' || notif.metadata?.status === 'resolved';
+                const preview = cleanText(notif.message);
 
-                    return (
-                      <div
-                        key={notif._id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => handleOpenNotification(notif)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleOpenNotification(notif); }}
-                        className={`group relative flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors focus:outline-none focus-visible:bg-gray-50 ${
-                          notif.read ? 'hover:bg-gray-50' : 'bg-blue-50/50 hover:bg-blue-50'
-                        }`}
-                      >
-                        {/* Avatar with action badge */}
-                        <div className="relative shrink-0">
-                          {notif.actor?.avatar ? (
-                            <img src={uploadUrl(notif.actor.avatar)} alt="" className="w-9 h-9 rounded-full object-cover" />
-                          ) : (
-                            <div className={`w-9 h-9 rounded-full ${actorColor.bg} ${actorColor.text} flex items-center justify-center text-caption font-semibold`}>
-                              {getInitials(actorName)}
-                            </div>
-                          )}
-                          <span className="absolute -bottom-0.5 -right-0.5">
-                            <ActionBadge type={notif.type} />
-                          </span>
-                        </div>
-
-                        {/* Who did what, where and when */}
-                        <div className="min-w-0 flex-1 pr-5">
-                          <p className="text-body-sm text-gray-600">
-                            <span className="font-semibold text-gray-900">{actorName}</span>
-                            {isGuest && <span className="ml-1 rounded bg-gray-100 px-1 py-px text-caption font-medium text-gray-500">Guest</span>}{' '}
-                            {actionText(notif, actorName)}
-                          </p>
-                          {preview && (
-                            <p className="mt-1 line-clamp-2 border-l-2 border-gray-200 pl-2 text-body-sm text-gray-500">
-                              {preview}
-                            </p>
-                          )}
-                          <p className="mt-1 flex min-w-0 items-center gap-1.5 text-caption text-gray-400">
-                            {projName && !scopeProjectId && (
-                              <>
-                                <span className="truncate">{projName}</span>
-                                <span aria-hidden="true">·</span>
-                              </>
-                            )}
-                            <time dateTime={notif.createdAt} title={formatFullDate(notif.createdAt)} className="shrink-0">
-                              {formatTimeAgo(notif.createdAt)}
-                            </time>
-                          </p>
-                        </div>
-
-                        {/* Unread dot, dismiss on hover */}
-                        {!notif.read && (
-                          <span className="absolute right-4 top-4 h-2 w-2 rounded-full bg-blue-600 group-hover:hidden" aria-label="Unread" />
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); deleteNotification(notif._id); }}
-                          className="absolute right-2.5 top-2.5 hidden rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 group-hover:block"
-                          title="Dismiss"
-                          aria-label="Dismiss notification"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))
+                return (
+                  <div
+                    key={notif._id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleOpenNotification(notif)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleOpenNotification(notif); }}
+                    className="nr"
+                    style={{
+                      cursor: 'pointer',
+                      background: notif.read ? undefined : 'var(--brand-50)',
+                      position: 'relative',
+                    }}
+                  >
+                    <span className={cx('pin', isResolved && 'ok')}>
+                      {isResolved ? <Icon name="check" size={12} stroke={3} /> : (pinNum ? String(pinNum) : '#')}
+                    </span>
+                    <div style={{ minWidth: 0, flex: 1, paddingRight: 16 }}>
+                      <b>{actorName}</b>{isGuest ? ' (guest)' : ''} {actionText(notif, actorName)}
+                      {preview && (
+                        <p style={{ margin: '3px 0 0', color: 'var(--slate-600)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {preview}
+                        </p>
+                      )}
+                      <small>
+                        {formatTimeAgo(notif.createdAt)}
+                        {projName && !scopeProjectId ? ` · ${projName}` : ''}
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); deleteNotification(notif._id); }}
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        background: 'none',
+                        border: 0,
+                        color: 'var(--slate-400)',
+                        cursor: 'pointer',
+                        padding: 2,
+                        borderRadius: 4,
+                        display: 'flex',
+                      }}
+                      title="Dismiss"
+                      aria-label="Dismiss notification"
+                    >
+                      <Icon name="x" size={13} />
+                    </button>
+                  </div>
+                );
+              })
             )}
           </div>
 
           {/* Email for this project (inside a project) */}
           {scopeProjectId && (
-            <div className="flex items-center justify-between gap-3 border-t border-gray-100 bg-gray-50 px-4 py-2.5 text-caption">
-              <span className="font-medium text-gray-700">Email me about this project</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderTop: '1px solid var(--border)', background: 'var(--slate-50)', fontSize: 12 }}>
+              <span style={{ fontWeight: 500, color: 'var(--slate-700)' }}>Email me about this project</span>
               <button
                 type="button"
                 role="switch"
                 aria-checked={isProjectEmailEnabled}
                 onClick={handleToggleProjectEmails}
                 disabled={emailToggling}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none disabled:opacity-50 ${
-                  isProjectEmailEnabled ? 'bg-blue-600' : 'bg-gray-300'
-                }`}
+                className="kc-toggle"
+                style={emailToggling ? { opacity: 0.5 } : undefined}
                 aria-label="Email notifications for this project"
               >
-                <span
-                  aria-hidden="true"
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
-                    isProjectEmailEnabled ? 'translate-x-4' : 'translate-x-0'
-                  }`}
-                />
+                <span className="track" />
               </button>
             </div>
           )}

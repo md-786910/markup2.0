@@ -4,7 +4,7 @@
 // AppLayout puts around the signed-in shell). Rules worth remembering:
 // one `primary` Button per view, status is always a dot plus a word, icons
 // are the outline set below (16 in rows, 18 in the header, 20 in the rail).
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 export function cx(...args) { return args.filter(Boolean).join(' '); }
 
@@ -540,5 +540,234 @@ export function Progress({ value = 0, label }) {
     <div className="kc-progress" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value)}>
       <i style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
     </div>
+  );
+}
+
+// ── Search palette ──────────────────────────────────────────────────────────
+// Centred modal opened from the header search box or Ctrl K (SearchPalette).
+// items: [{ group, label, icon?, kbd?, sub?, onClick? }]
+export function SearchPalette({
+  items = [],
+  query: initialQuery = '',
+  highlighted: initialHighlight = 0,
+  onClose,
+  placeholder = 'Search projects, pages and actions',
+  fixed = true,
+}) {
+  const [query, setQuery] = useState(initialQuery);
+  const [highlighted, setHighlighted] = useState(initialHighlight);
+  const inputRef = useRef(null);
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const q = query.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    if (!q) return items;
+    return items.filter((it) =>
+      (it.label && it.label.toLowerCase().includes(q)) ||
+      (it.group && it.group.toLowerCase().includes(q)) ||
+      (it.sub && it.sub.toLowerCase().includes(q))
+    );
+  }, [items, q]);
+
+  useEffect(() => {
+    setHighlighted(0);
+  }, [q]);
+
+  useEffect(() => {
+    const el = listRef.current?.querySelector(`.mi.hl`);
+    el?.scrollIntoView?.({ block: 'nearest' });
+  }, [highlighted]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onClose?.();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlighted((prev) => (filtered.length ? (prev + 1) % filtered.length : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlighted((prev) => (filtered.length ? (prev - 1 + filtered.length) % filtered.length : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filtered[highlighted]) {
+        filtered[highlighted].onClick?.();
+        onClose?.();
+      }
+    }
+  };
+
+  let lastGroup = null;
+  let activeIndex = -1;
+  const rows = [];
+  filtered.forEach((it, i) => {
+    if (it.group !== lastGroup) {
+      rows.push(<div key={`g-${it.group}-${i}`} className="mh">{it.group}</div>);
+      lastGroup = it.group;
+    }
+    activeIndex++;
+    const isHighlighted = activeIndex === highlighted;
+    const itemIndex = activeIndex;
+    rows.push(
+      <button
+        key={`item-${i}-${it.label}`}
+        type="button"
+        className={cx('mi', isHighlighted && 'hl')}
+        onClick={() => {
+          it.onClick?.();
+          onClose?.();
+        }}
+        onMouseEnter={() => setHighlighted(itemIndex)}
+      >
+        <Icon name={it.icon || 'search'} size={16} />
+        <span>{it.label}</span>
+        {it.sub ? <span className="sub">{it.sub}</span> : null}
+        {it.kbd ? <kbd>{it.kbd}</kbd> : null}
+      </button>
+    );
+  });
+
+  return (
+    <div
+      className={cx('kc-scrim', fixed && 'fixed')}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
+      role="presentation"
+    >
+      <div className="kc-pal" role="dialog" aria-modal="true" aria-label="Search" onKeyDown={handleKeyDown}>
+        <div className="in">
+          <Icon name="search" size={18} />
+          <input
+            ref={inputRef}
+            placeholder={placeholder}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search"
+          />
+          <kbd onClick={onClose} style={{ cursor: 'pointer' }}>Esc</kbd>
+        </div>
+        <div className="sec">
+          <div ref={listRef} className="list">
+            {rows.length ? rows : <div className="mh" style={{ padding: '18px 10px' }}>No results</div>}
+          </div>
+        </div>
+        <div className="foot">
+          <span>↑ ↓ to move</span>
+          <span>Enter to open</span>
+          <span>Esc to close</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Notification panel ──────────────────────────────────────────────────────
+// Popover anchored to the rail's bell icon (NotificationPanel).
+// items: [{ id?, pin?, resolved?, who, what, when, preview?, project?, onClick? }]
+export function NotificationPanel({
+  items = [],
+  onMarkAllRead,
+  style,
+  className,
+  onItemClick,
+  emptyTitle = "You're all caught up",
+  emptyText = 'Comments, mentions and resolved pins will show up here.',
+}) {
+  return (
+    <div className={cx('kc-menu kc-notif', className)} role="dialog" aria-label="Notifications" style={style}>
+      <div className="nh">
+        <span>Notifications</span>
+        {onMarkAllRead ? (
+          <button type="button" className="kc-link" style={{ fontSize: 12, border: 0, background: 'none', padding: 0 }} onClick={onMarkAllRead}>
+            Mark all read
+          </button>
+        ) : null}
+      </div>
+      {items.length === 0 ? (
+        <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--slate-500)' }}>
+          <b style={{ display: 'block', fontSize: 13, color: 'var(--slate-700)', marginBottom: 4 }}>{emptyTitle}</b>
+          <small style={{ fontSize: 11.5 }}>{emptyText}</small>
+        </div>
+      ) : (
+        <div className="list">
+          {items.map((n, i) => (
+            <div
+              key={n.id || i}
+              className="nr"
+              role={n.onClick || onItemClick ? 'button' : undefined}
+              tabIndex={n.onClick || onItemClick ? 0 : undefined}
+              onClick={() => { n.onClick?.(); onItemClick?.(n); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { n.onClick?.(); onItemClick?.(n); } }}
+              style={n.onClick || onItemClick ? { cursor: 'pointer' } : undefined}
+            >
+              <span className={cx('pin', n.resolved && 'ok')}>
+                {n.resolved ? <Icon name="check" size={12} stroke={3} /> : (n.pin || '#')}
+              </span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <b>{n.who}</b> {n.what}
+                {n.preview ? <p style={{ margin: '4px 0 0', color: 'var(--slate-500)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.preview}</p> : null}
+                <small>{n.when}{n.project ? ` · ${n.project}` : ''}</small>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Trial card ──────────────────────────────────────────────────────────────
+export function TrialCard({ daysLeft = 12, total = 30, onUpgrade, className, style }) {
+  return (
+    <div className={cx('kc-trial', className)} style={style}>
+      <div className="row">
+        <span>Pro trial</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{daysLeft} of {total} days left</span>
+      </div>
+      <div className="pb">
+        <i style={{ width: `${Math.round(((total - daysLeft) / total) * 100)}%` }} />
+      </div>
+      <button type="button" className="kc-link" style={{ fontSize: 12, border: 0, background: 'none', padding: 0, textAlign: 'left' }} onClick={onUpgrade}>
+        Choose a plan
+      </button>
+    </div>
+  );
+}
+
+// ── Project card (presentation) ─────────────────────────────────────────────
+export function ProjectCard({
+  name,
+  type = 'web',
+  status = 'review',
+  open = 0,
+  resolved = 0,
+  updated,
+  pins = [],
+  archived = false,
+  people,
+  onClick,
+}) {
+  const Tag = onClick ? 'button' : 'article';
+  return (
+    <Tag className={cx('kc-card', 'hover', archived && 'archived')} onClick={onClick} type={onClick ? 'button' : undefined}>
+      <ProjectThumb type={type === 'doc' ? 'doc' : 'web'} pins={pins} />
+      <div className="kc-cb">
+        <div className="kc-ct1">
+          <Icon name={type === 'doc' ? 'doc' : 'globe'} size={15} />
+          <span>{name}</span>
+        </div>
+        <div className="kc-cm">
+          {archived ? <Badge tone="neutral">Archived</Badge> : <Badge status={status} />}
+          <span className="n">{open} open · {resolved} resolved</span>
+        </div>
+        <div className="kc-cm">
+          <AvatarStack people={people || []} />
+          {updated ? <span>Updated {updated}</span> : null}
+        </div>
+      </div>
+    </Tag>
   );
 }

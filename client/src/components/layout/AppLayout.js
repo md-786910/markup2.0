@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import OrgLockedBanner from '../common/OrgLockedBanner';
 import PendingPaymentBanner from '../common/PendingPaymentBanner';
@@ -11,7 +11,8 @@ import { ShellProvider, useShell } from '../../contexts/ShellContext';
 import { openSupport } from '../../utils/supportPanel';
 import { openChat, chatAvailable } from '../../utils/supportChat';
 import { uploadUrl } from '../../utils/uploadUrl';
-import { Avatar, Icon, IconButton, Logo, Menu, Tile, cx, useDismiss } from '../kc';
+import { getProjectsApi } from '../../services/projectService';
+import { Avatar, Icon, IconButton, Logo, Menu, SearchPalette, Tile, cx, useDismiss } from '../kc';
 import {
   AREAS, PROJECT_VIEWS, PROJECT_TYPES_NAV, INTEGRATION_PROVIDERS, SETTINGS_PAGES, areaOf, activeItemOf,
 } from './shellNav';
@@ -81,8 +82,8 @@ function Shell() {
   const location = useLocation();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { user, orgLocked, logout } = useAuth();
-  const { current: workspace } = useWorkspaces();
+  const { user, isAdmin, canManage, orgLocked, logout } = useAuth();
+  const { current: workspace, workspaces, select: selectWorkspace } = useWorkspaces();
   const areas = useVisibleAreas();
   const area = areaOf(location.pathname);
   const active = activeItemOf(location.pathname, params);
@@ -90,12 +91,15 @@ function Shell() {
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [acctOpen, setAcctOpen] = useState(null); // 'rail' | 'bottom' | null
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchProjects, setSearchProjects] = useState([]);
   const mainRef = useRef(null);
 
   // Close the drawer and scroll to the top on every navigation
   useEffect(() => {
     setPanelOpen(false);
     setAcctOpen(null);
+    setSearchOpen(false);
     mainRef.current?.scrollTo?.(0, 0);
   }, [location.pathname, location.search]);
 
@@ -105,6 +109,88 @@ function Shell() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Ctrl+K / Cmd+K opens the search palette
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  // Load projects for the search palette when opened
+  useEffect(() => {
+    if (searchOpen && !searchProjects.length) {
+      getProjectsApi()
+        .then((res) => setSearchProjects(res.data?.projects || []))
+        .catch(() => {});
+    }
+  }, [searchOpen, searchProjects.length]);
+
+  const paletteItems = useMemo(() => {
+    return [
+      // Go to
+      { group: 'Go to', label: 'Projects', icon: 'grid', kbd: 'G P', onClick: () => navigate('/dashboard') },
+      { group: 'Go to', label: 'In review', icon: 'eye', onClick: () => navigate('/dashboard?view=in_review') },
+      { group: 'Go to', label: 'Changes requested', icon: 'edit', onClick: () => navigate('/dashboard?view=changes_requested') },
+      { group: 'Go to', label: 'Approved', icon: 'okc', onClick: () => navigate('/dashboard?view=approved') },
+      { group: 'Go to', label: 'Archive', icon: 'archive', onClick: () => navigate('/dashboard?tab=archived') },
+      { group: 'Go to', label: 'Team', icon: 'team', kbd: 'G T', onClick: () => navigate('/team') },
+      ...(canManage ? [{ group: 'Go to', label: 'Integrations', icon: 'link', kbd: 'G I', onClick: () => navigate('/integrations') }] : []),
+      { group: 'Go to', label: 'Settings', icon: 'gear', kbd: 'G S', onClick: () => navigate('/settings') },
+      { group: 'Go to', label: 'Plan and billing', icon: 'card', onClick: () => navigate('/settings?tab=billing') },
+      { group: 'Go to', label: 'Profile', icon: 'user', onClick: () => navigate('/profile') },
+
+      // Actions
+      ...(canManage || isAdmin ? [{
+        group: 'Actions',
+        label: 'New project',
+        icon: 'plus',
+        kbd: 'N',
+        onClick: () => navigate('/dashboard?create=website'),
+      }] : []),
+      ...(isAdmin ? [{
+        group: 'Actions',
+        label: 'Invite people',
+        icon: 'mail',
+        kbd: 'I',
+        onClick: () => navigate('/team?view=invites'),
+      }] : []),
+      {
+        group: 'Actions',
+        label: 'Help and support',
+        icon: 'help',
+        onClick: () => openSupport(),
+      },
+
+      // Switch workspace
+      ...(workspaces && workspaces.length > 1
+        ? workspaces.map((w) => ({
+            group: 'Switch workspace',
+            label: w.name,
+            icon: 'layers',
+            sub: w._id === workspace?._id ? 'Current' : undefined,
+            onClick: () => {
+              selectWorkspace(w._id);
+              navigate('/dashboard');
+            },
+          }))
+        : []),
+
+      // Projects
+      ...searchProjects.map((p) => ({
+        group: 'Projects',
+        label: p.name,
+        icon: p.projectType === 'document' ? 'doc' : 'globe',
+        sub: p.workspace?.name || undefined,
+        onClick: () => navigate(`/project/${p._id}`),
+      })),
+    ];
+  }, [navigate, canManage, isAdmin, workspaces, workspace?._id, selectWorkspace, searchProjects]);
 
   // Breadcrumb: Organization / area (or workspace tile and name) / page
   const areaDef = AREAS.find((a) => a.id === area);
@@ -121,14 +207,40 @@ function Shell() {
   else if (pageLabel !== areaDef?.label) crumbs.push(areaDef?.label);
   crumbs.push(pageLabel);
 
+  const roleLabel = user?.role
+    ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase()
+    : 'Owner';
+  const displayName = user?.name?.trim() || user?.email?.split('@')[0] || 'User';
+  const subtitle = user?.email ? `${user.email} · ${roleLabel}` : roleLabel;
+
   const accountItems = [
-    { header: user?.email },
+    {
+      node: (
+        <div style={{ padding: '8px 10px 6px' }}>
+          <div style={{ fontWeight: 600, fontSize: 13.5, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {displayName}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--slate-500)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {subtitle}
+          </div>
+        </div>
+      ),
+    },
+    { divider: true },
     { label: 'Profile', icon: 'user', onClick: () => navigate('/profile') },
-    { label: 'Help and support', icon: 'help', onClick: () => openSupport() },
-    chatAvailable && { label: 'Chat with support', icon: 'chat', onClick: () => openChat() },
+    { label: 'Plan and billing', icon: 'card', onClick: () => navigate('/settings?tab=billing') },
+    {
+      label: 'Chat with support',
+      icon: 'chat',
+      onClick: async () => {
+        const ok = await openChat();
+        if (!ok) openSupport();
+      },
+    },
+    { label: 'Help center', icon: 'help', onClick: () => openSupport() },
     { divider: true },
     { label: 'Log out', icon: 'out', tone: 'danger', onClick: () => logout() },
-  ].filter(Boolean);
+  ];
 
   const avatar = <Avatar name={user?.name || user?.email} src={user?.avatar ? uploadUrl(user.avatar) : undefined} toneKey={user?.id} tone={undefined} />;
 
@@ -208,6 +320,15 @@ function Shell() {
               </React.Fragment>
             ))}
           </nav>
+          <span className="sp" />
+          <div className="kc-search-wrap">
+            <button type="button" className="kc-search" onClick={() => setSearchOpen(true)} aria-label="Search projects and pins">
+              <Icon name="search" size={16} />
+              <span>Search projects and pins</span>
+              <kbd>Ctrl K</kbd>
+            </button>
+          </div>
+          <IconButton className="kc-search-icon" icon="search" label="Search" onClick={() => setSearchOpen(true)} />
         </header>
 
         <main ref={mainRef} className="kc-main" id="main">
@@ -226,6 +347,10 @@ function Shell() {
           </AccountButton>
         </nav>
       </div>
+
+      {searchOpen && (
+        <SearchPalette items={paletteItems} onClose={() => setSearchOpen(false)} />
+      )}
     </div>
   );
 }
@@ -243,7 +368,7 @@ function AccountButton({ open, onToggle, items, placement, children }) {
       </button>
       {open && (
         <div className="kc-pop" style={pos}>
-          <Menu items={items} label="Account" onPick={() => onToggle(false)} />
+          <Menu items={items} label="Account" onPick={() => onToggle(false)} style={{ minWidth: 232 }} />
         </div>
       )}
     </div>

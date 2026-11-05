@@ -97,7 +97,18 @@ export default function WorkspaceSwitcher({ onNavigate }) {
   }
 
   return (
-    <div ref={ref} style={{ padding: '12px 10px 8px', borderBottom: '1px solid var(--border)', position: 'relative' }}>
+    <div
+      ref={ref}
+      style={{
+        height: 'var(--header-height)',
+        padding: '0 10px',
+        display: 'flex',
+        alignItems: 'center',
+        borderBottom: '1px solid var(--border)',
+        position: 'relative',
+        boxSizing: 'border-box',
+      }}
+    >
       <button
         ref={triggerRef}
         type="button"
@@ -114,7 +125,7 @@ export default function WorkspaceSwitcher({ onNavigate }) {
         <Icon name="updown" size={15} style={{ color: 'var(--slate-500)' }} />
       </button>
       {open && (
-        <div className="kc-pop" style={{ top: 'calc(100% - 2px)', left: 10, right: 10 }}>
+        <div className="kc-pop" style={{ top: 'calc(100% + 6px)', left: 10, right: 10 }}>
           <Menu items={items} label="Workspaces" onPick={undefined} style={{ maxHeight: 360, overflow: 'auto' }} />
         </div>
       )}
