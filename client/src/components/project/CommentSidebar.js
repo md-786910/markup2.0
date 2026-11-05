@@ -361,7 +361,7 @@ export default function CommentSidebar({
       </div>
 
       {/* Everything between the header and the composer scrolls together */}
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
         {/* Task properties */}
         <div className="space-y-1.5 border-b border-gray-100 px-3 py-3">
           <div className="grid min-h-8 grid-cols-[80px_minmax(0,1fr)] items-center gap-x-2">
@@ -667,21 +667,21 @@ export default function CommentSidebar({
             Screenshot
           </p>
           <button
-            className="w-full flex items-center gap-1.5 rounded border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors overflow-hidden h-7 px-1.5"
+            className="w-full flex items-center gap-2 rounded-lg border border-gray-200/90 bg-gray-50/70 hover:bg-gray-100/80 transition-colors overflow-hidden h-8 px-2.5 text-left"
             onClick={() => setLightbox({ src: fileUrl(pin.screenshot.path), pin })}
           >
-            <div className="w-5 h-5 rounded shrink-0 overflow-hidden">
+            <div className="w-5 h-5 rounded overflow-hidden shrink-0 border border-gray-200/70 bg-white">
               <img
                 src={fileUrl(pin.screenshot.path)}
                 alt=""
-                className="w-full h-full object-cover blur-sm scale-110"
+                className="w-full h-full object-cover"
               />
             </div>
-            <span className="flex-1 text-center text-caption text-gray-500 font-medium">
+            <span className="flex-1 text-caption text-gray-700 font-semibold truncate">
               View screenshot
             </span>
             <svg
-              className="w-4 h-4 text-gray-400 shrink-0"
+              className="w-3.5 h-3.5 text-gray-400 shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

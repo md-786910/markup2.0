@@ -248,8 +248,8 @@ exports.updatePin = asyncHandler(async (req, res) => {
 
   if (status) {
     const norm = status === 'pending' ? 'open' : status;
-    if (['open', 'in_progress', 'in_review', 'resolved'].includes(norm)) {
-      pin.status = norm;
+    if (typeof norm === 'string' && norm.trim()) {
+      pin.status = norm.trim();
     }
   }
 
@@ -440,8 +440,8 @@ exports.reorderPins = asyncHandler(async (req, res) => {
   const bulkOps = moves.map((m) => {
     const update = {};
     if (m.position != null) update.position = Number(m.position);
-    if (m.status && ['open', 'in_progress', 'in_review', 'resolved'].includes(m.status)) {
-      update.status = m.status;
+    if (m.status && typeof m.status === 'string') {
+      update.status = m.status === 'pending' ? 'open' : m.status.trim();
     }
     return {
       updateOne: {

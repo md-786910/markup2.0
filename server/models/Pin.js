@@ -72,7 +72,6 @@ const pinSchema = new Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'in_progress', 'in_review', 'resolved', 'pending'],
     default: 'open',
     index: true,
   },

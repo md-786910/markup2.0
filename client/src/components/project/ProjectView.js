@@ -864,6 +864,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         <div className={`${mobilePane === 'page' ? 'block' : 'hidden'} md:block flex-1 min-w-0 relative`}>
           {viewLayout === 'board' ? (
             <TaskBoard
+              projectId={project?._id}
+              project={project}
               pins={shownAllPins}
               members={allMembers}
               onPinClick={(pin) => {

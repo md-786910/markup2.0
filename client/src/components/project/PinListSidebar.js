@@ -943,7 +943,7 @@ export default function PinListSidebar({
         </div>
 
         {/* Scrollable list */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
           {filteredPins.length === 0 && (
             <div className="text-center py-16 px-6">
               <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
