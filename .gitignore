@@ -15,3 +15,6 @@ coverage/
 
 # Local backup output from deploy/docker-compose.yml
 deploy/backups/
+
+# Local design system workspace
+kommently-design-system/

@@ -47,6 +47,16 @@ const fontSize = {
   label: ['14px', { lineHeight: '1.2', letterSpacing: '0', fontWeight: '500' }],
   overline: ['12px', { lineHeight: '1.2', letterSpacing: '0.06em', fontWeight: '500' }],
   caption: ['12px', { lineHeight: '1.4', letterSpacing: '0' }],
+  // Kommently design system (kommently-design-system/tokens.json), the denser
+  // scale of the signed-in app shell: page-title once per page, section-title
+  // for settings sections, card-title for project names, ui for body text
+  // (13px), ui-label for form labels / pills / table headers, micro for badges.
+  'page-title': ['20px', { lineHeight: '28px', letterSpacing: '-0.01em', fontWeight: '600' }],
+  'section-title': ['15px', { lineHeight: '22px', letterSpacing: '0', fontWeight: '600' }],
+  'card-title': ['13.5px', { lineHeight: '20px', letterSpacing: '0', fontWeight: '600' }],
+  ui: ['13px', { lineHeight: '20px', letterSpacing: '0' }],
+  'ui-label': ['12.5px', { lineHeight: '18px', letterSpacing: '0', fontWeight: '500' }],
+  micro: ['11.5px', { lineHeight: '16px', letterSpacing: '0', fontWeight: '500' }],
 };
 const fontWeight = { normal: '400', medium: '500', semibold: '600' };
 
@@ -69,6 +79,8 @@ module.exports = {
         purple: brand,
         cyan: brand,
         teal: brand,
+        // Design system: 3.2:1 border for inputs, selects, checkboxes, toggle tracks
+        control: '#8091a7',
       },
       boxShadow: {
         // Crisp, neutral elevation (no colored glows)

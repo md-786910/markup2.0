@@ -6,13 +6,11 @@ import { updateProjectEmailNotificationsApi } from '../../services/projectServic
 import { uploadUrl } from '../../utils/uploadUrl';
 import { toastError } from '../../utils/toast';
 import { openSupport } from '../../utils/supportPanel';
+import { IconButton } from '../kc';
 
+// Design system: every avatar is brand blue with white initials
 const AVATAR_COLORS = [
-  { bg: 'bg-blue-100', text: 'text-blue-700' },
-  { bg: 'bg-emerald-100', text: 'text-emerald-700' },
-  { bg: 'bg-amber-100', text: 'text-amber-700' },
-  { bg: 'bg-rose-100', text: 'text-rose-700' },
-  { bg: 'bg-gray-100', text: 'text-gray-700' },
+  { bg: 'bg-blue-600', text: 'text-white' },
 ];
 
 function getInitials(name) {
@@ -122,7 +120,9 @@ function actionText(notif, actorName) {
   }
 }
 
-export default function NotificationBell({ className = '', variant, projectId, onSelectPin, align = 'right', dark = false }) {
+// rail: the design-system rail button (bottom of the dark rail); the panel
+// opens to the right of the rail, aligned to the bottom.
+export default function NotificationBell({ className = '', variant, projectId, onSelectPin, align = 'right', dark = false, rail = false }) {
   const navigate = useNavigate();
 
   // Inside a project the bell shows only that project's notifications
@@ -170,8 +170,13 @@ export default function NotificationBell({ className = '', variant, projectId, o
     const handleOutsideClick = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setIsOpen(false);
     };
+    const handleKey = (e) => { if (e.key === 'Escape') setIsOpen(false); };
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, [isOpen]);
 
   const scopedNotifications = useMemo(() => {
@@ -244,6 +249,19 @@ export default function NotificationBell({ className = '', variant, projectId, o
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
+      {rail ? (
+        <IconButton
+          icon="bell"
+          size="lg"
+          onDark
+          tip={isOpen ? undefined : 'Notifications'}
+          label={scopedUnreadCount ? `Notifications, ${scopedUnreadCount} unread` : 'Notifications'}
+          active={isOpen}
+          badge={scopedUnreadCount > 0}
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen((prev) => !prev)}
+        />
+      ) : (
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -277,9 +295,10 @@ export default function NotificationBell({ className = '', variant, projectId, o
           </span>
         )}
       </button>
+      )}
 
       {isOpen && (
-        <div className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} mt-2 w-[calc(100vw-2rem)] max-w-[400px] bg-white rounded-2xl shadow-xl border border-gray-200 z-50 overflow-hidden animate-scale-in`}>
+        <div role="dialog" aria-label="Notifications" className={`absolute ${rail ? 'left-[calc(100%+12px)] bottom-0' : `${align === 'left' ? 'left-0' : 'right-0'} mt-2`} w-[calc(100vw-2rem)] max-w-[380px] bg-white rounded-xl shadow-[var(--shadow-menu)] border border-gray-200 z-50 overflow-hidden`}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
             <h3 className="text-body font-semibold text-gray-900">Notifications</h3>

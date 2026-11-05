@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import {
   getMeApi,
@@ -6,9 +7,12 @@ import {
   requestOrganizationDeletionApi,
   cancelOrganizationDeletionApi,
 } from '../../services/authService';
-import { Button, Card, Field, Input, Notice, SettingRow } from '../ui';
+import { toast, toastError } from '../../utils/toast';
+import { Banner, Button, Field, Input, Row, Section } from '../kc';
+import SettingsLayout, { Muted } from './SettingsLayout';
 
-// Workspace data export (owner/admin) and scheduled workspace deletion (owner).
+// Settings → Data and privacy: data export (owner/admin) and scheduled
+// organization deletion (owner: password + name, 7-day grace, can be cancelled).
 export default function DataPrivacySection() {
   const { user, isOwner, isAdmin, updateUser } = useAuth();
   const [exporting, setExporting] = useState(false);
@@ -18,8 +22,8 @@ export default function DataPrivacySection() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  if (!isAdmin) return null;
   const scheduledAt = user?.orgDeletionScheduledAt ? new Date(user.orgDeletionScheduledAt) : null;
+  const deletionDate = scheduledAt?.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 
   const refreshUser = async () => {
     const res = await getMeApi();
@@ -37,9 +41,16 @@ export default function DataPrivacySection() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError('Could not export workspace data.');
+      toastError(err, 'Could not export the organization data.');
     }
     setExporting(false);
+  };
+
+  const closeDelete = () => {
+    setShowDelete(false);
+    setPassword('');
+    setConfirmName('');
+    setError('');
   };
 
   const handleDelete = async (e) => {
@@ -48,64 +59,92 @@ export default function DataPrivacySection() {
     setError('');
     try {
       await requestOrganizationDeletionApi(password, confirmName);
-      setShowDelete(false);
-      setPassword('');
-      setConfirmName('');
+      closeDelete();
       await refreshUser();
+      toast.success('Organization scheduled for deletion.');
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not schedule deletion.');
+      setError(err.response?.data?.message || 'Could not schedule the deletion.');
     }
     setBusy(false);
   };
 
   const handleCancelDeletion = async () => {
     setBusy(true);
-    setError('');
     try {
       await cancelOrganizationDeletionApi();
       await refreshUser();
+      toast.success('Deletion cancelled.');
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not cancel deletion.');
+      toastError(err, 'Could not cancel the deletion.');
     }
     setBusy(false);
   };
 
-  const deletionDate = scheduledAt?.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  if (!isAdmin) {
+    return (
+      <SettingsLayout title="Data and privacy" subtitle="Export or delete your organization's data.">
+        <Section title="Organization data" description="Exports and deletion are handled by the owner and admins.">
+          <Muted>
+            Ask an owner or admin of {user?.orgName || 'your organization'} for a data export. To close your own account, go to{' '}
+            <Link to="/profile" className="kc-link">Profile</Link>.
+          </Muted>
+        </Section>
+      </SettingsLayout>
+    );
+  }
 
   return (
-    <Card title="Your data" description="Download everything this organization stores, or delete it for good.">
-      {error && <p className="text-body-sm text-red-600 mb-4">{error}</p>}
-      <SettingRow label="Export" hint="Workspaces, projects, pins, comments, members and invoices as one JSON file." last={!isOwner}>
-        <Button variant="secondary" loading={exporting} onClick={handleExport}>{exporting ? 'Preparing export…' : 'Export data (JSON)'}</Button>
-      </SettingRow>
+    <SettingsLayout title="Data and privacy" subtitle="Export or delete your organization's data.">
+      <Section title="Export" description="Download everything this organization stores.">
+        <Row title="Organization data" description="Workspaces, projects, pins, comments, members and invoices as one JSON file.">
+          <Button loading={exporting} onClick={handleExport} style={{ flexShrink: 0 }}>
+            {exporting ? 'Preparing export' : 'Export data'}
+          </Button>
+        </Row>
+      </Section>
 
       {isOwner && (
-        <SettingRow label="Delete organization" hint="Removes every workspace, project, file and member after a 7-day grace period." last>
-          {scheduledAt ? (
-            <Notice tone="red" action={<Button variant="danger-soft" size="sm" loading={busy} onClick={handleCancelDeletion}>Cancel deletion</Button>}>
-              Scheduled for deletion on <span className="font-semibold">{deletionDate}</span>. Everything is read-only until then.
-            </Notice>
-          ) : !showDelete ? (
-            <Button variant="danger-soft" onClick={() => setShowDelete(true)}>Delete organization…</Button>
-          ) : (
-            <form onSubmit={handleDelete} className="max-w-md space-y-4 rounded-xl border border-red-200 bg-red-50/40 p-4">
-              <p className="text-body-sm text-gray-700">
-                All workspaces, projects, pins, comments, files and members are deleted after 7 days. Everything is read-only until then and you can still cancel. Invoices are kept for tax records.
-              </p>
-              <Field label={<>Type <span className="font-semibold text-gray-900">{user?.orgName}</span> to confirm</>}>
-                <Input value={confirmName} onChange={(e) => setConfirmName(e.target.value)} aria-label="Organization name" />
-              </Field>
-              <Field label="Your password">
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" aria-label="Your password" />
-              </Field>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => setShowDelete(false)}>Keep organization</Button>
+        <form onSubmit={handleDelete}>
+          <Section
+            tone="danger"
+            title="Danger zone"
+            description="Deleting the organization removes it for everyone."
+            footer={showDelete && !scheduledAt ? (
+              <>
+                <Button onClick={closeDelete}>Keep organization</Button>
                 <Button type="submit" variant="danger" loading={busy} disabled={confirmName !== user?.orgName || !password}>Delete in 7 days</Button>
-              </div>
-            </form>
-          )}
-        </SettingRow>
+              </>
+            ) : null}
+          >
+            {scheduledAt ? (
+              <Banner
+                tone="danger"
+                title={`Scheduled for deletion on ${deletionDate}`}
+                action={<Button loading={busy} onClick={handleCancelDeletion}>Cancel deletion</Button>}
+              >
+                Everything is read-only until then.
+              </Banner>
+            ) : (
+              <Row title="Delete organization" description="Removes every workspace, project, file and member after a 7-day grace period. Invoices are kept for tax records.">
+                {!showDelete && <Button variant="danger-quiet" onClick={() => setShowDelete(true)} style={{ flexShrink: 0 }}>Delete organization</Button>}
+              </Row>
+            )}
+            {showDelete && !scheduledAt && (
+              <>
+                <p className="m-0 text-ui text-gray-600">
+                  All workspaces, projects, pins, comments, files and members are deleted after 7 days. Everything is read-only until then and you can still cancel.
+                </p>
+                <Field id="delete-org-name" label={`Type ${user?.orgName || ''} to confirm`}>
+                  <Input id="delete-org-name" value={confirmName} onChange={(e) => setConfirmName(e.target.value)} autoComplete="off" />
+                </Field>
+                <Field id="delete-org-password" label="Your password" error={error}>
+                  <Input id="delete-org-password" type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(''); }} autoComplete="current-password" />
+                </Field>
+              </>
+            )}
+          </Section>
+        </form>
       )}
-    </Card>
+    </SettingsLayout>
   );
 }

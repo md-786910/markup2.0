@@ -32,7 +32,7 @@ export default function Modal({ isOpen, onClose, title, children, size = '2xl', 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in"
+      className="kc-modal-scrim fixed inset-0 z-50 flex items-center justify-center"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
     >
       <div
@@ -41,17 +41,17 @@ export default function Modal({ isOpen, onClose, title, children, size = '2xl', 
         aria-modal="true"
         aria-labelledby={title ? titleId : labelledBy}
         tabIndex={-1}
-        className={`bg-white rounded-2xl shadow-xl w-full ${className || SIZE_CLASSES[size] || SIZE_CLASSES['2xl']} mx-4 outline-none animate-scale-in`}
+        className={`kc-modal bg-white w-full ${className || SIZE_CLASSES[size] || SIZE_CLASSES['2xl']} mx-4 outline-none`}
       >
         {title ? (
           <>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 id={titleId} className="text-body-lg font-semibold text-gray-900">{title}</h3>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h3 id={titleId} className="kc-heading">{title}</h3>
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

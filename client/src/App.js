@@ -18,6 +18,7 @@ const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ProjectPage = lazy(() => import('./pages/ProjectPage'));
 const MembersPage = lazy(() => import('./pages/MembersPage'));
+const TeamPage = lazy(() => import('./pages/TeamPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
@@ -27,10 +28,8 @@ const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage'));
 
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-50 animate-fade-in">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
-      </div>
+    <div className="flex items-center justify-center h-full min-h-[50vh]" role="status" aria-label="Loading">
+      <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
     </div>
   );
 }
@@ -51,15 +50,16 @@ function App() {
               <Route path="/review/w/:workspaceToken" element={<GuestWorkspacePage />} />
               <Route path="/review/:shareToken" element={<GuestProjectPage />} />
               <Route element={<PrivateRoute />}>
-                {/* Routes WITH sidebar layout */}
+                {/* Routes in the Layout C shell (rail, context panel, header) */}
                 <Route element={<AppLayout />}>
                   <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/team" element={<TeamPage />} />
                   <Route path="/project/:projectId/members" element={<MembersPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/integrations" element={<IntegrationsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                 </Route>
-                {/* Routes WITHOUT sidebar */}
+                {/* Full-screen review (outside the shell) */}
                 <Route path="/project/:projectId" element={<ProjectPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" />} />

@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import './styles/typography.css';
+import './styles/kommently.css';
 import App from './App';
 import AppErrorBoundary from './components/common/AppErrorBoundary';
 import { initSentry } from './monitoring/sentry';

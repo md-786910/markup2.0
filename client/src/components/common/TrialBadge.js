@@ -3,86 +3,35 @@ import { useNavigate } from 'react-router-dom';
 import { useTrialStatus } from '../../hooks/useTrialStatus';
 import { useAuth } from '../../hooks/useAuth';
 
-const urgencyColors = {
-  normal: {
-    text: 'text-blue-400',
-    bar: 'bg-blue-500',
-    icon: 'text-blue-400',
-  },
-  warning: {
-    text: 'text-amber-400',
-    bar: 'bg-amber-500',
-    icon: 'text-amber-400',
-  },
-  critical: {
-    text: 'text-red-400',
-    bar: 'bg-red-500',
-    icon: 'text-red-400',
-  },
-};
-
+// Trial card at the bottom of the context panel (design system TrialCard):
+// "Pro trial · 12 of 30 days left", a brand progress bar and "Choose a plan".
+// Free plan: the plan name and the same link. Paid plans: nothing.
 export default function TrialBadge() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { daysLeft, progressPercent, isTrialActive, urgency } = useTrialStatus();
+  const { daysLeft, trialDays, progressPercent, isTrialActive } = useTrialStatus();
+  const choose = (e) => { e.preventDefault(); navigate('/settings?tab=billing'); };
 
-  // Free plan → small "Upgrade to Starter" CTA, no countdown.
   if (!isTrialActive && user?.orgPlan === 'free') {
     return (
-      <div className="mx-3 mb-3 p-3 rounded-xl bg-gray-800/60 border border-gray-700/50 animate-fade-in">
-        <div className="flex items-center justify-between mb-2.5">
-          <div className="flex items-center gap-2">
-            <svg className="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <span className="text-caption font-medium text-gray-400">Free plan</span>
-          </div>
-        </div>
-        <button
-          onClick={() => navigate('/settings?tab=billing')}
-          className="inline-flex h-8 w-full items-center justify-center text-caption font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-        >
-          Upgrade to Starter
-        </button>
+      <div className="kc-trial">
+        <div className="row"><span>Free plan</span></div>
+        <a href="/settings?tab=billing" className="kc-link" onClick={choose} style={{ display: 'inline-block', marginTop: 6 }}>Choose a plan</a>
       </div>
     );
   }
-
   if (!isTrialActive) return null;
 
-  const colors = urgencyColors[urgency];
-  const dayLabel = daysLeft === 1 ? 'day' : 'days';
-
   return (
-    <div className="mx-3 mb-3 p-3 rounded-xl bg-gray-800/60 border border-gray-700/50 animate-fade-in">
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <svg className={`w-3.5 h-3.5 ${colors.icon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span className="text-caption font-medium text-gray-400">Trial</span>
-        </div>
-        <span className={`text-caption font-semibold ${colors.text}`}>
-          {daysLeft} {dayLabel} left
-        </span>
+    <div className="kc-trial">
+      <div className="row">
+        <span>Pro trial</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>{daysLeft} of {trialDays} days left</span>
       </div>
-
-      {/* Progress bar */}
-      <div className="h-1 bg-gray-700 rounded-full mb-3">
-        <div
-          className={`h-1 rounded-full ${colors.bar} transition-all duration-500`}
-          style={{ width: `${progressPercent}%` }}
-        />
+      <div className="pb" role="progressbar" aria-label="Trial used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressPercent)}>
+        <i style={{ width: `${progressPercent}%` }} />
       </div>
-
-      {/* Upgrade button */}
-      <button
-        onClick={() => navigate('/settings?tab=billing')}
-        className="inline-flex h-8 w-full items-center justify-center text-caption font-medium rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-      >
-        Upgrade
-      </button>
+      <a href="/settings?tab=billing" className="kc-link" onClick={choose}>Choose a plan</a>
     </div>
   );
 }
