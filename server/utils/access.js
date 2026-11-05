@@ -50,7 +50,7 @@ function workspaceGrant(user, workspace) {
  */
 function projectLevel(user, project, workspace) {
   if (isOrgAdminOf(user, project.organization)) return 'manage';
-  const level = higher(projectGrant(user, project), workspaceGrant(user, workspace));
+  const level = projectGrant(user, project);
   return level ? capForRole(level, user.role) : null;
 }
 

@@ -24,8 +24,7 @@ async function getRecipients(projectId, excludeUserId) {
     .populate('members', 'name email mutedProjectEmails');
   if (!project) return [];
 
-  const { workspaceMemberUsers } = require('./workspaces');
-  const all = [project.owner, ...project.members, ...(await workspaceMemberUsers(project, 'name email mutedProjectEmails'))].filter(Boolean);
+  const all = [project.owner, ...(project.members || [])].filter(Boolean);
   const excludeStr = excludeUserId ? excludeUserId.toString() : '';
   const projIdStr = projectId ? projectId.toString() : '';
   const seen = new Set();

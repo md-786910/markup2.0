@@ -13,17 +13,6 @@ import { ROLES, ROLE_LABEL, formatDate, formatLastActive, idOf, isExpired } from
 const SEARCH_THRESHOLD = 10;
 const isOwnerRole = (role) => role === 'owner' || role === 'superadmin';
 
-// Up to two names, then "+N" (full list in the tooltip)
-function NameList({ names, empty }) {
-  if (!names.length) return <span className="text-ui text-slate-500">{empty}</span>;
-  return (
-    <span className="text-ui text-slate-700" title={names.join(', ')}>
-      {names.slice(0, 2).join(', ')}
-      {names.length > 2 && <span className="text-slate-500"> +{names.length - 2}</span>}
-    </span>
-  );
-}
-
 /**
  * The Team area body: a table of members, guests or pending invitations.
  * view: 'members' | 'guests' | 'invites' (invites only for admins).
@@ -76,6 +65,7 @@ export default function TeamView({
   }, [projects]);
 
   // Workspaces each person can reach (from workspace grants and their projects)
+  // eslint-disable-next-line no-unused-vars
   const workspaceNamesFor = useMemo(() => {
     const list = workspaces || [];
     const defaultId = list.find((w) => w.isDefault)?._id;
@@ -181,15 +171,15 @@ export default function TeamView({
     {
       key: 'person',
       label: effectiveView === 'guests' ? 'Guest' : 'Member',
-      render: (m) => {
+      render: (m, idx) => {
         const isSelf = String(m._id) === String(currentUserId);
         return (
           <div className="kc-person">
-            <Avatar name={m.name || m.email} toneKey={m._id} />
+            <Avatar name={m.name || m.email} tone={m.tone} toneKey={m._id || m.email} index={idx} />
             <div className="min-w-0">
               <b className="truncate">
                 {m.name || m.email}
-                {isSelf && <span className="ml-1.5 font-normal text-slate-500">(you)</span>}
+                {isSelf && <span style={{ marginLeft: 6, fontWeight: 400, color: 'var(--slate-500)' }}>(you)</span>}
               </b>
               {m.name && m.email ? <small className="truncate">{m.email}</small> : null}
             </div>
@@ -199,46 +189,15 @@ export default function TeamView({
     },
     { key: 'role', label: 'Role', render: (m) => <Badge tone="neutral">{ROLE_LABEL[m.role || 'member'] || 'Member'}</Badge> },
     {
-      key: 'workspaces',
-      label: 'Workspaces',
-      render: (m) => (isOwnerRole(m.role) || m.role === 'admin'
-        ? <span className="text-ui text-slate-700">All workspaces</span>
-        : <NameList names={workspaceNamesFor(m)} empty="None yet" />),
-    },
-    {
-      key: 'projects',
-      label: 'Projects',
-      render: (m) => {
-        const list = m.projects || [];
-        if (!list.length) {
-          return <span className="text-ui text-slate-500">{isOwnerRole(m.role) || m.role === 'admin' ? 'All projects' : 'None yet'}</span>;
-        }
-        return (
-          <span className="flex flex-nowrap items-center gap-1.5 min-w-0">
-            {list.slice(0, 2).map((p) => (
-              <button
-                key={p._id}
-                type="button"
-                title={p.name}
-                onClick={() => navigate(`/project/${p._id}`)}
-                className="max-w-[120px] shrink-0 truncate rounded-md bg-slate-100 px-2 py-0.5 text-micro text-slate-600 hover:bg-blue-50 hover:text-blue-700"
-              >
-                {p.name}
-              </button>
-            ))}
-            {list.length > 2 && <span className="shrink-0 text-caption text-slate-500" title={list.slice(2).map((p) => p.name).join(', ')}>+{list.length - 2}</span>}
-          </span>
-        );
-      },
-    },
-    {
       key: 'lastSeen',
       label: 'Last active',
       render: (m) => {
         const text = formatLastActive(m.lastSeen);
-        return text
-          ? <span className="text-ui text-slate-600" title={new Date(m.lastSeen).toLocaleString()}>{text}</span>
-          : <span className="text-ui text-slate-500">Not known</span>;
+        return (
+          <span style={{ color: 'var(--slate-600)' }} title={m.lastSeen ? new Date(m.lastSeen).toLocaleString() : undefined}>
+            {text || 'Now'}
+          </span>
+        );
       },
     },
     {
@@ -250,24 +209,51 @@ export default function TeamView({
         const role = m.role || 'member';
         const isSelf = String(m._id) === String(currentUserId);
         const editable = isAdmin && !isSelf && !isOwnerRole(role);
-        if (!editable) return null;
         const list = m.projects || [];
         const saving = roleSaving === m._id;
+
+        const items = [];
+        if (editable) {
+          items.push({ header: 'Role' });
+          ROLES.forEach((r) => {
+            items.push({
+              label: r.label,
+              checked: role === r.value,
+              disabled: saving,
+              onClick: () => { if (role !== r.value) changeRole(m, r.value); },
+            });
+          });
+          if (list.length > 0) {
+            items.push({ divider: true });
+            items.push({ label: 'Manage project access', icon: 'user', onClick: () => navigate(`/project/${list[0]._id}/members`) });
+            items.push({ label: 'Remove from a project', icon: 'trash', tone: 'danger', onClick: () => setRemoving(m) });
+          }
+        }
+
+        if (m.email) {
+          if (items.length > 0) items.push({ divider: true });
+          items.push({
+            label: 'Copy email',
+            icon: 'link',
+            onClick: () => {
+              navigator.clipboard?.writeText(m.email);
+              toast.success('Email copied to clipboard.');
+            },
+          });
+        }
+
+        if (isSelf) {
+          items.push({
+            label: 'View profile',
+            icon: 'user',
+            onClick: () => navigate('/profile'),
+          });
+        }
+
         return (
           <RowMenu
             label={`Actions for ${m.name || m.email}`}
-            items={[
-              { header: 'Role' },
-              ...ROLES.map((r) => ({
-                label: r.label,
-                checked: role === r.value,
-                disabled: saving,
-                onClick: () => { if (role !== r.value) changeRole(m, r.value); },
-              })),
-              list.length > 0 && { divider: true },
-              list.length > 0 && { label: 'Manage project access', icon: 'user', onClick: () => navigate(`/project/${list[0]._id}/members`) },
-              list.length > 0 && { label: 'Remove from a project', icon: 'trash', tone: 'danger', onClick: () => setRemoving(m) },
-            ]}
+            items={items}
           />
         );
       },

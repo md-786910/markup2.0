@@ -13,5 +13,5 @@ export default function SettingsLayout({ title, subtitle, actions, children }) {
 
 // A muted line for loading and empty states inside a section body
 export function Muted({ children }) {
-  return <p className="m-0 text-ui text-gray-500">{children}</p>;
+  return <p style={{ margin: 0, color: 'var(--slate-500)', fontSize: 13 }}>{children}</p>;
 }

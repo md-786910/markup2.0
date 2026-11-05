@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import Modal from '../common/Modal';
+import { Button } from '../kc';
 import { createProjectApi, createDocumentProjectApi } from '../../services/projectService';
 import { useWorkspaces } from '../../contexts/WorkspaceContext';
 
@@ -228,20 +229,10 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
         )}
 
         <div className="flex justify-end gap-3 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-4 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {loading ? 'Creating...' : 'Create project'}
-          </button>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" loading={loading} disabled={loading}>
+            Create project
+          </Button>
         </div>
       </form>
     </Modal>

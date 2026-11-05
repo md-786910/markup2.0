@@ -89,9 +89,8 @@ async function createProjectNotifications({
 
     if (!project) return [];
 
-    // Collect all project members, plus the members of its workspace
-    const { workspaceMemberUsers } = require('./workspaces');
-    const allMembers = [project.owner, ...(project.members || []), ...(await workspaceMemberUsers(project, 'name email avatar'))].filter(Boolean);
+    // Collect project members
+    const allMembers = [project.owner, ...(project.members || [])].filter(Boolean);
     const actorIdStr = actor ? (actor._id || actor).toString() : null;
     const excludeSet = new Set(
       (excludeRecipientIds || []).map((id) => (id._id || id).toString())

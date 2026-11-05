@@ -153,11 +153,17 @@ export function toneFor(key = '') {
 export function initials(n) {
   return String(n || '?').trim().split(/\s+/).slice(0, 2).map((x) => x[0]).join('').toUpperCase() || '?';
 }
-// Every avatar is brand blue with white initials (one colour for everyone).
-// `toneKey` is accepted and ignored so existing callers keep working.
-// eslint-disable-next-line no-unused-vars
-export function Avatar({ name, src, tone, size, toneKey, className }) {
-  const t = tone;
+export const AVATAR_TONES = [undefined, 'green', 'amber', 'rose', 'slate'];
+export function avatarTone(key, index) {
+  if (typeof index === 'number' && index >= 0) {
+    return AVATAR_TONES[index % AVATAR_TONES.length];
+  }
+  if (!key) return undefined;
+  return AVATAR_TONES[toneFor(key) % AVATAR_TONES.length];
+}
+
+export function Avatar({ name, src, tone, size, toneKey, index, className }) {
+  const t = tone !== undefined ? tone : avatarTone(toneKey || name, index);
   if (src) {
     const px = size === 'sm' ? 22 : size === 'lg' ? 40 : 30;
     return <img src={src} alt="" title={name} className={cx('kc-av', size, className)} style={{ width: px, height: px, objectFit: 'cover', background: 'var(--slate-100)' }} />;
@@ -172,7 +178,16 @@ export function AvatarStack({ people = [], max = 3 }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <span className="kc-avs">
-        {shown.map((x, i) => <Avatar key={x.id || x._id || i} name={x.name || x.email} toneKey={x._id || x.id} size="sm" />)}
+        {shown.map((x, i) => (
+          <Avatar
+            key={x.id || x._id || i}
+            name={x.name || x.email}
+            tone={x.tone}
+            toneKey={x._id || x.id}
+            index={i}
+            size="sm"
+          />
+        ))}
       </span>
       {extra > 0 ? <span style={{ fontSize: 12, color: 'var(--slate-500)' }}>+{extra}</span> : null}
     </span>
@@ -399,7 +414,7 @@ export function DataTable({ columns = [], rows = [], rowKey = (r, i) => r._id ||
           {rows.map((r, i) => (
             <tr key={rowKey(r, i)}>
               {columns.map((c) => (
-                <td key={c.key} className={c.align === 'right' ? 'r' : undefined}>{c.render ? c.render(r) : r[c.key]}</td>
+                <td key={c.key} className={c.align === 'right' ? 'r' : undefined}>{c.render ? c.render(r, i) : r[c.key]}</td>
               ))}
             </tr>
           ))}
@@ -409,10 +424,10 @@ export function DataTable({ columns = [], rows = [], rowKey = (r, i) => r._id ||
   );
 }
 
-export function Person({ name, email, src, toneKey }) {
+export function Person({ name, email, src, tone, toneKey, index }) {
   return (
     <div className="kc-person">
-      <Avatar name={name || email} src={src} toneKey={toneKey} />
+      <Avatar name={name || email} src={src} tone={tone} toneKey={toneKey} index={index} />
       <div style={{ minWidth: 0 }}>
         <b>{name || email}</b>
         {email && name ? <small>{email}</small> : null}

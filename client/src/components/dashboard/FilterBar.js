@@ -69,20 +69,29 @@ export function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose,
 // Search that sits at the right of the toolbar
 function SearchInput({ value, onChange }) {
   return (
-    <div style={{ position: 'relative', width: 220 }}>
-      <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)', display: 'flex' }}>
-        <Icon name="search" size={15} />
+    <div className="kc-filter-search">
+      <span className="kc-filter-search-icon">
+        <Icon name="search" size={14} />
       </span>
       <input
         type="search"
-        className="kc-input"
-        style={{ height: 30, paddingLeft: 30, borderRadius: 'var(--radius-pill)' }}
+        className="kc-filter-search-input"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Escape') onChange(''); }}
         placeholder="Search projects"
         aria-label="Search projects"
       />
+      {value && (
+        <button
+          type="button"
+          className="kc-filter-search-clear"
+          onClick={() => onChange('')}
+          aria-label="Clear search"
+        >
+          <Icon name="x" size={13} />
+        </button>
+      )}
     </div>
   );
 }

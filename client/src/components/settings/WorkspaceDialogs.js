@@ -180,11 +180,11 @@ export function WorkspaceMembersDialog({ workspace, onClose, onSaved }) {
           <p className="m-0 p-4 text-center text-ui text-gray-500">Loading people…</p>
         ) : shown.length === 0 ? (
           <p className="m-0 p-4 text-center text-ui text-gray-500">No one found. Invite people by email above.</p>
-        ) : shown.map((p) => {
+        ) : shown.map((p, i) => {
           const always = p.role === 'owner' || p.role === 'admin';
           return (
             <div key={p._id} className="flex items-center gap-3 px-3.5 py-2.5">
-              <Avatar name={p.name || p.email} toneKey={p._id} size="sm" />
+              <Avatar name={p.name || p.email} tone={p.tone} toneKey={p._id} index={i} size="sm" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-ui font-medium text-gray-900">{p.name || p.email}</span>
                 <span className="block truncate text-caption text-gray-500">{p.email} · {ROLE_LABEL[p.role] || p.role}</span>
