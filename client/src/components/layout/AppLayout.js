@@ -65,7 +65,7 @@ function usePanel(area) {
     const locked = !user?.orgLimits?.hasIntegrations;
     return {
       title: 'Integrations',
-      groups: [{ items: INTEGRATION_PROVIDERS.map((p) => ({ id: p.id, label: p.label, icon: 'link', to: `/integrations?provider=${p.id}`, lock: locked })) }],
+      groups: [{ items: INTEGRATION_PROVIDERS.map((p) => ({ id: p.id, label: p.label, icon: p.icon || p.id, to: `/integrations?provider=${p.id}`, lock: locked })) }],
     };
   }
   const visible = SETTINGS_PAGES.filter((p) => (p.who === 'admins' ? isAdmin : p.who === 'managers' ? isAdmin || managesAWorkspace : true));
@@ -266,7 +266,6 @@ function Shell() {
         </nav>
         <span className="sp" />
         <IconButton icon="help" label="Help and support" tip="Help" onDark size="lg" onClick={() => openSupport()} />
-        <NotificationBell rail />
         <AccountButton open={acctOpen === 'rail'} onToggle={(v) => setAcctOpen(v ? 'rail' : null)} items={accountItems} placement="rail">
           {avatar}
         </AccountButton>
@@ -329,6 +328,7 @@ function Shell() {
             </button>
           </div>
           <IconButton className="kc-search-icon" icon="search" label="Search" onClick={() => setSearchOpen(true)} />
+          <NotificationBell />
         </header>
 
         <main ref={mainRef} className="kc-main" id="main">

@@ -73,12 +73,12 @@
   --nav-item-height:34px;
   --grid-card-min:290px;
   --radius-xs:4px;
-  --radius-sm:7px;
+  --radius-sm:8px;
   --radius-md:8px;
-  --radius-lg:10px;
-  --radius-xl:12px;
-  --radius-2xl:16px;
-  --radius-pill:999px;
+  --radius-lg:8px;
+  --radius-xl:8px;
+  --radius-2xl:8px;
+  --radius-pill:8px;
   --shadow-nav-active:0 1px 2px rgba(15, 23, 42, 0.08), 0 0 0 1px #e2e8f0;
   --shadow-card-hover:0 4px 14px -6px rgba(15, 23, 42, 0.15);
   --shadow-menu:0 12px 32px -8px rgba(15, 23, 42, 0.25);
@@ -122,8 +122,9 @@
 .kc-link { color: var(--brand-600); font-weight: 500; cursor: pointer; }
 .kc-link:hover { text-decoration: underline; }
 
-.kc-icb { width: 32px; height: 32px; display: inline-grid; place-items: center; border-radius: var(--radius-md); color: var(--slate-500); position: relative; }
+.kc-icb { width: 32px; height: 32px; display: inline-grid; place-items: center; border-radius: var(--radius-md); color: var(--slate-500); position: relative; border: none; background: transparent; cursor: pointer; }
 .kc-icb:hover { background: var(--slate-100); color: var(--slate-700); }
+.kc-icb:focus:not(:focus-visible) { outline: none; }
 .kc-icb.lg { width: 40px; height: 40px; }
 .kc-icb.dark { color: var(--rail-icon); }
 .kc-icb.dark:hover { background: var(--rail-active); color: var(--on-brand); }
@@ -179,11 +180,11 @@
 .kc-search span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .kc-search svg { flex-shrink: 0; }
 .kc-search kbd, .kc kbd { margin-left: auto; font: 500 10.5px var(--font-sans); padding: 0 5px; border-radius: var(--radius-xs); background: var(--slate-100); border: 1px solid var(--border); color: var(--slate-600); flex-shrink: 0; white-space: nowrap; line-height: 18px; }
-.kc-ws { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: var(--radius-lg); text-align: left; }
+.kc-ws { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: var(--radius-md); text-align: left; }
 .kc-ws:hover { background: var(--slate-100); }
 .kc-ws .name { font-weight: 600; font-size: 13px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kc-ws .sub { font-size: 11.5px; line-height: 1.2; color: var(--slate-500); }
-.kc-trial { border-radius: var(--radius-lg); padding: 10px 12px; font-size: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--slate-600); }
+.kc-trial { border-radius: var(--radius-xl); padding: 10px 12px; font-size: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--slate-600); }
 .kc-trial .row { display: flex; justify-content: space-between; align-items: center; }
 .kc-trial .pb { height: 4px; border-radius: 4px; margin: 8px 0; overflow: hidden; background: var(--slate-100); }
 .kc-trial .pb i { display: block; height: 100%; background: var(--brand-600); border-radius: 4px; }
@@ -237,9 +238,13 @@ button.kc-card, a.kc-card { cursor: pointer; text-align: left; }
 .kc-cm .n { font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
 
 /* ---------- table ---------- */
-.kc-tablewrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); overflow: auto; }
-.kc-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.kc-tablewrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); overflow: visible; }
+.kc-table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
 .kc-table th { text-align: left; font: 500 12.5px/18px var(--font-sans); color: var(--slate-600); background: var(--slate-50); padding: 10px 16px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.kc-table th:first-child { border-top-left-radius: calc(var(--radius-xl) - 1px); }
+.kc-table th:last-child { border-top-right-radius: calc(var(--radius-xl) - 1px); }
+.kc-table tr:last-child td:first-child { border-bottom-left-radius: calc(var(--radius-xl) - 1px); }
+.kc-table tr:last-child td:last-child { border-bottom-right-radius: calc(var(--radius-xl) - 1px); }
 .kc-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .kc-table tr:last-child td { border-bottom: 0; }
 .kc-table tbody tr:hover td { background: var(--slate-50); }
@@ -260,7 +265,7 @@ button.kc-card, a.kc-card { cursor: pointer; text-align: left; }
 .kc-input:focus, .kc-select:focus, .kc-textarea:focus { outline: 2px solid var(--focus-ring); outline-offset: 1px; border-color: var(--brand-600); }
 .kc-input[aria-invalid="true"] { border-color: var(--danger-600); }
 .kc-toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
-.kc-toggle .track { width: 36px; height: 20px; border-radius: var(--radius-pill); background: var(--border-control); position: relative; transition: background .15s; flex-shrink: 0; }
+.kc-toggle .track { width: 36px; height: 20px; border-radius: 999px; background: var(--border-control); position: relative; transition: background .15s; flex-shrink: 0; }
 .kc-toggle .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--white); transition: transform .15s; }
 .kc-toggle[aria-checked="true"] .track { background: var(--brand-600); }
 .kc-toggle[aria-checked="true"] .track::after { transform: translateX(16px); }
@@ -300,7 +305,7 @@ button.kc-card, a.kc-card { cursor: pointer; text-align: left; }
 .kc-empty p { margin: 0; max-width: 40ch; }
 .kc-empty .btn { margin-top: 10px; }
 .kc-scrim { position: absolute; inset: 0; background: var(--scrim); z-index: var(--z-overlay); display: flex; justify-content: center; align-items: flex-start; padding-top: 90px; }
-.kc-pal { width: 560px; max-width: calc(100% - 32px); background: var(--surface); border-radius: var(--radius-2xl); box-shadow: var(--shadow-modal); overflow: hidden; }
+.kc-pal { width: 560px; max-width: calc(100% - 32px); background: var(--surface); border-radius: var(--radius-xl); box-shadow: var(--shadow-modal); overflow: hidden; }
 .kc-pal .in { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); color: var(--slate-500); }
 .kc-pal input { flex: 1; border: 0; outline: 0; font: 400 14.5px var(--font-sans); color: var(--text); background: transparent; }
 .kc-pal .sec { padding: 8px; }
@@ -400,5 +405,5 @@ button.kc-card, a.kc-card { cursor: pointer; text-align: left; }
 
 /* Modals (global: dialogs render inside and outside the shell) */
 .kc-modal-scrim { background: var(--scrim); }
-.kc-modal { border-radius: var(--radius-2xl); box-shadow: var(--shadow-modal); }
+.kc-modal { border-radius: var(--radius-xl); box-shadow: var(--shadow-modal); overflow: hidden; }
 .kc-heading { font: 700 18px/24px var(--font-display); letter-spacing: -0.02em; color: var(--text); margin: 0; }

@@ -249,53 +249,17 @@ export default function NotificationBell({ className = '', variant, projectId, o
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
-      {rail ? (
-        <IconButton
-          icon="bell"
-          size="lg"
-          onDark
-          tip={isOpen ? undefined : 'Notifications'}
-          label={scopedUnreadCount ? `Notifications, ${scopedUnreadCount} unread` : 'Notifications'}
-          active={isOpen}
-          badge={scopedUnreadCount > 0}
-          aria-expanded={isOpen}
-          onClick={() => setIsOpen((prev) => !prev)}
-        />
-      ) : (
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className={`relative rounded-lg transition-colors focus:outline-none ${
-          dark ? 'p-2' : 'inline-flex h-8 w-8 items-center justify-center'
-        } ${
-          dark
-            ? `text-gray-400 hover:text-white hover:bg-gray-800 ${isOpen ? 'bg-gray-800 text-white' : ''}`
-            : `text-gray-500 hover:text-gray-700 hover:bg-gray-100 ${isOpen ? 'bg-gray-100 text-gray-800' : ''}`
-        }`}
-        title="Notifications"
-        aria-label={scopedUnreadCount ? `Notifications, ${scopedUnreadCount} unread` : 'Notifications'}
+      <IconButton
+        icon="bell"
+        size={rail ? 'lg' : undefined}
+        onDark={rail || dark}
+        tip={rail && !isOpen ? 'Notifications' : undefined}
+        label={scopedUnreadCount ? `Notifications, ${scopedUnreadCount} unread` : 'Notifications'}
+        active={isOpen}
+        badge={scopedUnreadCount > 0}
         aria-expanded={isOpen}
-      >
-        <svg
-          className={`w-5 h-5 ${hasNewNotification ? 'animate-bounce text-blue-600' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          strokeWidth={1.75}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
-          />
-        </svg>
-        {scopedUnreadCount > 0 && (
-          <span className={`absolute top-1 right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-blue-600 text-caption font-semibold text-white ring-2 ${dark ? 'ring-gray-900' : 'ring-white'}`}>
-            {scopedUnreadCount > 99 ? '99+' : scopedUnreadCount}
-          </span>
-        )}
-      </button>
-      )}
+        onClick={() => setIsOpen((prev) => !prev)}
+      />
 
       {isOpen && (
         <div role="dialog" aria-label="Notifications" className={`kc-menu kc-notif ${rail ? 'kc-rail-notif' : `absolute ${align === 'left' ? 'left-0' : 'right-0'} mt-2`}`} style={{ zIndex: 'var(--z-menu)' }}>

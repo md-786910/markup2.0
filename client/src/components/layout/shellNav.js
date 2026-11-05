@@ -23,10 +23,10 @@ export const PROJECT_TYPES_NAV = [
 ];
 
 export const INTEGRATION_PROVIDERS = [
-  { id: 'slack', label: 'Slack' },
-  { id: 'jira', label: 'Jira' },
-  { id: 'discord', label: 'Discord' },
-  { id: 'teams', label: 'Microsoft Teams' },
+  { id: 'slack', label: 'Slack', icon: 'slack' },
+  { id: 'jira', label: 'Jira', icon: 'jira' },
+  { id: 'discord', label: 'Discord', icon: 'discord' },
+  { id: 'teams', label: 'Microsoft Teams', icon: 'teams' },
 ];
 
 // Settings pages; `who` limits an item to org admins or workspace managers

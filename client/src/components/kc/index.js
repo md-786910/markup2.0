@@ -54,9 +54,97 @@ const P = {
   filter: 'M4 5h16l-6 8v5l-4 2v-7L4 5z',
   calendar: ['M4 6h16v14H4z', 'M4 10h16M8 3v4M16 3v4'],
 };
-export const ICON_NAMES = Object.keys(P);
+export const ICON_NAMES = Object.keys(P).concat(['slack', 'jira', 'discord', 'teams']);
 
 export function Icon({ name, size = 18, stroke, className, style, label }) {
+  if (name === 'slack') {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden={label ? undefined : 'true'}
+        role={label ? 'img' : undefined}
+        aria-label={label || 'Slack'}
+        className={className}
+        style={style}
+      >
+        <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52-2.523c0-1.394 1.127-2.52 2.52-2.52h2.524v2.52c0 1.395-1.13 2.523-2.524 2.523z" fill="#E01E5A"/>
+        <path d="M6.313 15.165a2.527 2.527 0 0 1 2.521-2.523 2.527 2.527 0 0 1 2.521 2.523v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A"/>
+        <path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52 2.528 2.528 0 0 1 2.521-2.522c1.395 0 2.521 1.128 2.521 2.522v2.52H8.834z" fill="#36C5F0"/>
+        <path d="M8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0"/>
+        <path d="M18.956 8.834c1.394 0 2.522 1.127 2.522 2.521 0 1.395-1.128 2.521-2.522 2.521h-2.522V11.355c0-1.394 1.128-2.521 2.522-2.521z" fill="#2EB67D"/>
+        <path d="M17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522C12.645 1.128 13.77 0 15.165 0c1.395 0 2.523 1.128 2.523 2.522v6.312z" fill="#2EB67D"/>
+        <path d="M15.165 18.956c0 1.395-1.128 2.522-2.523 2.522a2.528 2.528 0 0 1-2.52-2.522v-2.522h2.52c1.395 0 2.523 1.127 2.523 2.522z" fill="#ECB22E"/>
+        <path d="M15.165 17.688a2.527 2.527 0 0 1-2.523-2.523c0-1.394 1.128-2.52 2.523-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" fill="#ECB22E"/>
+      </svg>
+    );
+  }
+
+  if (name === 'jira') {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden={label ? undefined : 'true'}
+        role={label ? 'img' : undefined}
+        aria-label={label || 'Jira'}
+        className={className}
+        style={style}
+      >
+        <path d="M11.53 2c0 2.4-1.97 4.35-4.4 4.35H2.8v4.33h4.33c4.78 0 8.67-3.87 8.67-8.68H11.53z" fill="#2684FF"/>
+        <path d="M16.14 6.78c0 2.4-1.97 4.35-4.4 4.35H7.4v4.33h4.34c4.78 0 8.67-3.87 8.67-8.68h-4.27z" fill="#0052CC"/>
+        <path d="M20.75 11.56c0 2.4-1.97 4.35-4.4 4.35H12v4.34h4.35c4.78 0 8.67-3.88 8.67-8.69h-4.27z" fill="#2684FF"/>
+      </svg>
+    );
+  }
+
+  if (name === 'discord') {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden={label ? undefined : 'true'}
+        role={label ? 'img' : undefined}
+        aria-label={label || 'Discord'}
+        className={className}
+        style={style}
+      >
+        <path
+          d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"
+          fill="#5865F2"
+        />
+      </svg>
+    );
+  }
+
+  if (name === 'teams') {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden={label ? undefined : 'true'}
+        role={label ? 'img' : undefined}
+        aria-label={label || 'Microsoft Teams'}
+        className={className}
+        style={style}
+      >
+        <circle cx="16.5" cy="5.5" r="2.2" fill="#505AC9" />
+        <path d="M15 8.5h3.2a2.3 2.3 0 0 1 2.3 2.3v3.2h-5.5v-5.5z" fill="#505AC9" opacity="0.85" />
+        <circle cx="9.5" cy="5.5" r="2.8" fill="#464EB8" />
+        <rect x="2.5" y="8.5" width="14" height="13.5" rx="2.5" fill="#464EB8" />
+        <path d="M6.5 13.5h6M9.5 13.5v6" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
   const d = [].concat(P[name] || []);
   return (
     <svg
@@ -256,18 +344,33 @@ export function Menu({ items = [], style, className, onPick, label }) {
   );
 }
 
-// A trigger plus a Menu that opens 6px below it (or above with `placement`)
+// A trigger plus a Menu that opens 6px below it (or above with `placement` or when space below is limited)
 export function MenuButton({ items, renderTrigger, align = 'left', placement = 'below', width, label = 'Menu', className }) {
   const [open, setOpen] = useState(false);
+  const [actualPlacement, setActualPlacement] = useState(placement);
   const ref = useRef(null);
   const triggerRef = useRef(null);
   useDismiss(ref, open, () => setOpen(false), triggerRef);
-  const pos = placement === 'below' ? { top: 'calc(100% + 6px)' } : { bottom: 'calc(100% + 6px)' };
+
+  useEffect(() => {
+    if (open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      if (placement === 'below' && spaceBelow < 220 && spaceAbove > spaceBelow) {
+        setActualPlacement('above');
+      } else {
+        setActualPlacement(placement);
+      }
+    }
+  }, [open, placement]);
+
+  const pos = actualPlacement === 'below' ? { top: 'calc(100% + 6px)' } : { bottom: 'calc(100% + 6px)' };
   return (
     <div ref={ref} className={className} style={{ position: 'relative', display: 'inline-flex' }}>
       {renderTrigger({ ref: triggerRef, open, toggle: () => setOpen((o) => !o), 'aria-haspopup': 'menu', 'aria-expanded': open })}
       {open && (
-        <div className="kc-pop" style={{ ...pos, [align === 'right' ? 'right' : 'left']: 0 }}>
+        <div className="kc-pop" style={{ ...pos, [align === 'right' ? 'right' : 'left']: 0, zIndex: 100 }}>
           <Menu items={items} label={label} onPick={() => setOpen(false)} style={width ? { width } : undefined} />
         </div>
       )}

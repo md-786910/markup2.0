@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Modal from '../common/Modal';
-import { Button } from '../kc';
+import { Banner, Button, Field, Icon, IconButton, Tile } from '../kc';
 import { createProjectApi, createDocumentProjectApi } from '../../services/projectService';
 import { useWorkspaces } from '../../contexts/WorkspaceContext';
+import { workspaceTone } from '../layout/WorkspaceSwitcher';
 
 function formatFileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -15,9 +16,10 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
   const { current: workspace } = useWorkspaces();
 
   // Sync with defaultType when modal opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) setProjectType(defaultType);
   }, [isOpen, defaultType]);
+
   const [name, setName] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [files, setFiles] = useState([]);
@@ -76,160 +78,211 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create project">
+    <Modal isOpen={isOpen} onClose={onClose} title="Create project" size="md">
       {workspace && (
-        <p className="-mt-2 mb-4 text-body-sm text-gray-500">
-          In <span className="font-medium text-gray-900">{workspace.name}</span>
-        </p>
-      )}
-      {error && (
-        <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-body-sm flex items-center gap-2">
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          {error}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--slate-500)', marginBottom: 16 }}>
+          <span>In workspace:</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 500, color: 'var(--text)' }}>
+            <Tile letter={workspace.name} tone={workspaceTone(workspace.name)} size={18} />
+            {workspace.name}
+          </span>
         </div>
       )}
 
+      {error && (
+        <Banner tone="danger" style={{ marginBottom: 16 }}>
+          {error}
+        </Banner>
+      )}
+
       {/* Project type cards */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 18 }}>
         <button
           type="button"
           onClick={() => { setProjectType('website'); setError(''); }}
-          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-150 hover:scale-[1.02] ${
-            projectType === 'website'
-              ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500/20'
-              : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50'
-          }`}
+          style={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            padding: '14px',
+            borderRadius: 'var(--radius-md)',
+            border: projectType === 'website' ? '1.5px solid var(--brand-600)' : '1px solid var(--border)',
+            background: projectType === 'website' ? 'var(--brand-50)' : 'var(--surface)',
+            cursor: 'pointer',
+            textAlign: 'left',
+            transition: 'all .15s ease',
+          }}
         >
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-            projectType === 'website' ? 'bg-blue-100' : 'bg-gray-100'
-          }`}>
-            <svg className={`w-5 h-5 ${projectType === 'website' ? 'text-blue-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-            </svg>
-          </div>
-          <span className={`text-body-sm font-semibold ${projectType === 'website' ? 'text-blue-700' : 'text-gray-700'}`}>Website</span>
-          <span className="text-caption text-gray-400">Live URL to review</span>
-          {projectType === 'website' && (
-            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 8 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 'var(--radius-md)',
+                background: projectType === 'website' ? 'var(--brand-600)' : 'var(--slate-100)',
+                color: projectType === 'website' ? 'var(--white)' : 'var(--slate-600)',
+                display: 'grid',
+                placeItems: 'center',
+                transition: 'all .15s ease',
+              }}
+            >
+              <Icon name="globe" size={18} />
             </div>
-          )}
+            {projectType === 'website' && (
+              <span style={{ color: 'var(--brand-600)', display: 'flex' }}>
+                <Icon name="okc" size={18} />
+              </span>
+            )}
+          </div>
+          <div style={{ font: '600 13px/18px var(--font-sans)', color: 'var(--text)' }}>Website</div>
+          <div style={{ font: '400 11.5px/16px var(--font-sans)', color: 'var(--slate-500)', marginTop: 2 }}>
+            Live URL to review and annotate
+          </div>
         </button>
 
         <button
           type="button"
           onClick={() => { setProjectType('document'); setError(''); }}
-          className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-150 hover:scale-[1.02] ${
-            projectType === 'document'
-              ? 'border-violet-500 bg-violet-50/50 ring-1 ring-violet-500/20'
-              : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50'
-          }`}
+          style={{
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            padding: '14px',
+            borderRadius: 'var(--radius-md)',
+            border: projectType === 'document' ? '1.5px solid var(--brand-600)' : '1px solid var(--border)',
+            background: projectType === 'document' ? 'var(--brand-50)' : 'var(--surface)',
+            cursor: 'pointer',
+            textAlign: 'left',
+            transition: 'all .15s ease',
+          }}
         >
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-            projectType === 'document' ? 'bg-violet-100' : 'bg-gray-100'
-          }`}>
-            <svg className={`w-5 h-5 ${projectType === 'document' ? 'text-violet-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-            </svg>
-          </div>
-          <span className={`text-body-sm font-semibold ${projectType === 'document' ? 'text-violet-700' : 'text-gray-700'}`}>Document</span>
-          <span className="text-caption text-gray-400">PDF or images to review</span>
-          {projectType === 'document' && (
-            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-violet-500 flex items-center justify-center">
-              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 8 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 'var(--radius-md)',
+                background: projectType === 'document' ? 'var(--brand-600)' : 'var(--slate-100)',
+                color: projectType === 'document' ? 'var(--white)' : 'var(--slate-600)',
+                display: 'grid',
+                placeItems: 'center',
+                transition: 'all .15s ease',
+              }}
+            >
+              <Icon name="doc" size={18} />
             </div>
-          )}
+            {projectType === 'document' && (
+              <span style={{ color: 'var(--brand-600)', display: 'flex' }}>
+                <Icon name="okc" size={18} />
+              </span>
+            )}
+          </div>
+          <div style={{ font: '600 13px/18px var(--font-sans)', color: 'var(--text)' }}>Document</div>
+          <div style={{ font: '400 11.5px/16px var(--font-sans)', color: 'var(--slate-500)', marginTop: 2 }}>
+            PDF or images to review
+          </div>
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-label text-gray-700 mb-1.5">Project name</label>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <Field id="projectName" label="Project name">
           <input
+            id="projectName"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
+            className="kc-input"
             placeholder={projectType === 'website' ? 'My Website Review' : 'My Document Review'}
           />
-        </div>
+        </Field>
 
         {projectType === 'website' ? (
-          <div>
-            <label className="block text-label text-gray-700 mb-1.5">Website URL</label>
+          <Field id="websiteUrl" label="Website URL" hint="Live website address with https://">
             <input
+              id="websiteUrl"
               type="url"
               value={websiteUrl}
               onChange={(e) => setWebsiteUrl(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
+              className="kc-input"
               placeholder="https://example.com"
             />
-          </div>
+          </Field>
         ) : (
-          <div>
-            <label className="block text-label text-gray-700 mb-1.5">Upload Documents</label>
+          <Field label="Upload documents" hint="PDF, PNG, JPG, GIF, WebP (max 20 MB each)">
             <div
-              className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+              style={{
+                border: '1.5px dashed var(--border-control)',
+                borderRadius: 'var(--radius-md)',
+                padding: '24px 16px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                background: 'var(--surface)',
+                transition: 'background .15s, border-color .15s',
+              }}
               onClick={() => fileInputRef.current?.click()}
               onDrop={handleDrop}
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
             >
-              <svg className="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-              </svg>
-              <p className="text-body-sm text-gray-600 font-medium">Drop files here or click to browse</p>
-              <p className="text-caption text-gray-400 mt-1">PDF, PNG, JPG, GIF, WebP (max 20 MB each)</p>
+              <div style={{ color: 'var(--slate-400)', marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
+                <Icon name="upload" size={26} />
+              </div>
+              <div style={{ font: '500 13px/18px var(--font-sans)', color: 'var(--text)' }}>
+                Drop files here or click to browse
+              </div>
+              <div style={{ font: '400 11.5px/16px var(--font-sans)', color: 'var(--slate-500)', marginTop: 2 }}>
+                Upload designs, screenshots, or PDF guidelines
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
                 multiple
                 accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
-                className="hidden"
+                style={{ display: 'none' }}
                 onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
               />
             </div>
 
             {files.length > 0 && (
-              <div className="mt-3 space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
                 {files.map((file, i) => (
-                  <div key={i} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                        {file.type === 'application/pdf' ? (
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                        ) : (
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
-                        )}
-                      </svg>
-                      <span className="text-body-sm text-gray-700 truncate">{file.name}</span>
-                      <span className="text-caption text-gray-400 shrink-0">{formatFileSize(file.size)}</span>
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      background: 'var(--slate-50)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: 13,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                      <Icon name="doc" size={16} style={{ color: 'var(--slate-400)', flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text)' }}>
+                        {file.name}
+                      </span>
+                      <span style={{ fontSize: 11.5, color: 'var(--slate-500)', flexShrink: 0 }}>
+                        ({formatFileSize(file.size)})
+                      </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(i)}
-                      className="text-gray-400 hover:text-red-500 transition-colors ml-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                    <IconButton icon="x" size="sm" label="Remove file" onClick={() => removeFile(i)} />
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </Field>
         )}
 
-        <div className="flex justify-end gap-3 pt-2">
-          <Button onClick={onClose}>Cancel</Button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 10, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+          <Button onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
           <Button type="submit" variant="primary" loading={loading} disabled={loading}>
             Create project
           </Button>

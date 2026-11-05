@@ -17,6 +17,7 @@ import {
   Checkbox,
   EmptyState,
   Field,
+  Icon,
   Input,
   PageHeader,
   Section,
@@ -365,8 +366,23 @@ export default function IntegrationsPage() {
   };
 
   const title = (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-      <Tile letter={provider.letter} tone={provider.tone} size={28} />
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 12 }}>
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 32,
+          height: 32,
+          borderRadius: "var(--radius-md)",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+          flexShrink: 0,
+        }}
+      >
+        <Icon name={provider.type} size={22} />
+      </span>
       {provider.name}
     </span>
   );

@@ -89,6 +89,14 @@ module.exports = {
         lg: '0 12px 32px rgba(15, 23, 42, 0.10)',
         xl: '0 24px 60px rgba(15, 23, 42, 0.16)',
       },
+      borderRadius: {
+        DEFAULT: '8px',
+        md: '8px',
+        lg: '8px',
+        xl: '8px',
+        '2xl': '8px',
+        '3xl': '8px',
+      },
       fontFamily,
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',
