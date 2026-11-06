@@ -2,14 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import './styles/typography.css';
+import './styles/kommently-site.css';
 import App from './App';
 
-// Scroll-reveal animations only run with JavaScript (index.css: .reveal-on);
-// anything not revealed shortly after load is shown anyway.
-document.documentElement.classList.add('reveal-on');
-window.setTimeout(() => {
-  document.querySelectorAll('[data-reveal]:not([data-revealed])').forEach((el) => el.setAttribute('data-revealed', 'true'));
-}, 4000);
+// No scroll-reveal animations: the design system allows only 150ms colour
+// and border transitions (kommently-design-system/source/README.md, Motion).
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

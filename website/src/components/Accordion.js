@@ -1,45 +1,29 @@
 import React, { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDownIcon } from './icons';
+import { Icon } from './site';
 
-// Question/answer list used by every FAQ on the site (one style everywhere).
+// Question/answer list in the design system's FAQ style (km-faq / km-q).
 // items: [{ question, answer }]; one item open at a time.
 export default function Accordion({ items, idPrefix = 'faq', defaultOpen = 0, className = '' }) {
   const [openIndex, setOpenIndex] = useState(defaultOpen);
   return (
-    <div className={`rounded-2xl border border-slate-200 bg-white px-6 sm:px-8 ${className}`}>
+    <div className={`km-faq ${className}`.trim()}>
       {items.map((item, index) => {
         const isOpen = openIndex === index;
         const id = `${idPrefix}-${index}`;
         return (
-          <div key={item.question} className="border-b border-slate-200 last:border-b-0">
-            <h3 className="text-body sm:text-body-lg">
+          <div key={item.question} className={`km-q${isOpen ? ' on' : ''}`}>
+            <h3>
               <button
                 type="button"
                 onClick={() => setOpenIndex(isOpen ? -1 : index)}
                 aria-expanded={isOpen}
                 aria-controls={id}
-                className="flex w-full items-center justify-between gap-6 py-5 text-left"
               >
-                <span className="text-body font-semibold text-slate-950 sm:text-body-lg">{item.question}</span>
-                <ChevronDownIcon className={`h-5 w-5 flex-none text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180 text-[#003dff]' : ''}`} />
+                {item.question}
+                <Icon name={isOpen ? 'x' : 'plus'} size={18} />
               </button>
             </h3>
-            <AnimatePresence initial={false}>
-              {isOpen && (
-                <motion.div
-                  id={id}
-                  key="content"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                  className="overflow-hidden"
-                >
-                  <p className="max-w-[65ch] pb-6 text-body text-slate-600">{item.answer}</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {isOpen ? <p id={id}>{item.answer}</p> : null}
           </div>
         );
       })}

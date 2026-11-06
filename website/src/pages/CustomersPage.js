@@ -1,10 +1,6 @@
 import React, { useEffect } from 'react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import { SiteLayout, Hero, Section, SectionHeader, Icon, Badge, TRIAL } from '../components/site';
 import CtaSection from '../components/CtaSection';
-import { ArrowRightIcon, CheckIcon, ShareIcon, CodeIcon, GlobeIcon } from '../components/icons';
-
-const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 
 // Matches the app's access model (server/utils/access.js)
 const ACCESS_LEVELS = [
@@ -21,24 +17,73 @@ const ORG_ROLES = [
 
 const CUSTOMER_SEGMENTS = [
   {
-    icon: ShareIcon,
+    icon: 'share',
     title: 'Agencies',
     description: 'Collect client notes on live work without turning every review into screenshots, email threads, and status calls.',
     metrics: ['A workspace and one review link per client', 'Clients comment without signing up', 'Version snapshots and activity history'],
   },
   {
-    icon: CodeIcon,
+    icon: 'monitor',
     title: 'Product teams',
     description: 'Keep PMs, designers, engineers, and QA aligned around precise comments, before a release goes sideways.',
     metrics: ['Screenshot and device size on every pin', 'Jira issues created from new pins', 'Real-time presence and threads'],
   },
   {
-    icon: GlobeIcon,
+    icon: 'globe',
     title: 'Web operations',
     description: 'Review landing pages, PDFs, and campaign assets with clear ownership and no account friction for stakeholders.',
     metrics: ['Paste a URL, no install or snippet', 'PDF and image review in the same project', 'Slack, Discord, and Teams updates'],
   },
 ];
+
+// Illustration of a review round (sample data, not customer numbers)
+const REVIEW_ROWS = [
+  ['Homepage QA', '12 resolved', 'approved'],
+  ['Client copy pass', '4 open', 'changes'],
+  ['Mobile polish', 'Ready', 'approved'],
+];
+
+function ReviewHealth() {
+  return (
+    <div className="km-mock status" role="img" aria-label="Review health of a campaign launch: homepage QA 12 resolved, client copy pass 4 open, mobile polish ready">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div>
+          <div className="km-eyebrow" style={{ marginBottom: 2 }}>Review health</div>
+          <div className="km-h3">Campaign launch</div>
+        </div>
+        <Badge tone="approved">On track</Badge>
+      </div>
+      {REVIEW_ROWS.map(([label, value, tone]) => (
+        <div key={label} className="km-statrow">
+          <span className="km-ico" style={{ margin: 0, width: 32, height: 32 }}><Icon name="check" size={16} stroke={2} /></span>
+          <div><b>{label}</b></div>
+          <Badge tone={tone}>{value}</Badge>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RoleList({ title, lead, rows }) {
+  return (
+    <article className="km-feat">
+      <h3 className="km-h3">{title}</h3>
+      <p>{lead}</p>
+      <div className="km-table-wrap" style={{ width: '100%', marginTop: 8 }}>
+        <table className="km-table">
+          <tbody>
+            {rows.map(([term, copy]) => (
+              <tr key={term}>
+                <td style={{ width: 150 }}>{term}</td>
+                <td>{copy}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  );
+}
 
 export default function CustomersPage() {
   useEffect(() => {
@@ -46,129 +91,55 @@ export default function CustomersPage() {
   }, []);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white">
-      <Navbar />
-      <main id="main-content">
-        <section className="page-hero">
-          <div className="site-container relative z-10 grid gap-12 lg:grid-cols-[1fr_0.85fr] lg:items-center">
-            <div className="max-w-3xl">
-              <span className="eyebrow">Use cases</span>
-              <h1 className="display-heading mt-6">
-                Review workflows that feel clear to every stakeholder.
-              </h1>
-              <p className="body-large mt-6 max-w-2xl">
-                Kommently helps agencies, product teams, and web operations groups turn scattered visual feedback into accountable review cycles.
-              </p>
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                <a href={`${APP_URL}/onboarding`} className="button-primary px-8 py-4">
-                  Start free
-                  <ArrowRightIcon className="h-5 w-5" />
-                </a>
-                <a href="/pricing" className="button-secondary px-8 py-4">
-                  View plans
-                </a>
-              </div>
-            </div>
+    <SiteLayout>
+      <Hero
+        eyebrow="Use cases"
+        title="Review workflows that feel clear to every stakeholder"
+        lead="Kommently helps agencies, product teams, and web operations groups turn scattered visual feedback into accountable review cycles."
+        primary={{ label: 'Start free', href: TRIAL.href, icon: 'arrow' }}
+        secondary={{ label: 'View plans', href: '/pricing' }}
+        visual={<ReviewHealth />}
+      />
 
-            <div className="premium-card p-4 sm:p-5">
-              <div className="rounded-[20px] bg-white p-5 text-[#0f172a]">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-                  <div>
-                    <p className="text-overline text-slate-400">Review health</p>
-                    <h2 className="mt-1 text-h4 font-semibold">Campaign launch</h2>
-                  </div>
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-caption font-semibold text-[#003dff]">On track</span>
-                </div>
-                {[
-                  ['Homepage QA', '12 resolved', 'bg-[#eef3ff] text-[#0031d1]'],
-                  ['Client copy pass', '4 open', 'bg-amber-50 text-amber-700'],
-                  ['Mobile polish', 'Ready', 'bg-emerald-50 text-[#003dff]'],
-                ].map(([label, value, tone]) => (
-                  <div key={label} className="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 p-4">
-                    <div className="flex items-center gap-3">
-                      <span className="icon-tile h-10 w-10">
-                        <CheckIcon className="h-4 w-4" />
-                      </span>
-                      <span className="font-medium text-[#475569]">{label}</span>
-                    </div>
-                    <span className={`rounded-full px-3 py-1 text-caption font-semibold ${tone}`}>{value}</span>
-                  </div>
+      <Section tone="muted">
+        <SectionHeader eyebrow="Teams" title="Built for the teams that own review quality" />
+        <div className="km-grid c3">
+          {CUSTOMER_SEGMENTS.map((segment) => (
+            <article key={segment.title} className="km-feat">
+              <span className="km-ico"><Icon name={segment.icon} size={20} /></span>
+              <h3 className="km-h3">{segment.title}</h3>
+              <p>{segment.description}</p>
+              <ul className="km-points" style={{ marginTop: 12 }}>
+                {segment.metrics.map((metric) => (
+                  <li key={metric}><Icon name="check" size={16} stroke={2.4} />{metric}</li>
                 ))}
-              </div>
-            </div>
-          </div>
-        </section>
+              </ul>
+            </article>
+          ))}
+        </div>
+      </Section>
 
-        <section className="section-shell section-pad">
-          <div className="site-container relative z-10">
-            <div className="max-w-3xl">
-              <span className="eyebrow">Teams</span>
-              <h2 className="section-heading mt-5">Built for the teams that own review quality.</h2>
-            </div>
-            <div className="mt-12 grid gap-5 lg:grid-cols-3">
-              {CUSTOMER_SEGMENTS.map((segment) => (
-                <article key={segment.title} className="premium-card hover-lift p-7">
-                  <div className="icon-tile h-12 w-12">
-                    <segment.icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="mt-6 text-h3 font-semibold text-[#0f172a]">{segment.title}</h3>
-                  <p className="body-copy mt-3">{segment.description}</p>
-                  <ul className="mt-6 space-y-3">
-                    {segment.metrics.map((metric) => (
-                      <li key={metric} className="flex items-center gap-3 text-body-sm font-medium text-[#475569]">
-                        <CheckIcon className="h-4 w-4 text-[#003dff]" />
-                        {metric}
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
+      <Section tone="light">
+        <SectionHeader
+          eyebrow="Access"
+          title="One workspace for every approval path"
+          lead="Give each client a workspace, and each person exactly the access they need."
+        />
+        <div className="km-grid c2">
+          <RoleList
+            title="Access on each workspace and project"
+            lead="Set it once on a workspace and it applies to every project inside."
+            rows={ACCESS_LEVELS}
+          />
+          <RoleList
+            title="Roles in your organization"
+            lead="Who can run the account, and who joins as a guest."
+            rows={ORG_ROLES}
+          />
+        </div>
+      </Section>
 
-        <section className="section-pad">
-          <div className="site-container">
-            <div className="mx-auto max-w-2xl text-center">
-              <span className="eyebrow">Access</span>
-              <h2 className="section-heading mt-5">One workspace for every approval path.</h2>
-              <p className="body-large mt-4">
-                Give each client a workspace, and each person exactly the access they need.
-              </p>
-            </div>
-            <div className="mt-12 grid gap-6 lg:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                <p className="text-body-lg font-semibold text-slate-950">Access on each workspace and project</p>
-                <p className="mt-1 text-body-sm text-slate-500">Set it once on a workspace and it applies to every project inside.</p>
-                <ul className="mt-5 divide-y divide-slate-100">
-                  {ACCESS_LEVELS.map(([level, copy]) => (
-                    <li key={level} className="flex gap-4 py-3">
-                      <span className="w-28 shrink-0 text-body-sm font-semibold text-[#003dff]">{level}</span>
-                      <span className="text-body-sm text-slate-600">{copy}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-6">
-                <p className="text-body-lg font-semibold text-slate-950">Roles in your organization</p>
-                <p className="mt-1 text-body-sm text-slate-500">Who can run the account, and who joins as a guest.</p>
-                <ul className="mt-5 divide-y divide-slate-100">
-                  {ORG_ROLES.map(([role, copy]) => (
-                    <li key={role} className="flex gap-4 py-3">
-                      <span className="w-28 shrink-0 text-body-sm font-semibold text-slate-900">{role}</span>
-                      <span className="text-body-sm text-slate-600">{copy}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-        <CtaSection />
-      </main>
-      <Footer />
-    </div>
+      <CtaSection />
+    </SiteLayout>
   );
 }
-
-

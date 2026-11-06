@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import Accordion from '../components/Accordion';
 import { chatAvailable, openChat } from '../utils/supportChat';
-import { ArrowRightIcon, ChatIcon, ClipboardIcon, ClockIcon, MailIcon, ShieldIcon, UsersIcon } from '../components/icons';
+import { SiteLayout, Section, SectionHeader, Icon } from '../components/site';
 
 // Short, accurate answers to the questions support gets most. The app's
 // Help & support panel shows the same list (client/src/components/support/supportFaq.js).
@@ -75,178 +73,158 @@ export default function SupportPage() {
 
   const contactOptions = [
     chatAvailable && {
-      icon: ChatIcon,
+      icon: 'chat',
       title: 'Chat with us',
       meta: 'Fastest during business hours',
       copy: 'Ask a quick question and get an answer in the chat, or by email if we are away.',
-      action: <button type="button" onClick={handleChat} className="button-primary mt-5">Start a chat</button>,
+      action: <button type="button" onClick={handleChat} className="kc-btn pri lg">Start a chat</button>,
     },
     {
-      icon: MailIcon,
+      icon: 'mail',
       title: 'Email',
       meta: SUPPORT_EMAIL,
       copy: 'Best for billing, security and longer questions with screenshots.',
-      action: <a href={`mailto:${SUPPORT_EMAIL}`} className="button-secondary mt-5">Write an email</a>,
+      action: <a href={`mailto:${SUPPORT_EMAIL}`} className="kc-btn sec lg">Write an email</a>,
     },
     {
-      icon: ClipboardIcon,
+      icon: 'edit',
       title: 'Contact form',
       meta: 'Below on this page',
       copy: 'Tell us what you were trying to do and we reply by email.',
-      action: <a href="#contact" className="button-secondary mt-5">Open the form</a>,
+      action: <a href="#contact" className="kc-btn sec lg">Open the form</a>,
     },
   ].filter(Boolean);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white">
-      <Navbar />
-      <main id="main-content">
-        <section className="page-hero">
-          <div className="relative z-10 mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-            <span className="eyebrow">Support</span>
-            <h1 className="display-heading mt-6">How can we help?</h1>
-            <p className="body-large mx-auto mt-6 max-w-2xl">
-              Find a quick answer below, or reach the team. We reply to every message.
+    <SiteLayout>
+      <Section tone="light">
+        <SectionHeader
+          as="h1"
+          eyebrow="Support"
+          title="How can we help?"
+          lead="Find a quick answer below, or reach the team. We reply to every message."
+        />
+        <div className={`km-grid ${contactOptions.length === 3 ? 'c3' : 'c2'}`}>
+          {contactOptions.map(({ icon, title, meta, copy, action }) => (
+            <article key={title} className="km-feat">
+              <span className="km-ico"><Icon name={icon} size={20} /></span>
+              <h2 className="km-h3">{title}</h2>
+              <p className="km-note" style={{ margin: 0 }}>{meta}</p>
+              <p>{copy}</p>
+              <div style={{ marginTop: 'auto', paddingTop: 12 }}>{action}</div>
+            </article>
+          ))}
+        </div>
+      </Section>
+
+      <Section tone="muted">
+        <SectionHeader
+          eyebrow="Common questions"
+          title="Quick answers"
+          lead="The questions we hear most, answered in a few lines."
+        />
+        <Accordion items={HELP_ITEMS} idPrefix="help" />
+      </Section>
+
+      <Section id="contact" tone="light">
+        <div className="km-split" style={{ alignItems: 'start' }}>
+          <div className="km-split-t">
+            <div className="km-eyebrow">Contact</div>
+            <h2 className="km-h2 sm">Tell us what is blocking your review</h2>
+            <p className="km-lead">
+              Include the project type, affected workflow, and any links or screenshots your team can safely share.
             </p>
+            <ul className="km-points">
+              {[
+                ['clock', 'Typical response within one business day'],
+                ['shield', 'Security and billing requests are handled privately'],
+                ['team', 'Enterprise teams can request onboarding help'],
+              ].map(([icon, text]) => (
+                <li key={text}><Icon name={icon} size={16} stroke={2} />{text}</li>
+              ))}
+            </ul>
           </div>
-        </section>
 
-        <section className="pb-16 sm:pb-20">
-          <div className={`site-container grid gap-5 ${contactOptions.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
-            {contactOptions.map(({ icon: Icon, title, meta, copy, action }) => (
-              <article key={title} className="flex flex-col items-start rounded-2xl border border-slate-200 bg-white p-6">
-                <span className="icon-tile">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <h2 className="mt-5 text-body-lg font-semibold text-slate-950">{title}</h2>
-                <p className="mt-1 text-body-sm font-medium text-slate-500">{meta}</p>
-                <p className="mt-3 text-body text-slate-600">{copy}</p>
-                <div className="mt-auto">{action}</div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="soft-band section-pad">
-          <div className="site-container grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
-            <div className="lg:sticky lg:top-28 lg:self-start">
-              <span className="eyebrow">Common questions</span>
-              <h2 className="section-heading mt-5">Quick answers.</h2>
-              <p className="body-large mt-4">The questions we hear most, answered in a few lines.</p>
-            </div>
-            <Accordion items={HELP_ITEMS} idPrefix="help" />
-          </div>
-        </section>
-
-        <section id="contact" className="section-pad">
-          <div className="site-container grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
-            <div>
-              <span className="eyebrow">Contact</span>
-              <h2 className="section-heading mt-5">Tell us what is blocking your review.</h2>
-              <p className="body-copy mt-4">
-                Include the project type, affected workflow, and any links or screenshots your team can safely share.
-              </p>
-              <div className="mt-8 space-y-4">
-                {[
-                  [ClockIcon, 'Typical response within one business day'],
-                  [ShieldIcon, 'Security and billing requests are handled privately'],
-                  [UsersIcon, 'Enterprise teams can request onboarding help'],
-                ].map(([Icon, text]) => (
-                  <div key={text} className="flex items-center gap-3 text-body-sm font-medium text-[#475569]">
-                    <Icon className="h-5 w-5 text-[#003dff]" />
-                    {text}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="relative rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="text-label text-slate-700" htmlFor="support-name">Name</label>
-                  <input
-                    id="support-name"
-                    required
-                    value={form.name}
-                    onChange={(event) => setForm({ ...form, name: event.target.value })}
-                    className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3.5 text-body outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
-                  />
-                </div>
-                <div>
-                  <label className="text-label text-slate-700" htmlFor="support-email">Email</label>
-                  <input
-                    id="support-email"
-                    type="email"
-                    required
-                    value={form.email}
-                    onChange={(event) => setForm({ ...form, email: event.target.value })}
-                    className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3.5 text-body outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
-                  />
-                </div>
-              </div>
-              <div className="mt-4">
-                <label className="text-label text-slate-700" htmlFor="support-topic">Topic</label>
-                <select
-                  id="support-topic"
-                  value={form.topic}
-                  onChange={(event) => setForm({ ...form, topic: event.target.value })}
-                  className="mt-2 h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-body outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
-                >
-                  <option>Product support</option>
-                  <option>Billing</option>
-                  <option>Integrations</option>
-                  <option>Security</option>
-                  <option>Sales</option>
-                  <option>Other</option>
-                </select>
-              </div>
-              <div className="mt-4">
-                <label className="text-label text-slate-700" htmlFor="support-message">Message</label>
-                <textarea
-                  id="support-message"
+          <form onSubmit={handleSubmit} className="km-feat" style={{ position: 'relative', gap: 16, padding: 32, alignItems: 'stretch' }}>
+            <div className="km-grid c2" style={{ gap: 16 }}>
+              <div className="kc-field">
+                <label htmlFor="support-name">Name</label>
+                <input
+                  id="support-name"
                   required
-                  rows="5"
-                  value={form.message}
-                  onChange={(event) => setForm({ ...form, message: event.target.value })}
-                  className="mt-2 w-full resize-none rounded-lg border border-slate-300 px-3.5 py-3 text-body outline-none focus:border-[#003dff] focus:ring-2 focus:ring-[#003dff]/15"
-                  placeholder="Share what you were trying to do and what happened."
+                  value={form.name}
+                  onChange={(event) => setForm({ ...form, name: event.target.value })}
+                  className="kc-input"
                 />
               </div>
-              {/* Honeypot: hidden from people, filled by bots */}
-              <input
-                type="text"
-                name="website"
-                tabIndex={-1}
-                autoComplete="off"
-                aria-hidden="true"
-                value={form.website}
-                onChange={(event) => setForm({ ...form, website: event.target.value })}
-                className="absolute -left-[9999px] h-0 w-0 opacity-0"
-              />
-              <button
-                type="submit"
-                disabled={status.state === 'sending'}
-                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#003dff] px-6 py-3.5 text-label text-white transition hover:bg-[#0031d1] disabled:opacity-60"
+              <div className="kc-field">
+                <label htmlFor="support-email">Email</label>
+                <input
+                  id="support-email"
+                  type="email"
+                  required
+                  value={form.email}
+                  onChange={(event) => setForm({ ...form, email: event.target.value })}
+                  className="kc-input"
+                />
+              </div>
+            </div>
+            <div className="kc-field">
+              <label htmlFor="support-topic">Topic</label>
+              <select
+                id="support-topic"
+                value={form.topic}
+                onChange={(event) => setForm({ ...form, topic: event.target.value })}
+                className="kc-select"
               >
-                {status.state === 'sending' ? 'Sending…' : 'Send support request'}
-                <ArrowRightIcon className="h-4 w-4" />
-              </button>
-              {status.state === 'sent' ? (
-                <p role="status" className="mt-4 rounded-2xl bg-green-50 px-4 py-3 text-body-sm font-medium text-green-700">
-                  Thanks, your message was sent. We'll reply by email.
-                </p>
-              ) : null}
-              {status.state === 'error' ? (
-                <p role="alert" className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-body-sm font-medium text-red-700">
-                  {status.message} You can also email <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
-                </p>
-              ) : null}
-            </form>
-          </div>
-        </section>
-      </main>
-      <Footer />
-    </div>
+                <option>Product support</option>
+                <option>Billing</option>
+                <option>Integrations</option>
+                <option>Security</option>
+                <option>Sales</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div className="kc-field">
+              <label htmlFor="support-message">Message</label>
+              <textarea
+                id="support-message"
+                required
+                rows="5"
+                value={form.message}
+                onChange={(event) => setForm({ ...form, message: event.target.value })}
+                className="kc-textarea"
+                placeholder="Share what you were trying to do and what happened."
+              />
+            </div>
+            {/* Honeypot: hidden from people, filled by bots */}
+            <input
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              value={form.website}
+              onChange={(event) => setForm({ ...form, website: event.target.value })}
+              style={{ position: 'absolute', left: -9999, width: 0, height: 0, opacity: 0 }}
+            />
+            <button type="submit" disabled={status.state === 'sending'} className="kc-btn pri lg block">
+              {status.state === 'sending' ? 'Sending…' : 'Send support request'}
+              <Icon name="arrow" size={16} stroke={2} />
+            </button>
+            {status.state === 'sent' ? (
+              <p role="status" style={{ margin: 0, padding: '12px 16px', borderRadius: 'var(--radius-lg)', background: 'var(--success-50)', color: 'var(--success-700)', fontWeight: 500 }}>
+                Thanks, your message was sent. We'll reply by email.
+              </p>
+            ) : null}
+            {status.state === 'error' ? (
+              <p role="alert" style={{ margin: 0, padding: '12px 16px', borderRadius: 'var(--radius-lg)', background: 'var(--danger-50)', color: 'var(--danger-600)', fontWeight: 500 }}>
+                {status.message} You can also email <a style={{ textDecoration: 'underline' }} href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+              </p>
+            ) : null}
+          </form>
+        </div>
+      </Section>
+    </SiteLayout>
   );
 }
-

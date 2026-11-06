@@ -1,11 +1,7 @@
 import React, { useEffect } from 'react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-import CtaSection from '../components/CtaSection';
 import { TRIAL_NOTE } from '../data/pricing';
 import PlanCards from '../components/PlanCards';
-import { CheckIcon, XIcon } from '../components/icons';
-import Accordion from '../components/Accordion';
+import { SiteLayout, Section, SectionHeader, FAQ as FaqBlock, CTABand, Icon, SmartLink } from '../components/site';
 
 
 // Same limits as server/config/plans.js
@@ -50,126 +46,113 @@ const FAQ = [
 ];
 
 export default function PricingPage() {
-
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white">
-      <Navbar />
-      <main id="main-content">
-        <section className="page-hero">
-          <div className="relative z-10 mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
-            <span className="eyebrow">Pricing</span>
-            <h1 className="display-heading mt-6">
-              Simple pricing that grows with your reviews.
-            </h1>
-            <p className="body-large mx-auto mt-6 max-w-2xl">
-              Every new account starts with a 30-day Pro trial. No credit card, no setup fee, cancel any time.
-            </p>
-          </div>
-        </section>
+    <SiteLayout>
+      {/* Plans */}
+      <Section tone="light" className="km-pricing-top">
+        <SectionHeader
+          as="h1"
+          eyebrow="Pricing"
+          title="Simple pricing that grows with your reviews"
+          lead="Every new account starts with a 30-day Pro trial. No credit card, no setup fee, cancel any time."
+        />
+        <PlanCards />
+        <p className="km-note km-center" style={{ marginTop: 24 }}>{TRIAL_NOTE}</p>
+      </Section>
 
-        <section className="pb-16 sm:pb-20 lg:pb-24">
-          <div className="site-container">
-            <PlanCards />
-            <p className="mt-8 text-center text-body-sm font-medium text-slate-500">{TRIAL_NOTE}</p>
-          </div>
-        </section>
-
-        <section className="soft-band section-pad">
-          <div className="site-container">
-            <div className="grid gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
-              <div>
-                <span className="eyebrow">Compare</span>
-                <h2 className="section-heading mt-5">See what changes by tier.</h2>
-                <p className="body-copy mt-4">Every plan reviews websites, PDFs and images. Higher tiers add scale, client links, integrations and history.</p>
-                <p className="mt-4 text-body-sm font-semibold text-[#003dff]">{TRIAL_NOTE}</p>
-              </div>
-              <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-                <div className="min-w-[640px]">
-                  <div className="grid grid-cols-[1.6fr_repeat(4,0.7fr)] border-b border-slate-200 bg-slate-50 px-5 py-3 text-body-sm font-semibold text-slate-700">
-                    <span>Feature</span>
-                    {COMPARE_PLANS.map((name) => <span key={name}>{name}</span>)}
-                  </div>
-                  {FEATURES.map(([feature, ...values]) => (
-                    <div key={feature} className="grid grid-cols-[1.6fr_repeat(4,0.7fr)] items-center border-b border-slate-100 px-5 py-3 text-body-sm last:border-0">
-                      <span className="font-medium text-[#475569]">{feature}</span>
-                      {values.map((value, index) => (
-                        <span key={`${feature}-${index}`} className={value ? 'text-[#0f172a]' : 'text-[#94a3b8]'}>
-                          {typeof value === 'string'
-                            ? <span className="font-medium">{value}</span>
-                            : value ? <CheckIcon className="h-4 w-4 text-[#003dff]" /> : <XIcon className="h-4 w-4" />}
-                        </span>
-                      ))}
-                    </div>
+      {/* What changes by tier */}
+      <Section tone="muted">
+        <SectionHeader
+          eyebrow="Compare"
+          title="See what changes by tier"
+          lead="Every plan reviews websites, PDFs and images. Higher tiers add scale, client links, integrations and history."
+        />
+        <div className="km-table-wrap">
+          <table className="km-table" style={{ minWidth: 640 }}>
+            <thead>
+              <tr>
+                <th scope="col">Feature</th>
+                {COMPARE_PLANS.map((name) => <th key={name} scope="col">{name}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {FEATURES.map(([feature, ...values]) => (
+                <tr key={feature}>
+                  <td>{feature}</td>
+                  {values.map((value, index) => (
+                    <td key={`${feature}-${index}`}>
+                      {typeof value === 'string' ? value : value
+                        ? <span style={{ color: 'var(--brand-600)', display: 'inline-flex' }} title="Included"><Icon name="check" size={16} stroke={2.4} /><span className="sr-only">Included</span></span>
+                        : <span style={{ color: 'var(--slate-400)', display: 'inline-flex' }} title="Not included"><Icon name="x" size={16} /><span className="sr-only">Not included</span></span>}
+                    </td>
                   ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="section-pad">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-2xl text-center">
-              <span className="eyebrow">How we compare</span>
-              <h2 className="section-heading mt-5">Clear pricing, side by side.</h2>
-              <p className="body-large mt-4">Published prices of popular visual feedback tools, monthly billing.</p>
-            </div>
-            <div className="mt-10 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-              <table className="w-full min-w-[760px] text-left text-body-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th scope="col" className="sticky left-0 z-10 bg-slate-50 px-5 py-3 font-semibold text-slate-700"><span className="sr-only">Compare</span></th>
-                    {COMPETITORS.map((c) => (
-                      <th key={c.name} scope="col" className={`px-4 py-3 font-semibold ${c.url ? 'text-slate-700' : 'bg-[#eef3ff] text-[#003dff]'}`}>{c.name}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {COMPARE_ROWS.map(([key, label]) => (
-                    <tr key={key} className="border-b border-slate-100 last:border-0">
-                      <th scope="row" className="sticky left-0 z-10 bg-white px-5 py-3 font-medium text-slate-600">{label}</th>
-                      {COMPETITORS.map((c) => (
-                        <td key={c.name} className={`px-4 py-3 ${c.url ? 'text-slate-700' : 'bg-[#eef3ff]/60 font-semibold text-slate-950'} ${key === 'from' || key === 'team10' ? 'font-semibold' : ''}`}>
-                          {c[key]}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="mx-auto mt-4 max-w-4xl text-center text-caption text-slate-500">
-              Prices from each vendor&rsquo;s pricing page, checked in {COMPARED_ON}:{' '}
-              {COMPETITORS.filter((c) => c.url).map((c, i, list) => (
-                <React.Fragment key={c.name}>
-                  <a href={c.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-700">{c.name}</a>
-                  {i < list.length - 1 ? ', ' : ''}
-                </React.Fragment>
+                </tr>
               ))}
-              . A team of 10 is the cheapest published plan that includes 10 members (BugHerd Studio, Pastel Team with 5 extra users, ruttl 10 × Pro).
-              Features and limits differ between tools, so compare the plans that fit how you work. All product names are trademarks of their owners.
-            </p>
+            </tbody>
+          </table>
+        </div>
+      </Section>
 
-            <div className="mt-20 grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
-              <div className="lg:sticky lg:top-28 lg:self-start">
-                <span className="eyebrow">Pricing questions</span>
-                <h2 className="section-heading mt-5">Before you choose.</h2>
-                <p className="body-large mt-4">Anything else? <a href="/support" className="font-medium text-[#003dff] hover:underline">Ask us</a>.</p>
-              </div>
-              <Accordion items={FAQ.map(([question, answer]) => ({ question, answer }))} idPrefix="pricing-faq" />
-            </div>
-          </div>
-        </section>
-        <CtaSection />
-      </main>
-      <Footer />
-    </div>
+      {/* How we compare */}
+      <Section tone="light">
+        <SectionHeader
+          eyebrow="How we compare"
+          title="Clear pricing, side by side"
+          lead="Published prices of popular visual feedback tools, monthly billing."
+        />
+        <div className="km-table-wrap">
+          <table className="km-table" style={{ minWidth: 760 }}>
+            <thead>
+              <tr>
+                <th scope="col"><span className="sr-only">Compare</span></th>
+                {COMPETITORS.map((c) => (
+                  <th key={c.name} scope="col" style={c.url ? undefined : { background: 'var(--brand-50)', color: 'var(--brand-600)' }}>{c.name}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARE_ROWS.map(([key, label]) => (
+                <tr key={key}>
+                  <th scope="row" style={{ background: 'var(--surface)', fontWeight: 500, whiteSpace: 'normal' }}>{label}</th>
+                  {COMPETITORS.map((c) => (
+                    <td key={c.name} style={c.url ? undefined : { background: 'var(--brand-50)', color: 'var(--text)', fontWeight: 600 }}>{c[key]}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="km-note km-center" style={{ maxWidth: 820, margin: '16px auto 0' }}>
+          Prices from each vendor&rsquo;s pricing page, checked in {COMPARED_ON}:{' '}
+          {COMPETITORS.filter((c) => c.url).map((c, i, list) => (
+            <React.Fragment key={c.name}>
+              <a href={c.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>{c.name}</a>
+              {i < list.length - 1 ? ', ' : ''}
+            </React.Fragment>
+          ))}
+          . A team of 10 is the cheapest published plan that includes 10 members (BugHerd Studio, Pastel Team with 5 extra users, ruttl 10 × Pro).
+          Features and limits differ between tools, so compare the plans that fit how you work. All product names are trademarks of their owners.
+        </p>
+      </Section>
+
+      <FaqBlock
+        title="Before you choose"
+        items={FAQ.map(([q, a]) => ({ q, a }))}
+      >
+        <p className="km-note km-center" style={{ marginTop: 20 }}>
+          Anything else? <SmartLink href="/support" className="kc-link">Ask us</SmartLink>.
+        </p>
+      </FaqBlock>
+
+      <CTABand
+        title="Your next review round starts with a link"
+        text="Paste a URL, invite your team or client, and resolve every comment where the work lives."
+        secondary={{ label: 'Contact support', href: '/support' }}
+      />
+    </SiteLayout>
   );
 }
-
-

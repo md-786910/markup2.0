@@ -2,13 +2,18 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import CookieConsentManager from './components/CookieConsentManager';
 import SEO from './components/SEO';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
+import { SiteLayout, CTA } from './components/site';
 import { getRouteSeo } from './seo/seoUtils';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+const productPage = (name) => lazy(() => import('./pages/ProductPages').then((m) => ({ default: m[name] })));
+const WebsiteReviewPage = productPage('WebsiteReviewPage');
+const DocumentReviewPage = productPage('DocumentReviewPage');
+const ApprovalsPage = productPage('ApprovalsPage');
+const IntegrationsPage = productPage('IntegrationsPage');
+const TeamsPage = productPage('TeamsPage');
 const SupportPage = lazy(() => import('./pages/SupportPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
@@ -26,23 +31,23 @@ function Page({ path, children }) {
 
 function NotFoundPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <SiteLayout>
       <SEO />
-      <Navbar />
-      <main id="main-content" className="site-container py-24 text-center sm:py-32">
-        <p className="text-body-sm font-semibold text-[#003dff]">404</p>
-        <h1 className="mt-3 text-h1 text-slate-950">This page doesn't exist.</h1>
-        <p className="mx-auto mt-4 max-w-md text-slate-600">
-          The link may be old or mistyped. Here are a few places to go instead.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <a className="button-primary" href="/">Go to the homepage</a>
-          <a className="button-secondary" href="/pricing">See pricing</a>
-          <a className="button-secondary" href="/support">Contact support</a>
+      <section className="km-sec light">
+        <div className="km-wrap narrow">
+          <div className="km-eyebrow">404</div>
+          <h1 className="km-h1">This page doesn't exist</h1>
+          <p className="km-lead" style={{ marginLeft: 'auto', marginRight: 'auto' }}>
+            The link may be old or mistyped. Here are a few places to go instead.
+          </p>
+          <div className="km-actions center">
+            <CTA href="/">Go to the homepage</CTA>
+            <CTA href="/pricing" variant="secondary">See pricing</CTA>
+            <CTA href="/support" variant="secondary">Contact support</CTA>
+          </div>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </section>
+    </SiteLayout>
   );
 }
 
@@ -56,6 +61,11 @@ function App() {
           <Route path="/use-cases" element={<Page path="/use-cases"><CustomersPage /></Page>} />
           <Route path="/customers" element={<Navigate to="/use-cases" replace />} />
           <Route path="/pricing" element={<Page path="/pricing"><PricingPage /></Page>} />
+          <Route path="/website-review" element={<Page path="/website-review"><WebsiteReviewPage /></Page>} />
+          <Route path="/document-review" element={<Page path="/document-review"><DocumentReviewPage /></Page>} />
+          <Route path="/approvals" element={<Page path="/approvals"><ApprovalsPage /></Page>} />
+          <Route path="/integrations" element={<Page path="/integrations"><IntegrationsPage /></Page>} />
+          <Route path="/teams" element={<Page path="/teams"><TeamsPage /></Page>} />
           <Route path="/about" element={<Page path="/about"><AboutPage /></Page>} />
           <Route path="/support" element={<Page path="/support"><SupportPage /></Page>} />
           <Route path="/privacy" element={<Page path="/privacy"><PrivacyPage /></Page>} />
