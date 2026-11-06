@@ -519,7 +519,7 @@ button.kc-card, a.kc-card { cursor: pointer; text-align: left; }
 .km-hx-toast b { display: block; font-size: 13px; line-height: 18px; }
 .km-hx-toast small { display: block; font-size: 12px; color: var(--slate-500); }
 /* A: soft brand wash behind the stage */
-.km-hx-a { background: linear-gradient(180deg, var(--surface) 0%, var(--surface) 55%, var(--brand-50) 100%); }
+.km-hx-a { background: var(--surface); }
 @media (max-width: 960px) {
   .km-hx-h1 { font-size: 40px; line-height: 44px; }
   .km-hx-stage.wide { padding: 0 0 28px; }
@@ -545,3 +545,52 @@ button.kc-card, a.kc-card { cursor: pointer; text-align: left; }
 .km-hx-stage.wide { max-width: 1120px; padding: 0 24px 0; }
 .km-hx-stage .km-mock img { display: block; width: 100%; height: auto; }
 .km-hx-stage.wide .km-hx-toast { right: -8px; top: -26px; }
+
+/* =====================================================================
+   Home hero, editorial layout (heroes.js HeroEditorial)
+   ===================================================================== */
+.km-hb { position: relative; overflow: hidden; padding: 72px 0 80px; background: var(--surface); }
+.km-hb-wash { display: none; }
+.km-hb-in { position: relative; }
+.km-hb-h1 { margin: 0; max-width: 980px; font: 700 84px/88px var(--font-display); letter-spacing: -.04em; color: var(--text); text-wrap: balance; }
+.km-hb-body { display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 64px; margin-top: 48px; align-items: start; }
+.km-hb-lead { margin: 0; font-size: 19px; line-height: 30px; color: var(--text-secondary); }
+.km-hb-actions { display: flex; align-items: center; gap: 24px; margin-top: 32px; flex-wrap: wrap; }
+.km .km-hb-link { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 500; color: var(--text); }
+.km .km-hb-link:hover { color: var(--brand-600); }
+.km-hb-note { margin: 20px 0 0; font-size: 13.5px; color: var(--text-muted); }
+.km-hb .km-hx-works { margin-top: 56px; }
+.km-hb-visual { position: relative; min-height: 520px; }
+/* The screenshot runs past the right edge of the screen; the section clips it */
+.km-hb-shot { position: absolute; left: 0; top: 0; width: 980px; }
+.km-hb-shot .km-mock { box-shadow: 0 30px 80px -24px rgba(15, 23, 42, .35); }
+.km-hb-float { left: -72px; top: 300px; width: 300px; padding: 14px; z-index: 2; }
+.km-hb-float-h { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.km-hb-float-h .km-logo { margin: 0; }
+.km-hb-float-h b { display: block; font-size: 13px; line-height: 18px; }
+.km-hb-float-h small { display: block; font-size: 12px; color: var(--slate-500); }
+.km-hb-float p { margin: 0; font-size: 13px; line-height: 19px; color: var(--text); }
+.km-hb-float p.q { margin-top: 6px; color: var(--text-secondary); }
+.km-hb-float-btn { display: inline-flex; margin-top: 12px; height: 28px; align-items: center; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 12.5px; font-weight: 500; color: var(--slate-700); }
+@media (max-width: 1100px) {
+  .km-hb-h1 { font-size: 64px; line-height: 68px; }
+  .km-hb-body { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 48px; }
+}
+@media (max-width: 960px) {
+  .km-hb { padding: 48px 0 56px; }
+  .km-hb-h1 { font-size: 44px; line-height: 48px; }
+  .km-hb-body { grid-template-columns: 1fr; gap: 40px; margin-top: 28px; }
+  .km-hb-visual { min-height: 0; }
+  .km-hb-shot { position: static; width: 100%; }
+  .km-hb-float { display: none; }
+  .km-hb .km-hx-works { margin-top: 32px; }
+}
+.km-hb-shot { width: 1180px; }
+@media (max-width: 960px) { .km-hb-shot { width: 100%; } }
+/* Product-page heroes: smaller headline, same layout */
+.km-hb .km-hx-pill { margin-bottom: 24px; }
+.km-hb.compact .km-hb-h1 { font-size: 64px; line-height: 68px; max-width: 860px; }
+.km-hb.compact .km-hb-visual { min-height: 460px; }
+@media (max-width: 960px) { .km-hb.compact .km-hb-h1 { font-size: 40px; line-height: 44px; } .km-hb.compact .km-hb-visual { min-height: 0; } }
+/* Feature splits with real screenshots */
+.km-split-v .km-mock img { display: block; width: 100%; height: auto; }

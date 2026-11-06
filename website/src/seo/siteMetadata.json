@@ -28,7 +28,7 @@
     {
       "path": "/",
       "title": "Kommently | Feedback on Any Website, No Install Needed",
-      "description": "Paste a link and pin comments on live websites, staging and logged-in pages, PDFs, and images. Clients review through a link, no account needed. Free 30-day Pro trial.",
+      "description": "Pin comments on live websites, staging and logged-in pages, PDFs and images. Turn every comment into a task with status, priority, assignee and due date. Free 30-day Pro trial.",
       "keywords": "website feedback tool, visual feedback, website annotation, client review tool, pdf review, design review software",
       "h1": "Point at the page. Say what to change.",
       "summary": "Kommently lets teams and clients pin comments on live websites, PDFs, and images, with a screenshot, page, and device size on every comment, and integrations for Slack, Jira, Discord, and Teams.",
@@ -258,7 +258,7 @@
       "title": "PDF and Document Review | Kommently",
       "description": "Pin comments on PDFs and images: up to 10 per project, with replies, mentions and review status. Free 30-day Pro trial.",
       "keywords": "pdf review, document review, pdf annotation, design review",
-      "h1": "Review PDFs the same way",
+      "h1": "Review PDFs and images the same way",
       "summary": "Pin comments on PDFs and images: up to 10 per project, with replies, mentions and review status. Free 30-day Pro trial.",
       "changefreq": "monthly",
       "priority": 0.8,

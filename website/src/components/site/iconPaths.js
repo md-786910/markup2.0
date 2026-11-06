@@ -56,4 +56,5 @@ export const ICON_PATHS = {
     sparkle: ['M11 3l1.8 4.7L17.5 9.5l-4.7 1.8L11 16l-1.8-4.7L4.5 9.5l4.7-1.8z', 'M18.5 15v5M16 17.5h5'],
     arrowup: 'M12 19V5M6 11l6-6 6 6',
   menu: 'M4 6h16M4 12h16M4 18h16',
+  activity: 'M3 12h4l3-8 4 16 3-8h4',
 };

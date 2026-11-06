@@ -1,63 +1,84 @@
 import React from 'react';
-import { HeroCentered } from '../components/site/heroes';
+import { useSearchParams } from 'react-router-dom';
+import { HeroEditorial, SHOTS } from '../components/site/heroes';
 import {
-  SiteLayout, ProductMock, StepList, FeatureGrid, FeatureSplit, IntegrationGrid, CTABand, TRIAL,
+  SiteLayout, Shot, StepList, FeatureGrid, FeatureSplit, IntegrationGrid, CTABand,
 } from '../components/site';
 
-// The design system's LandingPage (kommently-design-system/preview/LandingPage.html):
-// a selling hero (centered headline, trust facts, product stage), how it works, what you get, approvals, integrations, closing CTA band.
-// Keep the order: each block answers the visitor's next question.
+// Home page, built to sell: every section shows the real product (screens
+// captured from the app) and states only what Kommently does today.
+// Order: hero, how it works, the task board, projects and workspaces,
+// everything else in a grid, integrations, closing CTA band.
 export default function LandingPage() {
+  const [params] = useSearchParams(); // TEMPORARY: ?bg=dots|pins|grid previews hero backgrounds
   return (
     <SiteLayout>
-      <HeroCentered />
+      <HeroEditorial bg={params.get('bg') || undefined} />
+
       <StepList
         id="how"
         eyebrow="How it works"
-        title="From first link to approval in three steps"
+        title="From first link to approved in three steps"
         steps={[
-          { title: 'Add a website or document', text: 'Start a project from a page link or a PDF, inside the workspace it belongs to.' },
-          { title: 'Drop pins where it matters', text: 'Click anywhere to leave a numbered comment. Your reviewers do the same, and you reply on each pin.' },
-          { title: 'Resolve and approve', text: 'Resolve pins as they are fixed, then mark the project Approved.' },
+          { title: 'Add a website or document', text: 'Paste a link to a live site, a staging site or a page behind a login, or upload up to 10 PDFs and images.' },
+          { title: 'Click to comment', text: 'Each pin sticks to the element you clicked, with the page, the device size and a screenshot attached.' },
+          { title: 'Track it to done', text: 'Assign each pin, set its priority and due date, and move it across the board until it is resolved.' },
         ]}
       />
+
+      <FeatureSplit
+        tone="light"
+        eyebrow="Task board"
+        title="Every comment becomes a task"
+        text="Pins carry a status, priority, assignee, due date and labels. Move them from Open to In progress, In review and Resolved, and see what is overdue at a glance."
+        points={['Filter by assignee and priority', 'Due dates with an overdue count', 'Add your own columns']}
+        visual={<Shot {...SHOTS.board} />}
+      />
+
+      <FeatureSplit
+        tone="muted"
+        reverse
+        eyebrow="Projects and workspaces"
+        title="Every client and project in one place"
+        text="Keep each client's websites and documents in their own workspace. Every card shows its review status and how many pins are open or resolved."
+        points={['In review, Changes requested and Approved', 'Archive finished work, restore it any time', 'Jump anywhere with Ctrl K']}
+        visual={<Shot {...SHOTS.projects} />}
+      />
+
       <FeatureGrid
         id="features"
         eyebrow="What you get"
-        title="Everything a review needs, nothing it does not"
+        title="Everything a review round needs"
+        cols={4}
         items={[
-          { icon: 'globe', title: 'Pins on websites', text: 'Comment on the exact spot of a live page instead of describing it in an email.' },
-          { icon: 'doc', title: 'Pins on documents', text: 'Review PDFs such as brand guidelines and campaign decks the same way.' },
-          { icon: 'okc', title: 'Review status', text: 'Every project is In review, Changes requested or Approved, on the card and in the filters.' },
-          { icon: 'layers', title: 'Workspaces', text: 'Keep each client or team in its own workspace with its own projects.' },
-          { icon: 'bell', title: 'Mentions and notifications', text: 'Be told when someone comments, replies or mentions you.' },
-          { icon: 'link', title: 'Integrations', text: 'Send pins to Slack, Jira, Discord or Microsoft Teams.' },
+          { icon: 'globe', title: 'Live, staging and logged-in pages', text: 'Review the real site. Nothing to install, no browser extension.' },
+          { icon: 'monitor', title: 'Desktop, tablet and mobile', text: 'Pins are kept per screen size, so a mobile bug never hides among desktop notes.' },
+          { icon: 'image', title: 'Screenshot and context', text: 'Every pin carries the page, the device size, a screenshot and technical details.' },
+          { icon: 'doc', title: 'PDFs and images', text: 'Upload up to 10 files per project and pin comments on any page.' },
+          { icon: 'share', title: 'Client review links', text: 'Clients comment without an account. Add a password and an expiry date.' },
+          { icon: 'chat', title: 'Threads, mentions and files', text: 'Reply on each pin, @mention teammates and attach files.' },
+          { icon: 'layers', title: 'Versions and activity', text: 'Save each review round as a version and see who changed what.' },
+          { icon: 'calendar', title: 'Feedback deadlines', text: 'Set a date after which new feedback is closed.' },
         ]}
       />
-      <FeatureSplit
-        tone="muted"
-        eyebrow="Approvals"
-        title="See what is open, what is fixed, and what is signed off"
-        text="Each project card shows its status and how many pins are open or resolved, so nobody has to ask where things stand."
-        points={['Filter by In review, Changes requested or Approved', 'Open and resolved counts on every card', 'Archive finished projects and restore them any time']}
-        visual={<ProductMock kind="status" />}
-      />
+
       <IntegrationGrid
         id="integrations"
-        tone="light"
+        tone="muted"
         eyebrow="Integrations"
         title="Send pins where your team already works"
-        lead="Choose which events are sent: new pins, comments, resolved or reopened pins."
+        lead="Choose which events are sent: new pins, comments, resolved or reopened pins. Included from the Starter plan."
         items={[
-          { name: 'Slack', tone: 'blue', text: 'Post pins to a channel.' },
-          { name: 'Jira', tone: 'green', text: 'Turn feedback into issues.' },
-          { name: 'Discord', tone: 'amber', text: 'Keep a community or studio in the loop.' },
-          { name: 'Microsoft Teams', tone: 'rose', text: 'Notify the team in Teams.' },
+          { name: 'Slack', tone: 'blue', text: 'Post new pins and comments to a channel.' },
+          { name: 'Jira', tone: 'green', text: 'Create an issue for every new pin.' },
+          { name: 'Discord', tone: 'amber', text: 'Keep a studio or community server in the loop.' },
+          { name: 'Microsoft Teams', tone: 'rose', text: 'Notify a team channel in Teams.' },
         ]}
       />
+
       <CTABand
         title="Review your next page with pins"
-        text="Start your 30-day Pro trial and add your first project in minutes."
+        text="Start your 30-day Pro trial and add your first project in minutes. No credit card needed."
         secondary={{ label: 'See pricing', href: '/pricing' }}
       />
     </SiteLayout>
