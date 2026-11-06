@@ -2,7 +2,7 @@ const rateLimit = require('express-rate-limit');
 const { RedisStore } = require('rate-limit-redis');
 const { redisEnabled, getRedis } = require('../utils/redis');
 
-const FIFTEEN_MIN = 15 * 60 * 1000;
+const FIFTEEN_MIN = 1 * 60 * 1000;
 
 // rate-limit-redis loads its Lua scripts once at startup and keeps a failed
 // load forever, which would silently disable rate limiting if Redis was

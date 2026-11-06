@@ -66,7 +66,7 @@ function ArchiveTable({ projects, isAdmin, userId, onArchive, onConfirmDelete })
       key: 'name',
       label: 'Name',
       render: (p) => (
-        <Link to={`/project/${p._id}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 500, color: 'var(--text)', textDecoration: 'none' }} className="hover:underline">
+        <Link to={`/project/${p._id}`} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 500, color: 'var(--text)', textDecoration: 'none' }} className="hover:underline">
           <Icon name={p.projectType === 'document' ? 'doc' : 'globe'} size={16} style={{ color: 'var(--text-muted)' }} />
           {p.name}
         </Link>

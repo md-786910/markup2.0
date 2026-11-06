@@ -187,7 +187,7 @@ function Shell() {
         label: p.name,
         icon: p.projectType === 'document' ? 'doc' : 'globe',
         sub: p.workspace?.name || undefined,
-        onClick: () => navigate(`/project/${p._id}`),
+        onClick: () => window.open(`/project/${p._id}`, '_blank', 'noopener,noreferrer'),
       })),
     ];
   }, [navigate, canManage, isAdmin, workspaces, workspace?._id, selectWorkspace, searchProjects]);

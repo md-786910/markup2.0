@@ -68,7 +68,7 @@ export default function ProjectCard({ project, isAdmin, userId, onEdit, onArchiv
 
   return (
     <div className="kc-card-wrap">
-      <Link to={`/project/${project._id}`} className="kc-card hover" aria-label={`Open ${project.name}`}>
+      <Link to={`/project/${project._id}`} target="_blank" rel="noopener noreferrer" className="kc-card hover" aria-label={`Open ${project.name}`}>
         <ProjectThumb type={isDoc ? 'doc' : 'web'} pins={thumbPins(project)} />
         <div className="kc-cb">
           <div className="kc-ct1">

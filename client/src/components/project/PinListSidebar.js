@@ -77,17 +77,7 @@ function markCommentsRead(pinId, userId) {
 }
 
 
-// Design system: every avatar is brand blue with white initials
-const AVATAR_COLORS = [
-  { bg: 'bg-blue-600', text: 'text-white' },
-];
-
-function getAvatarColor(id) {
-  let hash = 0;
-  const str = (id || '').toString();
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
+import { getAvatarColor, AVATAR_COLORS } from '../../utils/avatarColors';
 
 function getInitials(name) {
   if (!name) return '?';
@@ -360,7 +350,7 @@ export default function PinListSidebar({
   const isSelected = (pinId) => selectedPinId === pinId;
 
   return (
-    <div className="w-full md:w-80 shrink-0 bg-white border-r pb-10 border-gray-200 flex flex-col h-full overflow-hidden relative">
+    <div className="w-full md:w-80 shrink-0 bg-white border-r pb-10 border-slate-200 flex flex-col h-full overflow-hidden relative">
       {/* Sidebar tab switcher */}
       {onTabChange && <SidebarTabs active={sidebarTab} onChange={onTabChange} />}
       {/* Detail view — slides in from right */}
@@ -392,11 +382,10 @@ export default function PinListSidebar({
       {/* Pin list view */}
       <div className="flex flex-col h-full pb-5">
         {/* Header */}
-        <div className="px-4 pt-3 pb-2 border-b border-gray-100">
-          {/* Tabs row + icon buttons */}
-          <div className="flex items-center">
+        <div className="px-4 py-2.5 border-b border-slate-100">
+          <div className="flex items-center justify-between">
             {/* Tabs */}
-            <div className="flex items-center gap-4 flex-1">
+            <div className="flex items-center gap-3">
               {TABS.map((t) => {
                 const count = t.key === 'open' ? openCount : resolvedCount;
                 const isActive = filterStatus === t.key;
@@ -404,9 +393,9 @@ export default function PinListSidebar({
                   <button
                     key={t.key}
                     onClick={() => setFilterStatus(t.key)}
-                    className={`text-label pb-1 transition-all ${isActive
-                      ? ' text-gray-900 border-b-2 border-gray-800'
-                      : 'font-medium text-gray-400 hover:text-gray-600 border-b-2 border-transparent'
+                    className={`text-[12.5px] font-medium transition-colors pb-0.5 border-b-2 ${isActive
+                      ? 'text-slate-900 font-semibold border-slate-900'
+                      : 'text-slate-400 hover:text-slate-600 border-transparent'
                       }`}
                   >
                     {count} {t.label}
@@ -415,22 +404,22 @@ export default function PinListSidebar({
               })}
             </div>
 
-            {/* Icon buttons */}
-            <div className="flex items-center gap-1">
-              {/* Sort dropdown */}
-              <div className="relative" ref={sortRef}>
-                <button
-                  onClick={() => setSortOpen((v) => !v)}
-                  className={`p-1.5 rounded transition-colors ${sortOpen ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-                  title="Sort"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
-                  </svg>
-                </button>
+          {/* Icon buttons */}
+          <div className="flex items-center gap-1">
+            {/* Sort dropdown */}
+            <div className="relative" ref={sortRef}>
+              <button
+                onClick={() => setSortOpen((v) => !v)}
+                className={`h-7 w-7 rounded-lg flex items-center justify-center transition-colors ${sortOpen ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                title="Sort"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+              </button>
 
-                {sortOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+              {sortOpen && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 overflow-hidden">
                     {[
                       { key: 'page', label: 'Page' },
                       { key: 'pin_order', label: 'Pin order' },
@@ -476,16 +465,16 @@ export default function PinListSidebar({
               <div className="relative" ref={filterRef}>
                 <button
                   onClick={() => setFilterOpen((v) => !v)}
-                  className={`p-1.5 rounded transition-colors ${filterOpen || filterOption ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+                  className={`h-7 w-7 rounded-lg flex items-center justify-center transition-colors ${filterOpen || filterOption ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
                   title="Filter"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18l-7 8.5V19l-4-2v-4.5L3 4z" />
                   </svg>
                 </button>
 
                 {filterOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-visible">
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 overflow-visible">
                     {/* Option 1: On this page */}
                     <button
                       onClick={() => {
@@ -494,10 +483,10 @@ export default function PinListSidebar({
                         setAssigneeModalOpen(false);
                         setFilterOpen(false);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors"
                     >
                       <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        filterOption === 'on_this_page' ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                        filterOption === 'on_this_page' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
                       }`}>
                         {filterOption === 'on_this_page' && (
                           <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -505,7 +494,7 @@ export default function PinListSidebar({
                           </svg>
                         )}
                       </span>
-                      <span className={`text-body-sm flex-1 ${filterOption === 'on_this_page' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                      <span className={`text-[13px] flex-1 ${filterOption === 'on_this_page' ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
                         On this page
                       </span>
                     </button>
@@ -519,12 +508,12 @@ export default function PinListSidebar({
                           setMentionModalOpen((v) => !v);
                           setAssigneeModalOpen(false);
                         }}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors ${
                           filterOption === 'mentions' ? 'bg-blue-50/50' : ''
                         }`}
                       >
                         <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          filterOption === 'mentions' ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                          filterOption === 'mentions' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
                         }`}>
                           {filterOption === 'mentions' && (
                             <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -532,10 +521,10 @@ export default function PinListSidebar({
                             </svg>
                           )}
                         </span>
-                        <span className={`text-body-sm flex-1 truncate ${filterOption === 'mentions' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                        <span className={`text-[13px] flex-1 truncate ${filterOption === 'mentions' ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
                           {selectedMentionUser ? `Mentions: ${selectedMentionUser.name}` : 'Mentions'}
                         </span>
-                        <svg className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${mentionModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${mentionModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </button>
@@ -544,7 +533,7 @@ export default function PinListSidebar({
                       {mentionModalOpen && createPortal(
                         <div
                           ref={mentionModalRef}
-                          className="fixed w-64 bg-white border border-gray-200 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.18)] z-[99999] overflow-hidden flex flex-col"
+                          className="fixed w-64 bg-white border border-slate-200 rounded-lg shadow-[0_12px_40px_rgba(0,0,0,0.18)] z-[99999] overflow-hidden flex flex-col"
                           style={{
                             top: `${modalPos.top}px`,
                             left: `${modalPos.left}px`,
@@ -552,8 +541,8 @@ export default function PinListSidebar({
                           }}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/70">
-                            <span className="text-overline text-gray-600">Project Members</span>
+                          <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                            <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-500">Project Members</span>
                             {selectedMentionUser && (
                               <button
                                 onClick={() => {
@@ -562,7 +551,7 @@ export default function PinListSidebar({
                                   setMentionModalOpen(false);
                                   setFilterOpen(false);
                                 }}
-                                className="text-caption text-blue-600 hover:text-blue-800 font-medium"
+                                className="text-[11px] text-blue-600 hover:text-blue-800 font-medium"
                               >
                                 Clear
                               </button>
@@ -571,13 +560,13 @@ export default function PinListSidebar({
 
                           {/* Member search if > 3 members */}
                           {members.length > 3 && (
-                            <div className="px-3 pt-2 pb-1 bg-white border-b border-gray-50">
+                            <div className="px-3 pt-2 pb-1 bg-white border-b border-slate-100">
                               <input
                                 type="text"
                                 value={memberSearch}
                                 onChange={(e) => setMemberSearch(e.target.value)}
                                 placeholder="Search user..."
-                                className="w-full text-body px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                                className="w-full text-[12.5px] px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
                               />
                             </div>
                           )}
@@ -676,7 +665,7 @@ export default function PinListSidebar({
                       {assigneeModalOpen && createPortal(
                         <div
                           ref={assigneeModalRef}
-                          className="fixed w-64 bg-white border border-gray-200 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.18)] z-[99999] overflow-hidden flex flex-col"
+                          className="fixed w-64 bg-white border border-slate-200 rounded-lg shadow-[0_12px_40px_rgba(0,0,0,0.18)] z-[99999] overflow-hidden flex flex-col"
                           style={{
                             top: `${assigneeModalPos.top}px`,
                             left: `${assigneeModalPos.left}px`,
@@ -684,8 +673,8 @@ export default function PinListSidebar({
                           }}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="px-3.5 py-2.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/70">
-                            <span className="text-overline text-gray-600">
+                          <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                            <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-500">
                               Assignee ({selectedAssigneeUsers.length}/{members.length})
                             </span>
                             <div className="flex items-center gap-2">
@@ -987,14 +976,14 @@ export default function PinListSidebar({
                 {sortBy === 'page' && (
                   <button
                     onClick={() => toggleGroup(path)}
-                    className="w-full px-4 py-2 flex items-center gap-2 bg-gray-50/60 hover:bg-gray-100/60 transition-colors text-left"
+                    className="w-full px-4 py-2 flex items-center gap-2 bg-slate-50 border-b border-slate-100 hover:bg-slate-100/70 transition-colors text-left"
                   >
-                    <span className="text-caption font-medium text-gray-400 truncate flex-1" title={path}>
+                    <span className="text-[12px] font-medium text-slate-500 truncate flex-1" title={path}>
                       {getGroupLabel(pagePins[0]?.pageUrl || path)}
                     </span>
-                    <span className="text-caption text-gray-300 shrink-0">{pagePins.length}</span>
+                    <span className="text-[11.5px] text-slate-400 shrink-0">{pagePins.length}</span>
                     <svg
-                      className={`w-3 h-3 text-gray-300 shrink-0 transition-transform duration-200 ${isGroupCollapsed ? '-rotate-90' : ''}`}
+                      className={`w-3 h-3 text-slate-400 shrink-0 transition-transform duration-200 ${isGroupCollapsed ? '-rotate-90' : ''}`}
                       fill="none" stroke="currentColor" viewBox="0 0 24 24"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -1008,42 +997,42 @@ export default function PinListSidebar({
                     {/* Card */}
                     <div
                       onClick={() => handleCardClick(pin)}
-                      className={`cursor-pointer transition-colors ${isSelected(pin._id)
-                        ? 'bg-gray-50'
-                        : 'bg-white hover:bg-gray-50'
+                      className={`cursor-pointer transition-colors border-b border-slate-100 ${isSelected(pin._id)
+                        ? 'bg-slate-50 border-l-2 border-l-blue-600'
+                        : 'bg-white hover:bg-slate-50/70'
                         }`}
                     >
-                      <div className="px-4 pt-4 pb-3">
+                      <div className="px-4 py-3">
                         {/* Top row: pin badge + action icons */}
-                        <div className="flex items-start justify-between mb-2">
-                          {/* Pin number badge — large filled circle */}
-                          <span className={`w-8 h-8 rounded-full flex items-center justify-center text-body-sm font-semibold text-white shrink-0 ${pin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'
+                        <div className="flex items-start justify-between mb-1.5">
+                          {/* Pin number badge */}
+                          <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-semibold text-white shrink-0 ${pin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'
                             }`}>
                             {pin.pinNumber || (idx + 1)}
                           </span>
 
                           {/* Action icons: ... menu + resolve checkmark */}
-                          <div className="relative flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <div className="relative flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                             {/* Three-dot menu → dropdown */}
                             <div className="relative" data-pin-menu>
                               <button
                                 onClick={() => setConfirmDelete((prev) => prev === pin._id ? null : pin._id)}
-                                className="p-1 rounded text-gray-300 hover:text-gray-500 hover:bg-gray-200 transition-colors"
+                                className="h-6 w-6 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                                 title="More options"
                               >
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                                   <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
                                 </svg>
                               </button>
                               {confirmDelete === pin._id && (
-                                <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+                                <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 overflow-hidden">
                                   <button
                                     onClick={() => {
                                       const link = `${window.location.origin}/project/${projectId}?pin=${pin._id}`;
                                       navigator.clipboard.writeText(link);
                                       setConfirmDelete(null);
                                     }}
-                                    className="w-full px-4 py-2 text-left text-body-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                    className="w-full px-4 py-2 text-left text-[12.5px] text-slate-700 hover:bg-slate-50 transition-colors"
                                   >
                                     Copy link
                                   </button>
@@ -1052,7 +1041,7 @@ export default function PinListSidebar({
                                       onPinClick(pin);
                                       setConfirmDelete(null);
                                     }}
-                                    className="w-full px-4 py-2 text-left text-body-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                    className="w-full px-4 py-2 text-left text-[12.5px] text-slate-700 hover:bg-slate-50 transition-colors"
                                   >
                                     Get info
                                   </button>
@@ -1063,13 +1052,13 @@ export default function PinListSidebar({
                             {!readOnly && (
                             <button
                               onClick={() => onStatusChange(pin._id, pin.status === 'resolved' ? 'open' : 'resolved')}
-                              className={`p-1 rounded transition-colors ${pin.status === 'resolved'
+                              className={`h-6 w-6 rounded-lg flex items-center justify-center transition-colors ${pin.status === 'resolved'
                                 ? 'text-emerald-500 hover:bg-emerald-50'
-                                : 'text-gray-300 hover:text-emerald-500 hover:bg-emerald-50'
+                                : 'text-slate-300 hover:text-emerald-500 hover:bg-emerald-50'
                                 }`}
                               title={pin.status === 'resolved' ? 'Reopen' : 'Resolve'}
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                                 <circle cx="12" cy="12" r="9" />
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12l3 3 5-5" />
                               </svg>
@@ -1080,14 +1069,14 @@ export default function PinListSidebar({
 
                         {/* Author + New badge + Unread comments badge */}
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-body-sm font-semibold text-gray-900 truncate">
+                          <span className="text-[13px] font-semibold text-slate-900 truncate">
                             {pin.createdBy?.name || pin.createdByGuest?.name || 'Unknown'}
                           </span>
                           {!pin.createdBy && pin.createdByGuest?.name && (
-                            <span className="text-caption font-medium text-gray-400">Guest</span>
+                            <span className="text-[11px] font-medium text-slate-400">Guest</span>
                           )}
                           {!readPins.has(pin._id) && (
-                            <span className="text-caption font-medium px-1.5 py-px rounded-full bg-blue-50 text-blue-700">
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/50">
                               New
                             </span>
                           )}
@@ -1096,7 +1085,7 @@ export default function PinListSidebar({
                               const lastRead = readComments[pin._id] || 0;
                               const commentTime = new Date(pin.latestComment.createdAt).getTime();
                               return commentTime > lastRead ? (
-                                <span className="text-caption font-medium px-1.5 py-px rounded-full bg-blue-50 text-blue-700">
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/50">
                                   New reply
                                 </span>
                               ) : null;
@@ -1105,29 +1094,26 @@ export default function PinListSidebar({
                         </div>
 
                         {/* Time */}
-                        <p className="text-caption text-gray-400 mb-1.5 tabular-nums" title={formatFullTimestamp(pin.createdAt)}>{timeAgo(pin.createdAt)}</p>
+                        <p className="text-[11.5px] text-slate-400 mb-1 tabular-nums" title={formatFullTimestamp(pin.createdAt)}>{timeAgo(pin.createdAt)}</p>
 
                         {/* Comment preview — first comment as title */}
                         {pin.firstComment ? (
-                          <p className="text-body-sm text-gray-700 line-clamp-2">
+                          <p className="text-[13px] text-slate-600 line-clamp-2">
                             {renderCommentBody(pin.firstComment.body)}
                           </p>
                         ) : (
-                          <p className="text-caption text-gray-300 italic">No comments</p>
+                          <p className="text-[12px] text-slate-300 italic">No comments</p>
                         )}
 
                         {/* Comment count indicator */}
                         {pin.commentsCount > 1 && (
-                          <p className="text-caption text-gray-400 mt-1">
+                          <p className="text-[11.5px] text-slate-400 mt-1">
                             {pin.commentsCount - 1} {pin.commentsCount - 1 === 1 ? 'reply' : 'replies'}
                           </p>
                         )}
 
                       </div>
                     </div>
-
-                    {/* Separator between cards */}
-                    <div className="border-b border-gray-100 mx-4"></div>
                   </div>
                 ))}
               </div>

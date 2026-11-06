@@ -35,12 +35,24 @@
   font-size: var(--text-body-sm);
 }
 .markup-quill-wrapper .ql-editor {
-  padding: 8px 16px 8px 16px;
+  padding: 12px 16px 12px 16px;
   min-height: 100px;
   max-height: 180px;
   overflow-y: auto;
   line-height: 1.5;
   color: #1e293b;
+}
+/* Suppress unwanted browser/tailwind focus outline rings on Quill editor */
+.markup-quill-wrapper .ql-editor:focus,
+.markup-quill-wrapper .ql-editor:focus-visible,
+.markup-quill-wrapper .ql-container:focus,
+.markup-quill-wrapper .ql-container:focus-visible,
+.markup-quill-wrapper .quill:focus,
+.markup-quill-wrapper .quill:focus-visible,
+.markup-quill-wrapper *:focus,
+.markup-quill-wrapper *:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 /* New-pin popup: taller editor beside the details panel */
 .markup-quill-wrapper.markup-quill-tall .ql-editor {
@@ -86,13 +98,13 @@
   width: 28px !important;
   height: 28px !important;
   padding: 4px !important;
-  border-radius: 6px !important;
-  color: #94a3b8 !important;
+  border-radius: 8px !important;
+  color: #64748b !important;
   transition: all 0.15s !important;
 }
 #markup-comment-toolbar button:hover {
-  color: #334155 !important;
-  background: #f8fafc !important;
+  color: #0f172a !important;
+  background: #f1f5f9 !important;
 }
 #markup-comment-toolbar button.ql-active {
   color: #003dff !important;

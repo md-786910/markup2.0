@@ -1,4 +1,5 @@
 import { useAuth } from '../../hooks/useAuth';
+import { Icon } from '../kc';
 
 const TABS = [
   { id: 'pins', label: 'Feedback' },
@@ -12,7 +13,7 @@ export default function SidebarTabs({ active, onChange }) {
   const { user } = useAuth();
   const limits = user?.orgLimits || {};
   return (
-    <div className="flex border-b border-gray-200/80 shrink-0" role="tablist">
+    <div className="flex border-b border-slate-200 bg-white shrink-0 px-2 h-10 items-center" role="tablist">
       {TABS.map((tab) => {
         const locked = tab.limit && !limits[tab.limit];
         const selected = active === tab.id;
@@ -23,18 +24,15 @@ export default function SidebarTabs({ active, onChange }) {
             role="tab"
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
-            className={`relative flex flex-1 items-center justify-center gap-1 py-2.5 text-label transition-colors ${
-              selected ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+            className={`relative flex flex-1 items-center justify-center gap-1.5 h-10 text-[13px] transition-colors ${
+              selected ? 'text-slate-900 font-semibold' : 'text-slate-500 hover:text-slate-800 font-medium'
             }`}
           >
             {tab.label}
             {locked && (
-              <svg className="h-3 w-3 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" aria-label="Upgrade required">
-                <rect x="5" y="11" width="14" height="10" rx="2" />
-                <path strokeLinecap="round" d="M8 11V7a4 4 0 018 0v4" />
-              </svg>
+              <Icon name="lock" size={12} className="text-slate-400" />
             )}
-            {selected && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
+            {selected && <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-blue-600 rounded-full" />}
           </button>
         );
       })}

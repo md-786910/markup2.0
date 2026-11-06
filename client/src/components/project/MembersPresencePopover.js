@@ -75,9 +75,11 @@ function StatusLine({ isOnline, lastSeen }) {
 }
 
 function Avatar({ initials, color, isOnline }) {
+  const bg = color?.bg || 'bg-blue-600';
+  const text = color?.text || 'text-white';
   return (
     <div className="relative shrink-0">
-      <div className={`w-8 h-8 rounded-full ${color.bg} ${color.text} flex items-center justify-center text-caption font-semibold`}>
+      <div className={`w-8 h-8 rounded-full ${bg} ${text} flex items-center justify-center text-caption font-semibold`}>
         {initials}
       </div>
       <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`} />

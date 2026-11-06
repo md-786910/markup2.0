@@ -19,6 +19,7 @@ import { useIframeMessages } from '../hooks/useIframeMessages';
 import { normalizePageUrl } from '../utils/pageUrl';
 import useEscape from '../hooks/useEscape';
 import BrandMark from '../components/common/BrandMark';
+import { Logo, Icon, Badge } from '../components/kc';
 
 const DocumentViewer = React.lazy(() => import('../components/project/DocumentViewer'));
 const API_BASE = process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api';
@@ -26,10 +27,7 @@ const docPageUrl = (doc, page) => (doc ? `doc:${doc.filename}:page:${page}` : nu
 
 const UPLOADS_BASE_URL = (process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
 
-// Design system: every avatar is brand blue with white initials
-const AVATAR_COLORS = [
-  { bg: 'bg-blue-600', text: 'text-white' },
-];
+import { getAvatarColor, AVATAR_COLORS } from '../utils/avatarColors';
 
 function getInitials(name) {
   if (!name) return '??';
@@ -38,12 +36,6 @@ function getInitials(name) {
   return name.slice(0, 2).toUpperCase();
 }
 
-function getAvatarColor(id) {
-  let hash = 0;
-  const str = id || '';
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -434,28 +426,24 @@ export default function GuestProjectPage() {
   );
 
   return (
-    <div className="flex flex-col h-screen h-dvh">
+    <div className="kc flex flex-col h-screen h-dvh bg-slate-50">
       {/* ─── Toolbar ─── */}
-      <div className="bg-white border-b border-gray-200/80 px-4 h-14 flex items-center justify-between relative shrink-0">
+      <header className="bg-white border-b border-slate-200 px-4 h-14 flex items-center justify-between relative shrink-0">
         {/* Left: Brand + Project + URL */}
         <div className="flex items-center gap-3 min-w-0 z-10">
           {workspaceToken ? (
-            <Link to={`/review/w/${workspaceToken}`} className="flex items-center gap-1.5 text-body-sm font-medium text-gray-500 hover:text-gray-900 shrink-0" title="All projects">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              <BrandMark className="w-8 h-8" />
+            <Link to={`/review/w/${workspaceToken}`} className="flex items-center gap-1.5 text-slate-500 hover:text-slate-900 shrink-0" title="All projects">
+              <Logo size={28} />
+              <Icon name="arrow" size={15} className="rotate-180 text-slate-400 hover:text-slate-700" />
             </Link>
           ) : (
-            <BrandMark className="w-8 h-8" />
+            <Logo size={28} />
           )}
-          <div className="w-px h-6 bg-gray-200/80 shrink-0" />
-          <h2 className="font-semibold text-gray-900 truncate text-body-sm">{project.name}</h2>
+          <div className="w-px h-5 bg-slate-200 shrink-0" />
+          <h2 className="font-semibold text-slate-900 truncate text-[14px]">{project.name}</h2>
           {project.projectType === 'website' && project.websiteUrl && (
-            <div className="hidden lg:flex items-center gap-1.5 text-caption text-gray-400 bg-gray-50/80 pl-2 pr-2.5 py-1.5 rounded-lg truncate max-w-md border border-gray-100/80 cursor-default" title={project.websiteUrl}>
-              <svg className="w-3.5 h-3.5 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-              </svg>
+            <div className="hidden lg:flex items-center gap-1.5 text-[12px] text-slate-500 bg-slate-100/70 pl-2.5 pr-3 py-1.5 rounded-lg truncate max-w-md border border-slate-200/80 cursor-default" title={project.websiteUrl}>
+              <Icon name="globe" size={14} className="text-slate-400 shrink-0" />
               <span className="truncate">{project.websiteUrl}</span>
             </div>
           )}
@@ -464,43 +452,41 @@ export default function GuestProjectPage() {
         {/* Right: Guest badge + identity */}
         <div className="flex items-center gap-3 z-10 shrink-0">
           {project.allowComments && (
-            <div className="flex items-center bg-gray-100 rounded-lg p-0.5" role="group" aria-label="Mode">
+            <div className="flex h-8 items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200" role="group" aria-label="Mode">
               <button
                 type="button"
                 onClick={() => { setCommentMode(false); setDraft(null); }}
-                className={`px-3 py-1.5 rounded-md text-label transition-colors ${!commentMode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`flex h-7 items-center px-2.5 rounded-md text-[12px] font-medium transition-all ${!commentMode ? 'bg-white text-slate-900 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 View
               </button>
               <button
                 type="button"
                 onClick={() => setCommentMode(true)}
-                className={`px-3 py-1.5 rounded-md text-label transition-colors ${commentMode ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`flex h-7 items-center px-2.5 rounded-md text-[12px] font-medium transition-all ${commentMode ? 'bg-blue-600 text-white shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 Comment
               </button>
             </div>
           )}
-          <span className="hidden md:inline text-caption font-medium text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100/50">
-            Guest Review
-          </span>
+          <Badge tone="review">Guest Review</Badge>
           {hasIdentity && (
             <>
-              <div className="hidden md:block w-px h-6 bg-gray-200/80" />
+              <div className="hidden md:block w-px h-5 bg-slate-200" />
               <div className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full ${guestColor.bg} ${guestColor.text} flex items-center justify-center text-caption font-semibold`}>
+                <div className={`w-7 h-7 rounded-full ${getAvatarColor(guestName).bg} ${getAvatarColor(guestName).text} flex items-center justify-center text-[11px] font-semibold border-2 border-white`}>
                   {getInitials(guestName)}
                 </div>
-                <span className="hidden md:inline text-body-sm font-medium text-gray-700">{guestName}</span>
+                <span className="hidden md:inline text-[13px] font-medium text-slate-700">{guestName}</span>
               </div>
             </>
           )}
         </div>
-      </div>
+      </header>
 
       <div className="flex flex-1 overflow-hidden">
         {/* ─── Sidebar ─── */}
-        <div className={`${mobilePane === 'comments' ? 'flex' : 'hidden'} md:flex w-full md:w-80 bg-white border-r border-gray-200 flex-col h-full overflow-hidden relative shrink-0`}>
+        <div className={`${mobilePane === 'comments' ? 'flex' : 'hidden'} md:flex w-full md:w-80 bg-white border-r border-slate-200 flex-col h-full overflow-hidden relative shrink-0`}>
           {/* Detail view — slides in from right */}
           <div
             className="absolute inset-0 z-10 bg-white transition-transform duration-300 ease-in-out"
