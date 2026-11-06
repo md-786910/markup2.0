@@ -632,7 +632,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       />
 
       {/* Left Feedback Panel / Sidebar */}
-      <div className={`${mobilePane === 'comments' ? 'flex' : 'hidden'} md:flex w-full md:w-[320px] shrink-0 h-full min-h-0`}>
+      <div className={`${mobilePane === 'comments' ? 'flex' : 'hidden'} md:flex w-full md:w-auto shrink-0 h-full min-h-0`}>
         {sidebarTab === 'pins' ? (
           <PinListSidebar
             readOnly={!canComment}
@@ -654,7 +654,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             onTabChange={setSidebarTab}
           />
         ) : (
-          <div className="w-full md:w-[320px] shrink-0 bg-white border-r border-slate-200 flex flex-col h-full overflow-hidden">
+          <div className="kr-panel h-full overflow-hidden">
             <SidebarTabs active={sidebarTab} onChange={setSidebarTab} />
             {sidebarTab === 'activity' && (isTabLocked('activity', limits) ? (
               <LockedFeature
@@ -780,6 +780,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               project={project}
               pins={shownAllPins}
               members={allMembers}
+              selectedPinId={selectedPin?._id}
               onPinClick={(pin) => {
                 setPendingPinData(null);
                 setSelectedPin(pin);

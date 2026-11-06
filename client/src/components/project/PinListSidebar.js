@@ -93,10 +93,10 @@ const TABS = [
 ];
 
 const STATUS_META = {
-  open: { label: 'Open', color: 'var(--brand-600, #003dff)' },
-  in_progress: { label: 'In Progress', color: 'var(--warning-500, #f59e0b)' },
-  in_review: { label: 'In Review', color: '#0ea5e9' },
-  resolved: { label: 'Resolved', color: 'var(--success-500, #10b981)' },
+  open: { label: 'Open', color: 'var(--status-open)' },
+  in_progress: { label: 'In Progress', color: 'var(--status-progress)' },
+  in_review: { label: 'In Review', color: 'var(--status-review)' },
+  resolved: { label: 'Resolved', color: 'var(--status-resolved)' },
 };
 
 const PRIORITY_META = {
@@ -366,7 +366,7 @@ export default function PinListSidebar({
   const isSelected = (pinId) => selectedPinId === pinId;
 
   return (
-    <aside className="w-full md:w-[340px] kx-panel shrink-0 bg-white border-r border-slate-200 flex flex-col h-full overflow-hidden relative" aria-label="Feedback">
+    <aside className="kr-panel h-full overflow-hidden relative" aria-label="Feedback">
       {/* Sidebar tab switcher */}
       {onTabChange && <SidebarTabs active={sidebarTab} onChange={onTabChange} count={openCount} />}
 
@@ -398,34 +398,33 @@ export default function PinListSidebar({
 
       {/* Pin list view */}
       <div className="flex flex-col h-full min-h-0 flex-1 overflow-hidden">
-        {/* Header / Sub bar (kx-fh) */}
-        <div className="kx-fh shrink-0">
-          <div className="kx-chips">
-            <button
-              type="button"
-              className={filterStatus === 'open' ? 'on' : ''}
-              onClick={() => setFilterStatus('open')}
-            >
-              Active <i>{openCount}</i>
-            </button>
-            <button
-              type="button"
-              className={filterStatus === 'resolved' ? 'on' : ''}
-              onClick={() => setFilterStatus('resolved')}
-            >
-              Resolved <i>{resolvedCount}</i>
-            </button>
-          </div>
+        {/* Sub bar: Active | Resolved, then sort, filter, search */}
+        <div className="kr-sub shrink-0">
+          <button
+            type="button"
+            className={`st ${filterStatus === 'open' ? 'on' : ''}`}
+            aria-pressed={filterStatus === 'open'}
+            onClick={() => setFilterStatus('open')}
+          >
+            {openCount} Active
+          </button>
+          <button
+            type="button"
+            className={`st ${filterStatus === 'resolved' ? 'on' : ''}`}
+            aria-pressed={filterStatus === 'resolved'}
+            onClick={() => setFilterStatus('resolved')}
+          >
+            {resolvedCount} Resolved
+          </button>
           <span style={{ flex: 1 }} />
 
-          {/* Icon buttons: Sort & Filter */}
-          <div className="flex items-center gap-1">
+          {/* Icon buttons: Sort, Filter, Search */}
+          <div className="flex items-center gap-0.5">
             {/* Sort dropdown */}
             <div className="relative" ref={sortRef}>
               <IconButton
                 icon="sort"
                 label="Sort"
-                tip="Sort"
                 active={sortOpen || sortBy !== 'page'}
                 onClick={() => { setSortOpen((v) => !v); setFilterOpen(false); }}
               />
@@ -478,7 +477,6 @@ export default function PinListSidebar({
               <IconButton
                 icon="filter"
                 label="Filter"
-                tip="Filter"
                 active={filterOpen || !!filterOption}
                 onClick={() => { setFilterOpen((v) => !v); setSortOpen(false); }}
               />
@@ -552,7 +550,7 @@ export default function PinListSidebar({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-                          <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-500">Project Members</span>
+                          <span className="text-ui-label font-semibold text-slate-600">Project members</span>
                           {selectedMentionUser && (
                             <button
                               onClick={() => {
@@ -680,7 +678,7 @@ export default function PinListSidebar({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-                          <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-500">
+                          <span className="text-ui-label font-semibold text-slate-600">
                             Assignee (${selectedAssigneeUsers.length}/${members.length})
                           </span>
                           <div className="flex items-center gap-2">
@@ -792,32 +790,48 @@ export default function PinListSidebar({
                 </div>
               )}
             </div>
+
+            <IconButton
+              icon="search"
+              label="Search"
+              active={searchOpen || !!searchQuery}
+              aria-expanded={searchOpen || !!searchQuery}
+              onClick={() => {
+                if (searchOpen || searchQuery) { setSearchOpen(false); setSearchQuery(''); }
+                else setSearchOpen(true);
+              }}
+            />
           </div>
         </div>
 
-        {/* Permanent search input (kx-search) */}
-        <label className="kx-search">
-          <Icon name="search" size={15} />
-          <input
-            placeholder="Search feedback"
-            aria-label="Search feedback"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="text-slate-400 hover:text-slate-600 p-0.5"
-            >
-              <Icon name="x" size={13} />
-            </button>
-          )}
-        </label>
+        {/* Search field, opened from the sub bar */}
+        {(searchOpen || searchQuery) && (
+          <label className="kr-search">
+            <Icon name="search" size={14} />
+            <input
+              autoFocus
+              placeholder="Search feedback"
+              aria-label="Search feedback"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false); } }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="text-slate-400 hover:text-slate-600 p-0.5"
+                aria-label="Clear search"
+              >
+                <Icon name="x" size={13} />
+              </button>
+            )}
+          </label>
+        )}
 
         {/* Active Filters Bar */}
         {hasActiveFilters && (
-          <div className="flex flex-wrap items-center gap-1.5 px-3 py-1.5 mx-3 mb-2 bg-slate-50 border border-slate-200 rounded-lg text-caption animate-fadeIn shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5 px-3 py-1.5 mx-4 mt-2.5 bg-slate-50 border border-slate-200 rounded-lg text-caption animate-fadeIn shrink-0">
             <span className="text-gray-400 font-medium mr-0.5">Filtered:</span>
             {filterOption === 'on_this_page' && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-medium">
@@ -861,8 +875,8 @@ export default function PinListSidebar({
           </div>
         )}
 
-        {/* Scrollable list (kx-list) */}
-        <div className="kx-list">
+        {/* Scrollable list */}
+        <div className="kr-list">
           {filteredPins.length === 0 && (
             <div className="text-center py-16 px-6">
               <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
@@ -898,128 +912,113 @@ export default function PinListSidebar({
           {Object.entries(grouped).map(([path, pagePins]) => {
             const isGroupCollapsed = collapsedGroups.has(path);
             return (
-              <div key={path} className="flex flex-col gap-2">
-                {/* Page section header */}
+              <div key={path}>
+                {/* Page group header: path and count */}
                 {sortBy === 'page' && (
                   <div
                     onClick={() => toggleGroup(path)}
-                    className="kx-gh"
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleGroup(path); } }}
+                    className={`kr-gh ${isGroupCollapsed ? 'closed' : ''}`}
                     role="button"
                     tabIndex={0}
+                    aria-expanded={!isGroupCollapsed}
                   >
-                    <span className="truncate" title={path}>
-                      {getGroupLabel(pagePins[0]?.pageUrl || path)}
+                    <span title={path}>{getGroupLabel(pagePins[0]?.pageUrl || path)}</span>
+                    <span className="ct">
+                      {pagePins.length}
+                      <Icon name="down" size={13} />
                     </span>
-                    <span>{pagePins.length}</span>
                   </div>
                 )}
 
-                {/* Boxed pin cards */}
                 {(sortBy !== 'page' || !isGroupCollapsed) && pagePins.map((pin, idx) => {
                   const st = STATUS_META[pin.status] || STATUS_META.open;
                   const pr = PRIORITY_META[pin.priority] || PRIORITY_META.normal;
                   const commentText = pin.firstComment?.body || (pin.comments && pin.comments[0]?.body) || '';
+                  const resolved = pin.status === 'resolved';
+                  const replies = (pin.commentsCount || 0) - 1;
 
                   return (
                     <div
                       key={pin._id}
                       onClick={() => handleCardClick(pin)}
-                      className={`kx-card ${isSelected(pin._id) ? 'on' : ''} ${pin.status === 'resolved' ? 'done' : ''}`}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) handleCardClick(pin); }}
+                      role="button"
+                      tabIndex={0}
+                      aria-current={isSelected(pin._id) ? 'true' : undefined}
+                      className={`kr-item ${isSelected(pin._id) ? 'on' : ''}`}
                     >
-                      {/* Row 1: Pin badge, author, time, tools on hover */}
-                      <div className="r1">
-                        <span className={`kr-pin sm ${pin.status === 'resolved' ? 'ok' : ''}`}>
-                          {pin.status === 'resolved' ? (
-                            <Icon name="check" size={11} stroke={3} />
-                          ) : (
-                            pin.pinNumber || (idx + 1)
-                          )}
+                      <span className="pin">
+                        <span className={`kr-pin ${resolved ? 'ok' : ''}`}>
+                          {resolved ? <Icon name="check" size={13} stroke={3} /> : (pin.pinNumber || (idx + 1))}
                         </span>
+                      </span>
 
-                        <b className="truncate">{pin.createdBy?.name || pin.createdByGuest?.name || 'Unknown'}</b>
-                        <small title={formatFullTimestamp(pin.createdAt)}>
-                          {timeAgo(pin.createdAt)}
-                        </small>
-                        <span style={{ flex: 1 }} />
-
-                        <span className="hov flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <div className="relative inline-block" data-pin-menu>
-                            <IconButton
-                              icon="dots"
-                              label="More"
-                              onClick={() => setConfirmDelete((prev) => prev === pin._id ? null : pin._id)}
-                            />
-                            {confirmDelete === pin._id && (
-                              <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 overflow-hidden">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const link = `${window.location.origin}/project/${projectId}?pin=${pin._id}`;
-                                    navigator.clipboard.writeText(link);
-                                    setConfirmDelete(null);
-                                  }}
-                                  className="w-full px-4 py-2 text-left text-[12.5px] text-slate-700 hover:bg-slate-50 transition-colors"
-                                >
-                                  Copy link
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onPinClick(pin);
-                                    setConfirmDelete(null);
-                                  }}
-                                  className="w-full px-4 py-2 text-left text-[12.5px] text-slate-700 hover:bg-slate-50 transition-colors"
-                                >
-                                  Get info
-                                </button>
-                              </div>
-                            )}
-                          </div>
-
-                          {!readOnly && (
-                            <button
-                              type="button"
-                              onClick={() => onStatusChange(pin._id, pin.status === 'resolved' ? 'open' : 'resolved')}
-                              className={`kr-resolve ${pin.status === 'resolved' ? 'done' : ''}`}
-                              title={pin.status === 'resolved' ? 'Reopen' : 'Resolve'}
-                              aria-label={pin.status === 'resolved' ? 'Reopen' : 'Resolve'}
-                            >
-                              <Icon name="check" size={14} stroke={2} />
-                            </button>
+                      <span className="tools" onClick={(e) => e.stopPropagation()}>
+                        <div className="relative inline-block" data-pin-menu>
+                          <IconButton
+                            icon="dots"
+                            label="More"
+                            onClick={() => setConfirmDelete((prev) => prev === pin._id ? null : pin._id)}
+                          />
+                          {confirmDelete === pin._id && (
+                            <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const link = `${window.location.origin}/project/${projectId}?pin=${pin._id}`;
+                                  navigator.clipboard.writeText(link);
+                                  setConfirmDelete(null);
+                                }}
+                                className="w-full px-4 py-2 text-left text-ui text-slate-700 hover:bg-slate-50 transition-colors"
+                              >
+                                Copy link
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onPinClick(pin);
+                                  setConfirmDelete(null);
+                                }}
+                                className="w-full px-4 py-2 text-left text-ui text-slate-700 hover:bg-slate-50 transition-colors"
+                              >
+                                Open
+                              </button>
+                            </div>
                           )}
-                        </span>
-                      </div>
+                        </div>
 
-                      {/* Row 2: Comment Preview */}
-                      <p>
-                        {commentText ? (
-                          renderCommentBody(commentText)
-                        ) : (
-                          <span className="text-slate-400 italic">No comments</span>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={() => onStatusChange(pin._id, resolved ? 'open' : 'resolved')}
+                            className={`kr-resolve ${resolved ? 'done' : ''}`}
+                            title={resolved ? 'Reopen' : 'Resolve'}
+                            aria-label={resolved ? 'Reopen' : 'Resolve'}
+                          >
+                            <Icon name="check" size={10} stroke={2.5} />
+                          </button>
                         )}
-                      </p>
+                      </span>
 
-                      {/* Row 3: Status chip, priority chip, reply count */}
-                      <div className="r3">
-                        <span className="kx-st">
-                          <i style={{ background: st.color }} />
-                          {st.label}
-                        </span>
+                      <span className="who">{pin.createdBy?.name || pin.createdByGuest?.name || 'Unknown'}</span>
+                      <span className="when" title={formatFullTimestamp(pin.createdAt)}>{timeAgo(pin.createdAt)}</span>
+                      <span className="txt">
+                        {commentText ? renderCommentBody(commentText) : <span className="text-slate-400 italic">No comments</span>}
+                      </span>
 
+                      <span className="meta">
+                        <span className="kr-dot"><i style={{ background: st.color }} />{st.label}</span>
                         {pin.priority && pin.priority !== 'normal' && (
-                          <span className="kx-st">
-                            <i style={{ background: pr.color }} />
-                            {pr.label}
+                          <span className="kr-dot"><i style={{ background: pr.color }} />{pr.label}</span>
+                        )}
+                        {replies > 0 && (
+                          <span className="rp">
+                            <Icon name="chat" size={12} />
+                            {replies} {replies === 1 ? 'reply' : 'replies'}
                           </span>
                         )}
-
-                        {pin.commentsCount > 1 && (
-                          <small className="rp">
-                            <Icon name="chat" size={12} />
-                            {pin.commentsCount - 1}
-                          </small>
-                        )}
-                      </div>
+                      </span>
                     </div>
                   );
                 })}
@@ -1028,11 +1027,13 @@ export default function PinListSidebar({
           })}
         </div>
 
-        {/* Bottom hint banner */}
-        <div className="kx-hint">
-          <Icon name="chat" size={14} />
-          <span>Click anywhere on the page to leave a comment</span>
-        </div>
+        {/* Hint while comment mode has nothing on the list yet */}
+        {!readOnly && pins.length === 0 && (
+          <div className="kr-hint">
+            <Icon name="chat" size={14} />
+            <span>Click anywhere on the page to leave a comment</span>
+          </div>
+        )}
       </div>
     </aside>
   );

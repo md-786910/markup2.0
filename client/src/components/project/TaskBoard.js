@@ -57,6 +57,7 @@ export default function TaskBoard({
   pins = [],
   members = [],
   onPinClick,
+  selectedPinId,
   onPinUpdate,
   canEdit = true,
   readOnly = false,
@@ -507,7 +508,8 @@ export default function TaskBoard({
                           setDragOverCol(null);
                         }}
                         onClick={() => onPinClick && onPinClick(pin)}
-                        className={`group relative overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md ${
+                        aria-current={selectedPinId === pin._id ? 'true' : undefined}
+                        className={`group relative overflow-hidden rounded-xl border border-gray-200/90 bg-white p-3 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md ${selectedPinId === pin._id ? 'kr-card-sel' : ''} ${
                           draggingPinId === pin._id ? 'opacity-40 scale-95' : 'opacity-100'
                         } ${canEdit && !readOnly ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
                       >

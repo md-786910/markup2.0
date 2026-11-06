@@ -258,67 +258,55 @@ export default function CommentSidebar({
   const isOverdue = Boolean(dueValue) && statusValue !== "resolved" && new Date(`${dueValue}T23:59:59`) < new Date();
   const authorName = pin.createdBy?.name || pin.createdByGuest?.name || "Unknown";
 
-  // Property fields: visible border and light fill; plain when read-only
-  const fieldCls =
-    "w-full h-8 appearance-none rounded-lg border border-slate-200 bg-white pr-7 text-[12.5px] font-medium text-slate-800 transition-colors hover:border-slate-300 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:cursor-default disabled:border-transparent disabled:bg-transparent";
   const chevron = (
-    <svg className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+    <svg className="chev h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
     </svg>
   );
-  const STATUS_DOT = { open: "bg-blue-600", in_progress: "bg-amber-500", in_review: "bg-sky-500", resolved: "bg-emerald-500" };
-  const PRIORITY_DOT = { low: "bg-slate-300", normal: "bg-slate-400", high: "bg-amber-500", urgent: "bg-red-500" };
+  const STATUS_COLOR = { open: "var(--status-open)", in_progress: "var(--status-progress)", in_review: "var(--status-review)", resolved: "var(--status-resolved)" };
+  const PRIORITY_COLOR = { low: "var(--priority-low)", normal: "var(--priority-normal)", high: "var(--priority-high)", urgent: "var(--priority-urgent)" };
   const iconBtn = "inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors";
-  // Header controls share the 24px height of the pin badge and resolve circle
-  const headerBtn = "inline-flex h-7 w-7 items-center justify-center rounded-lg transition-colors";
+  const assigneeColor = getAvatarColor(assigneeId || assigneeName);
 
   return (
     <div
       className={
         onBack
-          ? "w-full bg-white flex flex-col h-full"
+          ? "w-full bg-white flex flex-col h-full min-h-0"
           : "absolute right-0 top-0 bottom-0 w-80 bg-white border-l border-slate-200 flex flex-col h-full z-20 shadow-lg"
       }
     >
-      {/* Header: pin, author, actions */}
-      <div className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-200 px-3">
+      {/* Header: back, pin, author and time, resolve, delete */}
+      <div className="kr-dh">
         {onBack && (
-          <button onClick={onBack} className={`${headerBtn} text-slate-500 hover:bg-slate-100 hover:text-slate-900`} title="Back to all pins" aria-label="Back to all pins">
+          <button onClick={onBack} className={`${iconBtn} text-slate-500 hover:bg-slate-100 hover:text-slate-900`} title="Back to all pins" aria-label="Back to all pins">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
         )}
-        <span
-          className={`flex h-6 min-w-[24px] shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white shadow-xs ring-2 ring-white ${
-            isResolved ? "bg-emerald-500" : "bg-blue-600"
-          }`}
-        >
-          {pin.pinNumber || currentIndex + 1}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-slate-900">{authorName}</p>
-          <p className="truncate text-[11.5px] text-slate-400" title={formatFullTimestamp(pin.createdAt)}>
-            {formatDateTime(pin.createdAt)}
-          </p>
+        <span className={`kr-pin lg ${isResolved ? "ok" : ""}`}>{pin.pinNumber || currentIndex + 1}</span>
+        <div className="who">
+          <b>{authorName}</b>
+          <small title={formatFullTimestamp(pin.createdAt)}>{formatDateTime(pin.createdAt)}</small>
         </div>
 
         {/* View-only access: no resolve or delete */}
         {!readOnly && (confirmDeletePin ? (
           <span className="flex shrink-0 items-center gap-1">
-            <span className="text-[12px] text-slate-500">Delete?</span>
+            <span className="text-ui-label text-slate-500">Delete?</span>
             <button
               onClick={() => {
                 onDelete(pin._id);
                 setConfirmDeletePin(false);
               }}
-              className="inline-flex h-7 items-center rounded-lg bg-red-600 px-2.5 text-[12px] font-medium text-white hover:bg-red-700"
+              className="inline-flex h-7 items-center rounded-lg bg-red-600 px-2.5 text-ui-label text-white hover:bg-red-700"
             >
               Yes
             </button>
             <button
               onClick={() => setConfirmDeletePin(false)}
-              className="inline-flex h-7 items-center rounded-lg bg-slate-100 px-2.5 text-[12px] font-medium text-slate-700 hover:bg-slate-200"
+              className="inline-flex h-7 items-center rounded-lg bg-slate-100 px-2.5 text-ui-label text-slate-700 hover:bg-slate-200"
             >
               No
             </button>
@@ -327,22 +315,18 @@ export default function CommentSidebar({
           <div className="flex shrink-0 items-center gap-1">
             <button
               onClick={() => onStatusChange(pin._id, isResolved ? "open" : "resolved")}
-              className={`inline-flex h-7 w-7 items-center justify-center rounded-full border transition-colors ${
-                isResolved
-                  ? "border-emerald-500 bg-emerald-500 text-white hover:border-emerald-600 hover:bg-emerald-600"
-                  : "border-emerald-300 bg-white text-emerald-600 hover:border-emerald-500 hover:bg-emerald-50"
-              }`}
+              className={`kr-resolve ${isResolved ? "done" : ""}`}
               title={isResolved ? "Resolved: click to reopen" : "Mark as resolved"}
               aria-label={isResolved ? "Reopen this pin" : "Mark as resolved"}
               aria-pressed={isResolved}
             >
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
+              <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
             </button>
             <button
               onClick={() => setConfirmDeletePin(true)}
-              className={`${headerBtn} text-slate-400 hover:bg-red-50 hover:text-red-600`}
+              className={`${iconBtn} text-slate-500 hover:bg-red-50 hover:text-red-600`}
               title="Delete pin"
               aria-label="Delete pin"
             >
@@ -353,7 +337,7 @@ export default function CommentSidebar({
           </div>
         ))}
         {!onBack && (
-          <button onClick={onClose} className={`${headerBtn} text-slate-400 hover:bg-slate-100 hover:text-slate-700`} title="Close" aria-label="Close">
+          <button onClick={onClose} className={`${iconBtn} text-slate-500 hover:bg-slate-100 hover:text-slate-700`} title="Close" aria-label="Close">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -361,124 +345,107 @@ export default function CommentSidebar({
         )}
       </div>
 
-      {/* Everything between the header and the composer scrolls together */}
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin">
-        {/* Task properties */}
-        <div className="space-y-2 border-b border-slate-100 px-3 py-3 bg-slate-50/40">
-          <div className="grid min-h-8 grid-cols-[80px_minmax(0,1fr)] items-center gap-x-2">
-            <span className="pl-1 text-[12px] font-medium text-slate-500">Status</span>
-            <div className="relative">
-              <span className={`pointer-events-none absolute left-2.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full ${STATUS_DOT[statusValue] || STATUS_DOT.open}`} />
-              <select disabled={readOnly} value={statusValue} onChange={(e) => handleStatusSelect(e.target.value)} className={`${fieldCls} pl-7`} aria-label="Status">
-                <option value="open">Open</option>
-                <option value="in_progress">In Progress</option>
-                <option value="in_review">In Review</option>
-                <option value="resolved">Resolved</option>
-              </select>
-              {!readOnly && chevron}
-            </div>
+      {/* Fields, comments, composer, screenshot and technical details scroll together; the pager stays */}
+      <div className="kr-dscroll scrollbar-thin">
+        <div className="kr-fields">
+          <span>Status</span>
+          <div className="kr-sel dot">
+            <i className="lead" style={{ background: STATUS_COLOR[statusValue] || STATUS_COLOR.open }} />
+            <select disabled={readOnly} value={statusValue} onChange={(e) => handleStatusSelect(e.target.value)} aria-label="Status">
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="in_review">In Review</option>
+              <option value="resolved">Resolved</option>
+            </select>
+            {!readOnly && chevron}
           </div>
 
-          <div className="grid min-h-8 grid-cols-[80px_minmax(0,1fr)] items-center gap-x-2">
-            <span className="pl-1 text-[12px] font-medium text-slate-500">Priority</span>
-            <div className="relative">
-              <span className={`pointer-events-none absolute left-2.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full ${PRIORITY_DOT[pin.priority || "normal"] || PRIORITY_DOT.normal}`} />
-              <select disabled={readOnly} value={pin.priority || "normal"} onChange={(e) => handlePrioritySelect(e.target.value)} className={`${fieldCls} pl-7`} aria-label="Priority">
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
-              {!readOnly && chevron}
-            </div>
+          <span>Priority</span>
+          <div className="kr-sel dot">
+            <i className="lead" style={{ background: PRIORITY_COLOR[pin.priority || "normal"] || PRIORITY_COLOR.normal }} />
+            <select disabled={readOnly} value={pin.priority || "normal"} onChange={(e) => handlePrioritySelect(e.target.value)} aria-label="Priority">
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+            {!readOnly && chevron}
           </div>
 
-          <div className="grid min-h-8 grid-cols-[80px_minmax(0,1fr)] items-center gap-x-2">
-            <span className="pl-1 text-[12px] font-medium text-slate-500">Assignee</span>
-            <div className="relative">
-              {assigneeName ? (
-                <span className="pointer-events-none absolute left-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700">
-                  {assigneeName[0].toUpperCase()}
-                </span>
-              ) : (
-                <span className="pointer-events-none absolute left-1.5 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border border-dashed border-slate-300" />
-              )}
-              <select
-                disabled={readOnly}
-                value={assigneeId}
-                onChange={(e) => handleAssigneeSelect(e.target.value)}
-                className={`${fieldCls} truncate pl-8 ${assigneeName ? "text-slate-900" : "text-slate-500"}`}
-                aria-label="Assignee"
-              >
-                <option value="">Unassigned</option>
-                {members.map((m) => (
-                  <option key={m._id} value={m._id}>
-                    {m.name || m.email}
-                  </option>
-                ))}
-              </select>
-              {!readOnly && chevron}
-            </div>
+          <span>Assignee</span>
+          <div className="kr-sel av">
+            {assigneeName ? (
+              <span className={`lead flex h-5 w-5 items-center justify-center rounded-full ${assigneeColor.bg} ${assigneeColor.text} text-micro`} style={{ left: 8 }}>
+                {assigneeName[0].toUpperCase()}
+              </span>
+            ) : (
+              <span className="lead h-5 w-5 rounded-full border border-dashed border-slate-300" style={{ left: 8 }} />
+            )}
+            <select
+              disabled={readOnly}
+              value={assigneeId}
+              onChange={(e) => handleAssigneeSelect(e.target.value)}
+              className={assigneeName ? "" : "!text-slate-500"}
+              aria-label="Assignee"
+            >
+              <option value="">Unassigned</option>
+              {members.map((m) => (
+                <option key={m._id} value={m._id}>
+                  {m.name || m.email}
+                </option>
+              ))}
+            </select>
+            {!readOnly && chevron}
           </div>
 
-          <div className="grid min-h-8 grid-cols-[80px_minmax(0,1fr)] items-center gap-x-2">
-            <span className="pl-1 text-[12px] font-medium text-slate-500">Due date</span>
+          <span>Due date</span>
+          <div className={`kr-sel ${isOverdue ? "over" : ""}`}>
             <input
               type="date"
               disabled={readOnly}
               value={dueValue}
               onChange={(e) => handleDueDateSelect(e.target.value)}
-              className={`${fieldCls} px-2 ${isOverdue ? "text-red-600" : dueValue ? "text-slate-900" : "text-slate-400"}`}
+              className={dueValue ? "" : "!text-slate-500"}
               aria-label="Due date"
               title={isOverdue ? "Overdue" : undefined}
             />
           </div>
 
-          <div className="grid min-h-8 grid-cols-[80px_minmax(0,1fr)] items-start gap-x-2">
-            <span className="pl-1 pt-1.5 text-[12px] font-medium text-slate-500">Labels</span>
-            <div className="flex min-h-8 flex-wrap items-center gap-1.5 py-0.5">
-              {(pin.labels || []).map((label, idx) => (
-                <span key={idx} className="inline-flex h-6 items-center gap-1 rounded-lg bg-slate-100 border border-slate-200/80 pl-2 pr-1 text-[11.5px] font-medium text-slate-700">
-                  {label}
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveLabel(idx)}
-                      className="inline-flex h-4 w-4 items-center justify-center rounded text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-                      aria-label={`Remove label ${label}`}
-                    >
-                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
-                </span>
-              ))}
-              {!readOnly && (
-                <input
-                  type="text"
-                  placeholder={(pin.labels || []).length ? "Add…" : "Add a label…"}
-                  value={newLabelInput}
-                  onChange={(e) => setNewLabelInput(e.target.value)}
-                  onKeyDown={handleAddLabelKeyDown}
-                  className="h-7 min-w-[96px] flex-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[12px] text-slate-900 placeholder:text-slate-400 transition-colors hover:border-slate-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  aria-label="Add a label, then press Enter"
-                  title="Type a label and press Enter"
-                />
-              )}
-              {readOnly && !(pin.labels || []).length && <span className="text-[12px] text-slate-400">None</span>}
-            </div>
+          <span className="self-start pt-1.5">Labels</span>
+          <div className={`kr-chips ${readOnly ? "ro" : ""}`}>
+            {(pin.labels || []).map((label, idx) => (
+              <span key={idx} className="kr-chip">
+                {label}
+                {!readOnly && (
+                  <button type="button" onClick={() => handleRemoveLabel(idx)} aria-label={`Remove label ${label}`}>
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5} aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </span>
+            ))}
+            {!readOnly && (
+              <input
+                type="text"
+                placeholder={(pin.labels || []).length ? "Add…" : "Add a label…"}
+                value={newLabelInput}
+                onChange={(e) => setNewLabelInput(e.target.value)}
+                onKeyDown={handleAddLabelKeyDown}
+                aria-label="Add a label, then press Enter"
+                title="Type a label and press Enter"
+              />
+            )}
+            {readOnly && !(pin.labels || []).length && <span className="text-ui text-slate-500">None</span>}
           </div>
         </div>
 
         {/* Conversation */}
-        <div className="px-4 pb-4 pt-3">
-          <div className="mb-3 flex items-center gap-2">
-            <h3 className="text-[13px] font-semibold text-slate-900">Comments</h3>
-            {!commentsLoading && comments.length > 0 && (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">{comments.length}</span>
-            )}
-          </div>
+        <div className="kr-cm">
+          <h4>
+            Comments
+            {!commentsLoading && comments.length > 0 && <span className="n">{comments.length}</span>}
+          </h4>
 
           {commentsLoading ? (
             <div className="flex justify-center py-8">
@@ -486,138 +453,131 @@ export default function CommentSidebar({
             </div>
           ) : comments.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-200 px-4 py-6 text-center">
-              <p className="text-[13px] font-medium text-slate-700">No comments yet</p>
-              <p className="mt-0.5 text-[11.5px] text-slate-400">{readOnly ? "Nobody has replied to this pin." : "Start the conversation below."}</p>
+              <p className="text-ui font-medium text-slate-700">No comments yet</p>
+              <p className="mt-0.5 text-micro font-normal text-slate-500">{readOnly ? "Nobody has replied to this pin." : "Start the conversation below."}</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {comments.map((comment) => {
-                const name = comment.author?.name || comment.authorGuest?.name || "Unknown";
-                const isMine = comment.author?._id === user?.id;
-                const authorColor = getAvatarColor(comment.author?._id || name);
-                return (
-                  <div key={comment._id} className="group flex gap-2.5">
-                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${authorColor.bg} ${authorColor.text} text-[11px] font-semibold`}>
-                      {(name || "?")[0].toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex min-h-[28px] items-center gap-1.5">
-                        <span className="truncate text-[13px] font-semibold text-slate-900">{name}</span>
-                        {!comment.author && comment.authorGuest?.name && comment.authorGuest.name !== "Deleted user" && (
-                          <span className="shrink-0 rounded bg-slate-100 px-1 text-[10.5px] text-slate-500">Guest</span>
-                        )}
-                        <span className="shrink-0 text-[11.5px] text-slate-400" title={formatFullTimestamp(comment.createdAt)}>
-                          {formatDateTime(comment.createdAt)}
-                        </span>
-                        {/* Edit / Delete actions */}
-                        {isMine && (
-                          <span className="ml-auto inline-flex shrink-0 items-center">
-                            {confirmDeleteComment === comment._id ? (
-                              <span className="inline-flex items-center gap-1">
-                                <button
-                                  onClick={() => {
-                                    handleDelete(comment._id);
-                                    setConfirmDeleteComment(null);
-                                  }}
-                                  className="inline-flex h-6 items-center rounded-md bg-red-600 px-2 text-caption font-medium text-white hover:bg-red-700"
-                                >
-                                  Delete
-                                </button>
-                                <button
-                                  onClick={() => setConfirmDeleteComment(null)}
-                                  className="inline-flex h-6 items-center rounded-md bg-gray-100 px-2 text-caption font-medium text-gray-700 hover:bg-gray-200"
-                                >
-                                  Cancel
-                                </button>
-                              </span>
-                            ) : (
-                              editingComment !== comment._id && (
-                                <span className="inline-flex items-center opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-                                  <button
-                                    onClick={() => {
-                                      setEditingComment(comment._id);
-                                      setEditBody(stripHtmlForEdit(comment.body));
-                                    }}
-                                    className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                                    title="Edit comment"
-                                    aria-label="Edit comment"
-                                  >
-                                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={() => setConfirmDeleteComment(comment._id)}
-                                    className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-600"
-                                    title="Delete comment"
-                                    aria-label="Delete comment"
-                                  >
-                                    <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                  </button>
-                                </span>
-                              )
-                            )}
-                          </span>
-                        )}
-                      </div>
-                      {editingComment === comment._id ? (
-                        <div className="mt-1">
-                          <MentionInput
-                            ref={editMentionRef}
-                            value={editBody}
-                            onChange={setEditBody}
-                            members={members}
-                            placeholder="Edit comment... (@ to mention)"
-                            multiline={true}
-                            rows={3}
-                            className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-body focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15"
-                          />
-                          <div className="mt-2 flex items-center justify-end gap-2">
+            comments.map((comment) => {
+              const name = comment.author?.name || comment.authorGuest?.name || "Unknown";
+              const isMine = comment.author?._id === user?.id;
+              const authorColor = getAvatarColor(comment.author?._id || name);
+              return (
+                <div key={comment._id} className="kr-c">
+                  <div className={`flex h-[26px] w-[26px] items-center justify-center rounded-full ${authorColor.bg} ${authorColor.text} text-micro`}>
+                    {(name || "?")[0].toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="hd">
+                      <b>{name}</b>
+                      {!comment.author && comment.authorGuest?.name && comment.authorGuest.name !== "Deleted user" && (
+                        <span className="shrink-0 rounded bg-slate-100 px-1 text-micro text-slate-500">Guest</span>
+                      )}
+                      <small title={formatFullTimestamp(comment.createdAt)}>{formatDateTime(comment.createdAt)}</small>
+                      {isMine && (
+                        confirmDeleteComment === comment._id ? (
+                          <span className="ml-auto inline-flex shrink-0 items-center gap-1">
                             <button
                               onClick={() => {
-                                setEditingComment(null);
-                                setEditBody("");
+                                handleDelete(comment._id);
+                                setConfirmDeleteComment(null);
                               }}
-                              className="inline-flex h-8 items-center rounded-lg px-3 text-label text-gray-700 hover:bg-gray-100"
+                              className="inline-flex h-6 items-center rounded-md bg-red-600 px-2 text-caption font-medium text-white hover:bg-red-700"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => setConfirmDeleteComment(null)}
+                              className="inline-flex h-6 items-center rounded-md bg-gray-100 px-2 text-caption font-medium text-gray-700 hover:bg-gray-200"
                             >
                               Cancel
                             </button>
-                            <button
-                              onClick={() => handleEdit(comment._id)}
-                              disabled={!editBody.trim()}
-                              className="inline-flex h-8 items-center rounded-lg bg-blue-600 px-3 text-label text-white hover:bg-blue-700 disabled:opacity-40"
-                            >
-                              Save
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="break-words text-[13px] text-slate-700">{renderCommentBody(comment.body)}</p>
-                      )}
-                      {comment.attachments?.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {comment.attachments.map((att, i) => (
-                            <AttachmentItem key={i} attachment={att} onImageClick={(src) => setLightbox({ src })} />
-                          ))}
-                        </div>
+                          </span>
+                        ) : (
+                          editingComment !== comment._id && (
+                            <span className="acts">
+                              <button
+                                onClick={() => {
+                                  setEditingComment(comment._id);
+                                  setEditBody(stripHtmlForEdit(comment.body));
+                                }}
+                                className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                                title="Edit comment"
+                                aria-label="Edit comment"
+                              >
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteComment(comment._id)}
+                                className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-600"
+                                title="Delete comment"
+                                aria-label="Delete comment"
+                              >
+                                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </span>
+                          )
+                        )
                       )}
                     </div>
+                    {editingComment === comment._id ? (
+                      <div className="mt-1">
+                        <MentionInput
+                          ref={editMentionRef}
+                          value={editBody}
+                          onChange={setEditBody}
+                          members={members}
+                          placeholder="Edit comment... (@ to mention)"
+                          multiline={true}
+                          rows={3}
+                          className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-body focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/15"
+                        />
+                        <div className="mt-2 flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingComment(null);
+                              setEditBody("");
+                            }}
+                            className="inline-flex h-8 items-center rounded-lg px-3 text-label text-gray-700 hover:bg-gray-100"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleEdit(comment._id)}
+                            disabled={!editBody.trim()}
+                            className="inline-flex h-8 items-center rounded-lg bg-blue-600 px-3 text-label text-white hover:bg-blue-700 disabled:opacity-40"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="body">{renderCommentBody(comment.body)}</div>
+                    )}
+                    {comment.attachments?.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {comment.attachments.map((att, i) => (
+                          <AttachmentItem key={i} attachment={att} onImageClick={(src) => setLightbox({ src })} />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })
           )}
         </div>
-      </div>
 
-      {/* Composer */}
-      {readOnly ? (
-        <p className="shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-3 text-center text-[12px] text-slate-500">You can view this project but not comment.</p>
-      ) : (
-        <form onSubmit={handleSubmit} className="shrink-0 border-t border-slate-200 bg-white p-3">
-          <div className="rounded-lg border border-slate-200 bg-white transition-all focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-100">
+        <span style={{ flex: 1 }} />
+
+        {/* Composer */}
+        {readOnly ? (
+          <p className="kr-ro">You can view this project but not comment.</p>
+        ) : (
+          <form onSubmit={handleSubmit} className="kr-composer">
             <MentionInput
               ref={mentionRef}
               value={body}
@@ -627,17 +587,17 @@ export default function CommentSidebar({
               multiline={true}
               rows={2}
               disabled={loading}
-              className="block w-full resize-none rounded-t-lg border-0 bg-transparent px-3 pb-1 pt-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+              className="block w-full resize-none border-0 bg-transparent p-0 text-ui text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-0"
             />
             {files.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 px-3 pb-1 pt-1">
+              <div className="flex flex-wrap items-center gap-2">
                 {files.map((f, i) => (
                   <AttachmentChip key={i} file={f} onRemove={() => setFiles(files.filter((_, j) => j !== i))} />
                 ))}
               </div>
             )}
-            <div className="flex items-center justify-between px-2 pb-2">
-              <label className={`${iconBtn} cursor-pointer text-slate-400 hover:bg-slate-100 hover:text-slate-700`} title="Attach files">
+            <div className="row">
+              <label className={`${iconBtn} -ml-1.5 cursor-pointer text-slate-500 hover:bg-slate-100 hover:text-slate-700`} title="Attach files">
                 <input
                   type="file"
                   multiple
@@ -653,86 +613,62 @@ export default function CommentSidebar({
               <button
                 type="submit"
                 disabled={loading || !body.trim()}
-                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
+                className="kc-btn pri disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {loading ? "Sending…" : "Comment"}
               </button>
             </div>
-          </div>
-        </form>
-      )}
+          </form>
+        )}
 
-      {/* Screenshot */}
-      {pin.screenshot?.path ? (
-        <div className="px-3 py-1.5 border-b border-slate-200 shrink-0">
-          <p className="text-[11px] uppercase font-semibold text-slate-400 tracking-wider mb-1">
-            Screenshot
-          </p>
-          <button
-            className="w-full flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors overflow-hidden h-8 px-2.5 text-left"
-            onClick={() => setLightbox({ src: fileUrl(pin.screenshot.path), pin })}
-          >
-            <div className="w-5 h-5 rounded overflow-hidden shrink-0 border border-slate-200 bg-white">
-              <img
-                src={fileUrl(pin.screenshot.path)}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <span className="flex-1 text-[12.5px] text-slate-700 font-medium truncate">
-              View screenshot
-            </span>
-            <svg
-              className="w-3.5 h-3.5 text-slate-400 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
-              />
-            </svg>
-          </button>
-        </div>
-      ) : (pin?.pageUrl && !pin.pageUrl.startsWith('doc:') ? (
-        <div className="px-3 py-1.5 border-b border-slate-100 shrink-0 flex items-center justify-between text-[11.5px] text-slate-400">
-          <span>Screenshot</span>
-          <span className="italic">Not available</span>
-        </div>
-      ) : null)}
+        {/* Screenshot */}
+        {pin.screenshot?.path ? (
+          <>
+            <div className="kr-sec-l">Screenshot</div>
+            <button type="button" className="kr-row" onClick={() => setLightbox({ src: fileUrl(pin.screenshot.path), pin })}>
+              <span className="th"><img src={fileUrl(pin.screenshot.path)} alt="" /></span>
+              <span className="truncate">View screenshot</span>
+              <span className="sp" />
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+              </svg>
+            </button>
+          </>
+        ) : (pin?.pageUrl && !pin.pageUrl.startsWith('doc:') ? (
+          <>
+            <div className="kr-sec-l">Screenshot</div>
+            <div className="kr-row muted"><span>Not available</span></div>
+          </>
+        ) : null)}
 
-      {/* Technical reproduction details */}
-      <div className="px-3 shrink-0">
-        <TechnicalDetails
-          context={pin.context}
-          pageUrl={pin.pageUrl}
-          deviceMode={pin.deviceMode}
-        />
+        {/* Technical reproduction details */}
+        <div className="kr-tech">
+          <TechnicalDetails
+            context={pin.context}
+            pageUrl={pin.pageUrl}
+            deviceMode={pin.deviceMode}
+          />
+        </div>
       </div>
 
       {/* Prev / Next */}
       {pins.length > 1 && (
-        <div className="flex h-11 shrink-0 items-center justify-between border-t border-slate-200 bg-white px-2">
+        <div className="kr-pager">
           <button
+            type="button"
             disabled={!hasPrev}
             onClick={() => hasPrev && onNavigate(pins[currentIndex - 1])}
-            className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[12.5px] font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
             Previous
           </button>
-          <span className="text-[11.5px] text-slate-400 font-medium">
-            {currentIndex + 1} of {pins.length}
-          </span>
+          <span className="of">{currentIndex + 1} of {pins.length}</span>
           <button
+            type="button"
             disabled={!hasNext}
             onClick={() => hasNext && onNavigate(pins[currentIndex + 1])}
-            className="inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[12.5px] font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
           >
             Next
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
