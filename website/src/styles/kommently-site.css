@@ -75,7 +75,7 @@
   --field-height:36px;
   --nav-item-height:34px;
   --grid-card-min:230px;
-  --container:1160px;
+  --container:1240px;
   --section-y:96px;
   --review-panel-width:320px;
   --board-column-width:350px;
@@ -483,3 +483,65 @@ button.kc-card, a.kc-card { cursor: pointer; text-align: left; }
 .km a.kc-link, .km button.kc-link { color: var(--brand-600); }
 /* The reference loads static Inter (no optical-size axis): match its letter widths */
 .km, .km * { font-optical-sizing: none; }
+/* Provider marks on the integration cards */
+.km-logo { display: inline-grid; place-items: center; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); margin-bottom: 8px; flex-shrink: 0; }
+
+/* =====================================================================
+   Home hero (components/site/heroes.js)
+   ===================================================================== */
+.km-hx { position: relative; overflow: hidden; }
+.km-hx-top { max-width: 820px; margin: 0 auto; text-align: center; }
+.km-hx-top .km-lead { margin-left: auto; margin-right: auto; }
+.km-hx-h1 { font-size: 64px; line-height: 68px; }
+.km-hx-pill { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: var(--radius-pill); border: 1px solid var(--brand-100); background: var(--brand-50); color: var(--brand-600); font: 600 13px/1 var(--font-sans); margin-bottom: 20px; }
+.km-hx-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-600); box-shadow: 0 0 0 3px var(--brand-100); }
+.km-hx-trust { list-style: none; padding: 0; margin: 22px 0 0; display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--text-secondary); }
+.km-hx-trust.center { justify-content: center; }
+.km-hx-trust li { display: inline-flex; align-items: center; gap: 6px; }
+.km-hx-trust svg { color: var(--success-500); }
+.km-hx-works { display: flex; align-items: center; gap: 12px; margin-top: 28px; font-size: 13px; color: var(--text-muted); }
+.km-hx-works.center { justify-content: center; margin-top: 48px; }
+.km-hx-works .km-logo { margin: 0; }
+.km-hx-stage { position: relative; padding: 0 0 28px; }
+.km-hx-stage.wide { max-width: 980px; margin: 56px auto 0; padding: 0 64px 28px; }
+.km-hx-card { position: absolute; z-index: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-menu); color: var(--text); }
+.km-hx-status { left: -28px; bottom: -6px; width: 300px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.km-hx-stage.wide .km-hx-status { left: 0; bottom: 0; }
+.km-hx-card-h { font: 600 12.5px/18px var(--font-sans); color: var(--slate-600); padding: 0 2px; }
+.km-hx-srow { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.km-hx-srow > div { flex: 1; min-width: 0; }
+.km-hx-srow b { display: block; font-size: 13px; line-height: 18px; }
+.km-hx-srow small { display: block; font-size: 12px; color: var(--slate-500); }
+.km-hx-srow > svg { color: var(--slate-500); }
+.km-hx-toast { right: -20px; top: -18px; display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px; }
+.km-hx-stage.wide .km-hx-toast { right: 0; top: -22px; }
+.km-hx-toast .km-logo { margin: 0; }
+.km-hx-toast b { display: block; font-size: 13px; line-height: 18px; }
+.km-hx-toast small { display: block; font-size: 12px; color: var(--slate-500); }
+/* A: soft brand wash behind the stage */
+.km-hx-a { background: linear-gradient(180deg, var(--surface) 0%, var(--surface) 55%, var(--brand-50) 100%); }
+@media (max-width: 960px) {
+  .km-hx-h1 { font-size: 40px; line-height: 44px; }
+  .km-hx-stage.wide { padding: 0 0 28px; }
+  .km-hx-status { left: 0; width: 260px; }
+  .km-hx-toast { right: 0; }
+}
+@media (max-width: 640px) {
+  .km-hx-status, .km-hx-toast { display: none; }
+}
+/* hero variant fixes: status card clear of the pins */
+.km-hx-status { width: 340px; bottom: -44px; }
+.km-hx-stage.wide .km-hx-status { left: 0; bottom: -36px; }
+.km-hx-stage { padding-bottom: 56px; }
+.km-hx-stage.wide { padding-bottom: 56px; }
+.km-hx-srow b { white-space: nowrap; }
+@media (max-width: 640px) {
+  /* The comment card stacks under the page on phones: drop the resolved pin it would cover, and the space the floating cards used */
+  .km-hx-stage .km-pin-abs:has(.km-pinnum.ok) { display: none; }
+  .km-hx-stage, .km-hx-stage.wide { padding-bottom: 0; margin-top: 40px; }
+  .km-hx-works.center { margin-top: 32px; flex-wrap: wrap; }
+}
+/* Hero with the real product screenshot */
+.km-hx-stage.wide { max-width: 1120px; padding: 0 24px 0; }
+.km-hx-stage .km-mock img { display: block; width: 100%; height: auto; }
+.km-hx-stage.wide .km-hx-toast { right: -8px; top: -26px; }

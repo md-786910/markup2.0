@@ -3,7 +3,9 @@ import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { updateOrganizationApi, uploadAvatarApi, validateEmailApi, sendOtpApi, verifyOtpApi } from '../services/authService';
 import { getPublicPlansApi, createCheckoutSessionApi, verifyPaymentApi, upgradePlanApi, getBillingConfigApi } from '../services/billingService';
-import AuthLayout from '../components/layout/AuthLayout';
+import { CoverArt, AuthHeading } from '../components/layout/AuthLayout';
+import PasswordInput from '../components/common/PasswordInput';
+import { Badge, Banner, Button, Field, Icon, Input, Logo, Progress, cx } from '../components/kc';
 import { track } from '../monitoring/analytics';
 
 const STEPS = [
@@ -422,7 +424,7 @@ export default function OnboardingPage() {
     const selectedPlanObj = (livePlans || []).find((p) => p.id === selectedPlan);
     const isFreePlan = selectedPlanObj && (selectedPlanObj.price === 0 || selectedPlanObj.price == null);
     return (
-      <AuthLayout>
+      <OnboardingLayout>
         {phase === 'setting-up' && (
           <SettingUpView stages={stages} planName={selectedPlanObj?.name} priceLabel={selectedPlanObj?.priceLabel} period={selectedPlanObj?.period} avatarPlanned={!!avatarFile} paidPlan={!isFreePlan} />
         )}
@@ -457,82 +459,69 @@ export default function OnboardingPage() {
         {phase === 'retry' && (
           <RetryView reason={retryReason} planName={selectedPlanObj?.name} onRetry={handleRetryCheckout} onSkip={handleSkipToDashboard} />
         )}
-      </AuthLayout>
+      </OnboardingLayout>
     );
   }
 
+  const trialLabel = `${trialDays} ${trialDays === 1 ? 'day' : 'days'} free trial`;
+
   return (
-    <AuthLayout>
-      {/* Progress bar */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-2">
-          {STEPS.map((s, i) => (
-            <span key={s.id} className={`text-caption font-medium ${
-              i < step ? 'text-blue-600' : i === step ? 'text-gray-900' : 'text-gray-400'
-            }`}>
-              {s.label}
-            </span>
-          ))}
+    <OnboardingLayout wide={currentStep === 'payment'}>
+      {/* Step indicator */}
+      <div className="kc-onb-steps">
+        <div className="kc-onb-steps-row">
+          <span>Step {step + 1} of {STEPS.length}</span>
+          <ol aria-label="Sign-up steps">
+            {STEPS.map((s, i) => (
+              <li key={s.id} className={cx(i < step && 'done', i === step && 'on')} aria-current={i === step ? 'step' : undefined}>
+                {s.label}
+              </li>
+            ))}
+          </ol>
         </div>
-        <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-blue-600 rounded-full transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        <Progress value={progress} label={`Step ${step + 1} of ${STEPS.length}`} />
       </div>
 
       {/* ===== STEP 1: ORGANIZATION ===== */}
       {currentStep === 'organization' && (
         <>
-          <h2 className="text-h3 font-semibold text-gray-900 mb-1">Set up your workspace</h2>
-          <p className="text-body-sm text-gray-500 mb-4">This is your team's shared space for all projects.</p>
+          <AuthHeading title="Set up your workspace">This is your team&apos;s shared space for all projects.</AuthHeading>
 
-          {signupMode === TRIAL_PLAN_ID && (
-            <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/70 p-3 text-caption text-blue-900 shadow-sm">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-caption font-semibold text-white">✓</span>
-              <span>
-                Includes a <strong>{trialDays} {trialDays === 1 ? 'day' : 'days'} free trial</strong> with full Pro features. No credit card required.
-              </span>
-            </div>
-          )}
+          <div className="kc-auth-stack">
+            {signupMode === TRIAL_PLAN_ID && (
+              <Banner tone="info" icon="okc">
+                Includes a <strong>{trialLabel}</strong> with full Pro features. No credit card required.
+              </Banner>
+            )}
 
-          <div className="mb-5">
-            <label className="block text-label text-gray-700 mb-1.5">Workspace name <span className="text-red-500">*</span></label>
-            <input type="text" value={orgName} onChange={(e) => setOrgName(e.target.value)}
-              placeholder="Acme Inc." autoFocus
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow" />
+            <Field id="onb-org-name" label="Workspace name">
+              <Input id="onb-org-name" value={orgName} onChange={(e) => setOrgName(e.target.value)}
+                placeholder="Acme Inc." autoFocus required />
+            </Field>
+
+            <Field id="onb-org-logo" label={<>Workspace logo <span className="kc-onb-opt">(optional)</span></>}>
+              <button type="button" id="onb-org-logo" onClick={() => logoRef.current?.click()} className="kc-onb-upload">
+                {logoPreview ? (
+                  <img src={logoPreview} alt="" className="kc-onb-upload-thumb" />
+                ) : (
+                  <span className="kc-onb-upload-thumb"><Icon name="upload" size={20} /></span>
+                )}
+                <span className="kc-onb-upload-text">
+                  <b>{logoFile ? logoFile.name : 'Click to upload'}</b>
+                  <small>PNG, JPG or GIF, max 5MB</small>
+                </span>
+              </button>
+              <input ref={logoRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) { setLogoFile(f); setLogoPreview(URL.createObjectURL(f)); } }}
+                className="hidden" />
+            </Field>
+
+            <Button variant="primary" size="lg" block onClick={handleOrgNext} disabled={!orgName.trim()}>
+              Continue
+            </Button>
           </div>
-
-          <div className="mb-8">
-            <label className="block text-label text-gray-700 mb-1.5">Workspace logo <span className="text-gray-400 font-normal">(optional)</span></label>
-            <div onClick={() => logoRef.current?.click()}
-              className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50/20 transition-colors">
-              {logoPreview ? (
-                <img src={logoPreview} alt="" className="w-12 h-12 rounded-lg object-cover" />
-              ) : (
-                <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                  <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              )}
-              <div>
-                <p className="text-body-sm font-medium text-gray-700">{logoFile ? logoFile.name : 'Click to upload'}</p>
-                <p className="text-caption text-gray-400">PNG, JPG or GIF, max 5MB</p>
-              </div>
-            </div>
-            <input ref={logoRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) { setLogoFile(f); setLogoPreview(URL.createObjectURL(f)); } }}
-              className="hidden" />
-          </div>
-
-          <button onClick={handleOrgNext} disabled={!orgName.trim()}
-            className="w-full py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors text-label">
-            Continue
-          </button>
-          <p className="text-center mt-6 text-body-sm text-gray-500">
-            Already have an account? <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign in</Link>
+          <p className="kc-auth-alt">
+            Already have an account? <Link to="/login" className="kc-link">Sign in</Link>
           </p>
         </>
       )}
@@ -540,286 +529,226 @@ export default function OnboardingPage() {
       {/* ===== STEP 2: ACCOUNT ===== */}
       {currentStep === 'account' && (
         <>
-          <h2 className="text-h3 font-semibold text-gray-900 mb-1">Create your account</h2>
-          <p className="text-body-sm text-gray-500 mb-4">Set up your account for {orgName}</p>
+          <AuthHeading title="Create your account">Set up your account for {orgName}</AuthHeading>
 
-          {signupMode === TRIAL_PLAN_ID && (
-            <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/70 p-3 text-caption text-blue-900 shadow-sm">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 text-caption font-semibold text-white">✓</span>
-              <span>
-                Your workspace starts with a <strong>{trialDays} {trialDays === 1 ? 'day' : 'days'} free trial</strong>. No card needed to begin.
-              </span>
-            </div>
-          )}
-
-          {emailError && (
-            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-5 text-body-sm flex items-center gap-2">
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {emailError}
-            </div>
-          )}
-
-          <form onSubmit={handleAccountNext} className="space-y-4">
-            <div>
-              <label className="block text-label text-gray-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required autoFocus
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
-                placeholder="John Doe" />
-            </div>
-            <div>
-              <label className="block text-label text-gray-700 mb-1.5">Work Email <span className="text-red-500">*</span></label>
-              <div className="flex gap-2">
-                <input type="email" value={email} onChange={(e) => handleEmailChange(e.target.value)} required
-                  disabled={emailVerified}
-                  className={`flex-1 px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow ${emailVerified ? 'bg-gray-50 text-gray-500' : ''}`}
-                  placeholder="you@company.com" />
-                {emailVerified ? (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-2 text-caption font-semibold text-green-700 bg-green-50 border border-green-200 rounded-lg">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                    Verified
-                  </span>
-                ) : (
-                  <button type="button" onClick={handleSendOtp}
-                    disabled={!email.trim() || emailValidating || otpSending || resendCooldown > 0}
-                    className="px-4 py-2 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition-colors shrink-0">
-                    {otpSending || emailValidating
-                      ? 'Sending...'
-                      : resendCooldown > 0
-                        ? `Resend ${resendCooldown}s`
-                        : otpSent ? 'Resend' : 'Verify'}
-                  </button>
-                )}
-              </div>
-              {emailError && !emailVerified && (
-                <p className="text-caption text-red-600 mt-2">{emailError}</p>
-              )}
-              {otpSent && !emailVerified && (
-                <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                  <p className="text-caption text-blue-800 mb-2">
-                    We sent a 6-digit code to <strong>{email}</strong>. It expires in 10 minutes.
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      value={otp}
-                      onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setOtpError(''); }}
-                      placeholder="000000"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-body font-mono text-center"
-                    />
-                    <button type="button" onClick={handleVerifyOtp}
-                      disabled={otp.length !== 6 || otpVerifying}
-                      className="px-4 py-2 text-label text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-40 transition-colors shrink-0">
-                      {otpVerifying ? 'Verifying...' : 'Confirm'}
-                    </button>
-                  </div>
-                  {otpError && <p className="text-caption text-red-600 mt-2">{otpError}</p>}
-                </div>
-              )}
-            </div>
-            {emailVerified && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-label text-gray-700 mb-1.5">Password <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <input type={showPassword ? 'text' : 'password'} value={password}
-                      onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
-                      required minLength={8}
-                      className="w-full px-3.5 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
-                      placeholder="Min 8 characters" />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18" />
-                        </svg>
-                      ) : (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-label text-gray-700 mb-1.5">Confirm Password <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword}
-                      onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); }}
-                      required minLength={8}
-                      className="w-full px-3.5 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
-                      placeholder="Re-enter password" />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
-                    >
-                      {showConfirmPassword ? (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l18 18" />
-                        </svg>
-                      ) : (
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                </div>
-                {passwordError && (
-                  <p className="sm:col-span-2 text-caption text-red-600 -mt-1">{passwordError}</p>
-                )}
-              </div>
+          <div className="kc-auth-stack">
+            {signupMode === TRIAL_PLAN_ID && (
+              <Banner tone="info" icon="okc">
+                Your workspace starts with a <strong>{trialLabel}</strong>. No card needed to begin.
+              </Banner>
             )}
 
-            {/* Avatar upload */}
-            <div>
-              <label className="block text-label text-gray-700 mb-1.5">Profile Photo <span className="text-gray-400 font-normal">(optional)</span></label>
-              <div className="flex items-center gap-3">
-                <div onClick={() => avatarRef.current?.click()}
-                  className="w-12 h-12 rounded-full cursor-pointer overflow-hidden border-2 border-dashed border-gray-300 hover:border-blue-400 transition-colors flex items-center justify-center bg-gray-50 shrink-0">
-                  {avatarPreview ? (
-                    <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
+            {emailError && <Banner tone="danger">{emailError}</Banner>}
+
+            <form onSubmit={handleAccountNext} className="kc-auth-stack">
+              <Field id="onb-name" label="Full name">
+                <Input id="onb-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required autoFocus
+                  placeholder="John Doe" />
+              </Field>
+
+              <Field id="onb-email" label="Work email" error={emailError && !emailVerified ? emailError : undefined}>
+                <div className="kc-onb-inline">
+                  <Input id="onb-email" type="email" autoComplete="email" value={email} onChange={(e) => handleEmailChange(e.target.value)} required
+                    disabled={emailVerified}
+                    aria-invalid={emailError && !emailVerified ? 'true' : undefined}
+                    className={emailVerified ? 'kc-onb-locked' : undefined}
+                    placeholder="you@company.com" />
+                  {emailVerified ? (
+                    <span className="kc-onb-verified"><Icon name="check" size={14} stroke={2.2} />Verified</span>
                   ) : (
-                    <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+                    <Button variant="secondary" size="lg" onClick={handleSendOtp}
+                      disabled={!email.trim() || emailValidating || otpSending || resendCooldown > 0}>
+                      {otpSending || emailValidating
+                        ? 'Sending…'
+                        : resendCooldown > 0
+                          ? `Resend ${resendCooldown}s`
+                          : otpSent ? 'Resend' : 'Verify'}
+                    </Button>
                   )}
                 </div>
-                <button type="button" onClick={() => avatarRef.current?.click()} className="text-label text-blue-600 hover:text-blue-700">
-                  {avatarPreview ? 'Change photo' : 'Upload photo'}
-                </button>
-                <input ref={avatarRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) { setAvatarFile(f); setAvatarPreview(URL.createObjectURL(f)); } }}
-                  className="hidden" />
-              </div>
-            </div>
+                {otpSent && !emailVerified && (
+                  <div className="kc-onb-otp">
+                    <p>We sent a 6-digit code to <strong>{email}</strong>. It expires in 10 minutes.</p>
+                    <div className="kc-onb-inline">
+                      <Input
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        aria-label="6-digit code"
+                        maxLength={6}
+                        value={otp}
+                        onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setOtpError(''); }}
+                        placeholder="000000"
+                        aria-invalid={otpError ? 'true' : undefined}
+                        className="kc-onb-code"
+                      />
+                      <Button variant="secondary" size="lg" onClick={handleVerifyOtp}
+                        disabled={otp.length !== 6 || otpVerifying}>
+                        {otpVerifying ? 'Verifying…' : 'Confirm'}
+                      </Button>
+                    </div>
+                    {otpError && <div className="kc-onb-err" role="alert"><Icon name="warn" size={14} />{otpError}</div>}
+                  </div>
+                )}
+              </Field>
 
-            <div className="flex gap-3 pt-2">
-              <button type="button" onClick={handleBack}
-                className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-label">
-                Back
-              </button>
-              <button type="submit"
-                disabled={!emailVerified || !name.trim() || password.length < 8 || password !== confirmPassword}
-                title={!emailVerified ? 'Verify your email to continue' : undefined}
-                className="flex-1 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-body-sm">
-                Continue
-              </button>
-            </div>
-          </form>
+              {emailVerified && (
+                <>
+                  <Field id="onb-password" label="Password" hint="At least 8 characters.">
+                    <PasswordInput id="onb-password" wrapperClassName="kc-pass" className="kc-input" autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
+                      required minLength={8}
+                      placeholder="Min 8 characters" />
+                  </Field>
+                  <Field id="onb-password-confirm" label="Confirm password" error={passwordError || undefined}>
+                    <PasswordInput id="onb-password-confirm" wrapperClassName="kc-pass" className="kc-input" autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); }}
+                      required minLength={8}
+                      aria-invalid={passwordError ? 'true' : undefined}
+                      placeholder="Re-enter password" />
+                  </Field>
+                </>
+              )}
+
+              {/* Avatar upload */}
+              <Field id="onb-avatar" label={<>Profile photo <span className="kc-onb-opt">(optional)</span></>}>
+                <div className="kc-onb-avatar-row">
+                  <button type="button" id="onb-avatar" onClick={() => avatarRef.current?.click()} className="kc-onb-avatar" aria-label={avatarPreview ? 'Change photo' : 'Upload photo'}>
+                    {avatarPreview ? <img src={avatarPreview} alt="" /> : <Icon name="user" size={20} />}
+                  </button>
+                  <button type="button" onClick={() => avatarRef.current?.click()} className="kc-link">
+                    {avatarPreview ? 'Change photo' : 'Upload photo'}
+                  </button>
+                  <input ref={avatarRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) { setAvatarFile(f); setAvatarPreview(URL.createObjectURL(f)); } }}
+                    className="hidden" />
+                </div>
+              </Field>
+
+              <div className="kc-onb-actions">
+                <Button variant="secondary" size="lg" onClick={handleBack}>Back</Button>
+                <Button type="submit" variant="primary" size="lg" className="grow"
+                  disabled={!emailVerified || !name.trim() || password.length < 8 || password !== confirmPassword}
+                  title={!emailVerified ? 'Verify your email to continue' : undefined}>
+                  Continue
+                </Button>
+              </div>
+            </form>
+          </div>
         </>
       )}
 
       {/* ===== STEP 3: PLAN ===== */}
       {currentStep === 'payment' && (
         <>
-          <h2 className="text-h3 font-semibold text-gray-900 mb-2">Choose your plan</h2>
-          <p className="text-body-sm text-gray-500 mb-6">Start free without a card, or subscribe now.</p>
+          <AuthHeading title="Choose your plan">Start free without a card, or subscribe now.</AuthHeading>
 
-          <div className="space-y-3 mb-8">
-            {livePlans === null ? (
-              <>
-                {[1, 2].map((i) => (
-                  <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
-                ))}
-              </>
-            ) : livePlans.length === 0 ? (
-              <p className="text-body-sm text-gray-500 text-center py-8 border border-dashed border-gray-200 rounded-xl">
-                No plans are available right now. Please contact support.
-              </p>
-            ) : (
-              livePlans.map((plan) => {
-                const isSelected = selectedPlan === plan.id;
-                return (
-                  <div
-                    key={plan.id}
-                    onClick={() => setSelectedPlan(plan.id)}
-                    className={`relative border rounded-xl p-4 transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-blue-500 bg-blue-50/30 ring-1 ring-blue-500'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {plan.popular && (
-                      <span className="absolute -top-2 right-4 text-caption font-semibold px-2 py-0.5 rounded-full bg-purple-600 text-white">
-                        Most Popular
-                      </span>
-                    )}
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-body-sm font-semibold text-gray-900">{plan.name}</h3>
-                        {isSelected && (
-                          <span className="text-caption font-medium px-1.5 py-0.5 rounded-full bg-green-50 text-green-700">Selected</span>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <span className="text-body-lg font-semibold text-gray-900">{plan.priceLabel}</span>
-                        {plan.period && <span className="text-caption text-gray-400 ml-0.5">{plan.period}</span>}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1">
-                      {plan.features.map((f, i) => (
-                        <span key={i} className="text-caption text-gray-500 flex items-center gap-1">
-                          <svg className="w-3 h-3 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          {f}
+          <div className="kc-auth-stack">
+            <div className="kc-onb-plans" role="radiogroup" aria-label="Plans">
+              {livePlans === null ? (
+                <>
+                  {[1, 2].map((i) => (
+                    <div key={i} className="kc-onb-skel animate-pulse" />
+                  ))}
+                </>
+              ) : livePlans.length === 0 ? (
+                <p className="kc-onb-empty">
+                  No plans are available right now. Please contact support.
+                </p>
+              ) : (
+                livePlans.map((plan) => {
+                  const isSelected = selectedPlan === plan.id;
+                  return (
+                    <button
+                      type="button"
+                      key={plan.id}
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => setSelectedPlan(plan.id)}
+                      className={cx('kc-onb-plan', isSelected && 'on')}
+                    >
+                      <div className="kc-onb-plan-top">
+                        <span className="kc-onb-radio" aria-hidden="true" />
+                        <b>{plan.name}</b>
+                        {plan.popular && <Badge tone="review">Most popular</Badge>}
+                        <span className="kc-onb-price">
+                          {plan.priceLabel}
+                          {plan.period && <small>{plan.period}</small>}
                         </span>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })
-            )}
+                      </div>
+                      {plan.features.length > 0 && (
+                        <ul className="kc-onb-feats">
+                          {plan.features.map((f, i) => (
+                            <li key={i}><Icon name="check" size={13} stroke={2} />{f}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {error && <Banner tone="danger">{error}</Banner>}
+
+            <div className="kc-onb-actions">
+              <Button variant="secondary" size="lg" onClick={handleBack}>Back</Button>
+              <Button variant="primary" size="lg" className="grow" onClick={handleFinish} disabled={loading || livePlans === null || !selectedPlan}>
+                {loading
+                  ? 'Setting up your workspace...'
+                  : (() => {
+                      if (selectedPlan === TRIAL_PLAN_ID) return `Start ${trialDays}-day free trial`;
+                      const p = (livePlans || []).find((x) => x.id === selectedPlan);
+                      const isFree = p && (p.price === 0 || p.price == null);
+                      return isFree ? 'Start with Free' : 'Continue to payment';
+                    })()}
+              </Button>
+            </div>
+
+            <p className="kc-onb-note">
+              {(() => {
+                if (selectedPlan === TRIAL_PLAN_ID) {
+                  return `No credit card required. We'll email you before your ${trialDays}-day trial ends so you can pick a plan in Settings → Billing.`;
+                }
+                const p = (livePlans || []).find((x) => x.id === selectedPlan);
+                const isFree = p && (p.price === 0 || p.price == null);
+                return isFree
+                  ? 'No credit card required. You can upgrade any time from Settings → Billing.'
+                  : "You'll be redirected to a secure payment gateway after we set up your workspace.";
+              })()}
+            </p>
           </div>
-
-          {error && <p className="text-body-sm text-red-500 mb-4 text-center">{error}</p>}
-
-          <div className="flex gap-3">
-            <button onClick={handleBack}
-              className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-label">
-              Back
-            </button>
-            <button onClick={handleFinish} disabled={loading || livePlans === null || !selectedPlan}
-              className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-label">
-              {loading
-                ? 'Setting up your workspace...'
-                : (() => {
-                    if (selectedPlan === TRIAL_PLAN_ID) return `Start ${trialDays}-day free trial`;
-                    const p = (livePlans || []).find((x) => x.id === selectedPlan);
-                    const isFree = p && (p.price === 0 || p.price == null);
-                    return isFree ? 'Start with Free' : 'Continue to payment';
-                  })()}
-            </button>
-          </div>
-
-          <p className="text-center mt-4 text-caption text-gray-400">
-            {(() => {
-              if (selectedPlan === TRIAL_PLAN_ID) {
-                return `No credit card required. We'll email you before your ${trialDays}-day trial ends so you can pick a plan in Settings → Billing.`;
-              }
-              const p = (livePlans || []).find((x) => x.id === selectedPlan);
-              const isFree = p && (p.price === 0 || p.price == null);
-              return isFree
-                ? 'No credit card required. You can upgrade any time from Settings → Billing.'
-                : "You'll be redirected to a secure payment gateway after we set up your workspace.";
-            })()}
-          </p>
         </>
       )}
-    </AuthLayout>
+    </OnboardingLayout>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Layout: the sign-in screens' structure (components/layout/AuthLayout),
+// with an optional wider form column for the plan step.
+// ──────────────────────────────────────────────────────────────────
+
+function OnboardingLayout({ wide = false, children }) {
+  const year = new Date().getFullYear();
+  return (
+    <div className="kc kc-auth">
+      <aside className="kc-auth-art">
+        <a href="/" className="kc-auth-logo" aria-label="Kommently home"><Logo size={28} wordmark onDark /></a>
+        <div className="kc-auth-art-in" aria-hidden="true">
+          <CoverArt className="kc-auth-cover" />
+          <p className="kc-auth-promise">Point at the page. Say what to change.</p>
+          <p className="kc-auth-sub">Pins on live websites and PDFs, a thread on each one, and a clear status for every project.</p>
+        </div>
+        <p className="kc-auth-foot">&copy; {year} Kommently</p>
+      </aside>
+      <main className="kc-auth-form">
+        <a href="/" className="kc-auth-logo kc-auth-logo-sm" aria-label="Kommently home"><Logo size={28} wordmark /></a>
+        <div className={cx('kc-auth-body', wide && 'kc-onb-wide')}>{children}</div>
+        <p className="kc-auth-foot kc-auth-foot-sm">&copy; {year} Kommently</p>
+      </main>
+    </div>
   );
 }
 
@@ -830,35 +759,15 @@ export default function OnboardingPage() {
 function StageRow({ status, label, sublabel }) {
   if (status === 'skipped') return null;
   return (
-    <div className={`flex items-center gap-4 transition-opacity ${status === 'pending' ? 'opacity-50' : 'opacity-100'}`}>
-      <div className="shrink-0 relative w-8 h-8 flex items-center justify-center">
-        {status === 'done' ? (
-          <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center animate-scale-in">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-        ) : status === 'active' ? (
-          <>
-            <div className="absolute inset-0 rounded-full bg-blue-100 animate-ping opacity-60" />
-            <svg className="w-8 h-8 text-blue-600 animate-spin relative" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          </>
-        ) : (
-          <div className="w-8 h-8 rounded-full border-2 border-gray-200" />
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className={`text-body-sm font-medium ${status === 'done' ? 'text-gray-900' : status === 'active' ? 'text-gray-900' : 'text-gray-400'}`}>
-          {label}
-        </p>
-        {sublabel && status === 'active' && (
-          <p className="text-caption text-gray-500 mt-0.5">{sublabel}</p>
-        )}
-      </div>
-    </div>
+    <li className={cx('kc-onb-stage', status)}>
+      <span className="kc-onb-stage-ico" aria-hidden="true">
+        {status === 'done' ? <Icon name="check" size={14} stroke={2.4} /> : status === 'active' ? <span className="kc-onb-spin animate-spin" /> : null}
+      </span>
+      <span className="kc-onb-stage-text">
+        <b>{label}</b>
+        {sublabel && status === 'active' && <small>{sublabel}</small>}
+      </span>
+    </li>
   );
 }
 
@@ -875,15 +784,11 @@ function SettingUpView({ stages, planName, priceLabel, period, avatarPlanned, pa
   };
 
   return (
-    <div className="animate-fade-in">
-      <div className="mb-8 text-center">
-        <div className="inline-flex w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 items-center justify-center mb-4 animate-pulse">
-          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </div>
-        <h2 className="text-h3 font-semibold text-gray-900">Setting up your workspace</h2>
-        <p className="text-body-sm text-gray-500 mt-1">
+    <div className="animate-fade-in" role="status" aria-live="polite">
+      <div className="kc-auth-state">
+        <span className="ico info"><Icon name="arrow" size={20} stroke={2} /></span>
+        <h1 className="kc-display">Setting up your workspace</h1>
+        <p>
           {!paidPlan
             ? 'This will only take a moment.'
             : planName && priceLabel
@@ -892,21 +797,16 @@ function SettingUpView({ stages, planName, priceLabel, period, avatarPlanned, pa
         </p>
       </div>
 
-      <div className="space-y-4 mb-8">
+      <ol className="kc-onb-stages">
         <StageRow status={stages.account} label={labels.account.label} sublabel={labels.account.sub} />
         <StageRow status={stages.workspace} label={labels.workspace.label} sublabel={labels.workspace.sub} />
         <StageRow status={stages.avatar} label={labels.avatar.label} sublabel={labels.avatar.sub} />
         {paidPlan && <StageRow status={stages.checkout} label={labels.checkout.label} sublabel={labels.checkout.sub} />}
-      </div>
+      </ol>
 
-      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700 ease-out"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
+      <Progress value={progress} label="Setup progress" />
 
-      <p className="text-center text-caption text-gray-400 mt-6">
+      <p className="kc-onb-note kc-onb-note-gap">
         Don't close this window — your secure checkout will open in a moment.
       </p>
     </div>
@@ -915,25 +815,17 @@ function SettingUpView({ stages, planName, priceLabel, period, avatarPlanned, pa
 
 function RetryView({ reason, planName, onRetry, onSkip }) {
   return (
-    <div className="animate-fade-in text-center">
-      <div className="inline-flex w-12 h-12 rounded-2xl bg-amber-100 items-center justify-center mb-4">
-        <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-        </svg>
-      </div>
-      <h2 className="text-h3 font-semibold text-gray-900 mb-2">Payment paused</h2>
-      <p className="text-body-sm text-gray-500 mb-6 max-w-md mx-auto">{reason}</p>
-      <div className="flex gap-3 justify-center">
-        <button onClick={onSkip}
-          className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-label">
-          Skip to dashboard
-        </button>
-        <button onClick={onRetry}
-          className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-label">
+    <div className="animate-fade-in kc-auth-state">
+      <span className="ico kc-onb-ico-warn"><Icon name="warn" size={20} stroke={2} /></span>
+      <h1 className="kc-display">Payment paused</h1>
+      <p>{reason}</p>
+      <div className="kc-onb-actions kc-onb-actions-gap">
+        <Button variant="secondary" size="lg" onClick={onSkip}>Skip to dashboard</Button>
+        <Button variant="primary" size="lg" className="grow" onClick={onRetry}>
           Try {planName ? `${planName} ` : ''}checkout again
-        </button>
+        </Button>
       </div>
-      <p className="text-caption text-gray-400 mt-4">
+      <p className="kc-onb-note">
         Your workspace is ready — you can pay any time from Settings → Billing.
       </p>
     </div>
@@ -1000,39 +892,27 @@ function PaypalCheckoutView({ plan, clientId, currency, error, setError, createO
 
   return (
     <div className="animate-fade-in">
-      <div className="mb-6 text-center">
-        <div className="inline-flex w-12 h-12 rounded-2xl bg-blue-50 items-center justify-center mb-4 border border-blue-100">
-          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h2m4 0h2m-9 4h10a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <h2 className="text-h3 font-semibold text-gray-900">Complete your payment</h2>
+      <div className="kc-auth-state">
+        <span className="ico info"><Icon name="card" size={20} /></span>
+        <h1 className="kc-display">Complete your payment</h1>
         {plan && (
-          <p className="text-body-sm text-gray-500 mt-1">
-            {plan.priceLabel}{plan.period} for the {plan.name} plan
-          </p>
+          <p>{plan.priceLabel}{plan.period} for the {plan.name} plan</p>
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
-        <p className="text-overline text-gray-700 mb-3 text-center">Pay with PayPal</p>
-        <div ref={containerRef} />
-      </div>
-
-      {error && (
-        <div className="bg-red-50 text-red-600 border border-red-100 p-3 rounded-xl text-body-sm text-center mb-4">
-          {error}
+      <div className="kc-auth-stack kc-onb-pay">
+        <div className="kc-onb-paybox">
+          <p className="kc-onb-paybox-title">Pay with PayPal</p>
+          <div ref={containerRef} />
         </div>
-      )}
 
-      <button
-        type="button"
-        onClick={onCancel}
-        className="w-full py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-label"
-      >
-        Skip payment for now
-      </button>
-      <p className="text-center text-caption text-gray-400 mt-3">
+        {error && <Banner tone="danger">{error}</Banner>}
+
+        <Button variant="secondary" size="lg" block onClick={onCancel}>
+          Skip payment for now
+        </Button>
+      </div>
+      <p className="kc-onb-note kc-onb-note-gap">
         You can pay any time from Settings → Billing.
       </p>
     </div>

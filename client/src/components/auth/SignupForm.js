@@ -4,6 +4,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { Link, useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { getInvitationApi } from '../../services/invitationService';
 import { rememberWorkspace } from '../../contexts/WorkspaceContext';
+import { AuthHeading } from '../layout/AuthLayout';
+import { Banner, Button, Field, Icon, Input } from '../kc';
 
 export default function SignupForm() {
   const [name, setName] = useState('');
@@ -57,101 +59,61 @@ export default function SignupForm() {
 
   if (inviteLoading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin"></div>
+      <div className="kc-auth-state" role="status" aria-label="Loading the invitation">
+        <span className="inline-block h-6 w-6 rounded-full border-2 border-gray-200 border-t-blue-600 animate-spin" />
       </div>
     );
   }
 
   if (inviteError) {
     return (
-      <div className="text-center">
-        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-          <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </div>
-        <h2 className="text-body-lg font-semibold text-gray-900 mb-2">Invitation Invalid</h2>
-        <p className="text-body-sm text-gray-500 mb-6">{inviteError}</p>
-        <Link to="/login" className="text-body-sm text-blue-600 hover:text-blue-700 font-medium">Go to Login</Link>
+      <div className="kc-auth-state">
+        <span className="ico err"><Icon name="x" size={20} stroke={2} /></span>
+        <h1 className="kc-display">Invitation not valid</h1>
+        <p>{inviteError}</p>
+        <p className="kc-auth-alt"><Link to="/login" className="kc-link">Go to log in</Link></p>
       </div>
     );
   }
 
   return (
     <>
-      <h2 className="text-h3 font-semibold text-gray-900 mb-2">Create your account</h2>
+      <AuthHeading title="Create your account">
+        {invitation ? null : 'The first person becomes the workspace owner.'}
+      </AuthHeading>
 
-      {invitation ? (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-body-sm text-blue-800">
-            <strong>{invitation.invitedBy}</strong> invited you to join <strong>{invitation.projectName}</strong>
-          </p>
-          <p className="text-caption text-blue-600 mt-1">Create your account to get started</p>
-        </div>
-      ) : (
-        <p className="text-body-sm text-gray-500 mb-8">
-          First user becomes the workspace owner
-        </p>
-      )}
-
-      {error && (
-        <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-5 text-body-sm flex items-center gap-2">
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div>
-          <label className="block text-label text-gray-700 mb-1.5">Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
-            placeholder="John Doe"
-          />
-        </div>
-        <div>
-          <label className="block text-label text-gray-700 mb-1.5">Email</label>
-          <input
+      <form onSubmit={handleSubmit} className="kc-auth-stack">
+        {invitation && (
+          <Banner tone="info" title={`${invitation.invitedBy} invited you to ${invitation.projectName}`}>
+            Create your account to get started.
+          </Banner>
+        )}
+        {error && <Banner tone="danger">{error}</Banner>}
+        <Field id="signup-name" label="Name">
+          <Input id="signup-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Your name" />
+        </Field>
+        <Field id="signup-email" label="Email">
+          <Input
+            id="signup-email"
             type="email"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             readOnly={!!invitation}
-            className={`w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow ${
-              invitation ? 'bg-gray-50 text-gray-500' : ''
-            }`}
             placeholder="you@example.com"
+            style={invitation ? { background: 'var(--slate-50)', color: 'var(--text-secondary)' } : undefined}
           />
-        </div>
-        <div>
-          <label className="block text-label text-gray-700 mb-1.5">Password</label>
-          <PasswordInput
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
-            placeholder="Min 8 characters"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-label"
-        >
-          {loading ? 'Creating account...' : invitation ? 'Join Project' : 'Sign Up'}
-        </button>
+        </Field>
+        <Field id="signup-password" label="Password" hint="At least 8 characters.">
+          <PasswordInput id="signup-password" wrapperClassName="kc-pass" className="kc-input" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} placeholder="Min 8 characters" />
+        </Field>
+        <Button type="submit" variant="primary" size="lg" block loading={loading}>
+          {loading ? 'Creating account…' : invitation ? 'Join project' : 'Create account'}
+        </Button>
       </form>
-      <p className="text-center mt-6 text-body-sm text-gray-500">
-        Already have an account?{' '}
-        <Link to="/login" className="text-blue-600 hover:text-blue-700 font-medium">Sign in</Link>
+      <p className="kc-auth-alt">
+        Already have an account? <Link to="/login" className="kc-link">Log in</Link>
       </p>
     </>
   );

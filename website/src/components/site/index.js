@@ -8,6 +8,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { openCookieSettings } from '../CookieConsentManager';
 import { ICON_PATHS } from './iconPaths';
+import { PROVIDER_LOGOS, ProviderLogo } from './providerLogos';
 
 export const APP_URL = process.env.REACT_APP_APP_URL || 'http://localhost:3000';
 export const TRIAL = { label: 'Start free trial', href: `${APP_URL}/onboarding` };
@@ -243,7 +244,7 @@ export function StatusFlow({ eyebrow, title, lead, states, tone = 'light' }) {
   );
 }
 
-// Providers as Tile initials, never imitating their logos
+// Providers with their real marks (providerLogos.js); a Tile initial for any other name
 export function IntegrationGrid({ id, eyebrow, title, lead, items, tone = 'muted' }) {
   return (
     <Section id={id} tone={tone}>
@@ -251,7 +252,7 @@ export function IntegrationGrid({ id, eyebrow, title, lead, items, tone = 'muted
       <div className="km-grid c4">
         {items.map((p) => (
           <article key={p.name} className="km-feat km-prov">
-            <Tile name={p.name} tone={p.tone} size={40} />
+            {PROVIDER_LOGOS[p.name] ? <ProviderLogo name={p.name} size={40} /> : <Tile name={p.name} tone={p.tone} size={40} />}
             <h3 className="km-h3">{p.name}</h3>
             <p>{p.text}</p>
           </article>

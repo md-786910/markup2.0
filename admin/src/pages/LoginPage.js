@@ -56,12 +56,12 @@ export default function LoginPage() {
       <AuthShell
         title="Two-step sign-in"
         description={useRecovery ? 'Enter one of your recovery codes.' : 'Enter the 6-digit code from your authenticator app.'}
-        footer={<button type="button" onClick={() => { setChallenge(null); setCode(''); setError(''); }} className="font-medium text-gray-700 hover:text-gray-900">Use a different account</button>}
+        footer={<button type="button" onClick={() => { setChallenge(null); setCode(''); setError(''); }} className="kc-link">Use a different account</button>}
       >
-        <form onSubmit={handleCode} className="space-y-4">
+        <form onSubmit={handleCode} className="kc-auth-stack">
           <AuthError>{error}</AuthError>
-          <div>
-            <label htmlFor="admin-code" className="mb-1.5 block text-label text-gray-700">{useRecovery ? 'Recovery code' : 'Authentication code'}</label>
+          <div className="kc-field">
+            <label htmlFor="admin-code">{useRecovery ? 'Recovery code' : 'Authentication code'}</label>
             {useRecovery ? (
               <input
                 id="admin-code"
@@ -73,7 +73,7 @@ export default function LoginPage() {
                 autoComplete="off"
                 spellCheck={false}
                 placeholder="XXXXX-XXXXX"
-                className={`${authInputClass} font-mono`}
+                className={`${authInputClass} mono`}
               />
             ) : (
               <input
@@ -86,7 +86,7 @@ export default function LoginPage() {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 placeholder="123456"
-                className={`${authInputClass} text-center font-mono text-body-lg tracking-[0.4em]`}
+                className={`${authInputClass} code`}
               />
             )}
           </div>
@@ -94,7 +94,8 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => { setUseRecovery((v) => !v); setCode(''); setError(''); }}
-            className="w-full text-center text-label text-blue-600 hover:text-blue-700"
+            className="kc-link"
+            style={{ alignSelf: 'center', fontSize: 13 }}
           >
             {useRecovery ? 'Use your authenticator app instead' : 'Lost your phone? Use a recovery code'}
           </button>
@@ -105,10 +106,10 @@ export default function LoginPage() {
 
   return (
     <AuthShell title="Kommently admin" description="Sign in with your admin account">
-      <form onSubmit={handlePassword} className="space-y-4">
+      <form onSubmit={handlePassword} className="kc-auth-stack">
         <AuthError>{error}</AuthError>
-        <div>
-          <label htmlFor="admin-email" className="mb-1.5 block text-label text-gray-700">Email</label>
+        <div className="kc-field">
+          <label htmlFor="admin-email">Email</label>
           <input
             id="admin-email"
             type="email"
@@ -121,10 +122,10 @@ export default function LoginPage() {
             className={authInputClass}
           />
         </div>
-        <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <label htmlFor="admin-password" className="text-label text-gray-700">Password</label>
-            <Link to="/forgot-password" className="text-body-sm font-medium text-blue-600 hover:text-blue-700">Forgot password?</Link>
+        <div className="kc-field">
+          <div className="kc-auth-row">
+            <label htmlFor="admin-password" className="lbl">Password</label>
+            <Link to="/forgot-password" className="kc-link" style={{ fontSize: 13 }}>Forgot password?</Link>
           </div>
           <PasswordInput id="admin-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Your password" />
         </div>

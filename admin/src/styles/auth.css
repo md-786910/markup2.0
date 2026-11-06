@@ -1,0 +1,125 @@
+/*
+ * Admin sign-in screens (components/auth/AuthShell). Ported from the customer
+ * app's design system: tokens from the top of client/src/styles/kommently.css
+ * and its `.kc-auth*` block. Same values and class names; tokens are scoped to
+ * `.kc-auth` so they don't leak into the rest of the admin panel.
+ */
+.kc-auth {
+  --brand-50:#eef2ff;
+  --brand-100:#dfe7ff;
+  --brand-400:#6b8cff;
+  --brand-600:#003dff;
+  --brand-700:#0031cc;
+  --slate-50:#f8fafc;
+  --slate-100:#f1f5f9;
+  --slate-200:#e2e8f0;
+  --slate-300:#cbd5e1;
+  --slate-500:#64748b;
+  --slate-600:#475569;
+  --slate-700:#334155;
+  --slate-900:#0f172a;
+  --white:#ffffff;
+  --app-bg:var(--slate-50);
+  --surface:var(--white);
+  --border:var(--slate-200);
+  --border-control:#8091a7;
+  --text:var(--slate-900);
+  --text-secondary:var(--slate-600);
+  --text-muted:var(--slate-500);
+  --on-brand:#ffffff;
+  --success-50:#ecfdf5;
+  --success-700:#047857;
+  --danger-50:#fef2f2;
+  --danger-600:#dc2626;
+  --focus-ring:var(--brand-600);
+  --radius-md:8px;
+  --radius-xl:8px;
+  --font-sans:"Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display:"Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+}
+
+.kc-auth, .kc-auth * { box-sizing: border-box; }
+.kc-auth { font: 400 13px/1.5 var(--font-sans); color: var(--text); }
+.kc-auth p { margin: 0; }
+.kc-auth :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Layout */
+.kc-display { margin: 0; font: 700 28px/34px var(--font-display); letter-spacing: -.03em; color: var(--text); }
+.kc-auth { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); background: var(--surface); }
+.kc-auth-form { display: flex; flex-direction: column; justify-content: center; padding: 32px 48px; min-width: 0; }
+.kc-auth-logo { display: inline-flex; align-items: center; gap: 10px; align-self: flex-start; border-radius: var(--radius-md); }
+.kc-auth-wordmark { display: inline-flex; align-items: center; gap: 9px; font: 700 15.5px/20px var(--font-display); letter-spacing: -.03em; color: var(--text); }
+.kc-auth-badge { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 6px; border: 1px solid var(--border); background: var(--slate-100); font: 500 11.5px/1 var(--font-sans); color: var(--slate-600); }
+.kc-auth-body { width: 100%; max-width: 400px; margin: 0 auto; }
+.kc-auth-logo-sm, .kc-auth-foot-sm { display: none; }
+.kc-auth-foot { margin: 0; font-size: 12px; color: var(--text-muted); }
+.kc-auth-head { margin-bottom: 28px; }
+.kc-auth .kc-auth-head p { margin: 8px 0 0; font-size: 14px; line-height: 22px; color: var(--text-secondary); }
+.kc-auth-stack { display: flex; flex-direction: column; gap: 16px; }
+.kc-auth .kc-auth-alt { margin: 24px 0 0; text-align: center; font-size: 13.5px; color: var(--text-secondary); }
+.kc-auth-row { display: flex; justify-content: space-between; align-items: center; }
+.kc-auth .kc-auth-text { font-size: 14px; line-height: 22px; color: var(--text-secondary); }
+.kc-auth .kc-auth-text b { font-weight: 500; color: var(--text); }
+
+/* Brand panel (left) */
+.kc-auth-art { background: var(--app-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: stretch; justify-content: space-between; padding: 32px 48px; min-width: 0; }
+.kc-auth-art-in { width: 100%; max-width: 480px; align-self: center; }
+.kc-auth-cover { display: block; width: 100%; height: auto; }
+.kc-auth .kc-auth-promise { margin: 40px 0 0; font: 700 34px/40px var(--font-display); letter-spacing: -.03em; color: var(--text); text-wrap: balance; }
+.kc-auth .kc-auth-sub { margin: 12px 0 0; font-size: 15px; line-height: 24px; color: var(--text-secondary); max-width: 44ch; }
+
+/* Fields */
+.kc-field { display: flex; flex-direction: column; gap: 6px; }
+.kc-field > label, .kc-field .lbl { font: 500 13px/18px var(--font-sans); color: var(--slate-700); }
+.kc-auth .kc-input { height: 40px; width: 100%; border: 1px solid var(--border-control); border-radius: var(--radius-md); background: var(--surface); padding: 0 10px; font: 400 14px var(--font-sans); color: var(--text); }
+.kc-auth .kc-input::placeholder { color: var(--slate-500); }
+.kc-auth .kc-input:hover { border-color: var(--slate-500); }
+.kc-auth .kc-input:focus { outline: 2px solid var(--focus-ring); outline-offset: 1px; border-color: var(--brand-600); box-shadow: none; }
+/* Autofill keeps the white field and dark text */
+.kc-auth .kc-input:-webkit-autofill, .kc-auth .kc-input:-webkit-autofill:hover, .kc-auth .kc-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset; -webkit-text-fill-color: var(--text); caret-color: var(--text); transition: background-color 9999s;
+}
+.kc-auth .kc-input.mono { font-family: "Geist Mono", ui-monospace, monospace; }
+/* Two-step code: the one place letter-spacing is allowed */
+.kc-auth .kc-input.code { text-align: center; font: 500 18px "Geist Mono", ui-monospace, monospace; letter-spacing: .4em; }
+.kc-auth .kc-pass { position: relative; }
+.kc-auth .kc-pass .kc-input { padding-right: 40px; }
+.kc-auth .kc-pass button { position: absolute; top: 0; right: 0; height: 100%; width: 40px; display: grid; place-items: center; color: var(--slate-500); }
+.kc-auth .kc-pass button:hover { color: var(--slate-700); }
+
+/* Buttons and links */
+.kc-auth .kc-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 16px; border: 1px solid transparent; border-radius: var(--radius-md); font: 500 14px var(--font-sans); white-space: nowrap; transition: background .15s; cursor: pointer; }
+.kc-auth .kc-btn.block { width: 100%; }
+.kc-auth .kc-btn.pri { background: var(--brand-600); color: var(--on-brand); }
+.kc-auth .kc-btn.pri:hover { background: var(--brand-700); }
+.kc-auth .kc-btn[disabled] { opacity: .5; cursor: not-allowed; }
+.kc-auth .kc-link { color: var(--brand-600); font-weight: 500; cursor: pointer; background: none; border: 0; padding: 0; font-size: inherit; }
+.kc-auth .kc-link:hover { text-decoration: underline; }
+
+/* Banners */
+.kc-banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--surface); font-size: 13px; }
+.kc-banner .ico { margin-top: 1px; display: inline-flex; }
+.kc-auth .kc-banner p { margin: 0; color: var(--slate-600); }
+.kc-banner a { color: inherit; font-weight: 500; text-decoration: underline; }
+.kc-banner.info { background: var(--brand-50); border-color: var(--brand-100); } .kc-banner.info .ico { color: var(--brand-600); }
+.kc-banner.success { background: var(--success-50); border-color: #a7f3d0; } .kc-banner.success .ico { color: var(--success-700); }
+.kc-banner.danger { background: var(--danger-50); border-color: #fecaca; } .kc-banner.danger .ico { color: var(--danger-600); }
+
+@media (max-width: 960px) {
+  .kc-auth { grid-template-columns: 1fr; }
+  .kc-auth-art { display: none; }
+  .kc-auth-form { padding: 24px; justify-content: space-between; }
+  .kc-auth-logo-sm, .kc-auth-foot-sm { display: inline-flex; }
+  .kc-auth-body { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 40px 0; }
+}
+
+/* Sign-in layout v3 (option 3): dark brand panel in the rail colour */
+.kc-auth .kc-auth-art { background: var(--rail-bg, var(--slate-900)); border-right: 0; --cover-ink: var(--slate-800); }
+.kc-auth .kc-auth-art .kc-auth-promise { color: var(--on-brand, #fff); }
+.kc-auth .kc-auth-art .kc-auth-sub { color: var(--slate-400); }
+.kc-auth .kc-auth-art .kc-auth-foot { color: var(--slate-400); }
+.kc-auth .kc-auth-art .kc-auth-wordmark { color: var(--on-brand, #fff); }
+.kc-auth .kc-auth-art :focus-visible { outline-color: var(--brand-400); }
+.kc-auth .kc-auth-art .kc-auth-badge { background: var(--slate-800); color: var(--slate-300); border-color: var(--slate-700); }
+/* Tokens the dark brand panel needs (same values as the design system) */
+.kc-auth { --slate-400: #94a3b8; --slate-800: #1e293b; --rail-bg: #0f172a; }

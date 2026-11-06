@@ -1,23 +1,16 @@
 import React from 'react';
+import { HeroCentered } from '../components/site/heroes';
 import {
-  SiteLayout, Hero, ProductMock, StepList, FeatureGrid, FeatureSplit, IntegrationGrid, CTABand, TRIAL,
+  SiteLayout, ProductMock, StepList, FeatureGrid, FeatureSplit, IntegrationGrid, CTABand, TRIAL,
 } from '../components/site';
 
 // The design system's LandingPage (kommently-design-system/preview/LandingPage.html):
-// hero, how it works, what you get, approvals, integrations, closing CTA band.
+// a selling hero (centered headline, trust facts, product stage), how it works, what you get, approvals, integrations, closing CTA band.
 // Keep the order: each block answers the visitor's next question.
 export default function LandingPage() {
   return (
     <SiteLayout>
-      <Hero
-        eyebrow="Website and document review"
-        title="Point at the page. Say what to change."
-        lead="Kommently lets your team and clients drop numbered pins on live websites and PDFs, talk about each one, and approve when it is right."
-        primary={{ ...TRIAL, icon: 'arrow' }}
-        secondary={{ label: 'See how it works', href: '#how' }}
-        note="Every account starts with a 30-day Pro trial."
-        visual={<ProductMock kind="web" />}
-      />
+      <HeroCentered />
       <StepList
         id="how"
         eyebrow="How it works"

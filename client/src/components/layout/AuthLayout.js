@@ -1,104 +1,70 @@
 import React from 'react';
-import BrandMark from '../common/BrandMark';
+import { Logo } from '../kc';
 
-const POINTS = [
-  'Pin comments on live sites, PDFs, and images',
-  'Clients review with a link, no account needed',
-  'Slack, Jira, Discord, and Microsoft Teams',
-];
-
-// A small product illustration: a page with two pins and an open comment
-function ReviewIllustration() {
+// The design system's cover artwork (kommently-design-system/preview/Cover.html):
+// four brand blocks (brand-600, slate-900, brand-100, brand-400, radius-2xl)
+// carrying comment pins whose ring and dot swap colours per block.
+export function CoverArt({ className }) {
+  const pins = [
+    // [cx, cy, ring, dot]
+    [48, 46, 'var(--white)', 'var(--brand-600)'], [132, 28, 'var(--white)', 'var(--brand-600)'],
+    [188, 94, 'var(--white)', 'var(--brand-600)'], [86, 118, 'var(--white)', 'var(--brand-600)'],
+    [300, 36, 'var(--brand-400)', 'var(--slate-900)'], [370, 70, 'var(--brand-400)', 'var(--slate-900)'],
+    [424, 28, 'var(--brand-400)', 'var(--slate-900)'],
+    [292, 166, 'var(--brand-600)', 'var(--brand-100)'], [362, 206, 'var(--brand-600)', 'var(--brand-100)'],
+    [422, 154, 'var(--brand-600)', 'var(--brand-100)'], [410, 226, 'var(--brand-600)', 'var(--brand-100)'],
+    [44, 198, 'var(--slate-900)', 'var(--brand-400)'], [116, 226, 'var(--slate-900)', 'var(--brand-400)'],
+    [198, 202, 'var(--slate-900)', 'var(--brand-400)'],
+  ];
   return (
-    <div className="relative mx-auto w-full max-w-[380px]" aria-hidden="true">
-      <div className="rounded-xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40 backdrop-blur-sm">
-        <div className="flex items-center gap-1.5 border-b border-white/10 px-3 py-2.5">
-          <span className="h-2 w-2 rounded-full bg-white/20" />
-          <span className="h-2 w-2 rounded-full bg-white/20" />
-          <span className="h-2 w-2 rounded-full bg-white/20" />
-          <span className="ml-3 h-4 flex-1 rounded bg-white/[0.06]" />
+    <svg className={className} viewBox="0 0 456 252" role="img" aria-label="Kommently comment pins on brand blocks">
+      <rect x="0" y="0" width="240" height="156" rx="16" fill="var(--brand-600)" />
+      <rect x="256" y="0" width="200" height="108" rx="16" fill="var(--cover-ink, var(--slate-900))" />
+      <rect x="256" y="124" width="200" height="128" rx="16" fill="var(--brand-100)" />
+      <rect x="0" y="172" width="240" height="80" rx="16" fill="var(--brand-400)" />
+      {pins.map(([cx, cy, ring, dot]) => (
+        <g key={`${cx}-${cy}`}>
+          <circle cx={cx} cy={cy} r="13" fill={ring} />
+          <circle cx={cx} cy={cy} r="5" fill={dot} />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+// Sign-in screens (outside the app shell). Left: the brand panel on app-bg
+// (logo and wordmark at 28px, the cover artwork, the promise, copyright).
+// Right: the form, centred in a 400px column on the surface. Below 960px the
+// brand panel hides and the logo moves above the form.
+// Headlines use the design system's display-xl (Plus Jakarta Sans 28/34 700).
+export default function AuthLayout({ children }) {
+  const year = new Date().getFullYear();
+  return (
+    <div className="kc kc-auth">
+      <aside className="kc-auth-art">
+        <a href="/" className="kc-auth-logo" aria-label="Kommently home"><Logo size={28} wordmark onDark /></a>
+        <div className="kc-auth-art-in" aria-hidden="true">
+          <CoverArt className="kc-auth-cover" />
+          <p className="kc-auth-promise">Point at the page. Say what to change.</p>
+          <p className="kc-auth-sub">Pins on live websites and PDFs, a thread on each one, and a clear status for every project.</p>
         </div>
-        <div className="space-y-3 p-5">
-          <div className="h-3 w-2/3 rounded bg-white/25" />
-          <div className="h-2 w-5/6 rounded bg-white/10" />
-          <div className="h-2 w-3/4 rounded bg-white/10" />
-          <div className="mt-4 grid grid-cols-3 gap-2.5">
-            <div className="h-14 rounded-lg bg-white/[0.07]" />
-            <div className="h-14 rounded-lg bg-white/[0.07]" />
-            <div className="h-14 rounded-lg bg-white/[0.07]" />
-          </div>
-          <div className="h-2 w-1/2 rounded bg-white/10" />
-        </div>
-      </div>
-      {/* Pins */}
-      <span className="absolute left-[54%] top-[34%] flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-caption font-semibold text-white ring-2 ring-white shadow-lg">1</span>
-      <span className="absolute left-[16%] top-[66%] flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-caption font-semibold text-white ring-2 ring-white shadow-lg">2</span>
-      {/* Comment */}
-      <div className="absolute -right-6 top-[44%] w-52 rounded-xl bg-white p-3 text-left shadow-2xl shadow-black/40">
-        <div className="flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-caption font-semibold text-blue-700">M</span>
-          <span className="text-caption font-semibold text-gray-900">Maya</span>
-          <span className="text-caption text-gray-400">just now</span>
-        </div>
-        <p className="mt-1.5 text-caption text-gray-600">Can we make this headline one line on desktop?</p>
-      </div>
+        <p className="kc-auth-foot">&copy; {year} Kommently</p>
+      </aside>
+      <main className="kc-auth-form">
+        <a href="/" className="kc-auth-logo kc-auth-logo-sm" aria-label="Kommently home"><Logo size={28} wordmark /></a>
+        <div className="kc-auth-body">{children}</div>
+        <p className="kc-auth-foot kc-auth-foot-sm">&copy; {year} Kommently</p>
+      </main>
     </div>
   );
 }
 
-export default function AuthLayout({ children }) {
+// Shared pieces of the sign-in forms
+export function AuthHeading({ title, children }) {
   return (
-    <div className="min-h-screen flex animate-page-enter">
-      {/* Left branded panel — hidden on mobile */}
-      <div className="hidden lg:flex lg:w-[480px] xl:w-[540px] bg-gray-950 relative overflow-hidden">
-        {/* Dot grid, fading out toward the bottom, and a soft brand glow */}
-        <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(rgba(255,255,255,0.14)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_bottom,black,transparent_85%)]" />
-        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-blue-600/30 blur-[110px]" />
-        <div className="pointer-events-none absolute -bottom-32 right-0 h-80 w-80 rounded-full bg-blue-500/15 blur-[120px]" />
-
-        <div className="relative z-10 flex flex-col justify-between p-12 w-full text-white">
-          <div className="flex items-center gap-2.5">
-            <BrandMark className="w-9 h-9" />
-            <span className="text-h4 font-semibold tracking-[-0.03em]">Kommently</span>
-          </div>
-
-          <div>
-            <h1 className="text-h2">
-              Feedback on any website.
-              <span className="block text-blue-400">No install needed.</span>
-            </h1>
-            <ul className="mt-7 space-y-3">
-              {POINTS.map((point) => (
-                <li key={point} className="flex items-center gap-3 text-body text-gray-300">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600/20 text-blue-400">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </span>
-                  {point}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-12 pr-6">
-              <ReviewIllustration />
-            </div>
-          </div>
-
-          <p className="text-caption text-gray-500">&copy; {new Date().getFullYear()} Kommently</p>
-        </div>
-      </div>
-
-      {/* Right form panel */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 bg-white">
-        <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2.5 mb-10">
-            <BrandMark className="w-8 h-8" />
-            <span className="text-h4 font-semibold tracking-[-0.03em] text-gray-900">Kommently</span>
-          </div>
-          {children}
-        </div>
-      </div>
+    <div className="kc-auth-head">
+      <h1 className="kc-display">{title}</h1>
+      {children ? <p>{children}</p> : null}
     </div>
   );
 }

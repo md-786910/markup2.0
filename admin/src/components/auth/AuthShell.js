@@ -1,39 +1,138 @@
-import React, { useState } from 'react';
-import BrandMark from '../common/BrandMark';
+import React, { createContext, useContext, useState } from 'react';
+import '../../styles/auth.css';
 
-// Centered card used by sign-in, two-step code, forgot and reset password
-export default function AuthShell({ title, description, children, footer }) {
+// Sign-in frame for login, two-step code, forgot and reset password. Same
+// design as the customer app's sign-in (client/src/components/layout/AuthLayout):
+// brand panel on the left (app-bg: logo, cover artwork, promise, copyright),
+// the form on white on the right; below 960px only the form shows. Classes live in styles/auth.css.
+const InShell = createContext(false);
+
+function Mark({ size = 28 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <BrandMark className="h-11 w-11" />
-          <h1 className="mt-4 text-h4 font-semibold text-gray-900">{title}</h1>
-          {description && <p className="mt-1 text-body-sm text-gray-500">{description}</p>}
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-6">{children}</div>
-        {footer && <div className="mt-6 text-center text-body-sm text-gray-500">{footer}</div>}
-        <p className="mt-8 text-center text-caption text-gray-400">Kommently admin · for staff only</p>
-      </div>
+    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      <rect width="64" height="64" rx="15" fill="var(--brand-600)" />
+      <path d="M18.5 16v33M18.5 36.5L39 19M25.1 31L39 49" stroke="var(--white)" strokeWidth="6.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <circle cx="40.5" cy="17.5" r="7.6" fill="var(--white)" />
+      <circle cx="40.5" cy="17.5" r="3" fill="var(--brand-600)" />
+    </svg>
+  );
+}
+
+// The design system's cover artwork: four brand blocks carrying comment pins
+// whose ring and dot swap colours per block.
+function CoverArt({ className }) {
+  const pins = [
+    // [cx, cy, ring, dot]
+    [48, 46, 'var(--white)', 'var(--brand-600)'], [132, 28, 'var(--white)', 'var(--brand-600)'],
+    [188, 94, 'var(--white)', 'var(--brand-600)'], [86, 118, 'var(--white)', 'var(--brand-600)'],
+    [300, 36, 'var(--brand-400)', 'var(--slate-900)'], [370, 70, 'var(--brand-400)', 'var(--slate-900)'],
+    [424, 28, 'var(--brand-400)', 'var(--slate-900)'],
+    [292, 166, 'var(--brand-600)', 'var(--brand-100)'], [362, 206, 'var(--brand-600)', 'var(--brand-100)'],
+    [422, 154, 'var(--brand-600)', 'var(--brand-100)'], [410, 226, 'var(--brand-600)', 'var(--brand-100)'],
+    [44, 198, 'var(--slate-900)', 'var(--brand-400)'], [116, 226, 'var(--slate-900)', 'var(--brand-400)'],
+    [198, 202, 'var(--slate-900)', 'var(--brand-400)'],
+  ];
+  return (
+    <svg className={className} viewBox="0 0 456 252" role="img" aria-label="Kommently comment pins on brand blocks">
+      <rect x="0" y="0" width="240" height="156" rx="16" fill="var(--brand-600)" />
+      <rect x="256" y="0" width="200" height="108" rx="16" fill="var(--cover-ink, var(--slate-900))" />
+      <rect x="256" y="124" width="200" height="128" rx="16" fill="var(--brand-100)" />
+      <rect x="0" y="172" width="240" height="80" rx="16" fill="var(--brand-400)" />
+      {pins.map(([cx, cy, ring, dot]) => (
+        <g key={`${cx}-${cy}`}>
+          <circle cx={cx} cy={cy} r="13" fill={ring} />
+          <circle cx={cx} cy={cy} r="5" fill={dot} />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function Wordmark({ small }) {
+  return (
+    <div className={small ? 'kc-auth-logo kc-auth-logo-sm' : 'kc-auth-logo'}>
+      <span className="kc-auth-wordmark"><Mark size={28} />Kommently</span>
+      <span className="kc-auth-badge">Admin</span>
     </div>
   );
 }
 
-export const authInputClass =
+export default function AuthShell({ title, description, children, footer }) {
+  const foot = <>&copy; {new Date().getFullYear()} Kommently admin · for staff only</>;
+  return (
+    <InShell.Provider value={true}>
+      <div className="kc-auth">
+        <aside className="kc-auth-art">
+          <Wordmark />
+          <div className="kc-auth-art-in" aria-hidden="true">
+            <CoverArt className="kc-auth-cover" />
+            <p className="kc-auth-promise">Point at the page. Say what to change.</p>
+            <p className="kc-auth-sub">Pins on live websites and PDFs, a thread on each one, and a clear status for every project.</p>
+          </div>
+          <p className="kc-auth-foot">{foot}</p>
+        </aside>
+        <main className="kc-auth-form">
+          <Wordmark small />
+          <div className="kc-auth-body">
+            <div className="kc-auth-head">
+              <h1 className="kc-display">{title}</h1>
+              {description && <p>{description}</p>}
+            </div>
+            {children}
+            {footer && <p className="kc-auth-alt">{footer}</p>}
+          </div>
+          <p className="kc-auth-foot kc-auth-foot-sm">{foot}</p>
+        </main>
+      </div>
+    </InShell.Provider>
+  );
+}
+
+// Class for text inputs on the sign-in screens
+export const authInputClass = 'kc-input';
+
+// Used outside the sign-in frame too (Account page): keeps the panel's own field style there
+const panelInputClass =
   'h-10 w-full rounded-lg border border-gray-200 px-3 text-body focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15';
 
-export function AuthError({ children }) {
+function BannerIcon({ path }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={path} />
+    </svg>
+  );
+}
+
+const ICONS = {
+  info: 'M12 8h.01M11 12h1v5h1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+  danger: 'M12 9v4M12 17h.01M10.3 4.3L2.6 18a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 4.3a2 2 0 00-3.4 0z',
+  success: 'M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+};
+
+export function AuthBanner({ tone = 'info', children }) {
   if (!children) return null;
-  return <div role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-body-sm text-red-700">{children}</div>;
+  return (
+    <div className={`kc-banner ${tone}`} role={tone === 'danger' ? 'alert' : 'status'}>
+      <span className="ico"><BannerIcon path={ICONS[tone]} /></span>
+      <div style={{ minWidth: 0 }}><p>{children}</p></div>
+    </div>
+  );
+}
+
+export function AuthError({ children }) {
+  // children can be [error, extra]: nothing to show while every part is empty
+  if (!React.Children.toArray(children).some((c) => c !== '')) return null;
+  return <AuthBanner tone="danger">{children}</AuthBanner>;
+}
+
+function Spin() {
+  return <span aria-hidden="true" className="inline-block h-3.5 w-3.5 rounded-full border-2 border-current border-t-transparent animate-spin opacity-70" />;
 }
 
 export function SubmitButton({ loading, children, loadingLabel }) {
   return (
-    <button
-      type="submit"
-      disabled={loading}
-      className="h-10 w-full rounded-lg bg-blue-600 text-label text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-    >
+    <button type="submit" disabled={loading} className="kc-btn pri block">
+      {loading && <Spin />}
       {loading ? loadingLabel : children}
     </button>
   );
@@ -41,8 +140,9 @@ export function SubmitButton({ loading, children, loadingLabel }) {
 
 export function PasswordInput({ id, value, onChange, autoComplete = 'current-password', placeholder, autoFocus }) {
   const [show, setShow] = useState(false);
+  const inShell = useContext(InShell);
   return (
-    <div className="relative">
+    <div className={inShell ? 'kc-pass' : 'relative'}>
       <input
         id={id}
         type={show ? 'text' : 'password'}
@@ -52,7 +152,7 @@ export function PasswordInput({ id, value, onChange, autoComplete = 'current-pas
         autoFocus={autoFocus}
         autoComplete={autoComplete}
         placeholder={placeholder}
-        className={`${authInputClass} pr-10`}
+        className={inShell ? 'kc-input' : `${panelInputClass} pr-10`}
       />
       <button
         type="button"
@@ -60,7 +160,7 @@ export function PasswordInput({ id, value, onChange, autoComplete = 'current-pas
         tabIndex={-1}
         aria-label={show ? 'Hide password' : 'Show password'}
         title={show ? 'Hide password' : 'Show password'}
-        className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 transition-colors hover:text-gray-600"
+        className={inShell ? undefined : 'absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 transition-colors hover:text-gray-600'}
       >
         {show ? (
           <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>

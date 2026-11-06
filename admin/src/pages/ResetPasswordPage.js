@@ -32,8 +32,8 @@ export default function ResetPasswordPage() {
 
   if (done) {
     return (
-      <AuthShell title={isInvite ? 'Your admin account is ready' : 'Password changed'} footer={<Link to="/login" className="font-medium text-blue-600 hover:text-blue-700">Sign in</Link>}>
-        <p className="text-body-sm text-gray-600">
+      <AuthShell title={isInvite ? 'Your admin account is ready' : 'Password changed'} footer={<Link to="/login" className="kc-link">Sign in</Link>}>
+        <p className="kc-auth-text">
           {isInvite
             ? 'Sign in with your email and new password. You will then turn on two-step sign-in with an authenticator app.'
             : 'Your new password is set and every other session is signed out. Sign in with it now.'}
@@ -46,21 +46,21 @@ export default function ResetPasswordPage() {
     <AuthShell
       title={isInvite ? 'Set your admin password' : 'Choose a new password'}
       description={`At least ${MIN_LENGTH} characters. A short phrase is easy to remember and hard to guess.`}
-      footer={<Link to="/login" className="font-medium text-gray-700 hover:text-gray-900">Back to sign in</Link>}
+      footer={<Link to="/login" className="kc-link">Back to sign in</Link>}
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="kc-auth-stack">
         <AuthError>
           {error}
           {/expired|invalid/i.test(error) && (isInvite
             ? <> Ask an admin to send the invitation again.</>
-            : <> <Link to="/forgot-password" className="font-medium underline">Get a new link</Link></>)}
+            : <> <Link to="/forgot-password">Get a new link</Link></>)}
         </AuthError>
-        <div>
-          <label htmlFor="new-password" className="mb-1.5 block text-label text-gray-700">New password</label>
+        <div className="kc-field">
+          <label htmlFor="new-password">New password</label>
           <PasswordInput id="new-password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" autoFocus />
         </div>
-        <div>
-          <label htmlFor="confirm-password" className="mb-1.5 block text-label text-gray-700">Repeat it</label>
+        <div className="kc-field">
+          <label htmlFor="confirm-password">Repeat it</label>
           <PasswordInput id="confirm-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
         </div>
         <SubmitButton loading={loading} loadingLabel="Saving…">Set new password</SubmitButton>
