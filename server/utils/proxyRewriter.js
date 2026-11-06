@@ -925,9 +925,16 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         case 'MARKUP_UPDATE_PINS':
           pins = e.data.pins || [];
           renderPins();
+          tryFocusPin();
           break;
         case 'MARKUP_SELECT_PIN':
+          if (e.data.scroll && e.data.pinId) {
+            // Locate this pin: remembered until this page's pins arrive (they load after the page)
+            _focusPinId = e.data.pinId;
+            _focusUntil = Date.now() + 12000;
+          }
           highlightPin(e.data.pinId);
+          tryFocusPin();
           break;
         case 'MARKUP_NAVIGATE':
           if (e.data.url) {
@@ -1207,6 +1214,39 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
 
     // Small initial delay to let the page begin rendering
     _scrollTimer = setTimeout(tryScroll, 100);
+  }
+
+  // --- Locate a pin opened from the app (board card, feedback list, pager) ---
+  var _focusPinId = null;
+  var _focusUntil = 0;
+  var _focusTimer = null;
+
+  function pinInView(pin) {
+    var pos = getPinPosition(pin);
+    var sy = window.scrollY || window.pageYOffset;
+    var sx = window.scrollX || window.pageXOffset;
+    var vh = window.innerHeight, vw = window.innerWidth;
+    return pos.top >= sy + 60 && pos.top <= sy + vh - 60 && pos.left >= sx && pos.left <= sx + vw;
+  }
+
+  function tryFocusPin() {
+    if (!_focusPinId) return;
+    if (Date.now() > _focusUntil) { _focusPinId = null; return; }
+    var target = pins.find(function(p) { return p.id === _focusPinId; });
+    if (!target) return; // this page's pins have not arrived yet
+    var id = _focusPinId;
+    _focusPinId = null;
+    pins.forEach(function(p) { p.selected = (p.id === id); });
+    prevSelectedId = id; // renderPins must not start a second scroll
+    renderPins();
+    if (!pinInView(target)) scrollToSelected();
+    // Sites that restore scroll or shift layout after load can move the page away: check again
+    if (_focusTimer) clearTimeout(_focusTimer);
+    _focusTimer = setTimeout(function() {
+      _focusTimer = null;
+      var again = pins.find(function(p) { return p.id === id; });
+      if (again && again.selected && !pinInView(again)) scrollToSelected();
+    }, 1800);
   }
 
   function highlightPin(pinId) {

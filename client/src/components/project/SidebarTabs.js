@@ -31,7 +31,7 @@ export default function SidebarTabs({ active, onChange, count }) {
               <span className="ct">{count}</span>
             )}
             {locked && (
-              <Icon name="lock" size={12} className="text-slate-400" />
+              <Icon name="lock" size={12} className="text-slate-500" />
             )}
           </button>
         );

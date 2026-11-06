@@ -448,7 +448,7 @@ export default function PinListSidebar({
                           </svg>
                         )}
                       </span>
-                      <span className={`text-body-sm ${sortBy === opt.key ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                      <span className={`text-body-sm ${sortBy === opt.key ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
                         {opt.label}
                       </span>
                     </button>
@@ -532,7 +532,7 @@ export default function PinListSidebar({
                       <span className={`text-[13px] flex-1 truncate ${filterOption === 'mentions' ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
                         {selectedMentionUser ? `Mentions: ${selectedMentionUser.name}` : 'Mentions'}
                       </span>
-                      <svg className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${mentionModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className={`w-3.5 h-3.5 text-slate-500 shrink-0 transition-transform ${mentionModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
@@ -580,7 +580,7 @@ export default function PinListSidebar({
 
                         <div className="overflow-y-auto max-h-56 py-1">
                           {filteredMembers.length === 0 ? (
-                            <div className="p-4 text-center text-caption text-gray-400">No project members found</div>
+                            <div className="p-4 text-center text-caption text-slate-500">No project members found</div>
                           ) : (
                             filteredMembers.map((member) => {
                               const isUserSelected = selectedMentionUser && (selectedMentionUser._id === member._id);
@@ -607,11 +607,11 @@ export default function PinListSidebar({
                                     {getInitials(member.name)}
                                   </span>
                                   <div className="flex-1 min-w-0">
-                                    <p className={`text-caption truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
+                                    <p className={`text-caption truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-slate-900'}`}>
                                       {member.name}
                                     </p>
                                     {member.email && (
-                                      <p className="text-caption text-gray-400 truncate">{member.email}</p>
+                                      <p className="text-caption text-slate-500 truncate">{member.email}</p>
                                     )}
                                   </div>
                                   <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
@@ -655,12 +655,12 @@ export default function PinListSidebar({
                           </svg>
                         )}
                       </span>
-                      <span className={`text-body-sm flex-1 truncate ${filterOption === 'assignee' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                      <span className={`text-body-sm flex-1 truncate ${filterOption === 'assignee' ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
                         {selectedAssigneeUsers.length > 0
                           ? `Author (${selectedAssigneeUsers.length})`
                           : 'Author'}
                       </span>
-                      <svg className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${assigneeModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className={`w-3.5 h-3.5 text-slate-500 shrink-0 transition-transform ${assigneeModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
@@ -699,7 +699,7 @@ export default function PinListSidebar({
                                   setSelectedAssigneeUsers([...members]);
                                   setFilterOption('assignee');
                                 }}
-                                className="text-caption text-gray-500 hover:text-gray-800 font-medium"
+                                className="text-caption text-slate-500 hover:text-slate-900 font-medium"
                               >
                                 Select All
                               </button>
@@ -721,7 +721,7 @@ export default function PinListSidebar({
 
                         <div className="overflow-y-auto max-h-56 py-1">
                           {filteredAssigneeMembers.length === 0 ? (
-                            <div className="p-4 text-center text-caption text-gray-400">No project members found</div>
+                            <div className="p-4 text-center text-caption text-slate-500">No project members found</div>
                           ) : (
                             filteredAssigneeMembers.map((member) => {
                               const isUserSelected = selectedAssigneeUsers.some((u) => u._id === member._id);
@@ -747,11 +747,11 @@ export default function PinListSidebar({
                                     {getInitials(member.name)}
                                   </span>
                                   <div className="flex-1 min-w-0">
-                                    <p className={`text-caption truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
+                                    <p className={`text-caption truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-slate-900'}`}>
                                       {member.name}
                                     </p>
                                     {member.email && (
-                                      <p className="text-caption text-gray-400 truncate">{member.email}</p>
+                                      <p className="text-caption text-slate-500 truncate">{member.email}</p>
                                     )}
                                   </div>
                                   <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
@@ -820,7 +820,7 @@ export default function PinListSidebar({
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="text-slate-400 hover:text-slate-600 p-0.5"
+                className="text-slate-500 hover:text-slate-600 p-0.5"
                 aria-label="Clear search"
               >
                 <Icon name="x" size={13} />
@@ -832,7 +832,7 @@ export default function PinListSidebar({
         {/* Active Filters Bar */}
         {hasActiveFilters && (
           <div className="flex flex-wrap items-center gap-1.5 px-3 py-1.5 mx-4 mt-2.5 bg-slate-50 border border-slate-200 rounded-lg text-caption animate-fadeIn shrink-0">
-            <span className="text-gray-400 font-medium mr-0.5">Filtered:</span>
+            <span className="text-slate-500 font-medium mr-0.5">Filtered:</span>
             {filterOption === 'on_this_page' && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-medium">
                 On this page
@@ -880,9 +880,9 @@ export default function PinListSidebar({
           {filteredPins.length === 0 && (
             <div className="text-center py-16 px-6">
               <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
-                <Icon name="chat" size={24} className="text-gray-300" />
+                <Icon name="chat" size={24} className="text-slate-500" />
               </div>
-              <p className="text-body-sm font-medium text-gray-400">
+              <p className="text-body-sm font-medium text-slate-500">
                 {searchQuery
                   ? 'No matching comments'
                   : filterOption === 'mentions'
@@ -949,8 +949,8 @@ export default function PinListSidebar({
                       className={`kr-item ${isSelected(pin._id) ? 'on' : ''}`}
                     >
                       <span className="pin">
-                        <span className={`kr-pin ${resolved ? 'ok' : ''}`}>
-                          {resolved ? <Icon name="check" size={13} stroke={3} /> : (pin.pinNumber || (idx + 1))}
+                        <span className={`kr-pin sm ${resolved ? 'ok' : ''}`}>
+                          {resolved ? <Icon name="check" size={11} stroke={3} /> : (pin.pinNumber || (idx + 1))}
                         </span>
                       </span>
 
@@ -970,7 +970,7 @@ export default function PinListSidebar({
                                   navigator.clipboard.writeText(link);
                                   setConfirmDelete(null);
                                 }}
-                                className="w-full px-4 py-2 text-left text-ui text-slate-700 hover:bg-slate-50 transition-colors"
+                                className="w-full px-4 py-2 text-left text-ui text-slate-600 hover:bg-slate-50 transition-colors"
                               >
                                 Copy link
                               </button>
@@ -980,7 +980,7 @@ export default function PinListSidebar({
                                   onPinClick(pin);
                                   setConfirmDelete(null);
                                 }}
-                                className="w-full px-4 py-2 text-left text-ui text-slate-700 hover:bg-slate-50 transition-colors"
+                                className="w-full px-4 py-2 text-left text-ui text-slate-600 hover:bg-slate-50 transition-colors"
                               >
                                 Open
                               </button>
@@ -1001,10 +1001,12 @@ export default function PinListSidebar({
                         )}
                       </span>
 
-                      <span className="who">{pin.createdBy?.name || pin.createdByGuest?.name || 'Unknown'}</span>
-                      <span className="when" title={formatFullTimestamp(pin.createdAt)}>{timeAgo(pin.createdAt)}</span>
+                      <span className="hd">
+                        <span className="who">{pin.createdBy?.name || pin.createdByGuest?.name || 'Unknown'}</span>
+                        <span className="when" title={formatFullTimestamp(pin.createdAt)}>{timeAgo(pin.createdAt)}</span>
+                      </span>
                       <span className="txt">
-                        {commentText ? renderCommentBody(commentText) : <span className="text-slate-400 italic">No comments</span>}
+                        {commentText ? renderCommentBody(commentText) : <span className="text-slate-500 italic">No comments</span>}
                       </span>
 
                       <span className="meta">

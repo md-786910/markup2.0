@@ -279,13 +279,13 @@ export default function CommentSidebar({
       {/* Header: back, pin, author and time, resolve, delete */}
       <div className="kr-dh">
         {onBack && (
-          <button onClick={onBack} className={`${iconBtn} text-slate-500 hover:bg-slate-100 hover:text-slate-900`} title="Back to all pins" aria-label="Back to all pins">
+          <button onClick={onBack} className={`${iconBtn} !h-7 !w-7 text-slate-500 hover:bg-slate-100 hover:text-slate-900`} title="Back to all pins" aria-label="Back to all pins">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
         )}
-        <span className={`kr-pin lg ${isResolved ? "ok" : ""}`}>{pin.pinNumber || currentIndex + 1}</span>
+        <span className={`kr-pin sm ${isResolved ? "ok" : ""}`}>{pin.pinNumber || currentIndex + 1}</span>
         <div className="who">
           <b>{authorName}</b>
           <small title={formatFullTimestamp(pin.createdAt)}>{formatDateTime(pin.createdAt)}</small>
@@ -306,7 +306,7 @@ export default function CommentSidebar({
             </button>
             <button
               onClick={() => setConfirmDeletePin(false)}
-              className="inline-flex h-7 items-center rounded-lg bg-slate-100 px-2.5 text-ui-label text-slate-700 hover:bg-slate-200"
+              className="inline-flex h-7 items-center rounded-lg bg-slate-100 px-2.5 text-ui-label text-slate-600 hover:bg-slate-200"
             >
               No
             </button>
@@ -326,7 +326,7 @@ export default function CommentSidebar({
             </button>
             <button
               onClick={() => setConfirmDeletePin(true)}
-              className={`${iconBtn} text-slate-500 hover:bg-red-50 hover:text-red-600`}
+              className={`${iconBtn} !h-7 !w-7 text-slate-500 hover:bg-red-50 hover:text-red-600`}
               title="Delete pin"
               aria-label="Delete pin"
             >
@@ -337,7 +337,7 @@ export default function CommentSidebar({
           </div>
         ))}
         {!onBack && (
-          <button onClick={onClose} className={`${iconBtn} text-slate-500 hover:bg-slate-100 hover:text-slate-700`} title="Close" aria-label="Close">
+          <button onClick={onClose} className={`${iconBtn} text-slate-500 hover:bg-slate-100 hover:text-slate-600`} title="Close" aria-label="Close">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -345,7 +345,7 @@ export default function CommentSidebar({
         )}
       </div>
 
-      {/* Fields, comments, composer, screenshot and technical details scroll together; the pager stays */}
+      {/* Fields and comments scroll; the composer block and pager stay at the bottom */}
       <div className="kr-dscroll scrollbar-thin">
         <div className="kr-fields">
           <span>Status</span>
@@ -373,7 +373,7 @@ export default function CommentSidebar({
           </div>
 
           <span>Assignee</span>
-          <div className="kr-sel av">
+          <div className={`kr-sel av ${assigneeName ? "" : "empty"}`}>
             {assigneeName ? (
               <span className={`lead flex h-5 w-5 items-center justify-center rounded-full ${assigneeColor.bg} ${assigneeColor.text} text-micro`} style={{ left: 8 }}>
                 {assigneeName[0].toUpperCase()}
@@ -385,7 +385,6 @@ export default function CommentSidebar({
               disabled={readOnly}
               value={assigneeId}
               onChange={(e) => handleAssigneeSelect(e.target.value)}
-              className={assigneeName ? "" : "!text-slate-500"}
               aria-label="Assignee"
             >
               <option value="">Unassigned</option>
@@ -399,13 +398,12 @@ export default function CommentSidebar({
           </div>
 
           <span>Due date</span>
-          <div className={`kr-sel ${isOverdue ? "over" : ""}`}>
+          <div className={`kr-sel ${isOverdue ? "over" : ""} ${dueValue ? "" : "empty"}`}>
             <input
               type="date"
               disabled={readOnly}
               value={dueValue}
               onChange={(e) => handleDueDateSelect(e.target.value)}
-              className={dueValue ? "" : "!text-slate-500"}
               aria-label="Due date"
               title={isOverdue ? "Overdue" : undefined}
             />
@@ -453,7 +451,7 @@ export default function CommentSidebar({
             </div>
           ) : comments.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-200 px-4 py-6 text-center">
-              <p className="text-ui font-medium text-slate-700">No comments yet</p>
+              <p className="text-ui font-medium text-slate-600">No comments yet</p>
               <p className="mt-0.5 text-micro font-normal text-slate-500">{readOnly ? "Nobody has replied to this pin." : "Start the conversation below."}</p>
             </div>
           ) : (
@@ -487,7 +485,7 @@ export default function CommentSidebar({
                             </button>
                             <button
                               onClick={() => setConfirmDeleteComment(null)}
-                              className="inline-flex h-6 items-center rounded-md bg-gray-100 px-2 text-caption font-medium text-gray-700 hover:bg-gray-200"
+                              className="inline-flex h-6 items-center rounded-md bg-gray-100 px-2 text-caption font-medium text-slate-600 hover:bg-gray-200"
                             >
                               Cancel
                             </button>
@@ -500,7 +498,7 @@ export default function CommentSidebar({
                                   setEditingComment(comment._id);
                                   setEditBody(stripHtmlForEdit(comment.body));
                                 }}
-                                className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                                className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-gray-100 hover:text-slate-600"
                                 title="Edit comment"
                                 aria-label="Edit comment"
                               >
@@ -510,7 +508,7 @@ export default function CommentSidebar({
                               </button>
                               <button
                                 onClick={() => setConfirmDeleteComment(comment._id)}
-                                className="inline-flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-600"
+                                className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-red-50 hover:text-red-600"
                                 title="Delete comment"
                                 aria-label="Delete comment"
                               >
@@ -541,7 +539,7 @@ export default function CommentSidebar({
                               setEditingComment(null);
                               setEditBody("");
                             }}
-                            className="inline-flex h-8 items-center rounded-lg px-3 text-label text-gray-700 hover:bg-gray-100"
+                            className="inline-flex h-8 items-center rounded-lg px-3 text-label text-slate-600 hover:bg-gray-100"
                           >
                             Cancel
                           </button>
@@ -571,8 +569,10 @@ export default function CommentSidebar({
           )}
         </div>
 
-        <span style={{ flex: 1 }} />
+      </div>
 
+      {/* Bottom of the panel: composer, screenshot, technical details */}
+      <div className="kr-dfoot">
         {/* Composer */}
         {readOnly ? (
           <p className="kr-ro">You can view this project but not comment.</p>
@@ -597,7 +597,7 @@ export default function CommentSidebar({
               </div>
             )}
             <div className="row">
-              <label className={`${iconBtn} -ml-1.5 cursor-pointer text-slate-500 hover:bg-slate-100 hover:text-slate-700`} title="Attach files">
+              <label className={`${iconBtn} -ml-1.5 cursor-pointer text-slate-500 hover:bg-slate-100 hover:text-slate-600`} title="Attach files">
                 <input
                   type="file"
                   multiple
@@ -804,7 +804,7 @@ export default function CommentSidebar({
             </div>
             {/* Copy toast */}
             {copyToast && (
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-white rounded-lg shadow-lg text-body-sm font-medium text-gray-800">
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 bg-white rounded-lg shadow-lg text-body-sm font-medium text-slate-900">
                 Copied to clipboard
               </div>
             )}
@@ -815,7 +815,7 @@ export default function CommentSidebar({
       {copyToast &&
         !lightbox &&
         createPortal(
-          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] px-4 py-2 bg-white rounded-lg shadow-lg text-body-sm font-medium text-gray-800">
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[9999] px-4 py-2 bg-white rounded-lg shadow-lg text-body-sm font-medium text-slate-900">
             Copied to clipboard
           </div>,
           document.body,

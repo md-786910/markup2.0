@@ -52,6 +52,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const workspaceName = project.workspace?.name || project.workspaceName || user?.workspaceName || user?.companyName || 'Leanport';
 
   const [pins, setPins] = useState([]);
+  const [focusPin, setFocusPin] = useState(null);
   const [allPins, setAllPins] = useState([]);
   const [selectedPin, setSelectedPin] = useState(null);
   const [pinMode, setPinMode] = useState(false);
@@ -287,6 +288,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       : (allPins.find((p) => p._id === pinId) || pins.find((p) => p._id === pinId) || pin);
 
     setSelectedPin(fullPin);
+    // Ask the page to scroll to the pin (new object each time, so the same pin can be located again)
+    setFocusPin({ id: pinId, at: Date.now() });
 
     // Update URL with pin ID routing query parameter
     setSearchParams((prev) => {
@@ -783,7 +786,9 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               selectedPinId={selectedPin?._id}
               onPinClick={(pin) => {
                 setPendingPinData(null);
-                setSelectedPin(pin);
+                // Open the pin where it was left: switch to the canvas, then go to its page
+                setViewLayout('canvas');
+                handlePinNavigate(pin);
                 showCommentsOnPhone();
               }}
               onPinUpdate={handlePinUpdate}
@@ -818,6 +823,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               pinMode={pinMode}
               pins={shownPins}
               selectedPinId={selectedPin?._id}
+              focusPin={focusPin}
               loading={iframeLoading}
               onLoad={handleIframeLoad}
               viewportWidth={viewportWidth}

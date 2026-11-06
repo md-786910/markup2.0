@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useState } from 'react';
 const DESKTOP_WIDTH = 1440;
 const SLOW_LOAD_MS = 20000;
 
-export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, selectedPinId, loading, hidePins, onLoad, viewportWidth = DESKTOP_WIDTH }) {
+export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, selectedPinId, focusPin, loading, hidePins, onLoad, viewportWidth = DESKTOP_WIDTH }) {
   const isDesktop = viewportWidth >= DESKTOP_WIDTH;
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
@@ -117,6 +117,23 @@ export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, se
     iframe.addEventListener('load', sendPins);
     return () => iframe.removeEventListener('load', sendPins);
   }, [pins, selectedPinId, hidePins]);
+
+  // Locate a pin opened from the list, the board or the pager: ask the page to scroll to it now
+  // and again once the next page load finishes (opening a pin often changes the page first)
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !focusPin?.id) return undefined;
+    const send = () => {
+      try {
+        iframe.contentWindow.postMessage({ type: 'MARKUP_SELECT_PIN', pinId: focusPin.id, scroll: true }, '*');
+      } catch {
+        // iframe not ready; the load listener sends it
+      }
+    };
+    send();
+    iframe.addEventListener('load', send, { once: true });
+    return () => iframe.removeEventListener('load', send);
+  }, [focusPin]);
 
   // Center the iframe when it's narrower than the container (tablet/mobile only)
   const iframeScaledWidth = viewportWidth * scaleFactor;
