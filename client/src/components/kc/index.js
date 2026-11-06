@@ -53,6 +53,14 @@ const P = {
   external: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5',
   filter: 'M4 5h16l-6 8v5l-4 2v-7L4 5z',
   calendar: ['M4 6h16v14H4z', 'M4 10h16M8 3v4M16 3v4'],
+  board: ['M4 5h5v14H4z', 'M10 5h4v9h-4z', 'M15 5h5v6h-5z'],
+  expand: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+  sort: 'M8 5v14m0 0l-3-3m3 3l3-3M16 19V5m0 0l-3 3m3-3l3 3',
+  share: 'M4 12v7h16v-7M12 3v12M8 7l4-4 4 4',
+  userplus: ['M15 8a3 3 0 11-6 0 3 3 0 016 0zM4 20a6 6 0 0112 0', 'M19 8v6M16 11h6'],
+  monitor: ['M3 5h18v11H3z', 'M8 20h8M12 16v4'],
+  tablet: ['M6 3h12v18H6z', 'M11 18h2'],
+  phone: ['M8 3h8v18H8z', 'M11 18h2'],
 };
 export const ICON_NAMES = Object.keys(P).concat(['slack', 'jira', 'discord', 'teams']);
 

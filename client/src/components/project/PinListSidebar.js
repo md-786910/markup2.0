@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import SidebarTabs from './SidebarTabs';
 import renderCommentBody from '../../utils/renderCommentBody';
 import { formatTimestamp, formatFullTimestamp } from '../../utils/formatTimestamp';
+import { Icon, IconButton } from '../kc';
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -90,6 +91,21 @@ const TABS = [
   { key: 'open', label: 'Active' },
   { key: 'resolved', label: 'Resolved' },
 ];
+
+const STATUS_META = {
+  open: { label: 'Open', color: 'var(--brand-600, #003dff)' },
+  in_progress: { label: 'In Progress', color: 'var(--warning-500, #f59e0b)' },
+  in_review: { label: 'In Review', color: '#0ea5e9' },
+  resolved: { label: 'Resolved', color: 'var(--success-500, #10b981)' },
+};
+
+const PRIORITY_META = {
+  urgent: { label: 'Urgent', color: 'var(--danger-500, #ef4444)' },
+  high: { label: 'High', color: 'var(--warning-500, #f59e0b)' },
+  normal: { label: 'Normal', color: 'var(--slate-500, #64748b)' },
+  low: { label: 'Low', color: 'var(--slate-400, #94a3b8)' },
+};
+
 
 export default function PinListSidebar({
   pins,
@@ -350,12 +366,13 @@ export default function PinListSidebar({
   const isSelected = (pinId) => selectedPinId === pinId;
 
   return (
-    <div className="w-full md:w-80 shrink-0 bg-white border-r pb-10 border-slate-200 flex flex-col h-full overflow-hidden relative">
+    <aside className="w-full md:w-[340px] kx-panel shrink-0 bg-white border-r border-slate-200 flex flex-col h-full overflow-hidden relative" aria-label="Feedback">
       {/* Sidebar tab switcher */}
-      {onTabChange && <SidebarTabs active={sidebarTab} onChange={onTabChange} />}
+      {onTabChange && <SidebarTabs active={sidebarTab} onChange={onTabChange} count={openCount} />}
+
       {/* Detail view — slides in from right */}
       <div
-        className="absolute inset-0 z-10 transition-transform duration-300 ease-in-out"
+        className="absolute inset-0 z-10 transition-transform duration-300 ease-in-out bg-white"
         style={{
           transform: selectedPin ? 'translateX(0)' : 'translateX(100%)',
           pointerEvents: selectedPin ? 'auto' : 'none',
@@ -380,559 +397,476 @@ export default function PinListSidebar({
       </div>
 
       {/* Pin list view */}
-      <div className="flex flex-col h-full pb-5">
-        {/* Header */}
-        <div className="px-4 py-2.5 border-b border-slate-100">
-          <div className="flex items-center justify-between">
-            {/* Tabs */}
-            <div className="flex items-center gap-3">
-              {TABS.map((t) => {
-                const count = t.key === 'open' ? openCount : resolvedCount;
-                const isActive = filterStatus === t.key;
-                return (
-                  <button
-                    key={t.key}
-                    onClick={() => setFilterStatus(t.key)}
-                    className={`text-[12.5px] font-medium transition-colors pb-0.5 border-b-2 ${isActive
-                      ? 'text-slate-900 font-semibold border-slate-900'
-                      : 'text-slate-400 hover:text-slate-600 border-transparent'
-                      }`}
-                  >
-                    {count} {t.label}
-                  </button>
-                );
-              })}
-            </div>
+      <div className="flex flex-col h-full min-h-0 flex-1 overflow-hidden">
+        {/* Header / Sub bar (kx-fh) */}
+        <div className="kx-fh shrink-0">
+          <div className="kx-chips">
+            <button
+              type="button"
+              className={filterStatus === 'open' ? 'on' : ''}
+              onClick={() => setFilterStatus('open')}
+            >
+              Active <i>{openCount}</i>
+            </button>
+            <button
+              type="button"
+              className={filterStatus === 'resolved' ? 'on' : ''}
+              onClick={() => setFilterStatus('resolved')}
+            >
+              Resolved <i>{resolvedCount}</i>
+            </button>
+          </div>
+          <span style={{ flex: 1 }} />
 
-          {/* Icon buttons */}
+          {/* Icon buttons: Sort & Filter */}
           <div className="flex items-center gap-1">
             {/* Sort dropdown */}
             <div className="relative" ref={sortRef}>
-              <button
-                onClick={() => setSortOpen((v) => !v)}
-                className={`h-7 w-7 rounded-lg flex items-center justify-center transition-colors ${sortOpen ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
-                title="Sort"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
-                </svg>
-              </button>
+              <IconButton
+                icon="sort"
+                label="Sort"
+                tip="Sort"
+                active={sortOpen || sortBy !== 'page'}
+                onClick={() => { setSortOpen((v) => !v); setFilterOpen(false); }}
+              />
 
               {sortOpen && (
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 overflow-hidden">
-                    {[
-                      { key: 'page', label: 'Page' },
-                      { key: 'pin_order', label: 'Pin order' },
-                      { key: 'latest_activity', label: 'Latest activity' },
-                    ].map((opt) => (
-                      <button
-                        key={opt.key}
-                        onClick={() => { setSortBy(opt.key); setSortOpen(false); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
-                      >
-                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${sortBy === opt.key ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
-                          }`}>
-                          {sortBy === opt.key && (
-                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </span>
-                        <span className={`text-body-sm ${sortBy === opt.key ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
-                          {opt.label}
-                        </span>
-                      </button>
-                    ))}
-
-                    {/* Reset Sort */}
-                    {sortBy !== 'page' && (
-                      <div className="border-t border-gray-100 mt-1 pt-1">
-                        <button
-                          onClick={() => { setSortBy('page'); setSortOpen(false); }}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-caption text-blue-600 hover:bg-blue-50 font-medium transition-colors"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          Reset sort
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              {/* Filter dropdown */}
-              <div className="relative" ref={filterRef}>
-                <button
-                  onClick={() => setFilterOpen((v) => !v)}
-                  className={`h-7 w-7 rounded-lg flex items-center justify-center transition-colors ${filterOpen || filterOption ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
-                  title="Filter"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18l-7 8.5V19l-4-2v-4.5L3 4z" />
-                  </svg>
-                </button>
-
-                {filterOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 overflow-visible">
-                    {/* Option 1: On this page */}
+                  {[
+                    { key: 'page', label: 'Page' },
+                    { key: 'pin_order', label: 'Pin order' },
+                    { key: 'latest_activity', label: 'Latest activity' },
+                  ].map((opt) => (
                     <button
-                      onClick={() => {
-                        setFilterOption(filterOption === 'on_this_page' ? null : 'on_this_page');
-                        setMentionModalOpen(false);
-                        setAssigneeModalOpen(false);
-                        setFilterOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors"
+                      key={opt.key}
+                      onClick={() => { setSortBy(opt.key); setSortOpen(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors"
                     >
-                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        filterOption === 'on_this_page' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
-                      }`}>
-                        {filterOption === 'on_this_page' && (
+                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${sortBy === opt.key ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
+                        {sortBy === opt.key && (
                           <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         )}
                       </span>
-                      <span className={`text-[13px] flex-1 ${filterOption === 'on_this_page' ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
-                        On this page
+                      <span className={`text-body-sm ${sortBy === opt.key ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                        {opt.label}
                       </span>
                     </button>
+                  ))}
 
-                    {/* Option 2: Mentions (with user selection flyout modal) */}
-                    <div>
+                  {/* Reset Sort */}
+                  {sortBy !== 'page' && (
+                    <div className="border-t border-gray-100 mt-1 pt-1">
                       <button
-                        ref={mentionBtnRef}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMentionModalOpen((v) => !v);
-                          setAssigneeModalOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors ${
-                          filterOption === 'mentions' ? 'bg-blue-50/50' : ''
-                        }`}
+                        onClick={() => { setSortBy('page'); setSortOpen(false); }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-caption text-blue-600 hover:bg-blue-50 font-medium transition-colors"
                       >
-                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          filterOption === 'mentions' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
-                        }`}>
-                          {filterOption === 'mentions' && (
-                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </span>
-                        <span className={`text-[13px] flex-1 truncate ${filterOption === 'mentions' ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
-                          {selectedMentionUser ? `Mentions: ${selectedMentionUser.name}` : 'Mentions'}
-                        </span>
-                        <svg className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${mentionModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
+                        Reset sort
                       </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-                      {/* Mentions User Flyout Modal — Portaled to body */}
-                      {mentionModalOpen && createPortal(
-                        <div
-                          ref={mentionModalRef}
-                          className="fixed w-64 bg-white border border-slate-200 rounded-lg shadow-[0_12px_40px_rgba(0,0,0,0.18)] z-[99999] overflow-hidden flex flex-col"
-                          style={{
-                            top: `${modalPos.top}px`,
-                            left: `${modalPos.left}px`,
-                            maxHeight: '350px',
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-                            <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-500">Project Members</span>
-                            {selectedMentionUser && (
+            {/* Filter dropdown */}
+            <div className="relative" ref={filterRef}>
+              <IconButton
+                icon="filter"
+                label="Filter"
+                tip="Filter"
+                active={filterOpen || !!filterOption}
+                onClick={() => { setFilterOpen((v) => !v); setSortOpen(false); }}
+              />
+
+              {filterOpen && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 overflow-visible">
+                  {/* Option 1: On this page */}
+                  <button
+                    onClick={() => {
+                      setFilterOption(filterOption === 'on_this_page' ? null : 'on_this_page');
+                      setMentionModalOpen(false);
+                      setAssigneeModalOpen(false);
+                      setFilterOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors"
+                  >
+                    <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      filterOption === 'on_this_page' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
+                    }`}>
+                      {filterOption === 'on_this_page' && (
+                        <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className={`text-[13px] flex-1 ${filterOption === 'on_this_page' ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
+                      On this page
+                    </span>
+                  </button>
+
+                  {/* Option 2: Mentions (with user selection flyout modal) */}
+                  <div>
+                    <button
+                      ref={mentionBtnRef}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMentionModalOpen((v) => !v);
+                        setAssigneeModalOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors ${
+                        filterOption === 'mentions' ? 'bg-blue-50/50' : ''
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        filterOption === 'mentions' ? 'border-blue-600 bg-blue-600' : 'border-slate-300'
+                      }`}>
+                        {filterOption === 'mentions' && (
+                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className={`text-[13px] flex-1 truncate ${filterOption === 'mentions' ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
+                        {selectedMentionUser ? `Mentions: ${selectedMentionUser.name}` : 'Mentions'}
+                      </span>
+                      <svg className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${mentionModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+
+                    {/* Mentions User Flyout Modal — Portaled to body */}
+                    {mentionModalOpen && createPortal(
+                      <div
+                        ref={mentionModalRef}
+                        className="fixed w-64 bg-white border border-slate-200 rounded-lg shadow-[0_12px_40px_rgba(0,0,0,0.18)] z-[99999] overflow-hidden flex flex-col"
+                        style={{
+                          top: `${modalPos.top}px`,
+                          left: `${modalPos.left}px`,
+                          maxHeight: '350px',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                          <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-500">Project Members</span>
+                          {selectedMentionUser && (
+                            <button
+                              onClick={() => {
+                                setSelectedMentionUser(null);
+                                setFilterOption(null);
+                                setMentionModalOpen(false);
+                                setFilterOpen(false);
+                              }}
+                              className="text-[11px] text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+
+                        {members.length > 3 && (
+                          <div className="px-3 pt-2 pb-1 bg-white border-b border-slate-100">
+                            <input
+                              type="text"
+                              value={memberSearch}
+                              onChange={(e) => setMemberSearch(e.target.value)}
+                              placeholder="Search user..."
+                              className="w-full text-[12.5px] px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                            />
+                          </div>
+                        )}
+
+                        <div className="overflow-y-auto max-h-56 py-1">
+                          {filteredMembers.length === 0 ? (
+                            <div className="p-4 text-center text-caption text-gray-400">No project members found</div>
+                          ) : (
+                            filteredMembers.map((member) => {
+                              const isUserSelected = selectedMentionUser && (selectedMentionUser._id === member._id);
+                              const avatarColor = getAvatarColor(member._id);
+                              return (
+                                <button
+                                  key={member._id}
+                                  onClick={() => {
+                                    if (isUserSelected) {
+                                      setSelectedMentionUser(null);
+                                      setFilterOption(null);
+                                    } else {
+                                      setSelectedMentionUser(member);
+                                      setFilterOption('mentions');
+                                    }
+                                    setMentionModalOpen(false);
+                                    setFilterOpen(false);
+                                  }}
+                                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-gray-50 transition-colors ${
+                                    isUserSelected ? 'bg-blue-50/70' : ''
+                                  }`}
+                                >
+                                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-caption font-semibold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
+                                    {getInitials(member.name)}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-caption truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
+                                      {member.name}
+                                    </p>
+                                    {member.email && (
+                                      <p className="text-caption text-gray-400 truncate">{member.email}</p>
+                                    )}
+                                  </div>
+                                  <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                    isUserSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
+                                  }`}>
+                                    {isUserSelected && (
+                                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                  </span>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>,
+                      document.body
+                    )}
+                  </div>
+
+                  {/* Option 3: Assignee */}
+                  <div>
+                    <button
+                      ref={assigneeBtnRef}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAssigneeModalOpen((v) => !v);
+                        setMentionModalOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${
+                        filterOption === 'assignee' ? 'bg-blue-50/50' : ''
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                        filterOption === 'assignee' ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                      }`}>
+                        {filterOption === 'assignee' && (
+                          <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className={`text-body-sm flex-1 truncate ${filterOption === 'assignee' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                        {selectedAssigneeUsers.length > 0
+                          ? `Author (${selectedAssigneeUsers.length})`
+                          : 'Author'}
+                      </span>
+                      <svg className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${assigneeModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+
+                    {/* Assignee User Flyout Modal — Portaled to body */}
+                    {assigneeModalOpen && createPortal(
+                      <div
+                        ref={assigneeModalRef}
+                        className="fixed w-64 bg-white border border-slate-200 rounded-lg shadow-[0_12px_40px_rgba(0,0,0,0.18)] z-[99999] overflow-hidden flex flex-col"
+                        style={{
+                          top: `${assigneeModalPos.top}px`,
+                          left: `${assigneeModalPos.left}px`,
+                          maxHeight: '350px',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                          <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-500">
+                            Assignee (${selectedAssigneeUsers.length}/${members.length})
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {selectedAssigneeUsers.length > 0 && (
                               <button
                                 onClick={() => {
-                                  setSelectedMentionUser(null);
+                                  setSelectedAssigneeUsers([]);
                                   setFilterOption(null);
-                                  setMentionModalOpen(false);
-                                  setFilterOpen(false);
                                 }}
-                                className="text-[11px] text-blue-600 hover:text-blue-800 font-medium"
+                                className="text-caption text-blue-600 hover:text-blue-800 font-medium"
                               >
                                 Clear
                               </button>
                             )}
-                          </div>
-
-                          {/* Member search if > 3 members */}
-                          {members.length > 3 && (
-                            <div className="px-3 pt-2 pb-1 bg-white border-b border-slate-100">
-                              <input
-                                type="text"
-                                value={memberSearch}
-                                onChange={(e) => setMemberSearch(e.target.value)}
-                                placeholder="Search user..."
-                                className="w-full text-[12.5px] px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
-                              />
-                            </div>
-                          )}
-
-                          {/* User List */}
-                          <div className="overflow-y-auto max-h-56 py-1">
-                            {filteredMembers.length === 0 ? (
-                              <div className="p-4 text-center text-caption text-gray-400">No project members found</div>
-                            ) : (
-                              filteredMembers.map((member) => {
-                                const isUserSelected = selectedMentionUser && (selectedMentionUser._id === member._id);
-                                const avatarColor = getAvatarColor(member._id);
-                                return (
-                                  <button
-                                    key={member._id}
-                                    onClick={() => {
-                                      if (isUserSelected) {
-                                        setSelectedMentionUser(null);
-                                        setFilterOption(null);
-                                      } else {
-                                        setSelectedMentionUser(member);
-                                        setFilterOption('mentions');
-                                      }
-                                      setMentionModalOpen(false);
-                                      setFilterOpen(false);
-                                    }}
-                                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-gray-50 transition-colors ${
-                                      isUserSelected ? 'bg-blue-50/70' : ''
-                                    }`}
-                                  >
-                                    {/* User Avatar */}
-                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-caption font-semibold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
-                                      {getInitials(member.name)}
-                                    </span>
-                                    <div className="flex-1 min-w-0">
-                                      <p className={`text-caption truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
-                                        {member.name}
-                                      </p>
-                                      {member.email && (
-                                        <p className="text-caption text-gray-400 truncate">{member.email}</p>
-                                      )}
-                                    </div>
-                                    {/* Checkbox Icon */}
-                                    <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                                      isUserSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
-                                    }`}>
-                                      {isUserSelected && (
-                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                      )}
-                                    </span>
-                                  </button>
-                                );
-                              })
+                            {selectedAssigneeUsers.length < members.length && (
+                              <button
+                                onClick={() => {
+                                  setSelectedAssigneeUsers([...members]);
+                                  setFilterOption('assignee');
+                                }}
+                                className="text-caption text-gray-500 hover:text-gray-800 font-medium"
+                              >
+                                Select All
+                              </button>
                             )}
                           </div>
-                        </div>,
-                        document.body
-                      )}
-                    </div>
+                        </div>
 
-                    {/* Option 3: Assignee (with multi-user selection flyout modal) */}
-                    <div>
-                      <button
-                        ref={assigneeBtnRef}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAssigneeModalOpen((v) => !v);
-                          setMentionModalOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${
-                          filterOption === 'assignee' ? 'bg-blue-50/50' : ''
-                        }`}
-                      >
-                        <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                          filterOption === 'assignee' ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
-                        }`}>
-                          {filterOption === 'assignee' && (
-                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </span>
-                        <span className={`text-body-sm flex-1 truncate ${filterOption === 'assignee' ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
-                          {selectedAssigneeUsers.length > 0
-                            ? `Author (${selectedAssigneeUsers.length})`
-                            : 'Author'}
-                        </span>
-                        <svg className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${assigneeModalOpen ? 'rotate-90 text-blue-600' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-
-                      {/* Assignee User Flyout Modal — Portaled to body */}
-                      {assigneeModalOpen && createPortal(
-                        <div
-                          ref={assigneeModalRef}
-                          className="fixed w-64 bg-white border border-slate-200 rounded-lg shadow-[0_12px_40px_rgba(0,0,0,0.18)] z-[99999] overflow-hidden flex flex-col"
-                          style={{
-                            top: `${assigneeModalPos.top}px`,
-                            left: `${assigneeModalPos.left}px`,
-                            maxHeight: '350px',
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-                            <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-500">
-                              Assignee ({selectedAssigneeUsers.length}/{members.length})
-                            </span>
-                            <div className="flex items-center gap-2">
-                              {selectedAssigneeUsers.length > 0 && (
-                                <button
-                                  onClick={() => {
-                                    setSelectedAssigneeUsers([]);
-                                    setFilterOption(null);
-                                  }}
-                                  className="text-caption text-blue-600 hover:text-blue-800 font-medium"
-                                >
-                                  Clear
-                                </button>
-                              )}
-                              {selectedAssigneeUsers.length < members.length && (
-                                <button
-                                  onClick={() => {
-                                    setSelectedAssigneeUsers([...members]);
-                                    setFilterOption('assignee');
-                                  }}
-                                  className="text-caption text-gray-500 hover:text-gray-800 font-medium"
-                                >
-                                  Select All
-                                </button>
-                              )}
-                            </div>
+                        {members.length > 3 && (
+                          <div className="px-3 pt-2 pb-1 bg-white border-b border-gray-50">
+                            <input
+                              type="text"
+                              value={assigneeMemberSearch}
+                              onChange={(e) => setAssigneeMemberSearch(e.target.value)}
+                              placeholder="Search user..."
+                              className="w-full text-body px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
+                            />
                           </div>
+                        )}
 
-                          {/* Member search if > 3 members */}
-                          {members.length > 3 && (
-                            <div className="px-3 pt-2 pb-1 bg-white border-b border-gray-50">
-                              <input
-                                type="text"
-                                value={assigneeMemberSearch}
-                                onChange={(e) => setAssigneeMemberSearch(e.target.value)}
-                                placeholder="Search user..."
-                                className="w-full text-body px-2.5 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:bg-white"
-                              />
-                            </div>
+                        <div className="overflow-y-auto max-h-56 py-1">
+                          {filteredAssigneeMembers.length === 0 ? (
+                            <div className="p-4 text-center text-caption text-gray-400">No project members found</div>
+                          ) : (
+                            filteredAssigneeMembers.map((member) => {
+                              const isUserSelected = selectedAssigneeUsers.some((u) => u._id === member._id);
+                              const avatarColor = getAvatarColor(member._id);
+                              return (
+                                <button
+                                  key={member._id}
+                                  onClick={() => {
+                                    let updated;
+                                    if (isUserSelected) {
+                                      updated = selectedAssigneeUsers.filter((u) => u._id !== member._id);
+                                    } else {
+                                      updated = [...selectedAssigneeUsers, member];
+                                    }
+                                    setSelectedAssigneeUsers(updated);
+                                    setFilterOption(updated.length > 0 ? 'assignee' : null);
+                                  }}
+                                  className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-gray-50 transition-colors ${
+                                    isUserSelected ? 'bg-blue-50/70' : ''
+                                  }`}
+                                >
+                                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-caption font-semibold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
+                                    {getInitials(member.name)}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-caption truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
+                                      {member.name}
+                                    </p>
+                                    {member.email && (
+                                      <p className="text-caption text-gray-400 truncate">{member.email}</p>
+                                    )}
+                                  </div>
+                                  <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                                    isUserSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
+                                  }`}>
+                                    {isUserSelected && (
+                                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                  </span>
+                                </button>
+                              );
+                            })
                           )}
-
-                          {/* User List with multi-select */}
-                          <div className="overflow-y-auto max-h-56 py-1">
-                            {filteredAssigneeMembers.length === 0 ? (
-                              <div className="p-4 text-center text-caption text-gray-400">No project members found</div>
-                            ) : (
-                              filteredAssigneeMembers.map((member) => {
-                                const isUserSelected = selectedAssigneeUsers.some((u) => u._id === member._id);
-                                const avatarColor = getAvatarColor(member._id);
-                                return (
-                                  <button
-                                    key={member._id}
-                                    onClick={() => {
-                                      let updated;
-                                      if (isUserSelected) {
-                                        updated = selectedAssigneeUsers.filter((u) => u._id !== member._id);
-                                      } else {
-                                        updated = [...selectedAssigneeUsers, member];
-                                      }
-                                      setSelectedAssigneeUsers(updated);
-                                      setFilterOption(updated.length > 0 ? 'assignee' : null);
-                                    }}
-                                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-left hover:bg-gray-50 transition-colors ${
-                                      isUserSelected ? 'bg-blue-50/70' : ''
-                                    }`}
-                                  >
-                                    {/* User Avatar */}
-                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center text-caption font-semibold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
-                                      {getInitials(member.name)}
-                                    </span>
-                                    <div className="flex-1 min-w-0">
-                                      <p className={`text-caption truncate ${isUserSelected ? 'font-semibold text-blue-900' : 'text-gray-800'}`}>
-                                        {member.name}
-                                      </p>
-                                      {member.email && (
-                                        <p className="text-caption text-gray-400 truncate">{member.email}</p>
-                                      )}
-                                    </div>
-                                    {/* Checkbox Icon */}
-                                    <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                                      isUserSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300'
-                                    }`}>
-                                      {isUserSelected && (
-                                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                      )}
-                                    </span>
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>,
-                        document.body
-                      )}
-                    </div>
-
-                    {/* Clear All Filters Option inside dropdown */}
-                    {hasActiveFilters && (
-                      <div className="border-t border-gray-100 mt-1 pt-1">
-                        <button
-                          onClick={handleClearAllFilters}
-                          className="w-full flex items-center gap-2.5 px-4 py-2 text-caption text-blue-600 hover:bg-blue-50 font-medium transition-colors"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                          Clear Filters
-                        </button>
-                      </div>
+                        </div>
+                      </div>,
+                      document.body
                     )}
                   </div>
-                )}
-              </div>
-              {/* Search toggle */}
-              <button
-                onClick={() => { setSearchOpen((v) => !v); if (searchOpen) setSearchQuery(''); }}
-                className={`p-1.5 rounded transition-colors ${searchOpen ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
-                title="Search"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
+
+                  {/* Clear All Filters Option inside dropdown */}
+                  {hasActiveFilters && (
+                    <div className="border-t border-gray-100 mt-1 pt-1">
+                      <button
+                        onClick={handleClearAllFilters}
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-caption text-blue-600 hover:bg-blue-50 font-medium transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Clear Filters
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
-
-          {/* Active Filters Bar — Unified for all active filters, sorting, and search */}
-          {hasActiveFilters && (
-            <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 bg-slate-50 border-b border-gray-200 text-caption animate-fadeIn">
-              <span className="text-gray-400 font-medium mr-0.5">Filtered:</span>
-
-              {filterOption === 'on_this_page' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-medium">
-                  On this page
-                  <button
-                    onClick={() => setFilterOption(null)}
-                    className="hover:text-blue-950 p-0.5"
-                    title="Remove filter"
-                  >
-                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </span>
-              )}
-
-              {filterOption === 'mentions' && selectedMentionUser && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-medium">
-                  Mention: @{selectedMentionUser.name}
-                  <button
-                    onClick={() => { setSelectedMentionUser(null); setFilterOption(null); }}
-                    className="hover:text-purple-950 p-0.5"
-                    title="Remove filter"
-                  >
-                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </span>
-              )}
-
-              {filterOption === 'assignee' && selectedAssigneeUsers.length > 0 && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
-                  Assignee: {selectedAssigneeUsers.map((u) => `@${u.name}`).join(', ')}
-                  <button
-                    onClick={() => { setSelectedAssigneeUsers([]); setFilterOption(null); }}
-                    className="hover:text-emerald-950 p-0.5"
-                    title="Remove filter"
-                  >
-                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </span>
-              )}
-
-              {sortBy !== 'page' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
-                  Sort: {sortBy === 'pin_order' ? 'Pin order' : 'Latest activity'}
-                  <button
-                    onClick={() => setSortBy('page')}
-                    className="hover:text-amber-950 p-0.5"
-                    title="Reset to default Page sort"
-                  >
-                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </span>
-              )}
-
-              {searchQuery && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-200 text-gray-800 font-medium truncate max-w-[130px]">
-                  "{searchQuery}"
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="hover:text-gray-950 p-0.5"
-                    title="Clear search"
-                  >
-                    <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </span>
-              )}
-
-              {/* Clear Filters button */}
-              <button
-                onClick={handleClearAllFilters}
-                className="ml-auto text-caption text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-blue-50 transition-colors"
-                title="Reset all filters, sorting, and search"
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Clear Filters
-              </button>
-            </div>
-          )}
-
-          {/* Search bar — only shown when searchOpen */}
-          {searchOpen && (
-            <div className="relative mt-2">
-              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                autoFocus
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search comments..."
-                className="w-full text-body pl-8 pr-7 py-1.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 focus:bg-white placeholder-gray-400 transition-all"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          )}
         </div>
 
-        {/* Scrollable list */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin">
+        {/* Permanent search input (kx-search) */}
+        <label className="kx-search">
+          <Icon name="search" size={15} />
+          <input
+            placeholder="Search feedback"
+            aria-label="Search feedback"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="text-slate-400 hover:text-slate-600 p-0.5"
+            >
+              <Icon name="x" size={13} />
+            </button>
+          )}
+        </label>
+
+        {/* Active Filters Bar */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-1.5 px-3 py-1.5 mx-3 mb-2 bg-slate-50 border border-slate-200 rounded-lg text-caption animate-fadeIn shrink-0">
+            <span className="text-gray-400 font-medium mr-0.5">Filtered:</span>
+            {filterOption === 'on_this_page' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-medium">
+                On this page
+                <button onClick={() => setFilterOption(null)} className="hover:text-blue-950 p-0.5" title="Remove filter">
+                  <Icon name="x" size={10} />
+                </button>
+              </span>
+            )}
+            {filterOption === 'mentions' && selectedMentionUser && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-medium">
+                Mention: @{selectedMentionUser.name}
+                <button onClick={() => { setSelectedMentionUser(null); setFilterOption(null); }} className="hover:text-purple-950 p-0.5" title="Remove filter">
+                  <Icon name="x" size={10} />
+                </button>
+              </span>
+            )}
+            {filterOption === 'assignee' && selectedAssigneeUsers.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">
+                Assignee: {selectedAssigneeUsers.map((u) => `@${u.name}`).join(', ')}
+                <button onClick={() => { setSelectedAssigneeUsers([]); setFilterOption(null); }} className="hover:text-emerald-950 p-0.5" title="Remove filter">
+                  <Icon name="x" size={10} />
+                </button>
+              </span>
+            )}
+            {sortBy !== 'page' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
+                Sort: {sortBy === 'pin_order' ? 'Pin order' : 'Latest activity'}
+                <button onClick={() => setSortBy('page')} className="hover:text-amber-950 p-0.5" title="Reset sort">
+                  <Icon name="x" size={10} />
+                </button>
+              </span>
+            )}
+            <button
+              onClick={handleClearAllFilters}
+              className="ml-auto text-caption text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-blue-50 transition-colors"
+              title="Reset all filters and sorting"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
+        {/* Scrollable list (kx-list) */}
+        <div className="kx-list">
           {filteredPins.length === 0 && (
             <div className="text-center py-16 px-6">
               <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
-                <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                </svg>
+                <Icon name="chat" size={24} className="text-gray-300" />
               </div>
               <p className="text-body-sm font-medium text-gray-400">
                 {searchQuery
@@ -950,20 +884,13 @@ export default function PinListSidebar({
                           : 'No comments yet'}
               </p>
 
-              {/* Reset action button in empty state */}
               {hasActiveFilters && (
                 <button
                   onClick={handleClearAllFilters}
                   className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 text-caption font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors shadow-sm"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
                   Clear Filters
                 </button>
-              )}
-              {!searchQuery && filterStatus === 'open' && pins.length === 0 && (
-                <p className="text-caption text-gray-500 mt-1">Switch to <span className="font-semibold text-blue-600">Comment</span> and click anywhere on the page.</p>
               )}
             </div>
           )}
@@ -971,157 +898,142 @@ export default function PinListSidebar({
           {Object.entries(grouped).map(([path, pagePins]) => {
             const isGroupCollapsed = collapsedGroups.has(path);
             return (
-              <div key={path}>
-                {/* Page section header — only shown when grouping by page */}
+              <div key={path} className="flex flex-col gap-2">
+                {/* Page section header */}
                 {sortBy === 'page' && (
-                  <button
+                  <div
                     onClick={() => toggleGroup(path)}
-                    className="w-full px-4 py-2 flex items-center gap-2 bg-slate-50 border-b border-slate-100 hover:bg-slate-100/70 transition-colors text-left"
+                    className="kx-gh"
+                    role="button"
+                    tabIndex={0}
                   >
-                    <span className="text-[12px] font-medium text-slate-500 truncate flex-1" title={path}>
+                    <span className="truncate" title={path}>
                       {getGroupLabel(pagePins[0]?.pageUrl || path)}
                     </span>
-                    <span className="text-[11.5px] text-slate-400 shrink-0">{pagePins.length}</span>
-                    <svg
-                      className={`w-3 h-3 text-slate-400 shrink-0 transition-transform duration-200 ${isGroupCollapsed ? '-rotate-90' : ''}`}
-                      fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
+                    <span>{pagePins.length}</span>
+                  </div>
                 )}
 
-                {/* Pin cards (hidden when group is collapsed in page mode) */}
-                {(sortBy !== 'page' || !isGroupCollapsed) && pagePins.map((pin, idx) => (
-                  <div key={pin._id}>
-                    {/* Card */}
-                    <div
-                      onClick={() => handleCardClick(pin)}
-                      className={`cursor-pointer transition-colors border-b border-slate-100 ${isSelected(pin._id)
-                        ? 'bg-slate-50 border-l-2 border-l-blue-600'
-                        : 'bg-white hover:bg-slate-50/70'
-                        }`}
-                    >
-                      <div className="px-4 py-3">
-                        {/* Top row: pin badge + action icons */}
-                        <div className="flex items-start justify-between mb-1.5">
-                          {/* Pin number badge */}
-                          <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-semibold text-white shrink-0 ${pin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'
-                            }`}>
-                            {pin.pinNumber || (idx + 1)}
-                          </span>
+                {/* Boxed pin cards */}
+                {(sortBy !== 'page' || !isGroupCollapsed) && pagePins.map((pin, idx) => {
+                  const st = STATUS_META[pin.status] || STATUS_META.open;
+                  const pr = PRIORITY_META[pin.priority] || PRIORITY_META.normal;
+                  const commentText = pin.firstComment?.body || (pin.comments && pin.comments[0]?.body) || '';
 
-                          {/* Action icons: ... menu + resolve checkmark */}
-                          <div className="relative flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                            {/* Three-dot menu → dropdown */}
-                            <div className="relative" data-pin-menu>
-                              <button
-                                onClick={() => setConfirmDelete((prev) => prev === pin._id ? null : pin._id)}
-                                className="h-6 w-6 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                                title="More options"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                                  <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
-                                </svg>
-                              </button>
-                              {confirmDelete === pin._id && (
-                                <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 overflow-hidden">
-                                  <button
-                                    onClick={() => {
-                                      const link = `${window.location.origin}/project/${projectId}?pin=${pin._id}`;
-                                      navigator.clipboard.writeText(link);
-                                      setConfirmDelete(null);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-[12.5px] text-slate-700 hover:bg-slate-50 transition-colors"
-                                  >
-                                    Copy link
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      onPinClick(pin);
-                                      setConfirmDelete(null);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-[12.5px] text-slate-700 hover:bg-slate-50 transition-colors"
-                                  >
-                                    Get info
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                            {/* Resolve toggle */}
-                            {!readOnly && (
-                            <button
-                              onClick={() => onStatusChange(pin._id, pin.status === 'resolved' ? 'open' : 'resolved')}
-                              className={`h-6 w-6 rounded-lg flex items-center justify-center transition-colors ${pin.status === 'resolved'
-                                ? 'text-emerald-500 hover:bg-emerald-50'
-                                : 'text-slate-300 hover:text-emerald-500 hover:bg-emerald-50'
-                                }`}
-                              title={pin.status === 'resolved' ? 'Reopen' : 'Resolve'}
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                <circle cx="12" cy="12" r="9" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12l3 3 5-5" />
-                              </svg>
-                            </button>
+                  return (
+                    <div
+                      key={pin._id}
+                      onClick={() => handleCardClick(pin)}
+                      className={`kx-card ${isSelected(pin._id) ? 'on' : ''} ${pin.status === 'resolved' ? 'done' : ''}`}
+                    >
+                      {/* Row 1: Pin badge, author, time, tools on hover */}
+                      <div className="r1">
+                        <span className={`kr-pin sm ${pin.status === 'resolved' ? 'ok' : ''}`}>
+                          {pin.status === 'resolved' ? (
+                            <Icon name="check" size={11} stroke={3} />
+                          ) : (
+                            pin.pinNumber || (idx + 1)
+                          )}
+                        </span>
+
+                        <b className="truncate">{pin.createdBy?.name || pin.createdByGuest?.name || 'Unknown'}</b>
+                        <small title={formatFullTimestamp(pin.createdAt)}>
+                          {timeAgo(pin.createdAt)}
+                        </small>
+                        <span style={{ flex: 1 }} />
+
+                        <span className="hov flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <div className="relative inline-block" data-pin-menu>
+                            <IconButton
+                              icon="dots"
+                              label="More"
+                              onClick={() => setConfirmDelete((prev) => prev === pin._id ? null : pin._id)}
+                            />
+                            {confirmDelete === pin._id && (
+                              <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const link = `${window.location.origin}/project/${projectId}?pin=${pin._id}`;
+                                    navigator.clipboard.writeText(link);
+                                    setConfirmDelete(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-[12.5px] text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                  Copy link
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onPinClick(pin);
+                                    setConfirmDelete(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-[12.5px] text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                  Get info
+                                </button>
+                              </div>
                             )}
                           </div>
-                        </div>
 
-                        {/* Author + New badge + Unread comments badge */}
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-[13px] font-semibold text-slate-900 truncate">
-                            {pin.createdBy?.name || pin.createdByGuest?.name || 'Unknown'}
-                          </span>
-                          {!pin.createdBy && pin.createdByGuest?.name && (
-                            <span className="text-[11px] font-medium text-slate-400">Guest</span>
+                          {!readOnly && (
+                            <button
+                              type="button"
+                              onClick={() => onStatusChange(pin._id, pin.status === 'resolved' ? 'open' : 'resolved')}
+                              className={`kr-resolve ${pin.status === 'resolved' ? 'done' : ''}`}
+                              title={pin.status === 'resolved' ? 'Reopen' : 'Resolve'}
+                              aria-label={pin.status === 'resolved' ? 'Reopen' : 'Resolve'}
+                            >
+                              <Icon name="check" size={14} stroke={2} />
+                            </button>
                           )}
-                          {!readPins.has(pin._id) && (
-                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/50">
-                              New
-                            </span>
-                          )}
-                          {readPins.has(pin._id) && pin.latestComment && (
-                            (() => {
-                              const lastRead = readComments[pin._id] || 0;
-                              const commentTime = new Date(pin.latestComment.createdAt).getTime();
-                              return commentTime > lastRead ? (
-                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/50">
-                                  New reply
-                                </span>
-                              ) : null;
-                            })()
-                          )}
-                        </div>
+                        </span>
+                      </div>
 
-                        {/* Time */}
-                        <p className="text-[11.5px] text-slate-400 mb-1 tabular-nums" title={formatFullTimestamp(pin.createdAt)}>{timeAgo(pin.createdAt)}</p>
-
-                        {/* Comment preview — first comment as title */}
-                        {pin.firstComment ? (
-                          <p className="text-[13px] text-slate-600 line-clamp-2">
-                            {renderCommentBody(pin.firstComment.body)}
-                          </p>
+                      {/* Row 2: Comment Preview */}
+                      <p>
+                        {commentText ? (
+                          renderCommentBody(commentText)
                         ) : (
-                          <p className="text-[12px] text-slate-300 italic">No comments</p>
+                          <span className="text-slate-400 italic">No comments</span>
+                        )}
+                      </p>
+
+                      {/* Row 3: Status chip, priority chip, reply count */}
+                      <div className="r3">
+                        <span className="kx-st">
+                          <i style={{ background: st.color }} />
+                          {st.label}
+                        </span>
+
+                        {pin.priority && pin.priority !== 'normal' && (
+                          <span className="kx-st">
+                            <i style={{ background: pr.color }} />
+                            {pr.label}
+                          </span>
                         )}
 
-                        {/* Comment count indicator */}
                         {pin.commentsCount > 1 && (
-                          <p className="text-[11.5px] text-slate-400 mt-1">
-                            {pin.commentsCount - 1} {pin.commentsCount - 1 === 1 ? 'reply' : 'replies'}
-                          </p>
+                          <small className="rp">
+                            <Icon name="chat" size={12} />
+                            {pin.commentsCount - 1}
+                          </small>
                         )}
-
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })}
         </div>
 
+        {/* Bottom hint banner */}
+        <div className="kx-hint">
+          <Icon name="chat" size={14} />
+          <span>Click anywhere on the page to leave a comment</span>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 }

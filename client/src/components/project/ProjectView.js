@@ -26,6 +26,7 @@ import { toastError } from '../../utils/toast';
 import { getClientEnvironment } from "../../utils/clientEnv";
 import BrandMark from "../common/BrandMark";
 import TaskBoard from "./TaskBoard";
+import ReviewRail from "./ReviewRail";
 import { Logo, Icon, Badge, Button } from "../kc";
 
 // PDF viewer (react-pdf + pdf.js) is only downloaded for document projects
@@ -48,6 +49,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const canComment = (project.access === 'comment' || project.access === 'manage') && !orgLocked;
   const canManageProject = project.access === 'manage';
   const limits = user?.orgLimits || {};
+  const workspaceName = project.workspace?.name || project.workspaceName || user?.workspaceName || user?.companyName || 'Leanport';
 
   const [pins, setPins] = useState([]);
   const [allPins, setAllPins] = useState([]);
@@ -544,58 +546,54 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   }, []);
 
   const deviceButtons = (
-    <>
-    {/* Desktop */}
-    <button
-      onClick={() => handleDeviceChange('desktop')}
-      className={`flex h-7 w-8 items-center justify-center rounded-md transition-all duration-150 relative ${deviceMode === 'desktop' ? 'text-slate-800 bg-white shadow-sm font-semibold' : 'text-slate-400 hover:text-slate-600'}`}
-      title="Desktop (1440px)"
-    >
-      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25A2.25 2.25 0 015.25 3h13.5A2.25 2.25 0 0121 5.25z" />
-      </svg>
-      {devicePinCounts.desktop > 0 && deviceMode !== 'desktop' && (
-        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-      )}
-    </button>
-    {/* Tablet */}
-    <button
-      onClick={() => handleDeviceChange('tablet')}
-      className={`flex h-7 w-8 items-center justify-center rounded-md transition-all duration-150 relative ${deviceMode === 'tablet' ? 'text-slate-800 bg-white shadow-sm font-semibold' : 'text-slate-400 hover:text-slate-600'}`}
-      title="Tablet (768px)"
-    >
-      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5h3m-6.75 2.25h10.5a2.25 2.25 0 002.25-2.25V4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 4.5v15a2.25 2.25 0 002.25 2.25z" />
-      </svg>
-      {devicePinCounts.tablet > 0 && deviceMode !== 'tablet' && (
-        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-      )}
-    </button>
-    {/* Mobile */}
-    <button
-      onClick={() => handleDeviceChange('mobile')}
-      className={`flex h-7 w-8 items-center justify-center rounded-md transition-all duration-150 relative ${deviceMode === 'mobile' ? 'text-slate-800 bg-white shadow-sm font-semibold' : 'text-slate-400 hover:text-slate-600'}`}
-      title="Mobile (375px)"
-    >
-      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-      </svg>
-      {devicePinCounts.mobile > 0 && deviceMode !== 'mobile' && (
-        <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-      )}
-    </button>
-    </>
+    <div className="kr-seg" role="group" aria-label="Device">
+      {/* Desktop */}
+      <button
+        type="button"
+        onClick={() => handleDeviceChange('desktop')}
+        className={`kr-seg-b icon ${deviceMode === 'desktop' ? 'on' : ''}`}
+        title="Desktop (1440px)"
+        aria-label="Desktop"
+      >
+        <Icon name="monitor" size={16} />
+        {devicePinCounts.desktop > 0 && deviceMode !== 'desktop' && (
+          <i className="dot" />
+        )}
+      </button>
+      {/* Tablet */}
+      <button
+        type="button"
+        onClick={() => handleDeviceChange('tablet')}
+        className={`kr-seg-b icon ${deviceMode === 'tablet' ? 'on' : ''}`}
+        title="Tablet (768px)"
+        aria-label="Tablet"
+      >
+        <Icon name="tablet" size={16} />
+        {devicePinCounts.tablet > 0 && deviceMode !== 'tablet' && (
+          <i className="dot" />
+        )}
+      </button>
+      {/* Mobile */}
+      <button
+        type="button"
+        onClick={() => handleDeviceChange('mobile')}
+        className={`kr-seg-b icon ${deviceMode === 'mobile' ? 'on' : ''}`}
+        title="Mobile (375px)"
+        aria-label="Mobile"
+      >
+        <Icon name="phone" size={16} />
+        <i className="dot" />
+      </button>
+    </div>
   );
 
   const modeToggle = canComment ? (
-    <div className="flex h-8 items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200" role="group" aria-label="Mode">
+    <div className="kr-seg" role="group" aria-label="Mode">
       <button
         type="button"
         onClick={() => setPinMode(false)}
         aria-pressed={!pinMode}
-        className={`flex h-7 items-center gap-1.5 px-2.5 text-[12px] font-medium rounded-md whitespace-nowrap transition-all ${
-          !pinMode ? 'bg-white text-slate-900 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
-        }`}
+        className={`kr-seg-b ${!pinMode ? 'on' : ''}`}
       >
         <Icon name="eye" size={14} />
         <span>View</span>
@@ -604,9 +602,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         type="button"
         onClick={() => setPinMode(true)}
         aria-pressed={pinMode}
-        className={`flex h-7 items-center gap-1.5 px-2.5 text-[12px] font-medium rounded-md whitespace-nowrap transition-all ${
-          pinMode ? 'bg-blue-600 text-white shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
-        }`}
+        className={`kr-seg-b ${pinMode ? 'on accent' : ''}`}
       >
         <Icon name="chat" size={14} />
         <span>Comment</span>
@@ -615,145 +611,28 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   ) : null;
 
   return (
-    <div className="kc flex flex-col h-screen h-dvh bg-slate-50">
-      {/* Toolbar */}
-      <header className="bg-white border-b border-slate-200 px-4 h-14 flex items-center justify-between relative shrink-0">
-        {/* Left: Brand + Project + URL */}
-        {/* Stops before the centered device switcher; the URL pill truncates instead of running under it */}
-        <div className="flex items-center gap-3 min-w-0 z-10 md:max-w-[calc(50%-5rem)]">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors shrink-0 group"
-            title="Back to dashboard"
-          >
-            <Logo size={28} />
-            <Icon name="arrow" size={15} className="rotate-180 text-slate-400 group-hover:text-slate-700 transition-colors" />
-          </button>
-          <div className="w-px h-5 bg-slate-200 shrink-0"></div>
-          <h2 className="min-w-0 max-w-[160px] truncate font-semibold text-slate-900 text-[14px] sm:max-w-[220px] xl:max-w-none xl:shrink-0" title={project.name}>{project.name}</h2>
-          {project.projectStatus === 'approved' && <Badge status="approved" />}
-          {project.projectStatus === 'in_review' && <Badge status="review" />}
-          {project.projectStatus === 'changes_requested' && <Badge status="changes" />}
+    <div className="kc kr flex-row h-screen h-dvh overflow-hidden bg-white">
+      {/* 60px Dark Left Rail */}
+      <ReviewRail
+        active={viewLayout}
+        onNavigate={(target) => {
+          if (target === 'projects') navigate('/dashboard');
+          else if (target === 'canvas') setViewLayout('canvas');
+          else if (target === 'board') {
+            if (!limits.hasTaskWorkflow) {
+              navigate('/pricing');
+              return;
+            }
+            setViewLayout('board');
+          }
+        }}
+        projectId={project?._id}
+        user={user}
+        onSelectPin={handlePinNavigate}
+      />
 
-          {/* Canvas vs Board View Switcher */}
-          <div className="hidden sm:flex h-8 items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
-            <button
-              onClick={() => setViewLayout('canvas')}
-              className={`flex h-7 items-center gap-1.5 px-2.5 text-[12px] font-medium rounded-md transition-all ${
-                viewLayout === 'canvas' ? 'bg-white text-slate-900 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title="Canvas / Website view"
-            >
-              <Icon name="layers" size={14} />
-              <span>Canvas</span>
-            </button>
-            <button
-              onClick={() => {
-                if (!limits.hasTaskWorkflow) {
-                  navigate('/pricing');
-                  return;
-                }
-                setViewLayout('board');
-              }}
-              className={`flex h-7 items-center gap-1.5 px-2.5 text-[12px] font-medium rounded-md transition-all ${
-                viewLayout === 'board' ? 'bg-white text-slate-900 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-              title={limits.hasTaskWorkflow ? "Kanban Task Board" : "Kanban Task Board (Upgrade to Starter/Pro)"}
-            >
-              <Icon name="grid" size={14} />
-              <span>Board</span>
-              {!limits.hasTaskWorkflow && (
-                <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-1 rounded">PRO</span>
-              )}
-            </button>
-          </div>
-          <div className="hidden xl:flex h-8 items-center gap-1.5 text-[12px] text-slate-500 bg-slate-100/70 pl-2.5 pr-3 rounded-lg truncate max-w-md border border-slate-200 hover:bg-slate-100 transition-colors cursor-default" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
-            <Icon name={isDocumentProject ? "doc" : "globe"} size={14} className="text-slate-400 shrink-0" />
-            <span className="truncate">{isDocumentProject ? `${currentDoc?.originalName} — Page ${currentDocPage}` : currentPageUrl}</span>
-          </div>
-        </div>
-
-        {/* Center: Device switcher — absolutely centered so it doesn't shift with URL length */}
-        {!isDocumentProject ? (
-          <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-8 items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200 gap-0.5">
-            {deviceButtons}
-          </div>
-        ) : (
-          <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 text-[12px] text-slate-600 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
-            <Icon name="doc" size={14} className="text-slate-500" />
-            Document
-          </div>
-        )}
-
-        {/* Right: Mode toggle + Avatars + Invite */}
-        <div className="flex shrink-0 items-center gap-2 md:gap-3 z-10">
-          {/* View / Comment mode toggle */}
-          <div className="hidden md:block">{modeToggle}</div>
-
-          {/* Member avatars */}
-          <MembersPresencePopover entries={memberPresence}>
-          <div tabIndex={0} className="hidden lg:flex items-center -space-x-1.5 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
-            {memberPresence.slice(0, 5).map((p) => (
-              <div key={p.member._id} className="relative transition-transform hover:-translate-y-0.5 hover:z-10">
-                <div className={`w-7 h-7 rounded-full ${p.color.bg} ${p.color.text} flex items-center justify-center text-[11px] font-semibold border-2 border-white shadow-xs`}>
-                  {p.initials}
-                </div>
-                <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${
-                  p.isOnline ? 'bg-emerald-500' : 'bg-slate-300'
-                }`} />
-              </div>
-            ))}
-            {memberPresence.length > 5 && (
-              <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-semibold border-2 border-white">
-                +{memberPresence.length - 5}
-              </div>
-            )}
-          </div>
-          </MembersPresencePopover>
-
-          {/* Bell Notifications */}
-          <NotificationBell variant="detailed" projectId={project?._id} onSelectPin={handlePinNavigate} />
-
-          <div className="hidden md:block w-px h-5 bg-slate-200"></div>
-
-          {canManageProject && (
-            <Button
-              variant="secondary"
-              icon="external"
-              onClick={() => setShowShare(true)}
-              title="Share with guests"
-            >
-              <span className="hidden lg:inline">Share</span>
-            </Button>
-          )}
-
-          {canManageProject && (
-            <Button
-              variant="primary"
-              icon="plus"
-              onClick={() => setShowInvite(true)}
-              title="Invite people"
-            >
-              <span className="hidden lg:inline">Invite</span>
-            </Button>
-          )}
-        </div>
-      </header>
-
-      {/* Phones: device size and mode under the toolbar */}
-      {(!isDocumentProject || modeToggle) && (
-        <div className="md:hidden flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2">
-          {!isDocumentProject ? (
-            <div className="flex h-8 items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200 gap-0.5">{deviceButtons}</div>
-          ) : <span />}
-          {modeToggle}
-        </div>
-      )}
-
-      {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left sidebar */}
-        <div className={`${mobilePane === 'comments' ? 'flex' : 'hidden'} md:flex w-full md:w-auto shrink-0`}>
+      {/* Left Feedback Panel / Sidebar */}
+      <div className={`${mobilePane === 'comments' ? 'flex' : 'hidden'} md:flex w-full md:w-[320px] shrink-0 h-full min-h-0`}>
         {sidebarTab === 'pins' ? (
           <PinListSidebar
             readOnly={!canComment}
@@ -775,7 +654,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             onTabChange={setSidebarTab}
           />
         ) : (
-          <div className="w-full md:w-80 shrink-0 bg-white border-r border-slate-200 flex flex-col h-full overflow-hidden">
+          <div className="w-full md:w-[320px] shrink-0 bg-white border-r border-slate-200 flex flex-col h-full overflow-hidden">
             <SidebarTabs active={sidebarTab} onChange={setSidebarTab} />
             {sidebarTab === 'activity' && (isTabLocked('activity', limits) ? (
               <LockedFeature
@@ -800,11 +679,101 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             )}
           </div>
         )}
+      </div>
 
-        </div>
+      {/* Right Column: kr-main (ReviewTopBar + kr-stage) */}
+      <div className={`${mobilePane === 'page' ? 'flex' : 'hidden md:flex'} kr-main flex-1 min-w-0 flex-col h-full min-h-0 relative`}>
+        {/* Review Top Bar */}
+        <header className="kr-top relative shrink-0">
+          {/* Left: Workspace / Project + Status + URL */}
+          <div className="grp">
+            <span className="ws">{workspaceName} <span className="sep">/</span></span>
+            <span className="name truncate max-w-[200px]" title={project.name}>{project.name}</span>
+            {project.projectStatus === 'approved' && <Badge status="approved" />}
+            {project.projectStatus === 'in_review' && <Badge status="review" />}
+            {project.projectStatus === 'changes_requested' && <Badge status="changes" />}
+            <span className="kr-url hidden xl:inline-flex" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
+              <Icon name={isDocumentProject ? "doc" : "globe"} size={14} />
+              <span className="truncate">{isDocumentProject ? `${currentDoc?.originalName} — Page ${currentDocPage}` : currentPageUrl}</span>
+            </span>
+          </div>
 
-        {/* Content area */}
-        <div className={`${mobilePane === 'page' ? 'block' : 'hidden'} md:block flex-1 min-w-0 relative`}>
+          <span className="sp" style={{ flex: 1 }} />
+
+          {/* Center: Device Switcher */}
+          {!isDocumentProject ? (
+            <div className="hidden md:inline-flex">
+              {deviceButtons}
+            </div>
+          ) : (
+            <div className="hidden lg:flex items-center gap-1.5 text-[12px] text-slate-600 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+              <Icon name="doc" size={14} className="text-slate-500" />
+              Document
+            </div>
+          )}
+
+          <span className="sp" style={{ flex: 1 }} />
+
+          {/* Right: Mode Toggle + Members Presence + Share + Invite */}
+          <div className="flex shrink-0 items-center gap-2 md:gap-3">
+            {/* View / Comment mode toggle */}
+            <div className="hidden md:block">{modeToggle}</div>
+
+            {/* Member avatars */}
+            <MembersPresencePopover entries={memberPresence}>
+              <div tabIndex={0} className="hidden lg:flex items-center -space-x-1.5 cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                {memberPresence.slice(0, 5).map((p) => (
+                  <div key={p.member._id} className="relative transition-transform hover:-translate-y-0.5 hover:z-10">
+                    <div className={`w-7 h-7 rounded-full ${p.color.bg} ${p.color.text} flex items-center justify-center text-[11px] font-semibold border-2 border-white shadow-xs`}>
+                      {p.initials}
+                    </div>
+                    <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-white ${
+                      p.isOnline ? 'bg-emerald-500' : 'bg-slate-300'
+                    }`} />
+                  </div>
+                ))}
+                {memberPresence.length > 5 && (
+                  <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[11px] font-semibold border-2 border-white">
+                    +{memberPresence.length - 5}
+                  </div>
+                )}
+              </div>
+            </MembersPresencePopover>
+
+            {canManageProject && (
+              <Button
+                variant="secondary"
+                icon="share"
+                onClick={() => setShowShare(true)}
+                title="Share with guests"
+              >
+                <span className="hidden lg:inline">Share</span>
+              </Button>
+            )}
+
+            {canManageProject && (
+              <Button
+                variant="primary"
+                icon="userplus"
+                onClick={() => setShowInvite(true)}
+                title="Invite people"
+              >
+                <span className="hidden lg:inline">Invite</span>
+              </Button>
+            )}
+          </div>
+        </header>
+
+        {/* Phones: device size and mode under the toolbar */}
+        {(!isDocumentProject || canComment) && (
+          <div className="md:hidden flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2 shrink-0">
+            {!isDocumentProject ? deviceButtons : <span />}
+            {modeToggle}
+          </div>
+        )}
+
+        {/* Content / Stage area */}
+        <div className="kr-stage flex-1 min-w-0 relative">
           {viewLayout === 'board' ? (
             <TaskBoard
               projectId={project?._id}
