@@ -314,7 +314,7 @@ function Shell() {
               <React.Fragment key={i}>
                 {i > 0 && <span className="sep" aria-hidden="true">/</span>}
                 {c && c.ws ? (
-                  <span className="kc-crumb-ws"><Tile letter={c.ws.name} tone={workspaceTone(c.ws.name)} size={18} /><span>{c.ws.name}</span></span>
+                  <span className="kc-crumb-ws"><Tile letter={c.ws.name} tone={workspaceTone(c.ws, undefined, workspaces)} size={18} /><span>{c.ws.name}</span></span>
                 ) : i === crumbs.length - 1 ? <b aria-current="page">{c}</b> : <span>{c}</span>}
               </React.Fragment>
             ))}

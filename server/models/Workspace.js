@@ -20,6 +20,11 @@ const workspaceSchema = new Schema({
     type: Boolean,
     default: false,
   },
+  color: {
+    type: String,
+    enum: ['blue', 'green', 'amber', 'purple', 'rose', 'teal', 'indigo', 'orange', 'cyan', 'pink'],
+    default: null,
+  },
   createdBy: {
     type: Schema.Types.ObjectId,
     ref: 'User',

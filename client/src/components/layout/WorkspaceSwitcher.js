@@ -3,16 +3,27 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useWorkspaces } from '../../contexts/WorkspaceContext';
 import { toast, toastError } from '../../utils/toast';
-import { Icon, Menu, Tile, tileTone, useDismiss, Button, Input } from '../kc';
+import { Icon, Menu, Tile, tileTone, useDismiss, Button, Input, TILE_TONES } from '../kc';
 
-// Workspace tile tones (design system: tile-blue, tile-green, tile-amber,
-// tile-rose), stable per workspace name so a workspace looks the same everywhere
-const TILE_CLASSES = { blue: 'bg-blue-600', green: 'bg-emerald-600', amber: 'bg-amber-500', rose: 'bg-rose-500' };
-export function workspaceTone(name = '') {
-  return tileTone(undefined, name);
+// Workspace tile tones (blue, green, amber, purple, rose, teal, indigo)
+// Assigned by workspace index in the organization so each workspace gets a distinct color
+const TILE_CLASSES = {
+  blue: 'bg-blue-600',
+  green: 'bg-emerald-600',
+  amber: 'bg-amber-500',
+  purple: 'bg-purple-600',
+  rose: 'bg-rose-500',
+  teal: 'bg-teal-600',
+  indigo: 'bg-indigo-600',
+};
+
+export function workspaceTone(name = '', index) {
+  if (typeof index === 'number' && index >= 0) return TILE_TONES[index % TILE_TONES.length];
+  return tileTone(index, name);
 }
-export function workspaceColor(name = '') {
-  return TILE_CLASSES[workspaceTone(name)];
+
+export function workspaceColor(name = '', index) {
+  return TILE_CLASSES[workspaceTone(name, index)] || 'bg-blue-600';
 }
 
 export function WorkspaceTile({ name, className = 'w-8 h-8 text-body-sm' }) {
@@ -66,12 +77,14 @@ export default function WorkspaceSwitcher({ onNavigate }) {
 
   const name = current?.name || user?.orgName || 'Workspace';
   const count = current?.projectCount;
+  const currentIdx = workspaces.findIndex((w) => w._id === current?._id);
+  const currentTone = workspaceTone(name, currentIdx >= 0 ? currentIdx : undefined);
 
   const items = [
     { header: `Workspaces in ${user?.orgName || 'your organization'}` },
-    ...workspaces.map((w) => ({
+    ...workspaces.map((w, index) => ({
       label: w.name,
-      tile: workspaceTone(w.name),
+      tile: workspaceTone(w.name, index),
       checked: current?._id === w._id,
       meta: current?._id === w._id ? undefined : w.projectCount,
       onClick: () => go(w._id),
@@ -117,7 +130,7 @@ export default function WorkspaceSwitcher({ onNavigate }) {
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <Tile letter={name} tone={workspaceTone(name)} size={28} />
+        <Tile letter={name} tone={currentTone} size={28} />
         <span style={{ minWidth: 0, flex: 1 }}>
           <div className="name">{name}</div>
           <div className="sub">{count != null ? `${count} project${count === 1 ? '' : 's'}` : user?.orgName}</div>

@@ -62,15 +62,15 @@ export function WorkspaceProvider({ children }) {
     if (orgId) writeStored(orgId, id);
   }, [orgId]);
 
-  const create = useCallback(async (name) => {
-    const res = await createWorkspaceApi(name);
+  const create = useCallback(async (data) => {
+    const res = await createWorkspaceApi(data);
     await refresh();
     select(res.data.workspace._id);
     return res.data.workspace;
   }, [refresh, select]);
 
-  const rename = useCallback(async (id, name) => {
-    await renameWorkspaceApi(id, name);
+  const rename = useCallback(async (id, data) => {
+    await renameWorkspaceApi(id, data);
     await refresh();
   }, [refresh]);
 

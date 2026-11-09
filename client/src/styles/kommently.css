@@ -56,7 +56,13 @@
   --tile-blue:var(--brand-600);
   --tile-green:#059669;
   --tile-amber:var(--warning-500);
+  --tile-purple:#8b5cf6;
   --tile-rose:#f43f5e;
+  --tile-teal:#0d9488;
+  --tile-indigo:#4f46e5;
+  --tile-orange:#ea580c;
+  --tile-cyan:#06b6d4;
+  --tile-pink:#ec4899;
   --space-1:4px;
   --space-2:8px;
   --space-3:12px;
@@ -150,7 +156,17 @@
 .kc-av.green { background: #047857; } .kc-av.amber { background: var(--warning-700); } .kc-av.slate { background: var(--slate-600); } .kc-av.rose { background: #be123c; }
 .kc-avs { display: inline-flex; } .kc-avs .kc-av { margin-left: -6px; } .kc-avs .kc-av:first-child { margin-left: 0; }
 .kc-tile { display: inline-grid; place-items: center; border-radius: var(--radius-sm); color: var(--on-brand); font-weight: 600; flex-shrink: 0; }
-.kc-tile.blue { background: var(--tile-blue); } .kc-tile.green { background: var(--tile-green); } .kc-tile.amber { background: var(--tile-amber); } .kc-tile.rose { background: var(--tile-rose); } .kc-tile.slate { background: var(--slate-700); }
+.kc-tile.blue { background: var(--tile-blue); }
+.kc-tile.green { background: var(--tile-green); }
+.kc-tile.amber { background: var(--tile-amber); }
+.kc-tile.purple { background: var(--tile-purple); }
+.kc-tile.rose { background: var(--tile-rose); }
+.kc-tile.teal { background: var(--tile-teal); }
+.kc-tile.indigo { background: var(--tile-indigo); }
+.kc-tile.orange { background: var(--tile-orange); }
+.kc-tile.cyan { background: var(--tile-cyan); }
+.kc-tile.pink { background: var(--tile-pink); }
+.kc-tile.slate { background: var(--slate-700); }
 
 /* ---------- nav items (context panel, menus) ---------- */
 .kc-nav { display: flex; flex-direction: column; gap: 2px; }

@@ -82,7 +82,9 @@ exports.createWorkspace = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'A workspace with this name already exists' });
   }
 
-  const workspace = await Workspace.create({ organization: orgId, name, createdBy: req.user._id });
+  const VALID_COLORS = ['blue', 'green', 'amber', 'purple', 'rose', 'teal', 'indigo', 'orange', 'cyan', 'pink'];
+  const color = typeof req.body?.color === 'string' && VALID_COLORS.includes(req.body.color) ? req.body.color : undefined;
+  const workspace = await Workspace.create({ organization: orgId, name, color, createdBy: req.user._id });
   logOrgActivity(orgId, req.user._id, 'workspace.created', { name });
   res.status(201).json({ workspace: { ...workspace.toObject(), projectCount: 0 } });
 });
@@ -105,6 +107,10 @@ exports.updateWorkspace = asyncHandler(async (req, res) => {
 
   const oldName = workspace.name;
   workspace.name = name;
+  const VALID_COLORS = ['blue', 'green', 'amber', 'purple', 'rose', 'teal', 'indigo', 'orange', 'cyan', 'pink'];
+  if (req.body?.color !== undefined) {
+    workspace.color = VALID_COLORS.includes(req.body.color) ? req.body.color : null;
+  }
   await workspace.save();
   logOrgActivity(orgId, req.user._id, 'workspace.renamed', { from: oldName, name });
   res.json({ workspace });

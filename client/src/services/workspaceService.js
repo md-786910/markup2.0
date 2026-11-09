@@ -3,9 +3,11 @@ import { track } from '../monitoring/analytics';
 
 export const getWorkspacesApi = () => api.get('/workspaces');
 
-export const createWorkspaceApi = (name) => api.post('/workspaces', { name });
+export const createWorkspaceApi = (data) =>
+  api.post('/workspaces', typeof data === 'string' ? { name: data } : data);
 
-export const renameWorkspaceApi = (workspaceId, name) => api.patch(`/workspaces/${workspaceId}`, { name });
+export const renameWorkspaceApi = (workspaceId, data) =>
+  api.patch(`/workspaces/${workspaceId}`, typeof data === 'string' ? { name: data } : data);
 
 export const deleteWorkspaceApi = (workspaceId) => api.delete(`/workspaces/${workspaceId}`);
 

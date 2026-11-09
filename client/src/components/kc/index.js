@@ -290,10 +290,22 @@ export function AvatarStack({ people = [], max = 3 }) {
   );
 }
 
-// Workspace tiles: blue, green, amber, rose in order of the org's workspaces
-export const TILE_TONES = ['blue', 'green', 'amber', 'rose'];
+// Workspace tiles: blue, green, amber, purple, rose, teal, indigo, orange, cyan, pink
+export const TILE_TONES = [
+  'blue',
+  'green',
+  'amber',
+  'purple',
+  'rose',
+  'teal',
+  'indigo',
+  'orange',
+  'cyan',
+  'pink',
+];
 export function tileTone(index, name) {
   if (typeof index === 'number' && index >= 0) return TILE_TONES[index % TILE_TONES.length];
+  if (!name) return TILE_TONES[0];
   return TILE_TONES[toneFor(name) % TILE_TONES.length];
 }
 export function Tile({ name, letter, tone = 'blue', size = 28 }) {

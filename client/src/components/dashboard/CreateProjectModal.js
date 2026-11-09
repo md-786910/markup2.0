@@ -83,7 +83,7 @@ export default function CreateProjectModal({ isOpen, defaultType = 'website', on
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--slate-500)', marginBottom: 16 }}>
           <span>In workspace:</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 500, color: 'var(--text)' }}>
-            <Tile letter={workspace.name} tone={workspaceTone(workspace.name)} size={18} />
+            <Tile letter={workspace.name} tone={workspaceTone(workspace)} size={18} />
             {workspace.name}
           </span>
         </div>

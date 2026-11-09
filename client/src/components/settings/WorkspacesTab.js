@@ -6,19 +6,20 @@ import { confirmDialog } from '../../utils/confirm';
 import { toast, toastError } from '../../utils/toast';
 import { WorkspaceMembersDialog, WorkspaceShareDialog } from './WorkspaceDialogs';
 import Modal from '../common/Modal';
-import { Badge, Button, DataTable, Field, Input, RowMenu, Section, Tile } from '../kc';
+import { Badge, Button, DataTable, Field, Icon, Input, RowMenu, Section, Tile, TILE_TONES } from '../kc';
 import SettingsLayout, { Muted } from './SettingsLayout';
 
-// Create or rename a workspace (one dialog for both)
-function NameDialog({ title, initial = '', submitLabel, onSubmit, onClose }) {
+// Create or rename a workspace (one dialog for both) with name and color selection
+function NameDialog({ title, initial = '', initialColor = '', submitLabel, onSubmit, onClose, count = 0 }) {
   const [name, setName] = useState(initial);
+  const [color, setColor] = useState(initialColor || TILE_TONES[count % TILE_TONES.length] || 'blue');
   const [saving, setSaving] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await onSubmit(name.trim());
+      await onSubmit({ name: name.trim(), color });
     } finally {
       setSaving(false);
     }
@@ -29,9 +30,40 @@ function NameDialog({ title, initial = '', submitLabel, onSubmit, onClose }) {
         <Field id="workspace-name" label="Name" hint="For example a client, a team or a product.">
           <Input id="workspace-name" autoFocus value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="Client X" />
         </Field>
+        <div>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 8 }}>
+            Workspace color
+          </label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {TILE_TONES.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setColor(t)}
+                className={`kc-tile ${t}`}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 7,
+                  border: color === t ? '2px solid var(--text)' : '2px solid transparent',
+                  boxShadow: color === t ? '0 0 0 2px var(--surface)' : 'none',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                }}
+                aria-label={t}
+              >
+                {color === t ? <Icon name="check" size={14} stroke={2.5} /> : null}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="primary" loading={saving} disabled={!name.trim() || name.trim() === initial}>{submitLabel}</Button>
+          <Button type="submit" variant="primary" loading={saving} disabled={!name.trim() || (name.trim() === initial && color === initialColor)}>{submitLabel}</Button>
         </div>
       </form>
     </Modal>
@@ -51,9 +83,9 @@ export default function WorkspacesTab() {
   const [search, setSearch] = useState('');
   const defaultName = allWorkspaces.find((w) => w.isDefault)?.name || 'the default workspace';
 
-  const handleCreate = async (name) => {
+  const handleCreate = async (data) => {
     try {
-      const ws = await create(name);
+      const ws = await create(data);
       setCreateOpen(false);
       toast.success(`Workspace "${ws.name}" created.`);
     } catch (err) {
@@ -61,13 +93,13 @@ export default function WorkspacesTab() {
     }
   };
 
-  const handleRename = async (name) => {
+  const handleRename = async (data) => {
     try {
-      await rename(renameFor._id, name);
+      await rename(renameFor._id, data);
       setRenameFor(null);
-      toast.success('Workspace renamed.');
+      toast.success('Workspace updated.');
     } catch (err) {
-      toastError(err, 'Could not rename the workspace.');
+      toastError(err, 'Could not update the workspace.');
     }
   };
 
@@ -94,9 +126,9 @@ export default function WorkspacesTab() {
     {
       key: 'name',
       label: 'Workspace',
-      render: (w) => (
+      render: (w, idx) => (
         <div className="flex items-center gap-2.5 min-w-0">
-          <Tile letter={w.name} tone={workspaceTone(w.name)} size={28} />
+          <Tile letter={w.name} tone={workspaceTone(w, idx, allWorkspaces)} size={28} />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="font-medium text-gray-900 truncate">{w.name}</span>
@@ -126,7 +158,7 @@ export default function WorkspacesTab() {
             <RowMenu
               label={`More for ${w.name}`}
               items={[
-                { label: 'Rename', icon: 'edit', onClick: () => setRenameFor(w) },
+                { label: 'Rename & color', icon: 'edit', onClick: () => setRenameFor(w) },
                 !w.isDefault && { divider: true },
                 !w.isDefault && { label: 'Delete workspace', icon: 'trash', tone: 'danger', onClick: () => handleDelete(w) },
               ]}
@@ -155,10 +187,17 @@ export default function WorkspacesTab() {
       </Section>
 
       {createOpen && (
-        <NameDialog title="New workspace" submitLabel="Create workspace" onSubmit={handleCreate} onClose={() => setCreateOpen(false)} />
+        <NameDialog title="New workspace" submitLabel="Create workspace" onSubmit={handleCreate} onClose={() => setCreateOpen(false)} count={allWorkspaces.length} />
       )}
       {renameFor && (
-        <NameDialog title="Rename workspace" initial={renameFor.name} submitLabel="Save changes" onSubmit={handleRename} onClose={() => setRenameFor(null)} />
+        <NameDialog
+          title="Edit workspace"
+          initial={renameFor.name}
+          initialColor={renameFor.color || workspaceTone(renameFor, undefined, allWorkspaces)}
+          submitLabel="Save changes"
+          onSubmit={handleRename}
+          onClose={() => setRenameFor(null)}
+        />
       )}
       {membersFor && (
         <WorkspaceMembersDialog workspace={membersFor} onClose={() => setMembersFor(null)} onSaved={() => refresh().catch(() => {})} />
