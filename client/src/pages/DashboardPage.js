@@ -74,6 +74,17 @@ export default function DashboardPage() {
   const [editingProject, setEditingProject] = useState(null);
   const initialLoadDone = useRef(false);
   const [filters, setFilters] = useState({ ownership: null, search: '', dateRange: DEFAULT_DATE_RANGE });
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const main = document.getElementById('main');
+    if (!main) return;
+    const onScroll = () => {
+      setIsScrolled(main.scrollTop > 50);
+    };
+    main.addEventListener('scroll', onScroll, { passive: true });
+    return () => main.removeEventListener('scroll', onScroll);
+  }, []);
 
   const setParam = useCallback((key, value) => {
     setSearchParams((prev) => {
@@ -232,6 +243,10 @@ export default function DashboardPage() {
     emptyAction = <Button onClick={() => { setFilters({ ownership: null, search: '', dateRange: DEFAULT_DATE_RANGE }); setParam('type', null); }}>Clear filters</Button>;
   }
 
+  const newProjectAction = tab !== 'archived' && canCreateHere ? (
+    <NewProjectDropdown onSelect={openCreate} />
+  ) : null;
+
   return (
     <div>
       {tab !== 'archived' && <TrialDashboardBanner />}
@@ -239,7 +254,7 @@ export default function DashboardPage() {
       <PageHeader
         title={title}
         subtitle={subtitle}
-        actions={tab !== 'archived' && canCreateHere ? <NewProjectDropdown onSelect={openCreate} /> : null}
+        actions={newProjectAction}
       />
 
       {(tab !== 'archived' || archivedProjects.length > 10 || extraFilterCount > 0) && (
@@ -253,6 +268,8 @@ export default function DashboardPage() {
             setFilters({ ownership: next.ownership, search: next.search, dateRange: next.dateRange });
           }}
           activeFilterCount={extraFilterCount}
+          action={isScrolled ? newProjectAction : null}
+          isSticky={isScrolled}
         />
       )}
 

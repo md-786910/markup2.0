@@ -818,6 +818,155 @@
   flex-wrap: wrap;
 }
 
+.kc-filter-sticky {
+  position: sticky;
+  top: calc(-1 * var(--space-6));
+  z-index: 10;
+  background: transparent;
+  padding: 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid transparent;
+  transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease, padding .15s ease;
+}
+
+.kc-filter-sticky.is-stuck {
+  background: var(--surface);
+  border-bottom-color: var(--border);
+  box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.07);
+  padding: 10px var(--space-7);
+  margin-left: calc(-1 * var(--space-7));
+  margin-right: calc(-1 * var(--space-7));
+}
+
+.kc-filter-sticky-action {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  animation: kc-fade-in .15s ease;
+}
+
+/* Responsive toolbar layout */
+.kc-fb-wrap {
+  width: 100%;
+}
+
+.kc-fb-status,
+.kc-fb-dropdowns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kc-fb-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 1. Large desktop (>= 1180px): everything in ONE single row */
+@media (min-width: 1180px) {
+  .kc-fb-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .kc-fb-row-top {
+    display: contents;
+  }
+  .kc-fb-status {
+    order: 1;
+    flex-shrink: 0;
+  }
+  .kc-fb-dropdowns {
+    order: 2;
+    flex-shrink: 0;
+  }
+  .kc-fb-end {
+    order: 3;
+    margin-left: auto;
+  }
+}
+
+/* 2. Tablet (641px - 1179px): two clean rows without clipping */
+@media (max-width: 1179px) and (min-width: 641px) {
+  .kc-fb-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .kc-fb-row-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+  }
+  .kc-fb-status {
+    flex-wrap: wrap;
+  }
+  .kc-fb-dropdowns {
+    flex-wrap: wrap;
+  }
+}
+
+/* 3. Mobile (<= 640px): stacked clean rows without clipping dropdowns */
+@media (max-width: 640px) {
+  .kc-filter-sticky {
+    top: calc(-1 * var(--space-4));
+  }
+  .kc-filter-sticky.is-stuck {
+    padding: 10px var(--space-4);
+    margin-left: calc(-1 * var(--space-4));
+    margin-right: calc(-1 * var(--space-4));
+  }
+  .kc-fb-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .kc-fb-row-top {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+  .kc-fb-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .kc-fb-dropdowns {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .kc-fb-end {
+    margin-left: 0;
+    width: 100%;
+    display: flex;
+  }
+  .kc-fb-end .kc-filter-search {
+    flex: 1;
+    width: auto;
+  }
+}
+
+@keyframes kc-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .kc-pill {
   display: inline-flex;
   align-items: center;

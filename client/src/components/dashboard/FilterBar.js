@@ -98,42 +98,65 @@ function SearchInput({ value, onChange }) {
 
 // Projects toolbar: review status pills (All first, then workflow order),
 // menu pills for type, owner and date, and search on the right.
-export default function FilterBar({ status, onStatusChange, filters, onFiltersChange, activeFilterCount, showStatus = true }) {
+export default function FilterBar({ status, onStatusChange, filters, onFiltersChange, activeFilterCount, showStatus = true, action, isSticky = false }) {
   const [dateOpen, setDateOpen] = useState(false);
   const update = (key, value) => onFiltersChange({ ...filters, [key]: value });
 
+  const statusItems = showStatus ? [
+    { id: 'all', label: 'All' },
+    { id: 'in_review', label: 'In review' },
+    { id: 'changes_requested', label: 'Changes requested' },
+    { id: 'approved', label: 'Approved' },
+  ] : [];
+
   return (
-    <FilterPills
-      label="Filter projects"
-      value={showStatus ? status || 'all' : null}
-      onChange={(id) => onStatusChange(id === 'all' ? null : id)}
-      items={showStatus ? [
-        { id: 'all', label: 'All' },
-        { id: 'in_review', label: 'In review' },
-        { id: 'changes_requested', label: 'Changes requested' },
-        { id: 'approved', label: 'Approved' },
-      ] : []}
-      end={<SearchInput value={filters.search} onChange={(v) => update('search', v)} />}
-    >
-      <PillMenu label="Websites and documents" icon="globe" allLabel="Websites and documents" options={PROJECT_TYPES} value={filters.type} onChange={(v) => update('type', v)} />
-      <PillMenu label="Anyone's" icon="user" allLabel="Anyone's" options={OWNERSHIP_OPTIONS} value={filters.ownership} onChange={(v) => update('ownership', v)} />
-      <DateFilterDropdown
-        value={filters.dateRange}
-        onChange={(v) => update('dateRange', v)}
-        isOpen={dateOpen}
-        onToggle={() => setDateOpen((o) => !o)}
-        onClose={() => setDateOpen(false)}
-      />
-      {activeFilterCount > 0 && (
-        <button
-          type="button"
-          className="kc-link"
-          style={{ fontSize: 12.5, padding: '0 4px' }}
-          onClick={() => onFiltersChange({ ...filters, type: null, ownership: null, search: '', dateRange: { preset: null, start: '', end: '' } })}
-        >
-          Clear filters
-        </button>
-      )}
-    </FilterPills>
+    <div className={cx('kc-filter-sticky', isSticky && 'is-stuck')}>
+      <div className="kc-fb-wrap" role="toolbar" aria-label="Filter projects">
+        <div className="kc-fb-row-top">
+          <div className="kc-fb-status" role="group" aria-label="Review status">
+            {statusItems.map((it) => {
+              const on = it.id === (status || 'all');
+              return (
+                <button
+                  key={it.id}
+                  type="button"
+                  className={cx('kc-pill', on && 'on')}
+                  aria-pressed={on}
+                  onClick={() => onStatusChange(it.id === 'all' ? null : it.id)}
+                >
+                  {it.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="kc-fb-end">
+            <SearchInput value={filters.search} onChange={(v) => update('search', v)} />
+            {action ? <div className="kc-filter-sticky-action">{action}</div> : null}
+          </div>
+        </div>
+
+        <div className="kc-fb-dropdowns" role="group" aria-label="Project attributes">
+          <PillMenu label="Websites and documents" icon="globe" allLabel="Websites and documents" options={PROJECT_TYPES} value={filters.type} onChange={(v) => update('type', v)} />
+          <PillMenu label="Anyone's" icon="user" allLabel="Anyone's" options={OWNERSHIP_OPTIONS} value={filters.ownership} onChange={(v) => update('ownership', v)} />
+          <DateFilterDropdown
+            value={filters.dateRange}
+            onChange={(v) => update('dateRange', v)}
+            isOpen={dateOpen}
+            onToggle={() => setDateOpen((o) => !o)}
+            onClose={() => setDateOpen(false)}
+          />
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              className="kc-link"
+              style={{ fontSize: 12.5, padding: '0 4px', whiteSpace: 'nowrap' }}
+              onClick={() => onFiltersChange({ ...filters, type: null, ownership: null, search: '', dateRange: { preset: null, start: '', end: '' } })}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
