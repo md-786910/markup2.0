@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { HeroEditorial, SHOTS } from '../components/site/heroes';
 import {
   SiteLayout, Shot, StepList, FeatureGrid, FeatureSplit, IntegrationGrid, CTABand,
+  CTA, Icon, SmartLink, TRIAL,
 } from '../components/site';
 
 // Home page, built to sell: every section shows the real product (screens
@@ -28,20 +29,60 @@ export default function LandingPage() {
 
       <FeatureSplit
         tone="light"
-        eyebrow="Task board"
+        pill="Task board"
+        glow
         title="Every comment becomes a task"
         text="Pins carry a status, priority, assignee, due date and labels. Move them from Open to In progress, In review and Resolved, and see what is overdue at a glance."
         points={['Filter by assignee and priority', 'Due dates with an overdue count', 'Add your own columns']}
+        actions={
+          <>
+            <CTA href={TRIAL.href} icon="arrow">{TRIAL.label}</CTA>
+            <SmartLink className="km-hb-link" href="/website-review">
+              See live review <Icon name="arrow" size={16} stroke={2} />
+            </SmartLink>
+          </>
+        }
+        float={
+          <>
+            <span className="km-split-widget-badge">
+              <Icon name="check" size={16} stroke={3} />
+            </span>
+            <div className="km-split-widget-text">
+              <b>Pin #3 Resolved</b>
+              <small>Synced to Slack &amp; Jira automatically</small>
+            </div>
+          </>
+        }
         visual={<Shot {...SHOTS.board} />}
       />
 
       <FeatureSplit
         tone="muted"
         reverse
-        eyebrow="Projects and workspaces"
+        pill="Projects and workspaces"
+        glow
         title="Every client and project in one place"
         text="Keep each client's websites and documents in their own workspace. Every card shows its review status and how many pins are open or resolved."
         points={['In review, Changes requested and Approved', 'Archive finished work, restore it any time', 'Jump anywhere with Ctrl K']}
+        actions={
+          <>
+            <CTA href={TRIAL.href} icon="arrow">{TRIAL.label}</CTA>
+            <SmartLink className="km-hb-link" href="/teams">
+              Explore workspaces <Icon name="arrow" size={16} stroke={2} />
+            </SmartLink>
+          </>
+        }
+        float={
+          <>
+            <span className="km-split-widget-badge" style={{ background: 'var(--brand-600)', boxShadow: '0 2px 8px rgba(0,61,255,0.3)' }}>
+              <Icon name="layers" size={16} stroke={2.4} />
+            </span>
+            <div className="km-split-widget-text">
+              <b>Acme Studio</b>
+              <small>3 active projects · 18 resolved</small>
+            </div>
+          </>
+        }
         visual={<Shot {...SHOTS.projects} />}
       />
 

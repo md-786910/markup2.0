@@ -15,11 +15,48 @@ export const TRIAL = { label: 'Start free trial', href: `${APP_URL}/onboarding` 
 export const LOGIN_HREF = `${APP_URL}/login`;
 
 export const PRODUCT_LINKS = [
-  { label: 'Website review', href: '/website-review', icon: 'globe' },
-  { label: 'Document review', href: '/document-review', icon: 'doc' },
-  { label: 'Approvals', href: '/approvals', icon: 'okc' },
-  { label: 'Integrations', href: '/integrations', icon: 'link' },
-  { label: 'Teams and clients', href: '/teams', icon: 'team' },
+  {
+    label: 'Website review',
+    href: '/website-review',
+    icon: 'globe',
+    tone: 'blue',
+    desc: 'Pin comments on live websites, staging, and web apps.',
+  },
+  {
+    label: 'Document review',
+    href: '/document-review',
+    icon: 'doc',
+    tone: 'indigo',
+    desc: 'Review PDFs, images, and mockups with numbered pins.',
+  },
+  {
+    label: 'Approvals & status',
+    href: '/approvals',
+    icon: 'okc',
+    tone: 'green',
+    desc: 'Track projects across In review, Changes, and Approved.',
+  },
+  {
+    label: 'Integrations',
+    href: '/integrations',
+    icon: 'link',
+    tone: 'amber',
+    desc: 'Sync pins and comments to Slack, Jira, Discord, and Teams.',
+  },
+  {
+    label: 'Teams and clients',
+    href: '/teams',
+    icon: 'team',
+    tone: 'rose',
+    desc: 'Client workspaces with password-protected guest links.',
+  },
+  {
+    label: 'Workflows & use cases',
+    href: '/use-cases',
+    icon: 'layers',
+    tone: 'purple',
+    desc: 'Tailored review cycles for agencies, designers, and devs.',
+  },
 ];
 // The site's own pages, after the Product menu
 export const NAV_LINKS = [
@@ -187,32 +224,68 @@ export function FeatureGrid({ id, eyebrow, title, lead, items, cols = 3, tone = 
   );
 }
 
-export function FeatureSplit({ id, eyebrow, title, text, points = [], visual, reverse, tone = 'light' }) {
+export function FeatureSplit({
+  id,
+  eyebrow,
+  pill,
+  title,
+  text,
+  points = [],
+  visual,
+  actions,
+  float,
+  glow = false,
+  reverse,
+  tone = 'light',
+}) {
+  const pillText = typeof pill === 'string' ? pill : (pill ? eyebrow : null);
   return (
     <Section id={id} tone={tone}>
       <div className={cx('km-split', reverse && 'rev')}>
         <div className="km-split-t">
-          {eyebrow ? <div className="km-eyebrow">{eyebrow}</div> : null}
+          {pillText ? (
+            <div className="km-hx-pill"><span className="km-hx-dot" />{pillText}</div>
+          ) : eyebrow ? (
+            <div className="km-eyebrow">{eyebrow}</div>
+          ) : null}
           <h2 className="km-h2 sm">{title}</h2>
           <p className="km-lead">{text}</p>
           {points.length ? (
-            <ul className="km-points">
-              {points.map((p) => <li key={p}><Icon name="check" size={16} stroke={2.4} />{p}</li>)}
+            <ul className="km-points modern">
+              {points.map((p) => (
+                <li key={p}>
+                  <span className="km-pt-box">
+                    <Icon name="check" size={14} stroke={2.8} />
+                  </span>
+                  <span>{p}</span>
+                </li>
+              ))}
             </ul>
           ) : null}
+          {actions ? <div className="km-hb-actions" style={{ marginTop: 24 }}>{actions}</div> : null}
         </div>
-        <div className="km-split-v">{visual}</div>
+        <div className="km-split-v">
+          {glow ? <div className="km-split-glow" aria-hidden="true" /> : null}
+          <div className={glow ? 'km-split-stage' : undefined}>
+            {visual}
+            {float ? <div className="km-split-float">{float}</div> : null}
+          </div>
+        </div>
       </div>
     </Section>
   );
 }
 
+export function ModernSplitBanner(props) {
+  return <FeatureSplit pill glow {...props} />;
+}
+
 // Numbers are comment pins, the product's own motif
-export function StepList({ id, eyebrow, title, lead, steps, tone = 'muted' }) {
+export function StepList({ id, eyebrow, title, lead, steps, tone = 'muted', center = true }) {
   return (
     <Section id={id} tone={tone}>
       <SectionHeader eyebrow={eyebrow} title={title} lead={lead} />
-      <ol className={`km-steps c${steps.length}`}>
+      <ol className={`km-steps c${steps.length}${center ? ' center' : ''}`}>
         {steps.map((s, i) => (
           <li key={s.title}>
             <PinNumber n={i + 1} size={36} />
@@ -334,6 +407,21 @@ export function SiteNav() {
   const [menu, setMenu] = useState(false);
   const [mobile, setMobile] = useState(false);
   const menuRef = useRef(null);
+  const timeoutRef = useRef(null);
+
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setMenu(true);
+  };
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setMenu(false);
+    }, 180);
+  };
+  useEffect(() => () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  }, []);
+
   const close = React.useCallback(() => setMenu(false), []);
   useCloseOn(menuRef, menu, close);
   useEffect(() => { setMenu(false); setMobile(false); }, [pathname]);
@@ -354,18 +442,39 @@ export function SiteNav() {
         <Container className="km-nav-in">
           <Link to="/" className="km-brand" aria-label="Kommently home"><Logo size={28} wordmark /></Link>
           <nav className="km-links" aria-label="Main">
-            <span className="km-pop-anchor" ref={menuRef}>
-              <button type="button" className={cx('km-link', productCurrent && 'on')} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+            <span
+              className="km-pop-anchor"
+              ref={menuRef}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
+              <button
+                type="button"
+                className={cx('km-link', (productCurrent || menu) && 'on')}
+                aria-haspopup="menu"
+                aria-expanded={menu}
+                onClick={() => setMenu(!menu)}
+              >
                 Product <Icon name="down" size={14} />
               </button>
               {menu ? (
                 <div className="km-dd">
-                  <div className="kc-menu" role="menu" aria-label="Product">
+                  <div className="km-mega-menu" role="menu" aria-label="Product">
                     {PRODUCT_LINKS.map((l) => (
-                      <button key={l.href} type="button" role="menuitem" className={cx('mi', productCurrent === l && 'on')} onClick={() => { setMenu(false); navigate(l.href); }}>
-                        <Icon name={l.icon} size={16} />
-                        <span>{l.label}</span>
-                        {productCurrent === l ? <span className="ck"><Icon name="check" size={15} stroke={2} /></span> : null}
+                      <button
+                        key={l.href}
+                        type="button"
+                        role="menuitem"
+                        className={cx('km-mega-item', productCurrent?.href === l.href && 'on')}
+                        onClick={() => { setMenu(false); navigate(l.href); }}
+                      >
+                        <span className={`km-mega-ico ${l.tone || 'blue'}`}>
+                          <Icon name={l.icon} size={20} stroke={2} />
+                        </span>
+                        <div className="km-mega-content">
+                          <span className="km-mega-title">{l.label}</span>
+                          <span className="km-mega-desc">{l.desc}</span>
+                        </div>
                       </button>
                     ))}
                   </div>

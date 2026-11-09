@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   SiteLayout, Shot, FeatureGrid, FeatureSplit, StepList, IntegrationGrid, CTABand,
+  CTA, Icon, SmartLink, TRIAL,
 } from '../components/site';
 import { SHOTS } from '../components/site/heroes';
 import { HeroFiles, HeroHub, HeroBento } from '../components/site/productHeroes';
@@ -29,10 +30,30 @@ export function WebsiteReviewPage() {
       <Devices />
       <FeatureSplit
         tone="muted"
-        eyebrow="From comment to fix"
+        pill="From comment to fix"
+        glow
         title="Assign it, prioritize it, ship it"
         text="Every pin is also a task: give it an assignee, a priority, a due date and labels, and follow it across the board until it is resolved."
         points={['Open, In progress, In review, Resolved', 'Overdue pins counted at a glance', 'Send new pins to Slack, Jira, Discord or Teams']}
+        actions={
+          <>
+            <CTA href={TRIAL.href} icon="arrow">{TRIAL.label}</CTA>
+            <SmartLink className="km-hb-link" href="/approvals">
+              How approvals work <Icon name="arrow" size={16} stroke={2} />
+            </SmartLink>
+          </>
+        }
+        float={
+          <>
+            <span className="km-split-widget-badge">
+              <Icon name="check" size={16} stroke={3} />
+            </span>
+            <div className="km-split-widget-text">
+              <b>Pin #2 Moved to Done</b>
+              <small>Overdue pins: 0 · Team on track</small>
+            </div>
+          </>
+        }
         visual={<Shot {...SHOTS.board} />}
       />
       <StepList
@@ -78,10 +99,30 @@ export function DocumentReviewPage() {
       <FeatureSplit
         tone="muted"
         reverse
-        eyebrow="One workflow"
+        pill="One workflow"
+        glow
         title="Websites and documents in one Projects list"
         text="Both live in the same workspace, with the same statuses, filters and counts."
         points={['Filter websites and documents', 'Open and resolved counts on every card', 'One review link per client workspace']}
+        actions={
+          <>
+            <CTA href={TRIAL.href} icon="arrow">{TRIAL.label}</CTA>
+            <SmartLink className="km-hb-link" href="/teams">
+              Client workspaces <Icon name="arrow" size={16} stroke={2} />
+            </SmartLink>
+          </>
+        }
+        float={
+          <>
+            <span className="km-split-widget-badge" style={{ background: 'var(--brand-600)', boxShadow: '0 2px 8px rgba(0,61,255,0.3)' }}>
+              <Icon name="doc" size={16} stroke={2.4} />
+            </span>
+            <div className="km-split-widget-text">
+              <b>Lookbook 2026.pdf</b>
+              <small>24 pages · 9 pins resolved</small>
+            </div>
+          </>
+        }
         visual={<Shot {...SHOTS.projects} />}
       />
       <CTABand title="Send your first document for review" secondary={{ label: 'Review websites too', href: '/website-review' }} />
@@ -102,10 +143,30 @@ export function ApprovalsPage() {
       <StatusColumns />
       <FeatureSplit
         tone="light"
-        eyebrow="Pin by pin"
+        pill="Pin by pin"
+        glow
         title="See every task move to done"
         text="Inside a project, each pin moves from Open to In progress, In review and Resolved, with an assignee, priority and due date."
         points={['Filter by assignee and priority', 'Overdue pins counted at a glance', 'Resolve a pin with one click']}
+        actions={
+          <>
+            <CTA href={TRIAL.href} icon="arrow">{TRIAL.label}</CTA>
+            <SmartLink className="km-hb-link" href="/integrations">
+              See integrations <Icon name="arrow" size={16} stroke={2} />
+            </SmartLink>
+          </>
+        }
+        float={
+          <>
+            <span className="km-split-widget-badge">
+              <Icon name="check" size={16} stroke={3} />
+            </span>
+            <div className="km-split-widget-text">
+              <b>All Feedback Handled</b>
+              <small>Status moved to Approved</small>
+            </div>
+          </>
+        }
         visual={<Shot {...SHOTS.board} />}
       />
       <Deadlines tone="muted" />
@@ -182,10 +243,30 @@ export function TeamsPage() {
       />
       <FeatureSplit
         tone="muted"
-        eyebrow="Clients"
+        pill="Clients"
+        glow
         title="Clients review with a link, no account needed"
         text="Share a review link and clients pin comments on the page just like your team. You decide whether they can comment or only view."
         points={['Password and expiry on every link', 'View-only or commenting', 'Their feedback arrives in your workspace']}
+        actions={
+          <>
+            <CTA href={TRIAL.href} icon="arrow">{TRIAL.label}</CTA>
+            <SmartLink className="km-hb-link" href="/pricing">
+              View team plans <Icon name="arrow" size={16} stroke={2} />
+            </SmartLink>
+          </>
+        }
+        float={
+          <>
+            <span className="km-split-widget-badge" style={{ background: 'var(--brand-600)', boxShadow: '0 2px 8px rgba(0,61,255,0.3)' }}>
+              <Icon name="lock" size={16} stroke={2.4} />
+            </span>
+            <div className="km-split-widget-text">
+              <b>Protected Review Link</b>
+              <small>Password protected · No login required</small>
+            </div>
+          </>
+        }
         visual={<Shot {...SHOTS.review} />}
       />
       <CTABand title="Give each client a home" secondary={PRICING} />
