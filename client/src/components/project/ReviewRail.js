@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Logo, Icon, IconButton, cx } from '../kc';
-import NotificationBell from '../common/NotificationBell';
 import { openSupport } from '../../utils/supportPanel';
 import { getAvatarColor } from '../../utils/avatarColors';
 
@@ -72,14 +71,6 @@ export default function ReviewRail({ active = 'canvas', onNavigate, projectId, o
         onDark
         size="lg"
         onClick={() => openSupport()}
-      />
-
-      <NotificationBell
-        rail
-        dark
-        variant="detailed"
-        projectId={projectId}
-        onSelectPin={onSelectPin}
       />
 
       <button

@@ -788,6 +788,12 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
                 <span className="hidden lg:inline">Invite</span>
               </Button>
             )}
+
+            <NotificationBell
+              variant="detailed"
+              projectId={project?._id}
+              onSelectPin={handlePinNavigate}
+            />
           </div>
         </header>
 

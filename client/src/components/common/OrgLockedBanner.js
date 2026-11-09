@@ -8,6 +8,21 @@ export default function OrgLockedBanner() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isOverdue = user?.orgLockedReason === 'Payment overdue';
+  const isDeletion = !!user?.orgDeletionScheduledAt || user?.orgLockedReason === 'Deletion scheduled';
+
+  if (isDeletion) {
+    const scheduledAt = user?.orgDeletionScheduledAt ? new Date(user.orgDeletionScheduledAt) : null;
+    const deletionDate = scheduledAt?.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    return (
+      <Banner
+        tone="danger"
+        title={deletionDate ? `Organization scheduled for deletion on ${deletionDate}` : 'Organization scheduled for deletion'}
+        action={<Button size="sm" onClick={() => navigate('/settings?tab=data')}>Review settings</Button>}
+      >
+        Everything is currently in read-only mode. You can cancel the deletion in Data &amp; privacy before the grace period ends.
+      </Banner>
+    );
+  }
 
   if (isOverdue) {
     return (

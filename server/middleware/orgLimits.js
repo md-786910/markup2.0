@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Project = require('../models/Project');
 const Invitation = require('../models/Invitation');
 const asyncHandler = require('../utils/asyncHandler');
+const { DELETION_LOCK_REASON } = require('../utils/orgUtils');
 
 const TEAM_ROLES = ['owner', 'admin', 'member'];
 
@@ -52,8 +53,11 @@ const checkOrgNotLocked = asyncHandler(async (req, res, next) => {
     return res.status(500).json({ message: 'Organization context missing' });
   }
   if (org.isLocked) {
+    const isDeletion = org.deletionScheduledAt || org.lockedReason === DELETION_LOCK_REASON;
     return res.status(403).json({
-      message: 'Your organization is locked. Please activate a subscription to continue.',
+      message: isDeletion
+        ? 'Your organization is scheduled for deletion and is read-only.'
+        : 'Your organization is locked. Please activate a subscription to continue.',
       code: 'ORG_LOCKED',
     });
   }

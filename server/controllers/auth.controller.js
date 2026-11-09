@@ -940,16 +940,35 @@ exports.exportOrganization = asyncHandler(async (req, res) => {
 exports.requestOrganizationDeletion = asyncHandler(async (req, res) => {
   const org = req.organization;
   if (!org) return res.status(400).json({ message: "No organization found" });
-  if (req.user.role !== "owner") {
-    return res.status(403).json({ message: "Only the organization owner can delete the workspace." });
+  if (req.user.role !== "owner" && req.user.role !== "admin") {
+    return res.status(403).json({ message: "Only an organization owner or administrator can delete the workspace." });
   }
+  if (org.deletionScheduledAt) {
+    return res.status(400).json({ message: "Organization deletion is already scheduled." });
+  }
+
   const { password, confirmName } = req.body || {};
-  const owner = await User.findById(req.user._id).select("+passwordHash");
-  if (!password || !(await owner.comparePassword(password))) {
+  if (!password) {
+    return res.status(400).json({ message: "Password is required." });
+  }
+
+  const userRecord = await User.findById(req.user._id).select("+passwordHash");
+  if (!userRecord || !(await userRecord.comparePassword(password))) {
     return res.status(401).json({ message: "Incorrect password." });
   }
-  if ((confirmName || "").trim() !== org.name) {
-    return res.status(400).json({ message: "Type the workspace name exactly to confirm." });
+
+  const trimmedConfirm = (confirmName || "").trim().toLowerCase();
+  const orgNameLower = (org.name || "").trim().toLowerCase();
+  const userEmailLower = (req.user.email || "").trim().toLowerCase();
+
+  const isConfirmed =
+    (orgNameLower && trimmedConfirm === orgNameLower) ||
+    (userEmailLower && trimmedConfirm === userEmailLower);
+
+  if (!isConfirmed) {
+    return res.status(400).json({
+      message: `Please type "${org.name}" or your email (${req.user.email}) to confirm.`,
+    });
   }
 
   org.deletionScheduledAt = new Date(Date.now() + ORG_DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000);
@@ -958,8 +977,13 @@ exports.requestOrganizationDeletion = asyncHandler(async (req, res) => {
   org.lockedReason = DELETION_LOCK_REASON;
   if (org.subscription) org.subscription.cancelAtPeriodEnd = true;
   await org.save();
+
   logOrgActivity(org._id, req.user._id, "org.deletion_scheduled", { deletionScheduledAt: org.deletionScheduledAt });
-  res.json({ message: "Workspace deletion scheduled", deletionScheduledAt: org.deletionScheduledAt });
+  res.json({
+    message: "Workspace deletion scheduled",
+    deletionScheduledAt: org.deletionScheduledAt,
+    user: userResponse(req.user, org),
+  });
 });
 
 /**
@@ -968,17 +992,25 @@ exports.requestOrganizationDeletion = asyncHandler(async (req, res) => {
 exports.cancelOrganizationDeletion = asyncHandler(async (req, res) => {
   const org = req.organization;
   if (!org) return res.status(400).json({ message: "No organization found" });
-  if (req.user.role !== "owner") {
-    return res.status(403).json({ message: "Only the organization owner can cancel deletion." });
+  if (req.user.role !== "owner" && req.user.role !== "admin") {
+    return res.status(403).json({ message: "Only an organization owner or administrator can cancel deletion." });
   }
   if (!org.deletionScheduledAt) return res.status(400).json({ message: "Deletion is not scheduled." });
+
   org.deletionScheduledAt = null;
   if (org.lockedReason === DELETION_LOCK_REASON) {
     org.isLocked = false;
     org.lockedAt = null;
     org.lockedReason = null;
   }
+  if (org.subscription && org.subscription.cancelAtPeriodEnd) {
+    org.subscription.cancelAtPeriodEnd = false;
+  }
   await org.save();
+
   logOrgActivity(org._id, req.user._id, "org.deletion_cancelled", {});
-  res.json({ message: "Workspace deletion cancelled" });
+  res.json({
+    message: "Workspace deletion cancelled",
+    user: userResponse(req.user, org),
+  });
 });
