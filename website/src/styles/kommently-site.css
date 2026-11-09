@@ -127,13 +127,8 @@
   flex-shrink: 0;
 }
 
-.kc :focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
-.kc .kc-rail :focus-visible {
-  outline-color: var(--focus-ring-on-dark);
+.kc :focus-visible, .kc :focus {
+  outline: none !important;
 }
 
 .kc .sp {
@@ -1051,9 +1046,10 @@ a.kc-card {
 .kc-input:focus,
 .kc-select:focus,
 .kc-textarea:focus {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
+  outline: none;
   border-color: var(--brand-600);
+  border-width: 1px;
+  box-shadow: none;
 }
 
 .kc-input[aria-invalid="true"] {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from '../common/Modal';
 import {
   getWorkspaceMembersApi,
@@ -11,6 +11,126 @@ const TABS = [
   { id: 'existing', label: "Existing Member's" },
   { id: 'add', label: 'Add Members' },
 ];
+
+const ROLES = [
+  { value: 'admin', label: 'Admin - Can manage projects & members' },
+  { value: 'member', label: 'Member - Can create pins & comments' },
+  { value: 'guest', label: 'Guest - View only access' },
+];
+
+const MEMBER_ROLES = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'member', label: 'Member' },
+  { value: 'guest', label: 'Guest' },
+];
+
+function CustomDropdown({ value, options = [], onChange, label, className = 'w-full' }) {
+  const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState('below');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  useEffect(() => {
+    if (open && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const modal = ref.current.closest('.kc-modal') || document.body;
+      const modalRect = modal.getBoundingClientRect();
+      const spaceBelowInModal = modalRect.bottom - rect.bottom;
+      if (spaceBelowInModal < 170) {
+        setPlacement('above');
+      } else {
+        setPlacement('below');
+      }
+    }
+  }, [open]);
+
+  const selectedOption = options.find((o) => o.value === value) || options[0];
+
+  return (
+    <div ref={ref} className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        style={{
+          border: open ? '1px solid #2563eb' : '1px solid #d1d5db',
+          borderRadius: '8px',
+          background: '#ffffff',
+          outline: 'none',
+          boxShadow: 'none',
+        }}
+        className="w-full flex items-center justify-between px-3.5 py-2.5 text-body text-left transition-colors cursor-pointer"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="truncate text-gray-900">{selectedOption?.label || label || 'Select option'}</span>
+        <svg
+          className={`w-4 h-4 text-gray-500 transition-transform duration-200 shrink-0 ml-2 ${
+            open ? (placement === 'above' ? '' : 'rotate-180 text-blue-600') : ''
+          }`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            ...(placement === 'above' ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }),
+            zIndex: 100,
+            borderRadius: '10px',
+            border: '1px solid #e2e8f0',
+            background: '#ffffff',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            padding: '4px',
+          }}
+        >
+          {options.map((opt) => {
+            const selected = value === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                style={{
+                  border: 'none',
+                  background: selected ? '#eff6ff' : 'transparent',
+                  color: selected ? '#1d4ed8' : '#374151',
+                  fontWeight: selected ? 500 : 400,
+                  borderRadius: '7px',
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 text-body-sm text-left transition-colors cursor-pointer hover:bg-gray-50"
+              >
+                <span>{opt.label}</span>
+                {selected && (
+                  <svg className="w-4 h-4 text-blue-600 shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function InviteMemberModal({
   isOpen,
@@ -237,8 +357,8 @@ export default function InviteMemberModal({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-label transition-colors ${
-                  active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-label transition-all ${
+                  active ? 'bg-white text-gray-900 border border-gray-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.03)]' : 'text-gray-500 hover:text-gray-700 border border-transparent'
                 }`}
               >
                 {tab.id === 'email' && (
@@ -272,7 +392,7 @@ export default function InviteMemberModal({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body transition-shadow"
+                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-0 text-body transition-colors"
                 placeholder="member@example.com"
               />
               <p className="mt-1.5 text-caption text-gray-400">
@@ -282,15 +402,11 @@ export default function InviteMemberModal({
 
             <div>
               <label className="block text-label text-gray-700 mb-1.5">Role</label>
-              <select
+              <CustomDropdown
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body bg-white transition-shadow"
-              >
-                <option value="admin">Admin - Can manage projects & members</option>
-                <option value="member">Member - Can create pins & comments</option>
-                <option value="guest">Guest - View only access</option>
-              </select>
+                options={ROLES}
+                onChange={setRole}
+              />
             </div>
           </div>
 
@@ -445,7 +561,7 @@ export default function InviteMemberModal({
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
               placeholder="Search by name, email, or @name"
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-body mb-3"
+              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-0 text-body mb-3 transition-colors"
             />
 
             <div className="max-h-72 overflow-y-auto rounded-xl border border-gray-200 divide-y divide-gray-100 bg-white">
@@ -488,21 +604,17 @@ export default function InviteMemberModal({
                         <p className="text-caption text-gray-400 truncate">{member.email}</p>
 
                         {checked && (
-                          <div className="mt-2">
+                          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
                             <label className="block text-label text-gray-500 mb-1">Project Role</label>
-                            <select
+                            <CustomDropdown
                               value={selectedRole}
-                              onChange={(e) => setSelectedWorkspaceMemberRoles((prev) => ({
+                              options={MEMBER_ROLES}
+                              onChange={(val) => setSelectedWorkspaceMemberRoles((prev) => ({
                                 ...prev,
-                                [member._id]: e.target.value,
+                                [member._id]: val,
                               }))}
-                              onClick={(e) => e.stopPropagation()}
-                              className="w-full sm:w-48 px-3 py-2 text-body border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                            >
-                              <option value="admin">Admin</option>
-                              <option value="member">Member</option>
-                              <option value="guest">Guest</option>
-                            </select>
+                              className="w-full sm:w-48"
+                            />
                           </div>
                         )}
                       </div>

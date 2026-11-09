@@ -16,9 +16,28 @@
     color: #0f172a;
   }
 
-  :focus-visible {
-    outline: 2px solid rgba(0, 61, 255, 0.45);
-    outline-offset: 2px;
+  :focus-visible, :focus {
+    outline: none !important;
+  }
+
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+  }
+
+  input:focus,
+  input:active,
+  select:focus,
+  select:active,
+  textarea:focus,
+  textarea:active {
+    outline: none !important;
+    --tw-ring-width: 0px !important;
+    --tw-ring-offset-width: 0px !important;
+    box-shadow: none !important;
+    border-width: 1px !important;
+    border-color: #2563eb !important;
   }
 }
 

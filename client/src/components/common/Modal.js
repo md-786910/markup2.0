@@ -49,7 +49,7 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
           border: '1px solid var(--border)',
           borderRadius: 'var(--radius-xl)',
           boxShadow: 'var(--shadow-modal)',
-          overflow: 'hidden',
+          overflow: 'visible',
         }}
       >
         {title ? (
