@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { getActivityApi } from '../../services/projectService';
 import { toastError } from '../../utils/toast';
+import { Icon, IconButton } from '../kc';
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -34,6 +35,14 @@ const ACTION_CONFIG = {
   'guest.pin_created': { icon: 'pin', color: 'text-amber-500', bg: 'bg-amber-50', label: (m) => `created Pin #${m?.pinNumber || '?'}` },
 };
 
+const FILTER_OPTIONS = [
+  { key: 'all', label: 'All activities' },
+  { key: 'pins', label: 'Pins' },
+  { key: 'comments', label: 'Comments' },
+  { key: 'members', label: 'Members & Sharing' },
+  { key: 'project', label: 'Project changes' },
+];
+
 function ActionIcon({ type, className }) {
   const iconMap = {
     plus: <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />,
@@ -64,7 +73,23 @@ export default function ActivitySidebar({ projectId }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterCategory, setFilterCategory] = useState('all');
   const scrollRef = useRef(null);
+  const filterRef = useRef(null);
+
+  // Close filter dropdown on outside click
+  useEffect(() => {
+    const handleDocClick = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleDocClick);
+    return () => document.removeEventListener('mousedown', handleDocClick);
+  }, []);
 
   const fetchActivities = useCallback(async (pageNum, append = false) => {
     try {
@@ -96,69 +121,238 @@ export default function ActivitySidebar({ projectId }) {
     fetchActivities(nextPage, true);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-200 border-t-blue-500" />
-      </div>
-    );
-  }
+  // Filter and search activities
+  const filteredActivities = useMemo(() => {
+    return activities.filter((activity) => {
+      // Category filter
+      if (filterCategory === 'pins') {
+        const isPinAction = activity.action?.startsWith('pin.') || activity.action === 'guest.pin_created';
+        if (!isPinAction) return false;
+      } else if (filterCategory === 'comments') {
+        const isCommentAction = activity.action?.startsWith('comment.') || activity.action === 'guest.commented';
+        if (!isCommentAction) return false;
+      } else if (filterCategory === 'members') {
+        const isMemberAction = activity.action?.startsWith('member.') || activity.action?.startsWith('share.');
+        if (!isMemberAction) return false;
+      } else if (filterCategory === 'project') {
+        const isProjectAction = activity.action?.startsWith('project.');
+        if (!isProjectAction) return false;
+      }
 
-  if (activities.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-        <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p className="text-body-sm">No activity yet</p>
-      </div>
-    );
-  }
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const actorName = (activity.actor?.name || activity.actorGuest?.name || '').toLowerCase();
+        const config = ACTION_CONFIG[activity.action];
+        const actionText = config ? config.label(activity.metadata).toLowerCase() : (activity.action || '').toLowerCase();
+        const pinNum = activity.metadata?.pinNumber ? `pin #${activity.metadata.pinNumber}`.toLowerCase() : '';
+        const email = (activity.metadata?.memberEmail || '').toLowerCase();
+
+        return actorName.includes(q) || actionText.includes(q) || pinNum.includes(q) || email.includes(q);
+      }
+
+      return true;
+    });
+  }, [activities, filterCategory, searchQuery]);
 
   return (
-    <div ref={scrollRef} className="flex flex-col divide-y divide-gray-100 overflow-y-auto">
-      {activities.map((activity) => {
-        const config = ACTION_CONFIG[activity.action] || {
-          icon: 'comment',
-          color: 'text-gray-500',
-          bg: 'bg-gray-50',
-          label: () => activity.action,
-        };
-        const actorName = activity.actor?.name || activity.actorGuest?.name || 'Someone';
-        const isGuest = !activity.actor && activity.actorGuest;
+    <div className="flex flex-col h-full min-h-0 flex-1 overflow-hidden">
+      {/* Sub bar: Filter tabs (All | Pins | Comments) + Filter dropdown + Search toggle */}
+      <div className="kr-sub shrink-0">
+        <button
+          type="button"
+          className={`st ${filterCategory === 'all' ? 'on' : ''}`}
+          aria-pressed={filterCategory === 'all'}
+          onClick={() => setFilterCategory('all')}
+        >
+          All
+        </button>
+        <button
+          type="button"
+          className={`st ${filterCategory === 'pins' ? 'on' : ''}`}
+          aria-pressed={filterCategory === 'pins'}
+          onClick={() => setFilterCategory('pins')}
+        >
+          Pins
+        </button>
+        <button
+          type="button"
+          className={`st ${filterCategory === 'comments' ? 'on' : ''}`}
+          aria-pressed={filterCategory === 'comments'}
+          onClick={() => setFilterCategory('comments')}
+        >
+          Comments
+        </button>
 
-        return (
-          <div key={activity._id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50/50 transition-colors">
-            {/* Icon */}
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${config.bg}`}>
-              <ActionIcon type={config.icon} className={`w-4 h-4 ${config.color}`} />
-            </div>
+        <span style={{ flex: 1 }} />
 
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <p className="text-body-sm text-gray-700">
-                <span className="font-medium text-gray-900">{actorName}</span>
-                {isGuest && <span className="text-caption text-amber-600 ml-1">(guest)</span>}
-                {' '}
-                {config.label(activity.metadata)}
-              </p>
-              <p className="text-caption text-gray-400 mt-0.5">{timeAgo(activity.createdAt)}</p>
-            </div>
+        <div className="flex items-center gap-0.5">
+          {/* Filter dropdown */}
+          <div className="relative" ref={filterRef}>
+            <IconButton
+              icon="filter"
+              label="Filter"
+              active={filterOpen || (filterCategory !== 'all' && filterCategory !== 'pins' && filterCategory !== 'comments')}
+              onClick={() => setFilterOpen((v) => !v)}
+            />
+
+            {filterOpen && (
+              <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 overflow-hidden">
+                {FILTER_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => { setFilterCategory(opt.key); setFilterOpen(false); }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-left hover:bg-slate-50 transition-colors"
+                  >
+                    <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${filterCategory === opt.key ? 'border-blue-600 bg-blue-600' : 'border-slate-300'}`}>
+                      {filterCategory === opt.key && (
+                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className={`text-[13px] ${filterCategory === opt.key ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
+                      {opt.label}
+                    </span>
+                  </button>
+                ))}
+
+                {filterCategory !== 'all' && (
+                  <div className="border-t border-slate-100 mt-1 pt-1">
+                    <button
+                      onClick={() => { setFilterCategory('all'); setFilterOpen(false); }}
+                      className="w-full flex items-center gap-2 px-4 py-1.5 text-caption text-blue-600 hover:bg-blue-50 font-medium transition-colors"
+                    >
+                      Reset filter
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        );
-      })}
 
-      {hasMore && (
-        <div className="px-4 py-3">
-          <button
-            onClick={loadMore}
-            disabled={loadingMore}
-            className="w-full py-2 text-body-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-          >
-            {loadingMore ? 'Loading...' : 'Load more'}
-          </button>
+          {/* Search Toggle */}
+          <IconButton
+            icon="search"
+            label="Search"
+            active={searchOpen || !!searchQuery}
+            aria-expanded={searchOpen || !!searchQuery}
+            onClick={() => {
+              if (searchOpen || searchQuery) {
+                setSearchOpen(false);
+                setSearchQuery('');
+              } else {
+                setSearchOpen(true);
+              }
+            }}
+          />
         </div>
+      </div>
+
+      {/* Search field */}
+      {(searchOpen || searchQuery) && (
+        <label className="kr-search shrink-0">
+          <Icon name="search" size={14} />
+          <input
+            autoFocus
+            placeholder="Search activity..."
+            aria-label="Search activity"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setSearchQuery('');
+                setSearchOpen(false);
+              }
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="text-slate-500 hover:text-slate-600 p-0.5"
+              aria-label="Clear search"
+            >
+              <Icon name="x" size={13} />
+            </button>
+          )}
+        </label>
       )}
+
+      {/* Activities List */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto divide-y divide-gray-100 min-h-0">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-200 border-t-blue-500" />
+          </div>
+        ) : filteredActivities.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center text-gray-400">
+            <svg className="w-10 h-10 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <p className="text-body-sm font-medium text-slate-700">
+              {searchQuery ? 'No matching activity' : 'No activity found'}
+            </p>
+            <p className="text-caption text-slate-400 mt-0.5">
+              {searchQuery || filterCategory !== 'all' ? 'Try adjusting your search or filter' : 'No activity recorded yet for this project'}
+            </p>
+            {(searchQuery || filterCategory !== 'all') && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setFilterCategory('all'); }}
+                className="mt-3 px-3 py-1 text-xs text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+              >
+                Clear all filters
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {filteredActivities.map((activity) => {
+              const config = ACTION_CONFIG[activity.action] || {
+                icon: 'comment',
+                color: 'text-gray-500',
+                bg: 'bg-gray-50',
+                label: () => activity.action,
+              };
+              const actorName = activity.actor?.name || activity.actorGuest?.name || 'Someone';
+              const isGuest = !activity.actor && activity.actorGuest;
+
+              return (
+                <div key={activity._id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50/50 transition-colors">
+                  {/* Icon */}
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${config.bg}`}>
+                    <ActionIcon type={config.icon} className={`w-4 h-4 ${config.color}`} />
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-body-sm text-gray-700">
+                      <span className="font-medium text-gray-900">{actorName}</span>
+                      {isGuest && <span className="text-caption text-amber-600 ml-1">(guest)</span>}
+                      {' '}
+                      {config.label(activity.metadata)}
+                    </p>
+                    <p className="text-caption text-gray-400 mt-0.5">{timeAgo(activity.createdAt)}</p>
+                  </div>
+                </div>
+              );
+            })}
+
+            {hasMore && !searchQuery && filterCategory === 'all' && (
+              <div className="px-4 py-3">
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="w-full py-2 text-body-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {loadingMore ? 'Loading...' : 'Load more'}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -442,30 +442,47 @@ export default function GuestProjectPage() {
           <div className="w-px h-5 bg-slate-200 shrink-0" />
           <h2 className="font-semibold text-slate-900 truncate text-[14px]">{project.name}</h2>
           {project.projectType === 'website' && project.websiteUrl && (
-            <div className="hidden lg:flex items-center gap-1.5 text-[12px] text-slate-500 bg-slate-100/70 pl-2.5 pr-3 py-1.5 rounded-lg truncate max-w-md border border-slate-200/80 cursor-default" title={project.websiteUrl}>
-              <Icon name="globe" size={14} className="text-slate-400 shrink-0" />
+            <a
+              href={project.websiteUrl?.startsWith('http://') || project.websiteUrl?.startsWith('https://') ? project.websiteUrl : `https://${project.websiteUrl}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden lg:flex items-center gap-1.5 text-[12px] text-slate-600 bg-slate-100/70 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-400 pl-2.5 pr-3 py-1.5 rounded-lg truncate max-w-md border border-slate-200/80 transition-all cursor-pointer group"
+              title={`Open ${project.websiteUrl} in new tab`}
+            >
+              <Icon name="globe" size={14} className="text-slate-400 group-hover:text-blue-600 shrink-0 transition-colors" />
               <span className="truncate">{project.websiteUrl}</span>
-            </div>
+              <svg className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 group-hover:text-blue-600 transition-all shrink-0 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
           )}
         </div>
 
         {/* Right: Guest badge + identity */}
         <div className="flex items-center gap-3 z-10 shrink-0">
           {project.allowComments && (
-            <div className="flex h-8 items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200" role="group" aria-label="Mode">
+            <div className="kr-mode-seg" role="group" aria-label="Mode">
+              <div
+                className={`kr-mode-indicator ${commentMode ? 'is-comment' : 'is-view'}`}
+                aria-hidden="true"
+              />
               <button
                 type="button"
                 onClick={() => { setCommentMode(false); setDraft(null); }}
-                className={`flex h-7 items-center px-2.5 rounded-md text-[12px] font-medium transition-all ${!commentMode ? 'bg-white text-slate-900 shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`kr-mode-btn view-btn ${!commentMode ? 'active' : ''}`}
+                title="View mode"
               >
-                View
+                <Icon name="eye" size={14} />
+                <span>View</span>
               </button>
               <button
                 type="button"
                 onClick={() => setCommentMode(true)}
-                className={`flex h-7 items-center px-2.5 rounded-md text-[12px] font-medium transition-all ${commentMode ? 'bg-blue-600 text-white shadow-sm font-semibold' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`kr-mode-btn comment-btn ${commentMode ? 'active active-comment' : ''}`}
+                title="Comment mode"
               >
-                Comment
+                <Icon name="chat" size={14} />
+                <span>Comment</span>
               </button>
             </div>
           )}

@@ -17,19 +17,48 @@ const TILE_CLASSES = {
   indigo: 'bg-indigo-600',
 };
 
-export function workspaceTone(name = '', index) {
-  if (typeof index === 'number' && index >= 0) return TILE_TONES[index % TILE_TONES.length];
+export function workspaceTone(target = '', index, workspacesList) {
+  // If target is a workspace object
+  const ws = typeof target === 'object' && target !== null ? target : null;
+  const name = ws ? (ws.name || '') : (typeof target === 'string' ? target : '');
+
+  // 1. If explicit workspace color is set
+  if (ws?.color && TILE_TONES.includes(ws.color)) {
+    return ws.color;
+  }
+
+  // 2. If index is explicitly provided as a non-negative number
+  if (typeof index === 'number' && index >= 0) {
+    return TILE_TONES[index % TILE_TONES.length];
+  }
+
+  // 3. If workspacesList is provided, find index by ID or name
+  if (Array.isArray(workspacesList) && (ws?._id || name)) {
+    const foundIdx = workspacesList.findIndex((w) =>
+      (ws?._id && w?._id && String(w._id) === String(ws._id)) ||
+      (name && w?.name === name)
+    );
+    if (foundIdx >= 0) {
+      return TILE_TONES[foundIdx % TILE_TONES.length];
+    }
+  }
+
+  // 4. Default to index 0 if it's "General" or first workspace
+  if (name.toLowerCase() === 'general') {
+    return TILE_TONES[0];
+  }
+
   return tileTone(index, name);
 }
 
-export function workspaceColor(name = '', index) {
-  return TILE_CLASSES[workspaceTone(name, index)] || 'bg-blue-600';
+export function workspaceColor(target = '', index, workspacesList) {
+  return TILE_CLASSES[workspaceTone(target, index, workspacesList)] || 'bg-blue-600';
 }
 
-export function WorkspaceTile({ name, className = 'w-8 h-8 text-body-sm' }) {
+export function WorkspaceTile({ name, workspace, index, className = 'w-8 h-8 text-body-sm' }) {
   return (
-    <span aria-hidden="true" className={`inline-flex items-center justify-center rounded-[7px] font-semibold text-white shrink-0 ${workspaceColor(name)} ${className}`}>
-      {(name || '?').trim()[0]?.toUpperCase() || '?'}
+    <span aria-hidden="true" className={`inline-flex items-center justify-center rounded-[7px] font-semibold text-white shrink-0 ${workspaceColor(workspace || name, index)} ${className}`}>
+      {((typeof name === 'string' ? name : workspace?.name) || '?').trim()[0]?.toUpperCase() || '?'}
     </span>
   );
 }
@@ -78,13 +107,13 @@ export default function WorkspaceSwitcher({ onNavigate }) {
   const name = current?.name || user?.orgName || 'Workspace';
   const count = current?.projectCount;
   const currentIdx = workspaces.findIndex((w) => w._id === current?._id);
-  const currentTone = workspaceTone(name, currentIdx >= 0 ? currentIdx : undefined);
+  const currentTone = workspaceTone(current || name, currentIdx >= 0 ? currentIdx : undefined, workspaces);
 
   const items = [
     { header: `Workspaces in ${user?.orgName || 'your organization'}` },
     ...workspaces.map((w, index) => ({
       label: w.name,
-      tile: workspaceTone(w.name, index),
+      tile: workspaceTone(w, index, workspaces),
       checked: current?._id === w._id,
       meta: current?._id === w._id ? undefined : w.projectCount,
       onClick: () => go(w._id),

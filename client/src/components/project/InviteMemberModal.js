@@ -60,7 +60,7 @@ function CustomDropdown({ value, options = [], onChange, label, className = 'w-f
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         style={{
-          border: open ? '1px solid #2563eb' : '1px solid #d1d5db',
+          border: open ? '1px solid #003dff' : '1px solid #d1d5db',
           borderRadius: '8px',
           background: '#ffffff',
           outline: 'none',

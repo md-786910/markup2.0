@@ -549,54 +549,61 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   }, []);
 
   const deviceButtons = (
-    <div className="kr-seg" role="group" aria-label="Device">
+    <div className="kr-device-seg" role="group" aria-label="Device viewport">
       {/* Desktop */}
       <button
         type="button"
         onClick={() => handleDeviceChange('desktop')}
-        className={`kr-seg-b icon ${deviceMode === 'desktop' ? 'on' : ''}`}
+        className={`kr-device-btn ${deviceMode === 'desktop' ? 'active' : ''}`}
         title="Desktop (1440px)"
         aria-label="Desktop"
       >
-        <Icon name="monitor" size={16} />
+        <Icon name="monitor" size={15} />
         {devicePinCounts.desktop > 0 && deviceMode !== 'desktop' && (
-          <i className="dot" />
+          <span className="dot" />
         )}
       </button>
       {/* Tablet */}
       <button
         type="button"
         onClick={() => handleDeviceChange('tablet')}
-        className={`kr-seg-b icon ${deviceMode === 'tablet' ? 'on' : ''}`}
+        className={`kr-device-btn ${deviceMode === 'tablet' ? 'active' : ''}`}
         title="Tablet (768px)"
         aria-label="Tablet"
       >
-        <Icon name="tablet" size={16} />
+        <Icon name="tablet" size={15} />
         {devicePinCounts.tablet > 0 && deviceMode !== 'tablet' && (
-          <i className="dot" />
+          <span className="dot" />
         )}
       </button>
       {/* Mobile */}
       <button
         type="button"
         onClick={() => handleDeviceChange('mobile')}
-        className={`kr-seg-b icon ${deviceMode === 'mobile' ? 'on' : ''}`}
+        className={`kr-device-btn ${deviceMode === 'mobile' ? 'active' : ''}`}
         title="Mobile (375px)"
         aria-label="Mobile"
       >
-        <Icon name="phone" size={16} />
-        <i className="dot" />
+        <Icon name="phone" size={15} />
+        {devicePinCounts.mobile > 0 && deviceMode !== 'mobile' && (
+          <span className="dot" />
+        )}
       </button>
     </div>
   );
 
   const modeToggle = canComment ? (
-    <div className="kr-seg" role="group" aria-label="Mode">
+    <div className="kr-mode-seg" role="group" aria-label="Review mode">
+      <div
+        className={`kr-mode-indicator ${pinMode ? 'is-comment' : 'is-view'}`}
+        aria-hidden="true"
+      />
       <button
         type="button"
         onClick={() => setPinMode(false)}
         aria-pressed={!pinMode}
-        className={`kr-seg-b ${!pinMode ? 'on' : ''}`}
+        className={`kr-mode-btn view-btn ${!pinMode ? 'active' : ''}`}
+        title="View mode: click links and browse the live site"
       >
         <Icon name="eye" size={14} />
         <span>View</span>
@@ -605,7 +612,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         type="button"
         onClick={() => setPinMode(true)}
         aria-pressed={pinMode}
-        className={`kr-seg-b ${pinMode ? 'on accent' : ''}`}
+        className={`kr-mode-btn comment-btn ${pinMode ? 'active active-comment' : ''}`}
+        title="Comment mode: click anywhere on the page to drop a pin"
       >
         <Icon name="chat" size={14} />
         <span>Comment</span>
@@ -695,10 +703,26 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             {project.projectStatus === 'approved' && <Badge status="approved" />}
             {project.projectStatus === 'in_review' && <Badge status="review" />}
             {project.projectStatus === 'changes_requested' && <Badge status="changes" />}
-            <span className="kr-url hidden xl:inline-flex" title={isDocumentProject ? currentDoc?.originalName : currentPageUrl}>
-              <Icon name={isDocumentProject ? "doc" : "globe"} size={14} />
-              <span className="truncate">{isDocumentProject ? `${currentDoc?.originalName} — Page ${currentDocPage}` : currentPageUrl}</span>
-            </span>
+            {isDocumentProject ? (
+              <span className="kr-url hidden xl:inline-flex" title={currentDoc?.originalName}>
+                <Icon name="doc" size={14} />
+                <span className="truncate">{`${currentDoc?.originalName} — Page ${currentDocPage}`}</span>
+              </span>
+            ) : (
+              <a
+                href={currentPageUrl?.startsWith('http://') || currentPageUrl?.startsWith('https://') ? currentPageUrl : `https://${currentPageUrl}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="kr-url kr-url-link hidden xl:inline-flex items-center gap-1.5 group cursor-pointer"
+                title={`Open ${currentPageUrl} in next tab`}
+              >
+                <Icon name="globe" size={14} className="text-slate-500 group-hover:text-blue-600 transition-colors" />
+                <span className="truncate max-w-[200px]">{currentPageUrl}</span>
+                <svg className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 group-hover:text-blue-600 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            )}
           </div>
 
           <span className="sp" style={{ flex: 1 }} />
