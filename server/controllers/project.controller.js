@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const axios = require('axios');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Pin = require('../models/Pin');
@@ -88,12 +89,25 @@ exports.createProject = asyncHandler(async (req, res) => {
 
   if (projectType === 'website') {
     projectData.websiteUrl = websiteUrl;
+    const cleanUrl = websiteUrl.startsWith('http://') || websiteUrl.startsWith('https://')
+      ? websiteUrl
+      : `https://${websiteUrl}`;
+    const mshotUrl = `https://s0.wp.com/mshots/v1/${encodeURIComponent(cleanUrl)}?w=900`;
+    projectData.thumbnail = mshotUrl;
+
+    // Trigger background screenshot generation immediately so WordPress mshots warms its cache
+    axios.get(mshotUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 }).catch(() => {});
   } else {
     // Build documents array from uploaded files
     const documents = [];
     for (let i = 0; i < req.files.length; i++) {
       const file = req.files[i];
       let pageCount = 1;
+      let thumbnail = null;
+
+      if (file.mimetype.startsWith('image/')) {
+        thumbnail = `uploads/documents/${file.filename}`;
+      }
 
       if (file.mimetype === 'application/pdf') {
         try {
@@ -112,11 +126,15 @@ exports.createProject = asyncHandler(async (req, res) => {
         mimetype: file.mimetype,
         size: file.size,
         path: `uploads/documents/${file.filename}`,
+        thumbnail,
         pageCount,
         order: i,
       });
     }
     projectData.documents = documents;
+    if (documents[0]?.thumbnail) {
+      projectData.thumbnail = documents[0].thumbnail;
+    }
   }
 
   const project = await Project.create(projectData);

@@ -7,6 +7,7 @@ const documentFileSchema = new Schema({
   mimetype: String,
   size: Number,
   path: String,
+  thumbnail: { type: String, default: null },
   pageCount: { type: Number, default: 1 },
   order: { type: Number, default: 0 },
 }, { _id: false });
@@ -24,6 +25,10 @@ const projectSchema = new Schema({
   },
   websiteUrl: {
     type: String,
+  },
+  thumbnail: {
+    type: String,
+    default: null,
   },
   documents: [documentFileSchema],
   owner: {

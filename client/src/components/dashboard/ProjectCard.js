@@ -6,6 +6,7 @@ import { updateProjectEmailNotificationsApi } from '../../services/projectServic
 import { toastError } from '../../utils/toast';
 import { relativeTime } from '../../utils/relativeTime';
 import { AvatarStack, Badge, Icon, ProjectThumb, RowMenu, toneFor } from '../kc';
+import { fileUrl } from '../../utils/uploadUrl';
 
 // Where the wireframe thumbnail draws its pins. The list API has counts, not
 // pin positions, so the spots are fixed per project (stable across renders).
@@ -32,6 +33,38 @@ export default function ProjectCard({ project, isAdmin, userId, onEdit, onArchiv
   const isOwner = project.owner?._id === userId || project.owner === userId;
   const canManage = isAdmin || isOwner;
   const isDoc = project.projectType === 'document';
+  const firstDoc = isDoc ? (project.documents?.[0] || null) : null;
+  const isImageDoc = firstDoc && (firstDoc.mimetype?.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(firstDoc.filename || firstDoc.originalName || ''));
+  const isPdfDoc = firstDoc && (firstDoc.mimetype === 'application/pdf' || /\.pdf$/i.test(firstDoc.filename || firstDoc.originalName || ''));
+  const pdfFileUrl = isPdfDoc && firstDoc?.path ? fileUrl(firstDoc.path) : null;
+
+  // Compute live thumbnail/screenshot URL
+  const { thumbSrc, fallbackThumbSrc } = (() => {
+    // 1. Explicit project thumbnail
+    if (project.thumbnail) {
+      const src = project.thumbnail.startsWith('http') ? project.thumbnail : fileUrl(project.thumbnail);
+      return { thumbSrc: src, fallbackThumbSrc: null };
+    }
+    // 2. Document project
+    if (isDoc) {
+      if (firstDoc?.path && isImageDoc) {
+        return { thumbSrc: fileUrl(firstDoc.path), fallbackThumbSrc: null };
+      }
+      return { thumbSrc: null, fallbackThumbSrc: null };
+    }
+    // 3. Website project: capture live home page banner screenshot
+    if (project.websiteUrl) {
+      const cleanUrl = project.websiteUrl.startsWith('http://') || project.websiteUrl.startsWith('https://')
+        ? project.websiteUrl
+        : `https://${project.websiteUrl}`;
+      // WordPress mshots captures live home page banner across all TLDs (.com, .org, .at, .in, etc.)
+      const primary = `https://s0.wp.com/mshots/v1/${encodeURIComponent(cleanUrl)}?w=900`;
+      const fallback = `https://api.microlink.io/?url=${encodeURIComponent(cleanUrl)}&screenshot=true&meta=false&embed=screenshot.url`;
+      return { thumbSrc: primary, fallbackThumbSrc: fallback };
+    }
+    return { thumbSrc: null, fallbackThumbSrc: null };
+  })();
+
   const status = statusInfo(project.projectStatus);
   const open = project.openPinCount || 0;
   const resolved = project.resolvedPinCount || 0;
@@ -69,7 +102,13 @@ export default function ProjectCard({ project, isAdmin, userId, onEdit, onArchiv
   return (
     <div className="kc-card-wrap">
       <Link to={`/project/${project._id}`} target="_blank" rel="noopener noreferrer" className="kc-card hover" aria-label={`Open ${project.name}`}>
-        <ProjectThumb type={isDoc ? 'doc' : 'web'} pins={thumbPins(project)} />
+        <ProjectThumb
+          type={isDoc ? 'doc' : 'web'}
+          pins={thumbPins(project)}
+          imageSrc={thumbSrc}
+          fallbackImageSrc={fallbackThumbSrc}
+          pdfFile={pdfFileUrl}
+        />
         <div className="kc-cb">
           <div className="kc-ct1">
             <Icon name={isDoc ? 'doc' : 'globe'} size={15} />

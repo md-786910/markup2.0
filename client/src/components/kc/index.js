@@ -5,6 +5,7 @@
 // one `primary` Button per view, status is always a dot plus a word, icons
 // are the outline set below (16 in rows, 18 in the header, 20 in the rail).
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import PdfThumb from './PdfThumb';
 
 export function cx(...args) { return args.filter(Boolean).join(' '); }
 
@@ -485,30 +486,129 @@ export function PageHeader({ title, subtitle, actions }) {
 
 // ── Project thumbnail: a grey wireframe carrying the project's pins ─────────
 // pins: [x%, y%, label, resolved?]
-export function ProjectThumb({ type = 'web', pins = [], imageSrc }) {
-  if (type === 'doc') {
-    return (
-      <div className="kc-thumb doc">
-        {imageSrc ? <img className="doc-img" src={imageSrc} alt="" loading="lazy" /> : (
+export function ProjectThumb({ type = 'web', pins = [], imageSrc, fallbackImageSrc, pdfFile }) {
+  const [imgError, setImgError] = useState(false);
+  const [currentSrc, setCurrentSrc] = useState(imageSrc);
+  const [isReady, setIsReady] = useState(() => type !== 'web' || !imageSrc?.includes('wp.com/mshots'));
+
+  useEffect(() => {
+    setCurrentSrc(imageSrc);
+    setImgError(false);
+    setIsReady(type !== 'web' || !imageSrc?.includes('wp.com/mshots'));
+  }, [imageSrc, type]);
+
+  // Real-time automatic screenshot resolution for WordPress mshots
+  useEffect(() => {
+    if (type !== 'web' || !imageSrc || !imageSrc.includes('wp.com/mshots')) {
+      return;
+    }
+
+    let timer = null;
+    let cancelled = false;
+    let attempts = 0;
+    let createdUrl = null;
+    const maxAttempts = 10;
+
+    const poll = async () => {
+      attempts++;
+      try {
+        const res = await fetch(imageSrc, { cache: 'reload' });
+        if (cancelled) return;
+        const contentType = res.headers.get('content-type') || '';
+        const blob = await res.blob();
+        if (cancelled) return;
+
+        // When WordPress completes capturing, it returns image/jpeg (size > 20KB)
+        const isFinished = contentType.includes('jpeg') || contentType.includes('png') || blob.size > 20000;
+
+        if (isFinished) {
+          if (createdUrl) URL.revokeObjectURL(createdUrl);
+          createdUrl = URL.createObjectURL(blob);
+          setCurrentSrc(createdUrl);
+          setIsReady(true);
+          return;
+        }
+      } catch (err) {
+        // Ignore network hiccups while polling
+      }
+
+      if (!cancelled && attempts < maxAttempts) {
+        timer = setTimeout(poll, 2000);
+      } else if (!cancelled) {
+        setCurrentSrc(imageSrc);
+        setIsReady(true);
+      }
+    };
+
+    poll();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [imageSrc, type]);
+
+  const handleImgError = () => {
+    if (fallbackImageSrc && currentSrc !== fallbackImageSrc) {
+      setCurrentSrc(fallbackImageSrc);
+    } else {
+      setImgError(true);
+    }
+  };
+
+  const showImage = Boolean(currentSrc) && !imgError && isReady;
+
+  return (
+    <div className={`kc-thumb ${type === 'doc' ? 'doc' : 'web'}`}>
+      {type === 'doc' ? (
+        pdfFile ? (
+          <>
+            <PdfThumb file={pdfFile} />
+            <div className="page">
+              <i style={{ width: '60%', height: 6, background: 'var(--slate-400)' }} />
+              <i /><i style={{ width: '80%' }} /><i /><i style={{ width: '50%' }} />
+              <i style={{ height: 22, background: 'var(--slate-200)' }} />
+            </div>
+          </>
+        ) : showImage ? (
+          <img
+            className="doc-img"
+            src={currentSrc}
+            alt=""
+            loading="lazy"
+            onError={handleImgError}
+          />
+        ) : (
           <div className="page">
             <i style={{ width: '60%', height: 6, background: 'var(--slate-400)' }} />
             <i /><i style={{ width: '80%' }} /><i /><i style={{ width: '50%' }} />
             <i style={{ height: 22, background: 'var(--slate-200)' }} />
           </div>
-        )}
-        <ThumbPins pins={pins} />
-      </div>
-    );
-  }
-  return (
-    <div className="kc-thumb">
-      <i style={{ height: 8, width: '40%' }} />
-      <i className="hero" />
-      <div style={{ display: 'flex', gap: 6 }}>
-        {[0, 1, 2].map((i) => <i key={i} style={{ flex: 1, height: 26, background: 'var(--slate-200)' }} />)}
-      </div>
-      <i style={{ height: 6, width: '70%' }} />
+        )
+      ) : (
+        showImage ? (
+          <img
+            className="web-img"
+            src={currentSrc}
+            alt=""
+            loading="lazy"
+            onError={handleImgError}
+          />
+        ) : (
+          <>
+            <i style={{ height: 8, width: '40%' }} />
+            <i className="hero" />
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[0, 1, 2].map((i) => <i key={i} style={{ flex: 1, height: 26, background: 'var(--slate-200)' }} />)}
+            </div>
+            <i style={{ height: 6, width: '70%' }} />
+          </>
+        )
+      )}
       <ThumbPins pins={pins} />
+      <div className="kc-thumb-overlay" />
+      <span className="kc-thumb-open-btn">Open</span>
     </div>
   );
 }
