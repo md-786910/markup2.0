@@ -27,8 +27,8 @@ export const updateProjectApi = (projectId, data) =>
 export const deleteProjectApi = (projectId) =>
   api.delete(`/projects/${projectId}`);
 
-export const inviteMemberApi = (projectId, email, role = 'member') =>
-  api.post(`/projects/${projectId}/members`, { email, role })
+export const inviteMemberApi = (projectId, email, role = 'member', level) =>
+  api.post(`/projects/${projectId}/members`, { email, role, level })
     .then((res) => { track('member_invited', { role }); return res; });
 
 export const getWorkspaceMembersApi = (projectId) =>

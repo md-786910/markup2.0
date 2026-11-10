@@ -4,7 +4,7 @@
 export const ROLES = [
   { value: 'admin', label: 'Admin', description: 'Manages every workspace, project and member.' },
   { value: 'member', label: 'Member', description: 'Works on the workspaces and projects they are given.' },
-  { value: 'guest', label: 'Guest', description: 'Outside collaborator, can comment at most.' },
+  { value: 'guest', label: 'Guest', description: 'Outside collaborator, view only.' },
 ];
 export const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member', guest: 'Guest', superadmin: 'Owner' };
 

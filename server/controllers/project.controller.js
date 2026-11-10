@@ -331,8 +331,9 @@ exports.inviteMember = asyncHandler(async (req, res) => {
   if (!canAssignRole(req.user.role, roleToAssign)) {
     return res.status(403).json({ message: 'Cannot assign a role higher than your own' });
   }
-  // Access level on this project; guests can comment at most
-  const levelToGrant = capForRole(isLevel(invitedLevel) ? invitedLevel : 'comment', roleToAssign);
+  // Access level on this project; guests default to view (can comment at most)
+  const defaultLevel = roleToAssign === 'guest' ? 'view' : 'comment';
+  const levelToGrant = capForRole(isLevel(invitedLevel) ? invitedLevel : defaultLevel, roleToAssign);
 
   // Check if user already exists
   const user = await User.findOne({ email });

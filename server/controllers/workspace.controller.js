@@ -273,7 +273,8 @@ exports.inviteToWorkspace = asyncHandler(async (req, res) => {
   if (!workspace) return;
   const orgId = req.user.organization.toString();
   const role = req.body?.role === 'guest' ? 'guest' : 'member';
-  const requestedLevel = isLevel(req.body?.level) ? req.body.level : 'comment';
+  const defaultLevel = role === 'guest' ? 'view' : 'comment';
+  const requestedLevel = isLevel(req.body?.level) ? req.body.level : defaultLevel;
   const raw = Array.isArray(req.body?.emails) ? req.body.emails : [req.body?.email];
   const emails = [...new Set(raw.filter(Boolean).map((e) => String(e).toLowerCase().trim()))];
   if (!emails.length) return res.status(400).json({ message: 'Add at least one email address' });

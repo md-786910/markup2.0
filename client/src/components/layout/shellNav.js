@@ -34,6 +34,7 @@ export const SETTINGS_PAGES = [
   { group: 'Organization', id: 'general', label: 'General', icon: 'gear', to: '/settings' },
   { group: 'Organization', id: 'billing', label: 'Plan and billing', icon: 'card', to: '/settings?tab=billing' },
   { group: 'Organization', id: 'workspaces', label: 'Workspaces', icon: 'layers', to: '/settings?tab=workspaces', who: 'managers' },
+  { group: 'Organization', id: 'project-members', label: 'Project members', icon: 'team', to: '/settings?tab=project-members' },
   { group: 'Organization', id: 'activity', label: 'Activity log', icon: 'activity', to: '/settings?tab=activity', who: 'admins' },
   { group: 'Organization', id: 'data', label: 'Data and privacy', icon: 'shield', to: '/settings?tab=data' },
   { group: 'Your account', id: 'profile', label: 'Profile', icon: 'user', to: '/profile' },
@@ -41,12 +42,13 @@ export const SETTINGS_PAGES = [
   { group: 'Your account', id: 'security', label: 'Security', icon: 'lock', to: '/settings?tab=security' },
 ];
 // Old ?tab= values keep working
-export const SETTINGS_ALIASES = { workspace: 'general', invoices: 'billing' };
+export const SETTINGS_ALIASES = { workspace: 'general', invoices: 'billing', members: 'project-members' };
 
 export function areaOf(pathname) {
   if (pathname.startsWith('/team')) return 'team';
   if (pathname.startsWith('/integrations')) return 'integrations';
   if (pathname.startsWith('/settings') || pathname.startsWith('/profile')) return 'settings';
+  if (/^\/project\/[^/]+\/members/.test(pathname)) return 'settings';
   return 'projects';
 }
 
@@ -57,6 +59,7 @@ export function activeItemOf(pathname, params) {
   if (area === 'integrations') return params.get('provider') || 'slack';
   if (area === 'settings') {
     if (pathname.startsWith('/profile')) return 'profile';
+    if (/^\/project\/[^/]+\/members/.test(pathname)) return 'project-members';
     const tab = params.get('tab') || 'general';
     return SETTINGS_ALIASES[tab] || tab;
   }

@@ -233,14 +233,9 @@ exports.signup = asyncHandler(async (req, res) => {
   const sessionToken = generateSessionToken();
 
   // Determine role and organization
-  let role = "member";
+  let role = isFirstUser ? "owner" : (invitationForSignup?.role || "member");
   let organizationId = null;
   let org = null;
-
-  if (isFirstUser) {
-    // First user becomes owner and creates the organization
-    role = "owner";
-  }
 
   const clientIp = req.ip;
   const location = getLocationFromIp(clientIp);
@@ -280,12 +275,13 @@ exports.signup = asyncHandler(async (req, res) => {
   if (pendingInvites.length > 0) {
     // Assign the highest role from invitations (for non-first users)
     if (!isFirstUser) {
-      let bestRole = "member";
+      let bestRole = invitationForSignup?.role || pendingInvites[0]?.role || "guest";
       let inviteOrg = null;
       for (const invite of pendingInvites) {
         if (
           invite.role &&
-          ROLE_HIERARCHY[invite.role] < ROLE_HIERARCHY[bestRole]
+          ROLE_HIERARCHY[invite.role] !== undefined &&
+          (ROLE_HIERARCHY[bestRole] === undefined || ROLE_HIERARCHY[invite.role] < ROLE_HIERARCHY[bestRole])
         ) {
           bestRole = invite.role;
         }

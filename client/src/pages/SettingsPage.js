@@ -10,6 +10,7 @@ import WorkspacesTab from '../components/settings/WorkspacesTab';
 import DataPrivacySection from '../components/settings/DataPrivacySection';
 import NotificationsTab from '../components/settings/NotificationsTab';
 import SecurityTab from '../components/settings/SecurityTab';
+import ProjectMembersTab from '../components/settings/ProjectMembersTab';
 
 // /settings?tab=… — the context panel (shellNav SETTINGS_PAGES) picks the page.
 // Old values keep working: ?tab=workspace → General, ?tab=invoices → Plan and billing.
@@ -27,6 +28,7 @@ export default function SettingsPage() {
       if (isAdmin || managesAWorkspace) return <WorkspacesTab />;
       // Wait for the workspace list before sending a non-manager back
       return workspaces.length ? <Navigate to="/settings" replace /> : null;
+    case 'project-members': return <ProjectMembersTab />;
     case 'activity': return isAdmin ? <ActivityTab /> : <Navigate to="/settings" replace />;
     case 'data': return <DataPrivacySection />;
     case 'notifications': return <NotificationsTab />;

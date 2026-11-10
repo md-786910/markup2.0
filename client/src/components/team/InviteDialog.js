@@ -21,9 +21,16 @@ export default function InviteDialog({ isOpen, onClose, activeProjects, workspac
   const emailId = `${ids}-emails`;
   const roleId = `${ids}-role`;
 
+  const accessLevel = role === 'guest' ? 'view' : 'comment';
+
   useEffect(() => {
     if (!isOpen) return;
-    setEmails([]); setDraft(''); setRole(initialRole); setProjectIds([]); setWorkspaceIds([]); setError('');
+    setEmails([]);
+    setDraft('');
+    setRole(initialRole);
+    setProjectIds([]);
+    setWorkspaceIds([]);
+    setError('');
   }, [isOpen, initialRole]);
 
   const addEmails = (value) => {
@@ -52,8 +59,12 @@ export default function InviteDialog({ isOpen, onClose, activeProjects, workspac
     setError('');
     setSending(true);
     try {
-      const projectResults = await Promise.allSettled(projectIds.flatMap((pid) => uniqueEmails.map((m) => inviteMemberApi(pid, m, role))));
-      const wsResults = await Promise.allSettled(chosenWorkspaces.map((w) => inviteToWorkspaceApi(w._id, uniqueEmails, role)));
+      const projectResults = await Promise.allSettled(
+        projectIds.flatMap((pid) => uniqueEmails.map((m) => inviteMemberApi(pid, m, role, accessLevel)))
+      );
+      const wsResults = await Promise.allSettled(
+        chosenWorkspaces.map((w) => inviteToWorkspaceApi(w._id, uniqueEmails, role, accessLevel))
+      );
       const failures = [];
       let sent = 0;
       projectResults.forEach((r) => { if (r.status === 'fulfilled') sent += 1; else failures.push(r.reason?.response?.data?.message || 'Could not invite'); });
@@ -123,12 +134,12 @@ export default function InviteDialog({ isOpen, onClose, activeProjects, workspac
           </div>
         </Field>
 
-        <Field id={roleId} label="Role" hint={roleInfo?.description}>
+        <Field id={roleId} label="Role" hint={role === 'guest' ? 'Outside collaborator, view only.' : roleInfo?.description}>
           <Select id={roleId} value={role} onChange={(e) => setRole(e.target.value)} options={ROLES.map(({ value, label }) => ({ value, label }))} />
         </Field>
 
         <Field label="Access" hint={role === 'admin' ? 'Admins see every workspace; pick a project to send the invitation from.' : 'A whole workspace includes its future projects.'}>
-          <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200 p-3 space-y-3" role="group" aria-label="Access">
+          <div className="max-h-60 overflow-y-auto rounded-lg border border-slate-200 p-3 space-y-3" role="group" aria-label="Access">
             {role !== 'admin' && (
               <div className="space-y-2">
                 <p className="text-micro text-slate-500">Whole workspace</p>
