@@ -32,6 +32,8 @@ const invoiceSchema = new mongoose.Schema({
   tax: { type: mongoose.Schema.Types.Mixed, default: null },
   refundedAt: { type: Date, default: null },
   refundAmount: { type: Number, default: null }, // smallest unit
+  // PayPal refund ids already recorded (webhooks can be delivered more than once)
+  paypalRefundIds: { type: [String], default: undefined },
   // Idempotency flags for the daily cron worker.
   reminders: {
     day0Sent: { type: Boolean, default: false },

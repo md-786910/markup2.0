@@ -35,8 +35,30 @@ export function writeCookieConsent(consent) {
     ...(consent.preferences || {}),
     necessary: true,
   };
-  window.localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, JSON.stringify({ ...consent, preferences }));
+  try {
+    window.localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, JSON.stringify({ ...consent, preferences }));
+  } catch {
+    // Storage blocked (private mode, strict settings): the choice still applies
+    // for this visit; the banner asks again next time
+  }
   updateAnalyticsConsent(preferences);
+  if (!preferences.analytics) clearAnalyticsCookies();
+}
+
+// Withdrawing analytics consent removes the Google Analytics cookies already set
+// (_ga, _ga_<id>), on this host and its parent domains
+function clearAnalyticsCookies() {
+  if (typeof document === 'undefined') return;
+  const names = document.cookie.split(';').map((c) => c.split('=')[0].trim()).filter((n) => /^_ga(_|$)/.test(n) || n === '_gid');
+  if (!names.length) return;
+  const labels = window.location.hostname.split('.');
+  const domains = [''];
+  for (let i = 0; i < labels.length - 1; i += 1) domains.push(`; domain=.${labels.slice(i).join('.')}`);
+  for (const name of names) {
+    for (const domain of domains) {
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${domain}`;
+    }
+  }
 }
 
 // Google Analytics (public/index.html) runs in Consent Mode: pass the choice on

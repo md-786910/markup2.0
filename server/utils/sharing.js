@@ -16,6 +16,25 @@ function isExpired(share) {
   return !!(share.expiresAt && new Date(share.expiresAt) < new Date());
 }
 
+// Review links are a paid-plan feature (paid plans and trials): links made
+// before a move to the free plan stop working with it. Cached briefly, since
+// one review page makes many guest and proxy requests.
+const planCache = new Map();
+const PLAN_TTL = 60 * 1000;
+const PLAN_UNAVAILABLE = { status: 403, message: 'Review links are not available on the current plan of this organization.' };
+
+async function orgAllowsShareLinks(orgId) {
+  if (!orgId) return true;
+  const key = String(orgId);
+  const hit = planCache.get(key);
+  if (hit && Date.now() - hit.at < PLAN_TTL) return hit.ok;
+  const org = await require('../models/Organization').findById(orgId).select('plan').lean();
+  const ok = !!org && org.plan !== 'free';
+  if (planCache.size > 5000) planCache.clear();
+  planCache.set(key, { ok, at: Date.now() });
+  return ok;
+}
+
 // Projects reachable through a workspace link (archived ones are hidden)
 function workspaceProjectsQuery(workspace) {
   return {
@@ -46,14 +65,16 @@ async function findShared(token, select) {
     if (select) query = query.select(`${select} organization`);
     const project = await query;
     if (!project) return { status: 404, message: 'Review link not found.' };
+    if (!(await orgAllowsShareLinks(workspace.organization))) return PLAN_UNAVAILABLE;
     return { project, share: workspace.shareSettings, scope: { workspaceId: workspace._id.toString() } };
   }
 
   let query = Project.findOne({ 'shareSettings.token': raw, 'shareSettings.enabled': true });
-  if (select) query = query.select(select);
+  if (select) query = query.select(`${select} organization`);
   const project = await query;
   if (!project) return { status: 404, message: 'Review link not found.' };
   if (isExpired(project.shareSettings)) return { status: 410, message: 'This review link has expired.' };
+  if (!(await orgAllowsShareLinks(project.organization))) return PLAN_UNAVAILABLE;
   return { project, share: project.shareSettings, scope: { projectId: project._id.toString() } };
 }
 
@@ -63,6 +84,7 @@ const proxyShareCache = new Map();
 const PROXY_SHARE_TTL = 60 * 1000;
 
 async function isProjectShared(project) {
+  if (!(await orgAllowsShareLinks(project.organization))) return false;
   if (project.shareSettings?.enabled && !isExpired(project.shareSettings)) return true;
   if (project.status === 'archived') return false;
   const key = project._id.toString();
@@ -78,4 +100,4 @@ async function isProjectShared(project) {
   return ok;
 }
 
-module.exports = { findShared, findSharedWorkspace, workspaceProjectsQuery, composeWorkspaceToken, isExpired, isProjectShared };
+module.exports = { findShared, findSharedWorkspace, workspaceProjectsQuery, composeWorkspaceToken, isExpired, isProjectShared, orgAllowsShareLinks, clearSharePlanCache: () => planCache.clear() };

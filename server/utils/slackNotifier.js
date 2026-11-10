@@ -1,12 +1,10 @@
 const axios = require('axios');
+const { safeAxiosOptions } = require('./ssrfGuard');
 const { URLS } = require('../config/env');
 
 const CLIENT_ORIGIN = URLS.app;
 
-function stripHtml(html) {
-  if (!html) return '';
-  return html.replace(/<[^>]*>/g, '').trim();
-}
+const { stripHtml, escapeSlack } = require('./integrationText');
 
 const ACTION_MESSAGES = {
   'pin.created': (d) => `New feedback pin #${d.pinNumber} on *${d.projectName}* by ${d.actorName}`,
@@ -22,7 +20,8 @@ async function sendSlackNotification(webhookUrl, data) {
   const messageFn = ACTION_MESSAGES[data.action];
   if (!messageFn) return;
 
-  const text = messageFn(data);
+  // Names come from users and guests: plain text, never Slack syntax
+  const text = messageFn({ ...data, actorName: escapeSlack(data.actorName), projectName: escapeSlack(data.projectName) });
   const link = `${CLIENT_ORIGIN}/project/${data.projectId}?pin=${data.pinId || ''}`;
 
   const blocks = [
@@ -35,14 +34,14 @@ async function sendSlackNotification(webhookUrl, data) {
   if (data.comment) {
     blocks.push({
       type: 'section',
-      text: { type: 'mrkdwn', text: `> ${stripHtml(data.comment).substring(0, 200)}` },
+      text: { type: 'mrkdwn', text: `> ${escapeSlack(stripHtml(data.comment).substring(0, 200))}` },
     });
   }
 
   if (data.context) {
     const ctx = data.context;
     const envParts = [];
-    if (ctx.browser || ctx.os) envParts.push(`${ctx.browser || ''} on ${ctx.os || ''}`.trim());
+    if (ctx.browser || ctx.os) envParts.push(escapeSlack(`${ctx.browser || ''} on ${ctx.os || ''}`.trim()));
     if (ctx.screen && ctx.screen.w != null && ctx.screen.h != null) envParts.push(`${ctx.screen.w}x${ctx.screen.h}`);
     const badges = [];
     if (Array.isArray(ctx.consoleErrors) && ctx.consoleErrors.length > 0) badges.push(`🚨 ${ctx.consoleErrors.length} errors`);
@@ -67,7 +66,7 @@ async function sendSlackNotification(webhookUrl, data) {
     }],
   });
 
-  await axios.post(webhookUrl, { blocks });
+  await axios.post(webhookUrl, { blocks }, safeAxiosOptions);
 }
 
 module.exports = { sendSlackNotification };

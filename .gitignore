@@ -13,6 +13,12 @@ coverage/
 .env.dev
 .vercel
 
+# Secrets: any local env variant, keys and certificates (the template stays tracked)
+.env.*
+!.env.example
+*.pem
+*.key
+
 # Local backup output from deploy/docker-compose.yml
 deploy/backups/
 

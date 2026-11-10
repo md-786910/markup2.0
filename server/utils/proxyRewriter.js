@@ -186,24 +186,50 @@ function rewriteHtml(html, pageUrl, projectId, serverBase, workerBase, isGuest) 
   return $.html();
 }
 
+// A JS string literal that is safe inside an inline <script>: JSON-quoted, and
+// <, >, & and the line separators escaped so a value (e.g. the raw ?url= the
+// page was requested with) can never close the script tag or break the string.
+function jsString(value) {
+  return JSON.stringify(String(value == null ? '' : value))
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
+// The site a host belongs to (its registrable domain, approximated: the last
+// two labels, three for two-letter country domains like example.co.uk; IP
+// addresses whole), as a cookie-name-safe string. Used on the server and,
+// through siteKey.toString(), inside the injected script, so both sides always
+// agree. ES5 only, no backticks: it is embedded in a template literal.
+function siteKey(host) {
+  var h = String(host || '').toLowerCase().replace(/:\d+$/, '').replace(/\.$/, '');
+  var parts = h.split('.');
+  var n = 2;
+  if (parts.length > 2 && parts[parts.length - 1].length === 2 && parts[parts.length - 2].length <= 3) n = 3;
+  if (/^[0-9.]+$/.test(h) || h.indexOf(':') !== -1) n = parts.length;
+  return parts.slice(-n).join('.').replace(/[^a-z0-9.-]/g, '_');
+}
+
 function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest) {
-  const safePageUrl = pageUrl.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  const safeServerBase = (serverBase || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  const safeWorkerBase = (workerBase || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   let pageOrigin;
   try { pageOrigin = new URL(pageUrl).origin; } catch { pageOrigin = pageUrl; }
-  const safePageOrigin = pageOrigin.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
   const injectionScript = `
 <script>
 (function() {
-  var __markupPageUrl = '${safePageUrl}';
-  var __markupServerBase = '${safeServerBase}';
-  var __markupWorkerBase = '${safeWorkerBase}';
-  var __markupRelayQuery = '${relayQuery()}';
-  var __markupProjectId = '${projectId}';
-  var __markupPageOrigin = '${safePageOrigin}';
+  var __markupPageUrl = ${jsString(pageUrl)};
+  var __markupServerBase = ${jsString(serverBase)};
+  var __markupWorkerBase = ${jsString(workerBase)};
+  var __markupRelayQuery = ${jsString(relayQuery())};
+  var __markupProjectId = ${jsString(projectId)};
+  var __markupPageOrigin = ${jsString(pageOrigin)};
   var __markupIsGuest = ${isGuest ? 'true' : 'false'};
+  ${siteKey.toString()}
+  // Mirrored localStorage tokens are tagged with the reviewed site, so the proxy
+  // forwards them only to that site (see proxy.controller.js)
+  var __markupLsPrefix = (function() { try { return '__markup_ls_' + siteKey(new URL(__markupPageOrigin).hostname) + '__'; } catch (e) { return '__markup_ls___'; } })();
   var __markupToken = '';
   try {
     __markupToken = new URLSearchParams(window.location.search).get('token') || '';
@@ -637,7 +663,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   Storage.prototype.setItem = function(key, value) {
     _lsSetItem.apply(this, arguments);
     if (/token|auth|session|jwt|access/i.test(key) && !/^markup_/i.test(key) && typeof value === 'string' && value.length < 4096) {
-      try { document.cookie = '__markup_ls_' + encodeURIComponent(key) + '=' + encodeURIComponent(value) + '; path=/; max-age=86400; samesite=lax'; } catch(e) {}
+      try { document.cookie = __markupLsPrefix + encodeURIComponent(key) + '=' + encodeURIComponent(value) + '; path=/; max-age=86400; samesite=lax'; } catch(e) {}
     }
   };
   try {
@@ -646,7 +672,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       if (/token|auth|session|jwt|access/i.test(lsKey) && !/^markup_/i.test(lsKey)) {
         var lsVal = localStorage.getItem(lsKey);
         if (lsVal && lsVal.length < 4096) {
-          document.cookie = '__markup_ls_' + encodeURIComponent(lsKey) + '=' + encodeURIComponent(lsVal) + '; path=/; max-age=86400; samesite=lax';
+          document.cookie = __markupLsPrefix + encodeURIComponent(lsKey) + '=' + encodeURIComponent(lsVal) + '; path=/; max-age=86400; samesite=lax';
         }
       }
     }
@@ -1546,4 +1572,4 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   return html + injectionScript;
 }
 
-module.exports = { rewriteHtml, rewriteCssUrls, rewriteJsUrls, injectScript };
+module.exports = { rewriteHtml, rewriteCssUrls, rewriteJsUrls, injectScript, siteKey };

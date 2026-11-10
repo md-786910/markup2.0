@@ -312,7 +312,7 @@ exports.inviteToWorkspace = asyncHandler(async (req, res) => {
       continue;
     }
     if (pending) await pending.deleteOne();
-    const seatError = await seatLimitError(req.organization, role);
+    const seatError = await seatLimitError(req.organization, role, email);
     if (seatError) { results.push({ email, status: 'error', ...seatError }); continue; }
 
     const token = crypto.randomBytes(32).toString('hex');

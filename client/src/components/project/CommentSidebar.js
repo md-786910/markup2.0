@@ -54,6 +54,7 @@ export default function CommentSidebar({
   resyncKey = 0,
   members = [],
   readOnly = false,
+  canManage = false,
 }) {
   const [comments, setComments] = useState([]);
   const [body, setBody] = useState("");
@@ -69,6 +70,9 @@ export default function CommentSidebar({
   const [copyToast, setCopyToast] = useState(false);
   const [newLabelInput, setNewLabelInput] = useState("");
   const { user } = useAuth();
+  // Deleting a pin removes its whole thread: its author or a project manager only
+  const pinAuthorId = pin?.createdBy?._id || pin?.createdBy;
+  const canDeletePin = canManage || (!!pinAuthorId && String(pinAuthorId) === String(user?.id || user?._id));
 
   const handleDownload = (src) => {
     const a = document.createElement("a");
@@ -324,16 +328,18 @@ export default function CommentSidebar({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
             </button>
-            <button
-              onClick={() => setConfirmDeletePin(true)}
-              className={`${iconBtn} !h-7 !w-7 text-slate-500 hover:bg-red-50 hover:text-red-600`}
-              title="Delete pin"
-              aria-label="Delete pin"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+            {canDeletePin && (
+              <button
+                onClick={() => setConfirmDeletePin(true)}
+                className={`${iconBtn} !h-7 !w-7 text-slate-500 hover:bg-red-50 hover:text-red-600`}
+                title="Delete pin"
+                aria-label="Delete pin"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
           </div>
         ))}
         {!onBack && (

@@ -11,26 +11,40 @@ const TEAM_ROLES = ['owner', 'admin', 'member'];
  * so a limit can't be bypassed by sending many invitations at once.
  * kind: 'member' (owner/admin/member — matches the billing page) or 'guest'.
  */
+const pendingSeatFilter = (orgId, isGuest) => ({
+  organization: orgId,
+  status: 'pending',
+  expiresAt: { $gt: new Date() },
+  role: isGuest ? 'guest' : { $ne: 'guest' },
+});
+
 async function countSeats(orgId, kind) {
   const isGuest = kind === 'guest';
-  const [users, invites] = await Promise.all([
+  const [users, inviteEmails] = await Promise.all([
     User.countDocuments({ organization: orgId, role: isGuest ? 'guest' : { $in: TEAM_ROLES } }),
-    Invitation.countDocuments({
-      organization: orgId,
-      status: 'pending',
-      expiresAt: { $gt: new Date() },
-      role: isGuest ? 'guest' : { $ne: 'guest' },
-    }),
+    // One person invited to several projects or workspaces is one seat
+    Invitation.distinct('email', pendingSeatFilter(orgId, isGuest)),
   ]);
-  return users + invites;
+  return users + inviteEmails.length;
+}
+
+// True when inviting this email takes no new seat: they are already in the
+// organization, or already hold a pending invitation of the same kind.
+async function holdsSeat(orgId, role, email) {
+  const e = String(email || '').toLowerCase().trim();
+  if (!e) return false;
+  if (await User.exists({ email: e, organization: orgId })) return true;
+  return !!(await Invitation.exists({ ...pendingSeatFilter(orgId, role === 'guest'), email: e }));
 }
 
 /**
  * Returns a 403 body when adding one more seat of `role` would exceed the
- * org's limit, else null. Used by invites and role changes.
+ * org's limit, else null. Used by invites (with the invited `email`, which
+ * needs no new seat if that person already has one) and role changes.
  */
-async function seatLimitError(org, role) {
+async function seatLimitError(org, role, email) {
   if (!org) return null;
+  if (email && (await holdsSeat(org._id, role, email))) return null;
   if (role === 'guest') {
     if ((await countSeats(org._id, 'guest')) >= org.limits.maxGuests) {
       return { message: `Guest limit reached (${org.limits.maxGuests}). Upgrade your plan to invite more guests.`, code: 'GUEST_LIMIT' };
@@ -72,7 +86,7 @@ const checkMemberLimit = asyncHandler(async (req, res, next) => {
   const { role } = req.body;
   // Only enforce for non-guest invites
   if (role === 'guest') return next();
-  const error = await seatLimitError(req.organization, role);
+  const error = await seatLimitError(req.organization, role, req.body.email);
   if (error) return res.status(403).json(error);
   next();
 });
@@ -84,7 +98,7 @@ const checkMemberLimit = asyncHandler(async (req, res, next) => {
 const checkGuestLimit = asyncHandler(async (req, res, next) => {
   const { role } = req.body;
   if (role !== 'guest') return next();
-  const error = await seatLimitError(req.organization, 'guest');
+  const error = await seatLimitError(req.organization, 'guest', req.body.email);
   if (error) return res.status(403).json(error);
   next();
 });
@@ -207,6 +221,7 @@ const checkDeadlinesLimit = asyncHandler(async (req, res, next) => {
 module.exports = {
   checkWorkspaceLimit,
   seatLimitError,
+  countSeats,
   checkShareLinksAllowed,
   checkOrgNotLocked,
   checkMemberLimit,

@@ -383,7 +383,7 @@ function sendOrganizationsCsv(res, data) {
   const cell = (v) => {
     const s = v == null ? '' : String(v);
     // Quote, and defuse spreadsheet formulas in customer-entered text
-    return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    return `"${(/^[=+\-@\t\r]/.test(s.trimStart()) || /^[\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
   };
   const iso = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
   const header = ['Organization', 'Owner', 'Owner email', 'Plan', 'Status', 'Health', 'Score', 'Members', 'Active members (7d)', 'Projects', 'MRR (USD)', 'Last active', 'Trial ends', 'Created'];
@@ -511,6 +511,13 @@ exports.lockOrganization = asyncHandler(async (req, res) => {
 });
 
 exports.unlockOrganization = asyncHandler(async (req, res) => {
+  // A deletion the owner scheduled keeps the org read-only until it is
+  // cancelled: unlocking it here would leave it writable but still purged
+  const current = await Organization.findById(req.params.id).select('deletionScheduledAt');
+  if (!current) return res.status(404).json({ message: 'Organization not found' });
+  if (current.deletionScheduledAt) {
+    return res.status(409).json({ message: 'This organization is scheduled for deletion. The owner has to cancel the deletion (Settings → Data and privacy) to unlock it.', code: 'DELETION_SCHEDULED' });
+  }
   const org = await Organization.findByIdAndUpdate(
     req.params.id,
     { isLocked: false, lockedAt: null, lockedReason: null },
@@ -929,6 +936,8 @@ exports.setOrganizationPlan = asyncHandler(async (req, res) => {
       const trialDays = await getDefaultTrialDaysAsync();
       org.trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
       org.trialDays = trialDays;
+      // A new trial period gets its reminder emails (and its expiry lock) again
+      org.trialReminders = { day7Sent: false, day3Sent: false, day1Sent: false, expiredSent: false };
     }
     org.subscription.status = 'none';
     org.subscription.currentPeriodEnd = null;
@@ -977,6 +986,9 @@ exports.extendTrial = asyncHandler(async (req, res) => {
   if (isAgent && org.plan !== 'trial') {
     return res.status(403).json({ message: 'Only a superadmin can start a trial for a free organization.' });
   }
+  if (isAgent && !(org.trialEndsAt && org.trialEndsAt > new Date())) {
+    return res.status(403).json({ message: 'Support agents can only extend a trial that is still running. Ask a superadmin to restart an expired one.' });
+  }
 
   const previousPlan = org.plan;
   if (org.plan === 'free') {
@@ -990,10 +1002,16 @@ exports.extendTrial = asyncHandler(async (req, res) => {
   const from = org.trialEndsAt && org.trialEndsAt > new Date() ? org.trialEndsAt : new Date();
   const newEndsAt = new Date(from.getTime() + days * 24 * 60 * 60 * 1000);
   const agentDaysSoFar = org.trialSupportExtensionDays || 0;
-  if (isAgent && agentDaysSoFar + days > 14) {
-    return res.status(403).json({ message: `Support agents can add up to 14 days to a trial in total (${agentDaysSoFar} already added). Ask a superadmin for more.` });
+  if (isAgent) {
+    // Reserve the days atomically so parallel requests can't pass the 14-day cap
+    const reserved = await Organization.updateOne(
+      { _id: org._id, $expr: { $lte: [{ $add: [{ $ifNull: ['$trialSupportExtensionDays', 0] }, days] }, 14] } },
+      { $inc: { trialSupportExtensionDays: days } },
+    );
+    if (!reserved.modifiedCount) {
+      return res.status(403).json({ message: `Support agents can add up to 14 days to a trial in total (${agentDaysSoFar} already added). Ask a superadmin for more.` });
+    }
   }
-  if (isAgent) org.trialSupportExtensionDays = agentDaysSoFar + days;
   org.trialEndsAt = newEndsAt;
   // Total trial length (the app shows "N-day trial" and its progress from it)
   org.trialDays = previousPlan === 'trial' ? (org.trialDays || 0) + days : days;
@@ -1213,7 +1231,13 @@ exports.updateOrganizationNote = asyncHandler(async (req, res) => {
 });
 
 exports.deleteOrganizationNote = asyncHandler(async (req, res) => {
-  const result = await AdminNote.deleteOne({ _id: req.params.noteId, organization: req.params.id });
+  const note = await AdminNote.findOne({ _id: req.params.noteId, organization: req.params.id }).select('author');
+  if (!note) return res.status(404).json({ message: 'Note not found' });
+  // Support agents delete only their own notes; superadmins any
+  if (req.admin.role !== 'superadmin' && String(note.author) !== String(req.admin._id)) {
+    return res.status(403).json({ message: 'Only the author or a superadmin can delete this note.' });
+  }
+  const result = await AdminNote.deleteOne({ _id: note._id });
   if (!result.deletedCount) return res.status(404).json({ message: 'Note not found' });
   logAdminAction(req.params.id, req.admin, 'org.note_deleted');
   res.json({ message: 'Note deleted' });
@@ -1425,7 +1449,7 @@ exports.getInvoices = asyncHandler(async (req, res) => {
 
     const cell = (v) => {
       const s = v == null ? '' : String(v);
-      return `"${(/^[=+\-@]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+      return `"${(/^[=+\-@\t\r]/.test(s.trimStart()) || /^[\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
     };
     const iso = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
     const header = ['Invoice Number', 'Date', 'Organization', 'Buyer Legal Name', 'GSTIN', 'Plan', 'Currency', 'Amount', 'Taxable', 'Tax', 'Status', 'Paid At', 'Provider', 'Due Date'];

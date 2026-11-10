@@ -18,6 +18,11 @@ export const signupApi = (name, email, password, invitationToken) =>
 export const getMeApi = () =>
   api.get('/auth/me');
 
+// Ends the session on the server. The token is passed explicitly: the caller
+// removes it from storage right after, before the request interceptor runs.
+export const logoutApi = (token) =>
+  api.post('/auth/logout', null, { headers: { Authorization: `Bearer ${token}` } });
+
 export const forgotPasswordApi = (email) =>
   api.post('/auth/forgot-password', { email });
 

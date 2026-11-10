@@ -41,17 +41,23 @@ async function projectLevelFor(user, project) {
   return projectLevel(user, project, workspace);
 }
 
-// Projects a non-admin user may list: only projects they own or are explicitly granted access to
+// Projects a non-admin user may list: the ones they own or are granted
+// directly, plus every project in workspaces they belong to
 async function visibleProjectsQuery(user) {
   const orgId = user.organization;
-  return {
-    organization: orgId,
-    $or: [
-      { owner: user._id },
-      { members: user._id },
-      { 'memberAccess.user': user._id },
-    ],
-  };
+  const or = [
+    { owner: user._id },
+    { members: user._id },
+    { 'memberAccess.user': user._id },
+  ];
+  const workspaces = await Workspace.find({ organization: orgId, 'members.user': user._id }).select('_id isDefault').lean();
+  if (workspaces.length) {
+    const ids = workspaces.map((w) => w._id);
+    // Projects with no workspace belong to the org's default one
+    if (workspaces.some((w) => w.isDefault)) ids.push(null);
+    or.push({ workspace: { $in: ids } });
+  }
+  return { organization: orgId, $or: or };
 }
 
 // Users who belong to the project's workspace (they see the project without

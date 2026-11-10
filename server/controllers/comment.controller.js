@@ -12,16 +12,18 @@ const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { deleteCommentCascade } = require('../utils/cascade');
 const { refundUploads } = require('../utils/storage');
 
-// Keeps only mentions of users who can see the project (owner, members, or same
-// org), so a comment can't trigger emails/notifications to arbitrary user IDs.
+// Keeps only mentions of users who can open the project (the same access rule
+// as the project routes: creator, members, workspace members, org admins), so
+// a comment can't email its text to anyone else, in the org or outside it.
 async function filterMentionsToProject(userIds, project) {
   if (!userIds.length) return userIds;
-  const projectUserIds = new Set([project.owner.toString(), ...project.members.map((m) => m.toString())]);
-  const projectOrg = project.organization ? project.organization.toString() : null;
-  const users = await User.find({ _id: { $in: userIds } }).select('organization');
-  return users
-    .filter((u) => projectUserIds.has(u._id.toString()) || (projectOrg && u.organization && u.organization.toString() === projectOrg))
-    .map((u) => u._id.toString());
+  const { projectLevelFor } = require('../utils/workspaces');
+  const users = await User.find({ _id: { $in: userIds } }).select('organization role');
+  const allowed = [];
+  for (const u of users) {
+    if (await projectLevelFor(u, project)) allowed.push(u._id.toString());
+  }
+  return allowed;
 }
 
 exports.createComment = asyncHandler(async (req, res) => {
@@ -29,12 +31,15 @@ exports.createComment = asyncHandler(async (req, res) => {
   const { parentComment } = req.body;
   const body = sanitizeCommentBody(req.body.body);
 
+  // Uploads were reserved by enforceStorageQuota: refusals give them back
   if (!body) {
+    await refundUploads(req);
     return res.status(400).json({ message: 'Comment body is required' });
   }
 
   const pin = await Pin.findById(pinId);
   if (!pin) {
+    await refundUploads(req);
     return res.status(404).json({ message: 'Pin not found' });
   }
 
@@ -67,7 +72,9 @@ exports.createComment = asyncHandler(async (req, res) => {
     author: req.user._id,
     body,
     attachments,
-    parentComment: parentComment || null,
+    // A reply's parent must be a comment on this same pin
+    parentComment: (parentComment && require('mongoose').isValidObjectId(parentComment)
+      && (await Comment.exists({ _id: parentComment, pin: pinId }))) ? parentComment : null,
     mentions: mentionedUserIds,
   });
 

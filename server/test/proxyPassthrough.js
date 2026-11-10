@@ -26,6 +26,7 @@ const check = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS'
   const site = http.createServer((req, res) => {
     if (req.url.startsWith('/api/missing')) { res.writeHead(404, { 'Content-Type': 'application/json' }); return res.end('{"error":"not found"}'); }
     if (req.url.startsWith('/api/private')) { res.writeHead(401, { 'Content-Type': 'application/json' }); return res.end('{"error":"login"}'); }
+    if (req.url.startsWith('/api/echo')) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ authorization: req.headers.authorization || null, cookie: req.headers.cookie || '' })); }
     if (req.url.startsWith('/gone')) { res.writeHead(404, { 'Content-Type': 'text/html' }); return res.end('<html><head></head><body>Gone</body></html>'); }
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end('<html><head><title>Site</title></head><body><button class="nav-link">Buy</button></body></html>');
@@ -58,6 +59,14 @@ const check = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS'
   // The injected script reaches the browser with its regexes intact
   check('element text collapses whitespace (/\\s+/g reaches the browser)', html.includes(".replace(/\\s+/g, ' ')") && !html.includes('.replace(/s+/g'));
   check('selector class filter keeps word characters ([\\w-] reaches the browser)', html.includes('[a-zA-Z][\\w-]{2,}') && !html.includes('[a-zA-Z][w-]{2,}'));
+
+  // A reviewed site's mirrored token goes back only to that site; our cookies never leave
+  const echo = async (cookie) => (await fetch(`${base}/api/proxy?url=${encodeURIComponent(`${siteUrl}/api/echo`)}&projectId=${project._id}&token=${token}`, { headers: { Cookie: cookie } })).json();
+  const own = await echo('__markup_ls_127.0.0.1__authToken=site-own; site_session=abc; markup_csrf=c; markup_token=t');
+  check('a mirrored token is forwarded to the site that stored it', own.authorization === 'Bearer site-own', JSON.stringify(own));
+  check('our own cookies are never forwarded to the site', own.cookie === 'site_session=abc', own.cookie);
+  const other = await echo('__markup_ls_other-client.com__authToken=other-site; __markup_ls_authToken=legacy-unscoped');
+  check('another site\'s mirrored token is not forwarded', other.authorization === null, JSON.stringify(other));
 
   // Captured console errors keep no tokens or query strings
   const { sanitizePinContext } = r('utils/pinContext');

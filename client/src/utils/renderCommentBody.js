@@ -4,6 +4,13 @@ import DOMPurify from 'dompurify';
 const MENTION_REGEX = /@\[([^\]]+)\]\(([a-fA-F\d]+)\)/g;
 const HAS_HTML_TAG = /<[a-z][\s\S]*>/i;
 
+// Links in comments that open a new tab never get a handle on this window
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  if (node.tagName === 'A' && node.hasAttribute('target')) {
+    node.setAttribute('rel', 'noopener noreferrer');
+  }
+});
+
 // Renders a comment body with @mention highlighting. Bodies that contain HTML
 // (rich-text editor output) are rendered as HTML; plain-text bodies are
 // rendered as React children with mention spans interpolated.
@@ -18,7 +25,7 @@ export default function renderCommentBody(body) {
     // Defense in depth: the server sanitizes on write, but older stored bodies may predate that.
     const safe = DOMPurify.sanitize(processed, {
       ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'code', 'pre', 'blockquote', 'ol', 'ul', 'li', 'a', 'span'],
-      ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'contenteditable', 'data-list', 'data-id', 'data-value', 'data-index', 'data-denotation-char'],
+      ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'data-list', 'data-id', 'data-value', 'data-index', 'data-denotation-char'],
     });
     return <span className="comment-rich-content" dangerouslySetInnerHTML={{ __html: safe }} />;
   }

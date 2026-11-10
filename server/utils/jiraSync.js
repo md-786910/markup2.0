@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { safeAxiosOptions } = require('./ssrfGuard');
 const { URLS } = require('../config/env');
 
 const CLIENT_ORIGIN = URLS.app;
@@ -78,6 +79,7 @@ async function createJiraIssue(config, data) {
     {
       auth: { username: email, password: apiToken },
       headers: { 'Content-Type': 'application/json' },
+      ...safeAxiosOptions,
     }
   );
 

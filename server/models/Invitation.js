@@ -54,7 +54,18 @@ const invitationSchema = new Schema({
     type: Date,
     default: () => new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
   },
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  toJSON: {
+    transform(_doc, ret) {
+      // The token is the signup secret: it reaches the invitee only by email.
+      // Returning it to the inviter would let them sign up as that address
+      // without the email code (signup accepts the token as proof of inbox).
+      delete ret.token;
+      return ret;
+    },
+  },
+});
 
 invitationSchema.pre('validate', function () {
   if (!this.project && !this.workspace) this.invalidate('project', 'An invitation needs a project or a workspace');

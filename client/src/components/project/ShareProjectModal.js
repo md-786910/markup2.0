@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { enableShareApi, updateShareApi, updateProjectApi, updateReviewSettingsApi } from '../../services/projectService';
 import useEscape from '../../hooks/useEscape';
 
@@ -22,9 +22,10 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
   const [deadlineAt, setDeadlineAt] = useState('');
   const [deadlineMessage, setDeadlineMessage] = useState('');
   const [shareUrl, setShareUrl] = useState('');
-  const autoEnableProjectRef = useRef(null);
 
   const isSharing = project?.shareSettings?.enabled;
+  const savedDeadlineAt = project?.review?.deadlineAt ? toLocalInputValue(project.review.deadlineAt) : '';
+  const savedDeadlineMessage = project?.review?.deadlineMessage || '';
 
   useEffect(() => {
     if (project?.shareSettings) {
@@ -45,36 +46,21 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
     }
   }, [project]);
 
-  useEffect(() => {
-    if (!isOpen || !project?._id || isSharing || autoEnableProjectRef.current === project._id) return;
-
-    let cancelled = false;
-    autoEnableProjectRef.current = project._id;
+  // A public review link is only created when someone asks for one (opening
+  // this dialog must not publish the project)
+  const handleEnable = async () => {
     setLoading(true);
     setError('');
-
-    enableShareApi(project._id, {
-      password: null,
-      allowComments: true,
-    })
-      .then((res) => {
-        if (cancelled) return;
-        setShareUrl(res.data.shareUrl);
-        onProjectUpdate({ ...project, shareSettings: res.data.shareSettings });
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        autoEnableProjectRef.current = null;
-        setError(err.response?.data?.message || 'Failed to enable sharing');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, project, isSharing, onProjectUpdate]);
+    try {
+      const res = await enableShareApi(project._id, { password: null, allowComments: true });
+      setShareUrl(res.data.shareUrl);
+      onProjectUpdate({ ...project, shareSettings: res.data.shareSettings });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to enable sharing');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -92,15 +78,20 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
           guestConsoleCapture,
         },
       });
-      const reviewRes = await updateReviewSettingsApi(project._id, {
-        deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : null,
-        deadlineMessage,
-      });
+      // Deadlines are a plan feature: only save them when they changed, so the
+      // other share settings save on plans without it
+      const deadlineChanged = deadlineAt !== savedDeadlineAt || (deadlineAt && deadlineMessage !== savedDeadlineMessage);
+      const reviewRes = deadlineChanged
+        ? await updateReviewSettingsApi(project._id, {
+          deadlineAt: deadlineAt ? new Date(deadlineAt).toISOString() : null,
+          deadlineMessage,
+        })
+        : null;
       onProjectUpdate({
         ...project,
         shareSettings: shareRes.data.shareSettings,
         settings: projRes.data.project?.settings || { ...project.settings, captureConsoleErrors, guestConsoleCapture },
-        review: reviewRes.data.review,
+        review: reviewRes ? reviewRes.data.review : project.review,
       });
       onClose();
     } catch (err) {
@@ -133,9 +124,27 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
         </div>
 
         <div className="p-6 space-y-5">
-          {loading && !isSharing && (
-            <div className="flex items-center justify-center py-6">
-              <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" />
+          {!isSharing && (
+            <div className="space-y-4">
+              <p className="text-body-sm text-gray-600">
+                Create a review link to let clients view this project and leave feedback without an account. You can add a password and turn it off at any time.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={onClose}
+                  disabled={loading}
+                  className="px-4 py-2.5 text-label text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEnable}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {loading ? 'Creating link...' : 'Create review link'}
+                </button>
+              </div>
             </div>
           )}
 

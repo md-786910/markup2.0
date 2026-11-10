@@ -21,9 +21,13 @@ export function NotificationProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const socketRef = useRef(null);
+  // Keyed on the user's id, not the user object: profile saves, muting a
+  // project or a billing refresh replace the object and must not reconnect
+  // the socket or refetch the list.
+  const userId = user?.id || user?._id || null;
 
   const fetchNotifications = useCallback(async (options = {}) => {
-    if (!token || !user) return;
+    if (!token || !userId) return;
     try {
       setLoading(true);
       const res = await getNotificationsApi(options);
@@ -34,22 +38,22 @@ export function NotificationProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [token, user]);
+  }, [token, userId]);
 
   // Initial load
   useEffect(() => {
-    if (user && token) {
+    if (userId && token) {
       fetchNotifications();
     } else {
       setNotifications([]);
       setUnreadCount(0);
     }
-  }, [user, token, fetchNotifications]);
+  }, [userId, token, fetchNotifications]);
 
   // Real-time socket listener
   useEffect(() => {
     const currentToken = token || localStorage.getItem(TOKEN_KEY);
-    if (!currentToken || !user) return;
+    if (!currentToken || !userId) return;
 
     const socket = io(SOCKET_URL, {
       auth: { token: currentToken },
@@ -80,7 +84,7 @@ export function NotificationProvider({ children }) {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [token, user, fetchNotifications]);
+  }, [token, userId, fetchNotifications]);
 
   const markAsRead = useCallback(async (id) => {
     // Optimistic update

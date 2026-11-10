@@ -4,6 +4,25 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendInvitationEmail } = require('../utils/mailer');
 const { URLS } = require('../config/env');
 
+// Who may cancel or resend an invitation: people in its organization who can
+// manage what it invites to (org owners/admins, the project's creator, and
+// anyone with manage access on that project or workspace).
+async function canManageInvitation(user, invitation) {
+  if (String(invitation.organization || '') !== String(user.organization || '')) return false;
+  if (user.role === 'admin' || user.role === 'owner') return true;
+  const { projectLevelFor } = require('../utils/workspaces');
+  const { workspaceLevel } = require('../utils/access');
+  if (invitation.project) {
+    const project = await require('../models/Project').findById(invitation.project._id || invitation.project);
+    return !!project && (await projectLevelFor(user, project)) === 'manage';
+  }
+  if (invitation.workspace) {
+    const workspace = await require('../models/Workspace').findById(invitation.workspace._id || invitation.workspace);
+    return !!workspace && workspaceLevel(user, workspace) === 'manage';
+  }
+  return false;
+}
+
 // GET /api/invitations/:token — public, no auth required
 exports.getInvitation = asyncHandler(async (req, res) => {
   const { token } = req.params;
@@ -59,16 +78,12 @@ exports.getProjectInvitations = asyncHandler(async (req, res) => {
 exports.cancelInvitation = asyncHandler(async (req, res) => {
   const { invitationId } = req.params;
 
-  const invitation = await Invitation.findById(invitationId).populate('project', 'owner');
+  const invitation = require('mongoose').isValidObjectId(invitationId) ? await Invitation.findById(invitationId) : null;
   if (!invitation) {
     return res.status(404).json({ message: 'Invitation not found' });
   }
 
-  // Same rule as resend: project owner or org admin/owner, within the same org
-  const sameOrg = invitation.organization?.toString() === req.user.organization?.toString();
-  const isProjectOwner = invitation.project?.owner?.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
-  if (!sameOrg || (!isProjectOwner && !isPlatformAdmin)) {
+  if (!(await canManageInvitation(req.user, invitation))) {
     return res.status(403).json({ message: 'Not authorized to cancel this invitation' });
   }
 
@@ -80,7 +95,7 @@ exports.cancelInvitation = asyncHandler(async (req, res) => {
 exports.resendInvitation = asyncHandler(async (req, res) => {
   const { invitationId } = req.params;
 
-  const invitation = await Invitation.findById(invitationId)
+  const invitation = !require('mongoose').isValidObjectId(invitationId) ? null : await Invitation.findById(invitationId)
     .populate('project', 'name owner')
     .populate('workspace', 'name')
     .populate('invitedBy', 'name email');
@@ -89,10 +104,7 @@ exports.resendInvitation = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Pending invitation not found' });
   }
 
-  const sameOrg = invitation.organization?.toString() === req.user.organization?.toString();
-  const isProjectOwner = invitation.project?.owner?.toString() === req.user._id.toString();
-  const isPlatformAdmin = req.user.role === 'admin' || req.user.role === 'owner';
-  if (!sameOrg || (!isProjectOwner && !isPlatformAdmin)) {
+  if (!(await canManageInvitation(req.user, invitation))) {
     return res.status(403).json({ message: 'Not authorized to resend this invitation' });
   }
 

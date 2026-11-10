@@ -18,9 +18,9 @@ const auth = asyncHandler(async (req, res, next) => {
     token = req.query.token;
   } else if (header && header.startsWith('Bearer ')) {
     token = header.split(' ')[1];
-  } else if (req.cookies && req.cookies.markup_token) {
-    token = req.cookies.markup_token;
   }
+  // No cookie fallback: a session cookie on the API host would be usable by
+  // the scripts of reviewed websites, which run on this origin (proxy).
 
   if (!token) {
     return res.status(401).json({ message: 'No token provided' });

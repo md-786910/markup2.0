@@ -135,8 +135,11 @@ async function phaseGenerateAnniversary() {
     const billingMonth = ymd(cycleAnchor);
 
     // Idempotent: partial-unique index also rejects a duplicate insert
+    // A void invoice for this cycle (e.g. the renewal voided by a cancellation
+    // that was then resumed) doesn't bill anything: reuse it below rather than
+    // skipping the cycle, which would leave the subscription unbilled forever.
     const existing = await Invoice.findOne({ organization: org._id, billingMonth });
-    if (existing) {
+    if (existing && existing.status !== 'void') {
       console.log(`[billing] skip ${org._id} — invoice already exists for ${billingMonth}`);
       continue;
     }
@@ -173,7 +176,16 @@ async function phaseGenerateAnniversary() {
     if (provider.id === 'razorpay') invoiceDoc.razorpayOrderId = order.providerOrderId;
     if (provider.id === 'paypal') invoiceDoc.paypalOrderId = order.providerOrderId;
 
-    const invoice = await Invoice.create(invoiceDoc);
+    let invoice;
+    if (existing) {
+      // Reissue the voided cycle invoice with the new order (keeps one invoice
+      // per org and billing month, as the unique index requires)
+      existing.set({ razorpayOrderId: undefined, paypalOrderId: undefined });
+      existing.set(invoiceDoc);
+      invoice = await existing.save();
+    } else {
+      invoice = await Invoice.create(invoiceDoc);
+    }
 
     // Advance the anniversary by one month so this org isn't re-billed tomorrow.
     // addMonthsUTC clamps month-end dates (Jan 31 → Feb 28/29).
@@ -555,4 +567,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { runBilling, phaseRetention, phaseDeadlineReminders };
+module.exports = { runBilling, phaseRetention, phaseDeadlineReminders, phaseGenerateAnniversary };

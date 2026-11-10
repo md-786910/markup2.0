@@ -83,7 +83,7 @@ async function createOrder({ org, plan, planConfig, invoiceMeta = {} }) {
   const dealActive = org.deal && org.deal.price != null && (!org.deal.until || new Date(org.deal.until) > now);
   let usd;
   if (dealActive) {
-    usd = org.deal.currency === 'USD' ? Number(org.deal.price) : Number(org.deal.price) / 84;
+    usd = org.deal.currency === 'USD' ? Number(org.deal.price) : Number(org.deal.price) / require('../config/plans').USD_INR_RATE;
   } else {
     usd = Number(planConfig.price);
   }
@@ -265,9 +265,16 @@ async function handleWebhookEvent(event) {
       if (!orderId) return;
       const invoice = await Invoice.findOne({ paypalOrderId: orderId });
       if (invoice && invoice.status === 'pending') {
-        invoice.status = 'failed';
-        await invoice.save();
-        console.log(`[paypal] capture.denied marked invoice ${invoice._id} failed`);
+        // A renewal stays pending (as with Razorpay): the daily job keeps
+        // sending reminders and locks the org after the grace period, and the
+        // owner can still pay it. A one-off checkout is marked failed.
+        if (!invoice.billingMonth) {
+          invoice.status = 'failed';
+          await invoice.save();
+          console.log(`[paypal] capture.denied marked invoice ${invoice._id} failed`);
+        } else {
+          console.log(`[paypal] capture.denied on renewal invoice ${invoice._id}: kept pending`);
+        }
         await notifyPaymentFailed(invoice);
       }
       return;
@@ -282,9 +289,26 @@ async function handleWebhookEvent(event) {
         console.warn(`[paypal] refund for unknown capture ${captureId}`);
         return;
       }
+      // A redelivered event must not add the same refund twice: claim its id
+      let current = invoice;
+      if (refund?.id) {
+        current = await Invoice.findOneAndUpdate(
+          { _id: invoice._id, paypalRefundIds: { $ne: refund.id } },
+          { $push: { paypalRefundIds: refund.id } },
+          { returnDocument: 'after' },
+        );
+        if (!current) {
+          console.log(`[paypal] refund ${refund.id} already recorded`);
+          return;
+        }
+      }
+      // PayPal reports the capture's cumulative refunded amount when it can
+      const cumulative = parseFloat(refund?.seller_payable_breakdown?.total_refunded_amount?.value || '');
       const value = parseFloat(refund?.amount?.value || '0');
-      const refundedTotal = (invoice.refundAmount || 0) + Math.round(value * 100);
-      await applyRefund(invoice, refundedTotal);
+      const refundedTotal = Number.isFinite(cumulative)
+        ? Math.round(cumulative * 100)
+        : (current.refundAmount || 0) + Math.round(value * 100);
+      await applyRefund(current, refundedTotal);
       return;
     }
     default:

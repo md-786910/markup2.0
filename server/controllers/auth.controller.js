@@ -18,12 +18,12 @@ const { sendPasswordResetEmail } = require("../utils/mailer");
 const { ROLE_HIERARCHY } = require("../middleware/roles");
 const { getLimitsForPlanAsync, getNewSignupPlanMode, getSupportForOrg } = require("../config/plans");
 const { supportInbox } = require("../utils/support");
-const { generateCsrfToken, CSRF_COOKIE } = require("../middleware/csrf");
+const { CSRF_COOKIE } = require("../middleware/csrf");
 const { validatePassword } = require("../utils/passwordPolicy");
 const { logOrgActivity, logActivity } = require("../utils/activityLogger");
 const { metric } = require("../instrument");
 const { createProjectNotifications, createSingleNotification } = require("../utils/notificationHelper");
-const { URLS, SECURE_COOKIES } = require('../config/env');
+const { URLS } = require('../config/env');
 
 // Build the plan-related fields for a freshly-created Organization.
 // When admin has flipped Free as the default for new signups, skip the trial
@@ -141,24 +141,13 @@ exports.attachPendingInvoice = attachPendingInvoice;
 
 const setCookieAndRespond = async (res, user, org, statusCode = 200, extra = {}) => {
   const token = generateToken(user);
-  res.cookie("markup_token", token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: SECURE_COOKIES,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: "/",
-  });
-
-  // CSRF double-submit token: non-httpOnly so the SPA can read it from
-  // document.cookie and echo it back in the X-CSRF-Token header.
-  const csrfToken = generateCsrfToken();
-  res.cookie(CSRF_COOKIE, csrfToken, {
-    httpOnly: false,
-    sameSite: "lax",
-    secure: SECURE_COOKIES,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: "/",
-  });
+  // The session travels only as a Bearer token (the apps keep it in their own
+  // origin's storage). No session or CSRF cookie is set on the API host:
+  // reviewed websites are served from this origin through the proxy, and
+  // their scripts could otherwise call the API with the reviewer's cookie and
+  // read the CSRF cookie. Cookies left by older versions are cleared here.
+  res.clearCookie("markup_token", { path: "/" });
+  res.clearCookie(CSRF_COOKIE, { path: "/" });
 
   let dynamicLimits = null;
   if (org) {
@@ -264,19 +253,28 @@ exports.signup = asyncHandler(async (req, res) => {
     await user.save({ validateBeforeSave: false });
   }
 
-  // Auto-accept any pending invitations for this email
-  const pendingInvites = await Invitation.find({
+  // Auto-accept pending invitations for this email, from ONE organization
+  // only: the one whose link was used (else the oldest invitation's). A user
+  // belongs to one org, so roles and memberships from other organizations'
+  // invitations are never applied here; those invitations stay pending.
+  const allPendingInvites = await Invitation.find({
     email: emailNorm,
     status: "pending",
     expiresAt: { $gt: new Date() },
-  });
+  }).sort({ createdAt: 1 });
+  const signupOrgId = isFirstUser
+    ? org?._id
+    : (invitationForSignup?.organization || allPendingInvites[0]?.organization);
+  const pendingInvites = signupOrgId
+    ? allPendingInvites.filter((i) => String(i.organization) === String(signupOrgId))
+    : [];
   let acceptedProjectId = null;
   let acceptedWorkspaceId = null;
   if (pendingInvites.length > 0) {
     // Assign the highest role from invitations (for non-first users)
     if (!isFirstUser) {
       let bestRole = invitationForSignup?.role || pendingInvites[0]?.role || "guest";
-      let inviteOrg = null;
+      const inviteOrg = signupOrgId;
       for (const invite of pendingInvites) {
         if (
           invite.role &&
@@ -284,9 +282,6 @@ exports.signup = asyncHandler(async (req, res) => {
           (ROLE_HIERARCHY[bestRole] === undefined || ROLE_HIERARCHY[invite.role] < ROLE_HIERARCHY[bestRole])
         ) {
           bestRole = invite.role;
-        }
-        if (invite.organization) {
-          inviteOrg = invite.organization;
         }
       }
       user.role = bestRole;
@@ -370,6 +365,9 @@ exports.signup = asyncHandler(async (req, res) => {
   });
 });
 
+// Cost 12, as User passwords (models/User.js)
+const LOGIN_DUMMY_HASH = require("bcryptjs").hashSync("not-a-real-password", 12);
+
 exports.login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
@@ -381,6 +379,9 @@ exports.login = asyncHandler(async (req, res) => {
     "+passwordHash",
   );
   if (!user) {
+    // Same bcrypt work as a wrong password, so the response time doesn't
+    // reveal which emails have an account
+    await require("bcryptjs").compare(String(password), LOGIN_DUMMY_HASH);
     return res.status(401).json({ message: "Invalid credentials" });
   }
 
@@ -405,6 +406,18 @@ async function startSession(req, res, user) {
     : null;
   await setCookieAndRespond(res, user, org);
 }
+
+/**
+ * POST /api/auth/logout — ends the session on the server: rotating the
+ * session token invalidates this session token and every proxy token issued
+ * from it, so a copied token stops working too.
+ */
+exports.logout = asyncHandler(async (req, res) => {
+  await User.updateOne({ _id: req.user._id }, { $set: { sessionToken: generateSessionToken() } });
+  res.clearCookie("markup_token", { path: "/" });
+  res.clearCookie(CSRF_COOKIE, { path: "/" });
+  res.json({ message: "Signed out" });
+});
 
 exports.getMe = asyncHandler(async (req, res) => {
   const org = req.organization || null;
@@ -446,7 +459,7 @@ exports.updateProfile = asyncHandler(async (req, res) => {
       // new inbox (OTP from /auth/send-otp + /auth/verify-otp, as at signup)
       const withHash = await User.findById(user._id).select("+passwordHash");
       if (!currentPassword || !(await withHash.comparePassword(currentPassword))) {
-        return res.status(401).json({ message: "Enter your current password to change your email.", code: "PASSWORD_REQUIRED" });
+        return res.status(400).json({ message: "Enter your current password to change your email.", code: "PASSWORD_REQUIRED" });
       }
       const EmailVerification = require("../models/EmailVerification");
       const verification = await EmailVerification.findOne({ email: normalizedEmail });
@@ -795,21 +808,28 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
   if (!email || !otp) return res.status(400).json({ message: "Email and code are required" });
 
   const emailNorm = email.toLowerCase().trim();
-  const record = await EmailVerification.findOne({ email: emailNorm });
+  // Claim one attempt atomically BEFORE comparing, so parallel guesses can't
+  // all pass the attempt check at once (read-then-save would let them)
+  const record = await EmailVerification.findOneAndUpdate(
+    { email: emailNorm, expiresAt: { $gt: new Date() }, attempts: { $lt: MAX_VERIFY_ATTEMPTS } },
+    { $inc: { attempts: 1 } },
+    { returnDocument: "after" },
+  );
   if (!record) {
-    return res.status(400).json({ message: "No verification code found. Please request a new one." });
-  }
-  if (record.expiresAt.getTime() < Date.now()) {
-    return res.status(400).json({ message: "Code expired. Please request a new one." });
-  }
-  if (record.attempts >= MAX_VERIFY_ATTEMPTS) {
+    const existing = await EmailVerification.findOne({ email: emailNorm });
+    if (!existing) {
+      return res.status(400).json({ message: "No verification code found. Please request a new one." });
+    }
+    if (existing.expiresAt.getTime() < Date.now()) {
+      return res.status(400).json({ message: "Code expired. Please request a new one." });
+    }
     return res.status(429).json({ message: "Too many attempts. Please request a new code." });
   }
 
   const incomingHash = EmailVerification.hashOtp(String(otp).trim());
-  if (incomingHash !== record.otpHash) {
-    record.attempts += 1;
-    await record.save();
+  const matches = typeof record.otpHash === "string" && incomingHash.length === record.otpHash.length
+    && crypto.timingSafeEqual(Buffer.from(incomingHash), Buffer.from(record.otpHash));
+  if (!matches) {
     return res.status(400).json({ message: "Incorrect code." });
   }
 
@@ -936,8 +956,8 @@ exports.exportOrganization = asyncHandler(async (req, res) => {
 exports.requestOrganizationDeletion = asyncHandler(async (req, res) => {
   const org = req.organization;
   if (!org) return res.status(400).json({ message: "No organization found" });
-  if (req.user.role !== "owner" && req.user.role !== "admin") {
-    return res.status(403).json({ message: "Only an organization owner or administrator can delete the workspace." });
+  if (req.user.role !== "owner") {
+    return res.status(403).json({ message: "Only the organization owner can delete the organization." });
   }
   if (org.deletionScheduledAt) {
     return res.status(400).json({ message: "Organization deletion is already scheduled." });
@@ -950,7 +970,7 @@ exports.requestOrganizationDeletion = asyncHandler(async (req, res) => {
 
   const userRecord = await User.findById(req.user._id).select("+passwordHash");
   if (!userRecord || !(await userRecord.comparePassword(password))) {
-    return res.status(401).json({ message: "Incorrect password." });
+    return res.status(400).json({ message: "Incorrect password." }); // 400, not 401: a typo is not an expired session
   }
 
   const trimmedConfirm = (confirmName || "").trim().toLowerCase();
@@ -988,8 +1008,8 @@ exports.requestOrganizationDeletion = asyncHandler(async (req, res) => {
 exports.cancelOrganizationDeletion = asyncHandler(async (req, res) => {
   const org = req.organization;
   if (!org) return res.status(400).json({ message: "No organization found" });
-  if (req.user.role !== "owner" && req.user.role !== "admin") {
-    return res.status(403).json({ message: "Only an organization owner or administrator can cancel deletion." });
+  if (req.user.role !== "owner") {
+    return res.status(403).json({ message: "Only the organization owner can cancel deletion." });
   }
   if (!org.deletionScheduledAt) return res.status(400).json({ message: "Deletion is not scheduled." });
 

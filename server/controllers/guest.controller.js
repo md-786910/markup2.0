@@ -15,7 +15,7 @@ const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { reserveStorage, discardUploads } = require('../utils/storage');
 const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
 const { sanitizePinContext } = require('../utils/pinContext');
-const { findShared, findSharedWorkspace, workspaceProjectsQuery, composeWorkspaceToken, isExpired } = require('../utils/sharing');
+const { findShared, findSharedWorkspace, workspaceProjectsQuery, composeWorkspaceToken, isExpired, orgAllowsShareLinks } = require('../utils/sharing');
 
 // Verify a guest-supplied password against either the bcrypt hash (preferred,
 // new projects + migrated ones) or the legacy plaintext field (pre-migration
@@ -167,6 +167,9 @@ exports.getGuestWorkspace = asyncHandler(async (req, res) => {
   if (!workspace) return res.status(404).json({ message: 'Review link not found or has been disabled.' });
   const share = workspace.shareSettings;
   if (isExpired(share)) return res.status(410).json({ message: 'This review link has expired.' });
+  if (!(await orgAllowsShareLinks(workspace.organization))) {
+    return res.status(403).json({ message: 'Review links are not available on the current plan of this organization.' });
+  }
 
   const scope = { workspaceId: workspace._id.toString() };
   if (hasPassword(share) && !hasValidGuestAccessToken(req, scope, share)) {
@@ -244,6 +247,8 @@ exports.getGuestPins = asyncHandler(async (req, res) => {
     // Technical details (browser, OS, screen, time zone, console errors) are
     // for the team; guests never see anyone's, including other guests'
     delete pinObj.context;
+    // Other reviewers' email addresses are not shown to guests (name only)
+    if (pinObj.createdByGuest) delete pinObj.createdByGuest.email;
     // Guest privacy sanitization: guests see open vs resolved only
     const guestStatus = pinObj.status === 'resolved' ? 'resolved' : 'open';
     delete pinObj.assignee;
@@ -277,8 +282,9 @@ exports.getGuestComments = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Pin not found.' });
   }
 
-  // Team members' emails are not exposed to guests
+  // Team members' and other reviewers' emails are not exposed to guests
   const comments = await Comment.find({ pin: pin._id })
+    .select('-authorGuest.email')
     .populate('author', 'name')
     .sort({ createdAt: 1 });
 
@@ -388,10 +394,11 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
   const project = await loadSharedProject(req, res, { write: true });
   if (!project) return discardUploads(req);
 
-  const storageError = await reserveStorage(project.organization, req);
-  if (storageError) return res.status(403).json(storageError);
-
+  // Every check runs before storage is reserved, and every refusal deletes
+  // the uploaded files: a rejected request must never keep files on disk or
+  // count against the organization's quota.
   if (!req.share.allowComments) {
+    discardUploads(req);
     return res.status(403).json({ message: 'Guest commenting is disabled for this project.' });
   }
 
@@ -408,17 +415,23 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
   const body = sanitizeCommentBody(req.body.body);
 
   if (!guestName || !guestEmail) {
+    discardUploads(req);
     return res.status(400).json({ message: 'Guest name and email are required.' });
   }
 
   if (!body) {
+    discardUploads(req);
     return res.status(400).json({ message: 'Comment body is required.' });
   }
 
-  const pin = await Pin.findById(pinId);
+  const pin = require('mongoose').isValidObjectId(pinId) ? await Pin.findById(pinId) : null;
   if (!pin || pin.project.toString() !== project._id.toString()) {
+    discardUploads(req);
     return res.status(404).json({ message: 'Pin not found.' });
   }
+
+  const storageError = await reserveStorage(project.organization, req);
+  if (storageError) return res.status(403).json(storageError);
 
   const attachments = (req.files || []).map((file) => ({
     filename: file.filename,

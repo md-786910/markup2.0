@@ -92,6 +92,13 @@ function check(name, cond, extra = '') {
   check('proxy token rejected by the API', (await call('GET', '/api/projects', { token: proxyToken })).status === 401);
   const list = await call('GET', '/api/projects', { user: ownerA });
   check('project list includes proxy tokens', list.status === 200 && list.data.projects.every((p) => p.proxyToken));
+  {
+    const evilUrl = `https://example.com/?q=</script><script>window.__pwn=1</script>&x='y'${String.fromCharCode(0x2028)}`;
+    const injected = r('utils/proxyRewriter').injectScript('<html><head></head><body></body></html>', evilUrl, String(PA._id), 'https://api.e2e', '', false);
+    const lit = injected.match(/var __markupPageUrl = (.*);/)?.[1];
+    check('the proxied page URL cannot break out of the injected script',
+      !injected.includes('<script>window.__pwn') && !!lit && JSON.parse(lit) === evilUrl);
+  }
 
   // --- #6 IDOR
   check('pin of org B cannot be resolved via own project', (await call('PATCH', `/api/projects/${PA._id}/pins/${pinB._id}`, { user: ownerA, body: { status: 'resolved' } })).status === 404);
@@ -100,8 +107,38 @@ function check(name, cond, extra = '') {
   check('comments of org B pin are not readable', (await call('GET', `/api/pins/${pinB._id}/comments`, { user: ownerA })).status === 403);
   check('cannot comment on org B pin', (await call('POST', `/api/pins/${pinB._id}/comments`, { user: memberA, body: { body: 'hi' } })).status === 403);
   check('own pin update still works', (await call('PATCH', `/api/projects/${PA._id}/pins/${pinA._id}`, { user: memberA, body: { status: 'resolved' } })).status === 200);
+  {
+    const ownersPin = await Pin.create({ project: PA._id, pageUrl: 'https://example.com/', xPercent: 2, yPercent: 2, pinNumber: 901, createdBy: ownerA._id });
+    const membersPin = await Pin.create({ project: PA._id, pageUrl: 'https://example.com/', xPercent: 3, yPercent: 3, pinNumber: 902, createdBy: memberA._id });
+    const byCommenter = (await call('DELETE', `/api/projects/${PA._id}/pins/${ownersPin._id}`, { user: memberA })).status;
+    const ownByCommenter = (await call('DELETE', `/api/projects/${PA._id}/pins/${membersPin._id}`, { user: memberA })).status;
+    const byManager = (await call('DELETE', `/api/projects/${PA._id}/pins/${ownersPin._id}`, { user: adminA })).status;
+    check('a commenter deletes only their own pins; managers can delete any', byCommenter === 403 && ownByCommenter === 200 && byManager === 200, `${byCommenter}/${ownByCommenter}/${byManager}`);
+  }
 
   // --- #2 XSS sanitization
+  {
+    // mentions only reach people who can open the project
+    const outsider = await mkUser('mentionoutsider', 'member', { organization: orgA._id });
+    const mc = await call('POST', `/api/pins/${pinA._id}/comments`, { user: memberA, body: { body: `<p>@[Out](${outsider._id}) @[Owner](${ownerA._id}) please check</p>` } });
+    const stored = mc.data?.comment ? await Comment.findById(mc.data.comment._id) : null;
+    const ids = (stored?.mentions || []).map(String);
+    check('mentions of people without access to the project are dropped', mc.status === 201 && ids.includes(String(ownerA._id)) && !ids.includes(String(outsider._id)), JSON.stringify(ids));
+    if (stored) await Comment.deleteOne({ _id: stored._id });
+    await User.deleteOne({ _id: outsider._id });
+  }
+  {
+    // developer details on pins are for the team, not org guests
+    const ctxGuest = await mkUser('ctxguest', 'guest', { organization: orgA._id });
+    const ctxPin = await Pin.create({ project: PA._id, pageUrl: 'https://example.com/ctx', xPercent: 4, yPercent: 4, pinNumber: 903, createdBy: ownerA._id, context: { browser: 'CtxBrowser', consoleErrors: [{ message: 'boom' }] } });
+    await Project.updateOne({ _id: PA._id }, { $addToSet: { members: ctxGuest._id } });
+    const asGuest = (await call('GET', `/api/projects/${PA._id}/pins?pageUrl=${encodeURIComponent('https://example.com/ctx')}`, { user: ctxGuest })).data?.pins || [];
+    const asOwner = (await call('GET', `/api/projects/${PA._id}/pins?pageUrl=${encodeURIComponent('https://example.com/ctx')}`, { user: ownerA })).data?.pins || [];
+    check('org guests do not get developer details on pins; the team does', asGuest.length === 1 && !asGuest[0].context && asOwner[0]?.context?.browser === 'CtxBrowser',
+      `guest=${asGuest.length}/${!!asGuest[0]?.context} owner=${asOwner[0]?.context?.browser}`);
+    await Project.updateOne({ _id: PA._id }, { $pull: { members: ctxGuest._id } });
+    await Pin.deleteOne({ _id: ctxPin._id }); await User.deleteOne({ _id: ctxGuest._id });
+  }
   const xss = await call('POST', `/api/pins/${pinA._id}/comments`, { user: memberA, body: { body: '<p>ok <strong>b</strong><img src=x onerror="alert(1)"></p><script>alert(2)</script>' } });
   check('comment create works', xss.status === 201 || xss.status === 200, String(xss.status));
   const stored = await Comment.findOne({ pin: pinA._id }).sort({ createdAt: -1 });
@@ -132,6 +169,10 @@ function check(name, cond, extra = '') {
   check('org B cannot see or delete org A workspaces', !(await call('GET', '/api/workspaces', { user: ownerB })).data.workspaces.some((w) => w._id === wsId) && (await call('DELETE', `/api/workspaces/${wsId}`, { user: ownerB })).status === 404);
   const otherOrgWs = (await call('GET', '/api/workspaces', { user: ownerB })).data.workspaces[0]._id;
   check('a project cannot be moved into another org\'s workspace', (await call('PATCH', `/api/projects/${PA._id}`, { user: ownerA, body: { workspace: otherOrgWs } })).status === 400);
+  await Project.updateOne({ _id: PA._id }, { $push: { memberAccess: { user: memberA._id, level: 'manage' } } });
+  const moveByProjectManager = await call('PATCH', `/api/projects/${PA._id}`, { user: memberA, body: { workspace: wsId } });
+  await Project.updateOne({ _id: PA._id }, { $pull: { memberAccess: { user: memberA._id } } });
+  check('moving a project needs manage on the target workspace', moveByProjectManager.status === 403 && String((await Project.findById(PA._id)).workspace || '') !== wsId, String(moveByProjectManager.status));
   // workspace members see every project in the workspace
   const wsMember = await mkUser('wsMemberA', 'member', { organization: orgA._id });
   const wsProjId = pInWs.data.project._id;
@@ -209,6 +250,18 @@ function check(name, cond, extra = '') {
   const recipients = await r('utils/notifier').getRecipients(wsProjId, ownerA._id);
   check('workspace members get project notifications', recipients.some((u) => String(u._id) === String(newClient._id)));
 
+  // signup accepts invitations from one organization only: an admin invite from
+  // another org must not carry its role (or its projects) into this one
+  const mixAdmin = await Invitation.create({ email: 'mixed@e2e.test', project: PB._id, organization: orgB._id, invitedBy: ownerB._id, role: 'admin', token: 'mixb'.repeat(16) });
+  const mixGuest = await Invitation.create({ email: 'mixed@e2e.test', project: PA._id, organization: orgA._id, invitedBy: ownerA._id, role: 'guest', level: 'view', token: 'mixa'.repeat(16) });
+  const mixRes = await call('POST', '/api/auth/signup', { headers: { 'X-Forwarded-For': '10.66.0.1' }, body: { name: 'Mixed', email: 'mixed@e2e.test', password: 'Str0ng!Passw0rd', invitationToken: mixGuest.token } });
+  const mixed = await User.findOne({ email: 'mixed@e2e.test' });
+  check('signup applies only the invited organization\'s invitations', mixRes.status === 201 && String(mixed?.organization) === String(orgA._id)
+    && mixed.role === 'guest' && (await Invitation.findById(mixAdmin._id)).status === 'pending'
+    && !(await Project.findById(PB._id)).members.some((m) => String(m) === String(mixed._id)), `${mixRes.status} role=${mixed?.role}`);
+  await Invitation.deleteMany({ email: 'mixed@e2e.test' });
+  if (mixed) { await Project.updateOne({ _id: PA._id }, { $pull: { members: mixed._id, memberAccess: { user: mixed._id } } }); await User.deleteOne({ _id: mixed._id }); }
+
   // plan limit on workspaces
   await Organization.updateOne({ _id: orgB._id }, { $set: { 'limitOverrides.maxWorkspaces': 1 } });
   const overLimit = await call('POST', '/api/workspaces', { user: ownerB, body: { name: 'Second' } });
@@ -227,6 +280,16 @@ function check(name, cond, extra = '') {
   const inv = await call('POST', `/api/projects/${PA._id}/members`, { user: ownerA, body: { email: 'ownerB@e2e.test', role: 'guest' } });
   const ownerBAfter = await User.findById(ownerB._id);
   check('inviting org B owner does not change their role', ownerBAfter.role === 'owner', `status ${inv.status}, role ${ownerBAfter.role}`);
+  check('a user of another organization cannot be added to a project', inv.status === 400
+    && !(await Project.findById(PA._id)).members.some((m) => String(m) === String(ownerB._id)), `status ${inv.status}`);
+  const tokInv = await call('POST', `/api/projects/${PA._id}/members`, { user: ownerA, body: { email: 'tokencheck@e2e.test', role: 'member' } });
+  const tokResend = tokInv.data?.invitation?._id ? await call('POST', `/api/invitations/${tokInv.data.invitation._id}/resend`, { user: ownerA }) : null;
+  check('invitation responses never include the signup token', tokInv.status === 201 && tokInv.data.invitation && !('token' in tokInv.data.invitation)
+    && (!tokResend?.data?.invitation || !('token' in tokResend.data.invitation)), `status ${tokInv.status}/${tokResend?.status}`);
+  if (tokInv.data?.invitation?._id) await Invitation.deleteOne({ _id: tokInv.data.invitation._id });
+  await Project.updateOne({ _id: PA._id }, { $addToSet: { members: ownerB._id } });
+  check('a member record on another org\'s project grants no access', (await call('GET', `/api/projects/${PA._id}`, { user: ownerB })).status === 403);
+  await Project.updateOne({ _id: PA._id }, { $pull: { members: ownerB._id } });
 
   // --- invitation cancel
   const invitation = await Invitation.create({ email: 'new@e2e.test', project: PA._id, organization: orgA._id, invitedBy: ownerA._id, role: 'member', token: 't'.repeat(64) });
@@ -235,6 +298,20 @@ function check(name, cond, extra = '') {
   check('invitation list hides tokens', invList.status === 200 && invList.data.invitations.every((i) => !i.token));
   check('only managers see pending project invitations', (await call('GET', `/api/projects/${PA._id}/invitations`, { user: memberA })).status === 403);
   check('org A owner can cancel', (await call('DELETE', `/api/invitations/${invitation._id}`, { user: ownerA })).status === 200);
+  {
+    // people who manage the project (not only owners/admins) can resend and cancel its invitations
+    const mInv = await Invitation.create({ email: 'mgrinv@e2e.test', project: PA._id, organization: orgA._id, invitedBy: ownerA._id, role: 'member', token: 'm'.repeat(64) });
+    const setAccess = (level) => Project.updateOne({ _id: PA._id }, { $pull: { memberAccess: { user: memberA._id } } })
+      .then(() => Project.updateOne({ _id: PA._id }, { $push: { memberAccess: { user: memberA._id, level } } }));
+    await setAccess('comment');
+    const asCommenter = (await call('POST', `/api/invitations/${mInv._id}/resend`, { user: memberA })).status;
+    await setAccess('manage');
+    const resent = (await call('POST', `/api/invitations/${mInv._id}/resend`, { user: memberA })).status;
+    const cancelled = (await call('DELETE', `/api/invitations/${mInv._id}`, { user: memberA })).status;
+    await setAccess('comment');
+    check('project managers can resend and cancel its invitations; commenters cannot', asCommenter === 403 && resent === 200 && cancelled === 200, `${asCommenter}/${resent}/${cancelled}`);
+    check('a malformed invitation id is a 404, not a server error', (await call('DELETE', '/api/invitations/not-an-id', { user: ownerA })).status === 404);
+  }
 
   // --- guest share links
   const bcrypt = require('bcryptjs');
@@ -332,6 +409,94 @@ function check(name, cond, extra = '') {
   const ended = await Organization.findById(billOrg._id);
   check('cancelled plan moves to free when the period ends', ended.plan === 'free' && ended.subscription.status === 'canceled', `${ended.plan}/${ended.subscription.status}`);
 
+  // cancel then resume inside the renewal window keeps the subscription billed
+  {
+    const rp = r('payments/razorpayProvider');
+    const saved = { isConfigured: rp.isConfigured, createOrder: rp.createOrder };
+    let orderSeq = 0;
+    rp.isConfigured = () => true;
+    rp.createOrder = async () => ({ providerOrderId: `order_renew_e2e_${++orderSeq}`, amount: 100800, currency: 'INR' });
+    r('payments').clearPaymentSettingsCache();
+    try {
+      const rnOwner = await mkUser('renewowner', 'owner');
+      const rnOrg = await Organization.create({ name: 'Renew Co', slug: 'renew-co-e2e', owner: rnOwner._id, plan: 'starter',
+        subscription: { status: 'active', provider: 'razorpay', currentPeriodEnd: new Date(Date.now() + 12 * 3600e3) } });
+      rnOwner.organization = rnOrg._id; await rnOwner.save({ validateBeforeSave: false });
+      const { phaseGenerateAnniversary } = r('scripts/runBilling');
+      await phaseGenerateAnniversary();
+      const first = await Invoice.findOne({ organization: rnOrg._id, billingMonth: { $type: 'string' } });
+      await call('POST', '/api/billing/cancel', { user: rnOwner });
+      await call('POST', '/api/billing/resume', { user: rnOwner });
+      const voided = await Invoice.findById(first?._id);
+      await phaseGenerateAnniversary();
+      const again = await Invoice.find({ organization: rnOrg._id, billingMonth: { $type: 'string' } });
+      const rnAfter = await Organization.findById(rnOrg._id);
+      check('cancel then resume in the renewal window still bills the next month',
+        first?.status === 'pending' && voided?.status === 'void' && again.length === 1 && again[0].status === 'pending'
+          && again[0].razorpayOrderId === 'order_renew_e2e_2' && new Date(rnAfter.subscription.currentPeriodEnd) > new Date(Date.now() + 20 * 864e5),
+        `first=${first?.status} voided=${voided?.status} n=${again.length} now=${again[0]?.status}/${again[0]?.razorpayOrderId}`);
+
+      // a paid downgrade after the renewal was issued: that month is billed at the new plan
+      const PS = r('models/PaymentSettings');
+      const ps = await PS.getSingleton();
+      const allowedBefore = ps.allowDowngrades;
+      await PS.updateOne({ _id: ps._id }, { $set: { allowDowngrades: true } });
+      r('payments').clearPaymentSettingsCache();
+      const dgOwner = await mkUser('downgradeowner', 'owner');
+      const dgOrg = await Organization.create({ name: 'Downgrade Co', slug: 'downgrade-co-e2e', owner: dgOwner._id, plan: 'pro',
+        subscription: { status: 'active', provider: 'razorpay', currentPeriodEnd: new Date(Date.now() + 12 * 3600e3) } });
+      dgOwner.organization = dgOrg._id; await dgOwner.save({ validateBeforeSave: false });
+      await phaseGenerateAnniversary();
+      const proRenewal = await Invoice.findOne({ organization: dgOrg._id, billingMonth: { $type: 'string' } });
+      const dg = await call('POST', '/api/billing/upgrade', { user: dgOwner, body: { plan: 'starter' } });
+      await phaseGenerateAnniversary();
+      const reissued = await Invoice.find({ organization: dgOrg._id, billingMonth: { $type: 'string' } });
+      check('a paid downgrade bills the next month at the new plan', proRenewal?.plan === 'pro' && dg.status === 200
+        && reissued.length === 1 && reissued[0].status === 'pending' && reissued[0].plan === 'starter',
+        `dg=${dg.status} ${dg.data?.message || ''} n=${reissued.length} ${reissued[0]?.status}/${reissued[0]?.plan}`);
+      await PS.updateOne({ _id: ps._id }, { $set: { allowDowngrades: allowedBefore } });
+    } finally {
+      Object.assign(rp, saved);
+      r('payments').clearPaymentSettingsCache();
+    }
+  }
+
+  {
+    // a declined PayPal renewal stays pending, so reminders and the lock still follow
+    const pp = r('payments/paypalProvider');
+    const denied = (orderId) => ({ event_type: 'PAYMENT.CAPTURE.DENIED', resource: { supplementary_data: { related_ids: { order_id: orderId } } } });
+    const ppRenewal = await Invoice.create({ organization: billOrg._id, plan: 'starter', amount: 1200, currency: 'USD', status: 'pending', provider: 'paypal', paypalOrderId: 'PP-DENY-RENEW', billingMonth: '2099-09', dueAt: new Date(Date.now() + 9e8) });
+    const ppCheckout = await Invoice.create({ organization: billOrg._id, plan: 'starter', amount: 1200, currency: 'USD', status: 'pending', provider: 'paypal', paypalOrderId: 'PP-DENY-ONEOFF' });
+    await pp.handleWebhookEvent(denied('PP-DENY-RENEW'));
+    await pp.handleWebhookEvent(denied('PP-DENY-ONEOFF'));
+    check('a declined PayPal renewal stays pending; a declined checkout is marked failed',
+      (await Invoice.findById(ppRenewal._id)).status === 'pending' && (await Invoice.findById(ppCheckout._id)).status === 'failed');
+    await Invoice.deleteMany({ _id: { $in: [ppRenewal._id, ppCheckout._id] } });
+
+    // a redelivered PayPal refund webhook is recorded once
+    const refInv = await Invoice.create({ organization: billOrg._id, plan: 'starter', amount: 1200, currency: 'USD', status: 'paid', provider: 'paypal', paypalCaptureId: 'CAP-REFUND-E2E' });
+    const refundEvent = { event_type: 'PAYMENT.CAPTURE.REFUNDED', resource: { id: 'REF-1', amount: { value: '5.00' }, links: [{ rel: 'up', href: 'https://api.paypal.com/v2/payments/captures/CAP-REFUND-E2E' }] } };
+    await pp.handleWebhookEvent(refundEvent);
+    await pp.handleWebhookEvent(refundEvent);
+    const afterRefunds = await Invoice.findById(refInv._id);
+    check('a redelivered PayPal refund is recorded once', afterRefunds.refundAmount === 500 && afterRefunds.status === 'paid', `${afterRefunds.refundAmount}/${afterRefunds.status}`);
+    await Invoice.deleteOne({ _id: refInv._id });
+
+    // paying a newer renewal keeps the lock while an older one is still overdue
+    const lkBill = await Organization.findById(billOrg._id);
+    const saveState = { plan: lkBill.plan, isLocked: lkBill.isLocked, lockedReason: lkBill.lockedReason, subscription: lkBill.subscription?.toObject?.() || lkBill.subscription };
+    await Organization.updateOne({ _id: billOrg._id }, { $set: { plan: 'starter', isLocked: true, lockedReason: 'Payment overdue' } });
+    const overdueOld = await Invoice.create({ organization: billOrg._id, plan: 'starter', amount: 1200, currency: 'USD', status: 'pending', provider: 'paypal', billingMonth: '2099-10', dueAt: new Date(Date.now() - 864e5) });
+    const newer = await Invoice.create({ organization: billOrg._id, plan: 'starter', amount: 1200, currency: 'USD', status: 'pending', provider: 'paypal', billingMonth: '2099-11', dueAt: new Date(Date.now() + 9e8) });
+    await settleInvoice(newer._id, {});
+    const stillLocked = (await Organization.findById(billOrg._id)).isLocked;
+    await settleInvoice(overdueOld._id, {});
+    const unlocked = !(await Organization.findById(billOrg._id)).isLocked;
+    check('paying a newer renewal keeps the lock until the overdue one is paid', stillLocked === true && unlocked, `stillLocked=${stillLocked} unlocked=${unlocked}`);
+    await Invoice.deleteMany({ _id: { $in: [overdueOld._id, newer._id] } });
+    await Organization.updateOne({ _id: billOrg._id }, { $set: saveState });
+  }
+
   // refund of the current period revokes the plan
   const { applyRefund } = r('payments/refundInvoice');
   ended.plan = 'pro'; ended.subscription.currentPeriodEnd = new Date(Date.now() + 20 * 864e5); ended.subscription.status = 'active'; await ended.save();
@@ -341,6 +506,10 @@ function check(name, cond, extra = '') {
   const full = await applyRefund(await Invoice.findById(proInv._id), 2900);
   check('full refund of current period moves org to free', full.downgraded === true && (await Organization.findById(billOrg._id)).plan === 'free' && (await Invoice.findById(proInv._id)).status === 'refunded');
   check('refund is idempotent', (await applyRefund(await Invoice.findById(proInv._id), 2900)).alreadyApplied === true);
+  const replay = await settleInvoice(proInv._id, { providerPaymentId: 'pay_replay' });
+  const replayApi = await call('POST', '/api/billing/verify-payment', { user: billOwner, body: { invoiceId: String(proInv._id) } });
+  check('a refunded payment cannot be settled again', replay.ok === false && replay.reason === 'refunded' && replayApi.status === 409
+    && (await Invoice.findById(proInv._id)).status === 'refunded' && (await Organization.findById(billOrg._id)).plan === 'free', `${replay.reason}/${replayApi.status}`);
 
   // billing details validation
   check('invalid Indian GSTIN rejected', (await call('PUT', '/api/billing/details', { user: billOwner, body: { country: 'India', taxId: 'NOTAGSTIN' } })).status === 400);
@@ -399,6 +568,14 @@ function check(name, cond, extra = '') {
   check('invite within the limit succeeds', (await call('POST', `/api/projects/${limProject._id}/members`, { user: limOwner, body: { email: 'new1@e2e.test', role: 'member' } })).status === 201);
   check('pending invitations count toward the limit', (await call('POST', `/api/projects/${limProject._id}/members`, { user: limOwner, body: { email: 'new2@e2e.test', role: 'member' } })).status === 403);
   check('promoting a guest to member needs a free seat', (await call('PATCH', `/api/projects/${limProject._id}/members/${limGuest._id}/role`, { user: limOwner, body: { role: 'member' } })).status === 403);
+  // the org is full now (3 of 3): people who already hold a seat can still be added to more projects
+  const limProject2 = await Project.create({ name: 'LP2', projectType: 'website', websiteUrl: 'https://example.com', owner: limOwner._id, organization: limOrg._id, members: [limOwner._id] });
+  check('an existing member is added to another project at the seat limit', (await call('POST', `/api/projects/${limProject2._id}/members`, { user: limOwner, body: { email: 'limmember@e2e.test', role: 'member' } })).status === 200);
+  check('a pending invitee is invited to another project without a second seat', (await call('POST', `/api/projects/${limProject2._id}/members`, { user: limOwner, body: { email: 'new1@e2e.test', role: 'member' } })).status === 201
+    && (await r('middleware/orgLimits').countSeats(limOrg._id, 'member')) === 3);
+  check('a new person is still refused at the seat limit', (await call('POST', `/api/projects/${limProject2._id}/members`, { user: limOwner, body: { email: 'new3@e2e.test', role: 'member' } })).status === 403);
+  await Invitation.deleteMany({ project: limProject2._id });
+  await Project.deleteOne({ _id: limProject2._id });
 
   // storage quota (1 MB): oversized upload rejected and its file removed, small one counted
   const fsMod = require('fs'); const pathMod = require('path');
@@ -415,6 +592,69 @@ function check(name, cond, extra = '') {
   await new Promise((res) => setTimeout(res, 200));
   const leftover = fsMod.readdirSync(uploadsDir).filter((f) => !filesBefore.has(f));
   check('upload over the storage quota is rejected and removed', big === 403 && leftover.length === 0, `${big}, leftover ${leftover.length}`);
+
+  // refused uploads never stay on disk or count against the quota (guests and members)
+  {
+    const lkOwner = await mkUser('leakowner', 'owner');
+    const lkOrg = await Organization.create({ name: 'Leak Co', slug: 'leak-co-e2e', owner: lkOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() + 9e8) });
+    lkOwner.organization = lkOrg._id; await lkOwner.save({ validateBeforeSave: false });
+    const lkProj = await Project.create({ name: 'Leak site', projectType: 'website', websiteUrl: 'https://example.com', owner: lkOwner._id, organization: lkOrg._id, members: [lkOwner._id],
+      shareSettings: { enabled: true, token: 'sharetokenLeak0001', allowComments: false } });
+    const lkPin = await Pin.create({ project: lkProj._id, pageUrl: 'https://example.com/', xPercent: 1, yPercent: 1, pinNumber: 1, createdBy: lkOwner._id });
+    const docsBefore = new Set(fsMod.readdirSync(uploadsDir));
+    const ATT = 4096;
+    const post = async (url, fields, auth) => {
+      const fd = new FormData();
+      Object.entries(fields).forEach(([k, v]) => fd.append(k, v));
+      fd.append('attachments', new Blob([Buffer.alloc(ATT, 1)], { type: 'image/png' }), 'a.png');
+      return (await fetch(`${base}${url}`, { method: 'POST', headers: auth ? { Authorization: `Bearer ${tok(auth)}` } : {}, body: fd })).status;
+    };
+    const guest = { guestName: 'Client', guestEmail: 'client@e2e.test', body: 'Looks good' };
+    const gUrl = (pinId) => `/api/guest/sharetokenLeak0001/pins/${pinId}/comments`;
+    const refused = [await post(gUrl(lkPin._id), guest)]; // comments turned off
+    await Project.updateOne({ _id: lkProj._id }, { $set: { 'shareSettings.allowComments': true } });
+    refused.push(await post(gUrl(lkPin._id), { ...guest, body: '' }));
+    refused.push(await post(gUrl('not-a-pin'), guest));
+    refused.push(await post(gUrl(String(PA._id)), guest));
+    refused.push(await post(`/api/pins/${lkPin._id}/comments`, { body: '' }, lkOwner));
+    await new Promise((res) => setTimeout(res, 300));
+    const lkLeft = fsMod.readdirSync(uploadsDir).filter((f) => !docsBefore.has(f));
+    const lkUsed = (await Organization.findById(lkOrg._id)).storageUsedBytes || 0;
+    check('refused uploads are deleted and never count against storage', refused.join(',') === '403,400,404,404,400' && lkLeft.length === 0 && lkUsed === 0,
+      `${refused.join(',')} left=${lkLeft.length} used=${lkUsed}`);
+    const ok = await post(gUrl(lkPin._id), guest);
+    check('an accepted guest attachment is counted once', ok === 201 && (await Organization.findById(lkOrg._id)).storageUsedBytes === ATT,
+      `${ok} used=${(await Organization.findById(lkOrg._id)).storageUsedBytes}`);
+    const gComments = await call('GET', `/api/guest/sharetokenLeak0001/pins/${lkPin._id}/comments`);
+    const gPins = await call('GET', '/api/guest/sharetokenLeak0001/pins');
+    check('guests never see other reviewers\' email addresses', gComments.status === 200 && gComments.data.comments.length > 0
+      && !JSON.stringify(gComments.data).includes('client@e2e.test') && !JSON.stringify(gPins.data).includes('client@e2e.test')
+      && gComments.data.comments.some((c) => c.authorGuest?.name === 'Client'));
+    // review links stop working when the organization moves to the free plan
+    const linkBefore = (await call('GET', '/api/guest/sharetokenLeak0001')).status;
+    await Organization.updateOne({ _id: lkOrg._id }, { $set: { plan: 'free' } });
+    r('utils/sharing').clearSharePlanCache();
+    const linkOnFree = await call('GET', '/api/guest/sharetokenLeak0001');
+    check('review links stop working on the free plan', linkBefore === 200 && linkOnFree.status === 403
+      && !(await r('utils/sharing').isProjectShared(await Project.findById(lkProj._id))), `${linkBefore}/${linkOnFree.status}`);
+    await Organization.updateOne({ _id: lkOrg._id }, { $set: { plan: 'trial' } });
+    r('utils/sharing').clearSharePlanCache();
+    await r('utils/cascade').deleteProjectCascade(await Project.findById(lkProj._id)); // removes the test file
+
+    // PDF documents get their real page count
+    const pdfBuf = await new Promise((resolve) => {
+      const PDFDocument = require('pdfkit'); const doc = new PDFDocument(); const chunks = [];
+      doc.on('data', (c) => chunks.push(c)); doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.text('one'); doc.addPage().text('two'); doc.addPage().text('three'); doc.end();
+    });
+    const pfd = new FormData();
+    pfd.append('name', 'Three pages'); pfd.append('projectType', 'document');
+    pfd.append('documents', new Blob([pdfBuf], { type: 'application/pdf' }), 'three.pdf');
+    const pdfRes = await fetch(`${base}/api/projects`, { method: 'POST', headers: { Authorization: `Bearer ${tok(lkOwner)}` }, body: pfd });
+    const pdfProject = (await pdfRes.json().catch(() => ({}))).project;
+    check('a PDF document gets its real page count', pdfRes.status === 201 && pdfProject?.documents?.[0]?.pageCount === 3, `${pdfRes.status} pages=${pdfProject?.documents?.[0]?.pageCount}`);
+    if (pdfProject?._id) await r('utils/cascade').deleteProjectCascade(await Project.findById(pdfProject._id));
+  }
   const small = await uploadDoc(100 * 1024);
   const usedAfter = (await Organization.findById(limOrg._id)).storageUsedBytes;
   check('upload within quota succeeds and is counted', small === 201 && usedAfter === 100 * 1024, `${small}, used ${usedAfter}`);
@@ -425,10 +665,32 @@ function check(name, cond, extra = '') {
   limOrg.plan = 'free'; await limOrg.save();
   check('free plan cannot create share links', (await call('POST', `/api/projects/${limProject._id}/share`, { user: limOwner, body: {} })).status === 403);
   limProject.shareSettings = { enabled: true, token: 'sharetokenLim', allowComments: true }; await limProject.save();
-  await Organization.updateOne({ _id: limOrg._id }, { $set: { isLocked: true, lockedReason: 'Trial expired' } });
+  // a locked org is an expired trial here (a free-plan org's links stop working; checked elsewhere)
+  await Organization.updateOne({ _id: limOrg._id }, { $set: { plan: 'trial', isLocked: true, lockedReason: 'Trial expired' } });
+  r('utils/sharing').clearSharePlanCache();
   const lockedGuest = await call('POST', '/api/guest/sharetokenLim/pins', { body: { guestName: 'G', guestEmail: 'g@x.io', pageUrl: 'https://example.com/', xPercent: 1, yPercent: 1 } });
   check('guests cannot write to a locked org', lockedGuest.status === 403, String(lockedGuest.status));
   check('guests can still view a locked org review', (await call('GET', '/api/guest/sharetokenLim/pins')).status === 200);
+  await Organization.updateOne({ _id: limOrg._id }, { $set: { plan: 'free' } }); // back to free for the checks below
+
+  {
+    // user text in chat messages is plain text: no channel pings, no disguised links
+    const httpMod = require('http'); const got = [];
+    const capture = httpMod.createServer((q, s2) => { let b = ''; q.on('data', (c) => { b += c; }); q.on('end', () => { got.push(JSON.parse(b)); s2.end('ok'); }); }).listen(0);
+    const hook = `http://127.0.0.1:${capture.address().port}/hook`;
+    const evil = { action: 'comment.created', projectId: String(PA._id), pinId: 'p1', pinNumber: 3, projectName: 'Site <!here>',
+      actorName: '<!channel> <https://evil.example|Kommently login> [Log in](https://evil.example) @everyone',
+      comment: '<p>see <https://evil.example|here> and [this](https://evil.example)</p>', context: { browser: '<!channel>', os: 'x' } };
+    await r('utils/slackNotifier').sendSlackNotification(hook, evil);
+    await r('utils/discordNotifier').sendDiscordNotification(hook, evil);
+    await r('utils/teamsNotifier').sendTeamsNotification(hook, evil);
+    capture.close();
+    const [slack, discord, teams] = got.map((g) => JSON.stringify(g));
+    check('Slack messages carry user text without pings or disguised links', !!slack && !slack.includes('<!channel>') && !slack.includes('<!here>') && !slack.includes('<https://evil.example|'), slack?.slice(0, 160));
+    check('Discord and Teams messages carry user text without links or mentions', !!discord && !!teams
+      && !/\[Log in\]\(https/.test(discord) && !/\[this\]\(https/.test(discord) && got[1].allowed_mentions?.parse?.length === 0
+      && !/\[Log in\]\(https/.test(teams) && !/@everyone/.test(discord.replace(/@\\u200b|@​/g, '')));
+  }
 
   // integrations stop after a downgrade
   const http = require('http'); let hooks = 0;
@@ -470,7 +732,14 @@ function check(name, cond, extra = '') {
   check('project delete removes uploaded files', !fsMod.existsSync(attPath));
   check('project delete releases storage quota', (await Organization.findById(gdOrg._id)).storageUsedBytes === 0);
 
-  check('workspace deletion needs the password', (await call('POST', '/api/auth/organization/delete', { user: gdOwner, body: { password: 'wrong', confirmName: 'GD Co' } })).status === 401);
+  check('only the owner can schedule or cancel organization deletion',
+    (await call('POST', '/api/auth/organization/delete', { user: adminA, headers: { 'X-Forwarded-For': '10.66.0.2' }, body: { password: 'x'.repeat(60), confirmName: adminA.email } })).status === 403
+      && (await call('POST', '/api/auth/organization/cancel-deletion', { user: adminA, headers: { 'X-Forwarded-For': '10.66.0.3' } })).status === 403
+      && !(await Organization.findById(orgA._id)).deletionScheduledAt);
+  // A wrong password is a 400, never a 401 (the apps sign out on any 401)
+  check('workspace deletion needs the password', (await call('POST', '/api/auth/organization/delete', { user: gdOwner, body: { password: 'wrong', confirmName: 'GD Co' } })).status === 400);
+  check('a wrong password on email change is a 400, not a sign-out', (await call('PATCH', '/api/auth/profile', { user: gdOwner, headers: { 'X-Forwarded-For': '10.66.0.5' }, body: { email: 'gd-new@e2e.test', currentPassword: 'wrong' } })).data?.code === 'PASSWORD_REQUIRED');
+  check('a wrong password on email change answers 400', (await call('PATCH', '/api/auth/profile', { user: gdOwner, headers: { 'X-Forwarded-For': '10.66.0.6' }, body: { email: 'gd-new@e2e.test', currentPassword: 'wrong' } })).status === 400);
   const delReq = await call('POST', '/api/auth/organization/delete', { user: gdOwner, body: { password: 'x'.repeat(60), confirmName: 'GD Co' } });
   const scheduled = await Organization.findById(gdOrg._id);
   check('workspace deletion is scheduled and locks the workspace', delReq.status === 200 && !!scheduled.deletionScheduledAt && scheduled.isLocked, String(delReq.status));
@@ -500,7 +769,50 @@ function check(name, cond, extra = '') {
 
   // --- Phase 2F: remaining security items
   const cookieOnly = await fetch(`${base}/api/auth/profile`, { method: 'PATCH', headers: { Cookie: `markup_token=${tok(memberA)}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Hacked' }) });
-  check('cookie-authenticated profile change without CSRF token is refused', cookieOnly.status === 403, String(cookieOnly.status));
+  const cookieRead = await fetch(`${base}/api/auth/me`, { headers: { Cookie: `markup_token=${tok(memberA)}` } });
+  check('a session cookie alone is not accepted by the API', cookieOnly.status === 403 && cookieRead.status === 401, `${cookieOnly.status}/${cookieRead.status}`);
+  {
+    // Reviewed sites run on the API origin (proxy): no session cookie may exist there
+    const ck = await mkUser('cookiecheck', 'member', { organization: orgA._id });
+    const login = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '10.66.0.4' }, body: JSON.stringify({ email: ck.email, password: 'x'.repeat(60) }) });
+    const setCookies = (login.headers.getSetCookie?.() || []).join('\n');
+    check('sign-in sets no session or CSRF cookie on the API host', login.status === 200
+      && !/markup_token=[^;\s]/.test(setCookies) && !/markup_csrf=[^;\s]/.test(setCookies), setCookies.slice(0, 120));
+    const target = encodeURIComponent('https://example.org/');
+    const sessionJwt = tok(memberA);
+    const otherProxy = r('utils/proxyToken').signProxyToken(ownerA, PB._id);
+    check('the proxy refuses session tokens and cookies, and proxy tokens of other projects',
+      (await call('GET', `/api/proxy?url=${target}&projectId=${PA._id}`, { headers: { Cookie: `markup_token=${sessionJwt}` } })).status === 401
+        && (await call('GET', `/api/proxy?url=${target}&projectId=${PA._id}&token=${sessionJwt}`)).status === 401
+        && (await call('GET', `/api/proxy?url=${target}&projectId=${PA._id}&token=${otherProxy}`)).status === 401);
+    const ownProxy = r('utils/proxyToken').signProxyToken(ownerA, PA._id);
+    check('the proxy never serves a service worker script',
+      (await call('GET', `/api/proxy?url=${encodeURIComponent('https://example.org/sw.js')}&projectId=${PA._id}&token=${ownProxy}`, { headers: { 'Service-Worker': 'script' } })).status === 403);
+    const loginJson = await login.json().catch(() => ({}));
+    const sessionTok = loginJson.token;
+    const ckFresh = await User.findById(ck._id);
+    const ckProxy = r('utils/proxyToken').signProxyToken(ckFresh, PA._id);
+    const out = await call('POST', '/api/auth/logout', { token: sessionTok });
+    check('signing out ends the session on the server (session and proxy tokens stop working)', out.status === 200
+      && (await call('GET', '/api/auth/me', { token: sessionTok })).status === 401
+      && (await call('GET', `/api/proxy?url=${target}&projectId=${PA._id}&token=${ckProxy}`)).status === 401, `${out.status}`);
+    await User.deleteOne({ _id: ck._id });
+  }
+  {
+    // the email code allows 5 guesses even when they arrive in parallel
+    const EV = r('models/EmailVerification');
+    await EV.create({ email: 'otp-race@e2e.test', otpHash: EV.hashOtp('123456'), expiresAt: new Date(Date.now() + 6e5) });
+    const guesses = await Promise.all(Array.from({ length: 10 }, (_, i) =>
+      call('POST', '/api/auth/verify-otp', { headers: { 'X-Forwarded-For': `10.67.0.${i + 1}` }, body: { email: 'otp-race@e2e.test', otp: String(100000 + i) } })));
+    const wrong = guesses.filter((g) => g.status === 400).length;
+    const afterRace = await call('POST', '/api/auth/verify-otp', { headers: { 'X-Forwarded-For': '10.67.0.50' }, body: { email: 'otp-race@e2e.test', otp: '123456' } });
+    check('parallel code guesses cannot exceed 5 attempts', wrong === 5 && (await EV.findOne({ email: 'otp-race@e2e.test' })).attempts === 5 && afterRace.status === 429,
+      `wrong=${wrong} after=${afterRace.status}`);
+    await EV.create({ email: 'otp-ok@e2e.test', otpHash: EV.hashOtp('654321'), expiresAt: new Date(Date.now() + 6e5) });
+    const okRes = await call('POST', '/api/auth/verify-otp', { headers: { 'X-Forwarded-For': '10.67.0.51' }, body: { email: 'otp-ok@e2e.test', otp: '654321' } });
+    check('a correct email code still verifies', okRes.status === 200 && okRes.data?.verified === true && !!(await EV.findOne({ email: 'otp-ok@e2e.test' })).verifiedAt);
+    await EV.deleteMany({ email: { $in: ['otp-race@e2e.test', 'otp-ok@e2e.test'] } });
+  }
   check('Bearer-authenticated profile change still works', (await call('PATCH', '/api/auth/profile', { user: memberA, body: { name: 'Member A' } })).status === 200);
   const resetStatuses = [];
   for (let i = 0; i < 4; i++) resetStatuses.push((await call('POST', '/api/auth/forgot-password', { body: { email: 'victim@e2e.test' } })).status);
@@ -670,6 +982,11 @@ function check(name, cond, extra = '') {
     const csvText = await csv.text();
     check('CSV export is a spreadsheet-safe file', csv.headers.get('content-type')?.includes('text/csv') && csvText.startsWith('"Organization"') && csvText.includes(`"'=HYPERLINK`));
     await Organization.deleteOne({ _id: evilOrg._id });
+    const tabOrg = await Organization.create({ name: '\t=HYPERLINK("http://evil2")', slug: 'evil2-e2e', owner: ownerA._id, plan: 'free' });
+    const csvTab = await (await fetch(`${base}/api/admin/organizations?format=csv&search=evil2`, { headers: { Authorization: `Bearer ${adminToken}` } })).text();
+    // (the org name is trimmed on save; the export must still start the cell with a quote)
+    check('CSV export also defuses formulas behind a tab', /"'\s*=HYPERLINK\(""http:\/\/evil2/.test(csvTab) && !/(^|,)"\s*=HYPERLINK/m.test(csvTab), csvTab.split('\n')[1]?.slice(0, 60));
+    await Organization.deleteOne({ _id: tabOrg._id });
     const detail = await adminCall('GET', `/api/admin/organizations/${orgA._id}`);
     check('organization page returns usage, limits, engagement, workspaces and notes', ['usage', 'limits', 'engagement', 'workspaces', 'notes', 'activity', 'invoices', 'status'].every((k) => k in (detail.data || {})));
     check('unknown organization is a 404', (await adminCall('GET', `/api/admin/organizations/${new mongoose.Types.ObjectId()}`)).status === 404);
@@ -1020,6 +1337,9 @@ function check(name, cond, extra = '') {
     check('after the deadline a comment-level member is refused', memberReply.status === 423 && memberReply.data?.code === 'FEEDBACK_CLOSED', memberReply.status);
     const managerReply = await call('POST', `/api/pins/${revPin._id}/comments`, { user: revOwner, body: { body: '<p>Thanks, on it</p>' } });
     check('after the deadline a manager can still reply', managerReply.status === 201, `${managerReply.status} ${managerReply.data?.code || ''}`);
+    const memberPin = await call('POST', `/api/projects/${revProject._id}/pins`, { user: revMember, body: { pageUrl: 'https://example.com/', xPercent: 9, yPercent: 9 } });
+    const managerPin = await call('POST', `/api/projects/${revProject._id}/pins`, { user: revOwner, body: { pageUrl: 'https://example.com/', xPercent: 8, yPercent: 8 } });
+    check('after the deadline pins follow the same rule (members refused, managers allowed)', memberPin.status === 423 && managerPin.status === 201, `${memberPin.status}/${managerPin.status}`);
 
     // Deadlines are a paid feature (hasDeadlines)
     await Organization.updateOne({ _id: revOrg._id }, { $set: { plan: 'free' } });
@@ -1052,6 +1372,18 @@ function check(name, cond, extra = '') {
     const ext2 = await agentCall('POST', `/api/admin/organizations/${tOrg._id}/extend-trial`, { body: { days: 14 } });
     check('support agents cannot add more than 14 days to one trial', ext2.status === 403, ext2.status);
     check('a support agent cannot turn a free organization into a trial', (await agentCall('POST', `/api/admin/organizations/${fOrg._id}/extend-trial`, { body: { days: 7 } })).status === 403);
+    const raceOrg = await Organization.create({ name: 'Agent Race Co', slug: 'agent-race-e2e', owner: tOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() + 3 * 864e5), trialDays: 14 });
+    const race = await Promise.all([1, 2, 3].map(() => agentCall('POST', `/api/admin/organizations/${raceOrg._id}/extend-trial`, { body: { days: 7 } })));
+    check('parallel agent extensions cannot pass the 14-day cap', race.filter((x) => x.status === 200).length === 2 && (await Organization.findById(raceOrg._id)).trialSupportExtensionDays === 14,
+      race.map((x) => x.status).join(','));
+    const expiredOrg = await Organization.create({ name: 'Agent Expired Co', slug: 'agent-expired-e2e', owner: tOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() - 864e5), trialDays: 14 });
+    check('a support agent cannot extend an expired trial', (await agentCall('POST', `/api/admin/organizations/${expiredOrg._id}/extend-trial`, { body: { days: 3 } })).status === 403);
+    const notes = r('models/AdminNote');
+    const otherNote = await notes.create({ organization: tOrg._id, author: (await mkAdmin('noteauthor', { role: 'superadmin' }))._id, body: 'Keep' });
+    check('a support agent cannot delete another admin\'s note', (await agentCall('DELETE', `/api/admin/organizations/${tOrg._id}/notes/${otherNote._id}`)).status === 403 && !!(await notes.findById(otherNote._id)));
+    const delOrg = await Organization.create({ name: 'Leaving Co', slug: 'leaving-e2e', owner: tOwner._id, plan: 'free', isLocked: true, lockedReason: 'Deletion scheduled', deletionScheduledAt: new Date(Date.now() + 5 * 864e5) });
+    const unlockScheduled = await call('PATCH', `/api/admin/organizations/${delOrg._id}/unlock`, { token: adminToken });
+    check('an organization scheduled for deletion is not unlocked by an admin', unlockScheduled.status === 409 && (await Organization.findById(delOrg._id)).isLocked === true, String(unlockScheduled.status));
     const logged = await r('models/Activity').findOne({ action: 'org.trial_extended', organization: tOrg._id }).lean();
     check('the action log records the admin role that acted', logged?.metadata?.adminRole === 'support' && logged?.metadata?.actorRole === 'superadmin');
     check('a support agent cannot change admin roles', (await agentCall('PATCH', `/api/admin/admins/${agent._id}/role`, { body: { role: 'superadmin' } })).status === 403);

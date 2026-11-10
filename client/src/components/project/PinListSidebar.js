@@ -115,6 +115,7 @@ export default function PinListSidebar({
   onClosePin,
   onDeletePin,
   readOnly = false,
+  canManage = false,
   onNavigatePin,
   onStatusChange,
   onPinUpdate,
@@ -392,6 +393,7 @@ export default function PinListSidebar({
             resyncKey={resyncKey}
             members={members}
             readOnly={readOnly}
+            canManage={canManage}
           />
         )}
       </div>

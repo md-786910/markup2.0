@@ -206,6 +206,9 @@ exports.verifyPayment = asyncHandler(async (req, res) => {
     await attachPendingInvoice(org);
     return res.json({ message: 'Invoice already paid.', user: userResponse(req.user, org) });
   }
+  if (invoice.status === 'refunded') {
+    return res.status(409).json({ message: 'This payment was refunded. Start a new checkout to subscribe again.', code: 'INVOICE_REFUNDED' });
+  }
 
   const provider = getProvider(invoice.provider);
   if (!provider) {
@@ -402,6 +405,18 @@ exports.upgradePlan = asyncHandler(async (req, res) => {
   } else if (!org.subscription.currentPeriodEnd) {
     // Paid downgrade keeps the already-paid period; only set one if missing.
     org.subscription.currentPeriodEnd = addMonthsUTC(new Date(), 1);
+  }
+
+  // A paid downgrade after the next renewal was issued (a day early, at the
+  // old plan's price): void it and take its month back off, as a cancellation
+  // does, so the daily job reissues that month at the new plan's price.
+  if (isPaidTarget && previousPlan !== plan && org.subscription.currentPeriodEnd) {
+    const unpaidRenewal = await Invoice.findOne({ organization: org._id, status: 'pending', billingMonth: { $type: 'string' } });
+    if (unpaidRenewal && unpaidRenewal.plan !== plan) {
+      unpaidRenewal.status = 'void';
+      await unpaidRenewal.save();
+      org.subscription.currentPeriodEnd = addMonthsUTC(org.subscription.currentPeriodEnd, -1);
+    }
   }
 
   await org.save();

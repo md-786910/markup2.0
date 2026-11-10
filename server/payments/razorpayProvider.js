@@ -60,9 +60,9 @@ async function createOrder({ org, plan, planConfig, invoiceMeta = {} }) {
   const dealActive = org.deal && org.deal.price != null && (!org.deal.until || new Date(org.deal.until) > now);
   let rupees;
   if (dealActive) {
-    rupees = org.deal.currency === 'INR' ? Number(org.deal.price) : Number(org.deal.price) * 84;
+    rupees = org.deal.currency === 'INR' ? Number(org.deal.price) : Number(org.deal.price) * require('../config/plans').USD_INR_RATE;
   } else {
-    rupees = planConfig.priceInr != null ? planConfig.priceInr : planConfig.price * 84;
+    rupees = planConfig.priceInr != null ? planConfig.priceInr : planConfig.price * require('../config/plans').USD_INR_RATE;
   }
   const amount = Math.round(rupees * 100);
   const receipt = (invoiceMeta.receipt || `rcpt_${Date.now()}`).slice(0, 40);

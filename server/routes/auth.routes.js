@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { signup, login, getMe, forgotPassword, resetPassword, updateProfile, changePassword, uploadAvatar, deleteAccount, updateOrganization, validateEmail, sendOtp, verifyOtp, getOrgActivity, exportOrganization, requestOrganizationDeletion, cancelOrganizationDeletion } = require('../controllers/auth.controller');
+const { signup, login, logout, getMe, forgotPassword, resetPassword, updateProfile, changePassword, uploadAvatar, deleteAccount, updateOrganization, validateEmail, sendOtp, verifyOtp, getOrgActivity, exportOrganization, requestOrganizationDeletion, cancelOrganizationDeletion } = require('../controllers/auth.controller');
 const auth = require('../middleware/auth');
 const { checkActivityLogsLimit } = require('../middleware/orgLimits');
 const { loginEmailLimiter, passwordResetEmailLimiter, otpEmailLimiter, authLimiter } = require('../middleware/rateLimiters');
@@ -11,6 +11,7 @@ router.post('/verify-otp', verifyOtp);
 router.post('/signup', signup);
 router.post('/login', loginEmailLimiter, login);
 router.get('/me', auth, getMe);
+router.post('/logout', auth, logout);
 router.patch('/profile', auth, updateProfile);
 router.patch('/change-password', auth, changePassword);
 router.post('/avatar', auth, upload.single('avatar'), uploadAvatar);

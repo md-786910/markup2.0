@@ -43,14 +43,17 @@ async function sendReceipt(invoice, org, ownerEmail) {
 async function settleInvoice(invoiceId, { providerPaymentId, providerCaptureId } = {}) {
   // Atomically claim the invoice so concurrent settles (client verify + provider
   // webhook arriving together) can't both apply the plan/period side effects.
+  // A refunded invoice is final: replaying its (still valid) payment
+  // signature or a redelivered webhook must not restore the paid plan.
   const previous = await Invoice.findOneAndUpdate(
-    { _id: invoiceId, status: { $ne: 'paid' } },
+    { _id: invoiceId, status: { $nin: ['paid', 'refunded'] } },
     { $set: { status: 'paid' } },
     { returnDocument: 'before' },
   );
   if (!previous) {
     const existing = await Invoice.findById(invoiceId);
     if (!existing) return { ok: false, reason: 'invoice_not_found' };
+    if (existing.status === 'refunded') return { ok: false, reason: 'refunded', invoice: existing };
     return { ok: true, alreadyPaid: true, invoice: existing };
   }
   const previousStatus = previous.status;
@@ -111,7 +114,17 @@ async function settleInvoice(invoiceId, { providerPaymentId, providerCaptureId }
       org.subscription = org.subscription || {};
       org.subscription.currentPeriodEnd = periodEnd;
     }
-    clearBillingLock(org);
+    // Paying one renewal doesn't unlock an org that still has another overdue
+    // renewal unpaid (its lock reminder was already sent, so nothing would
+    // lock it again)
+    const otherOverdue = isRenewal && await Invoice.exists({
+      organization: org._id,
+      _id: { $ne: invoice._id },
+      status: 'pending',
+      billingMonth: { $type: 'string' },
+      dueAt: { $lt: new Date() },
+    });
+    if (!otherOverdue) clearBillingLock(org);
     org.trialEndsAt = null;
 
     if (!org.subscription) org.subscription = {};

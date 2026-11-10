@@ -46,8 +46,11 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, orgLocked } = useAuth();
   // This user's level on the project (server: utils/access.js)
-  const canComment = (project.access === 'comment' || project.access === 'manage') && !orgLocked;
   const canManageProject = project.access === 'manage';
+  // After the feedback deadline only people who manage the project can still
+  // pin and comment (the server answers 423 FEEDBACK_CLOSED to everyone else)
+  const feedbackClosed = Boolean(project.review?.deadlineAt && new Date() > new Date(project.review.deadlineAt));
+  const canComment = (project.access === 'comment' || project.access === 'manage') && !orgLocked && (!feedbackClosed || canManageProject);
   const limits = user?.orgLimits || {};
   const workspaceName = project.workspace?.name || project.workspaceName || user?.workspaceName || user?.companyName || 'Leanport';
 
@@ -66,7 +69,32 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const [iframeLoading, setIframeLoading] = useState(true);
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [deviceMode, setDeviceMode] = useState('desktop');
-  const [devicePinCounts, setDevicePinCounts] = useState({ desktop: 0, tablet: 0, mobile: 0 });
+  // Open (unresolved) pins per device, as { pinId: deviceMode }. Counts are
+  // derived from it, so applying the same event twice (our own change echoed
+  // back by the socket, or an edit that isn't a status change) can't drift them.
+  const [openPinModes, setOpenPinModes] = useState({});
+  const devicePinCounts = useMemo(() => {
+    const counts = { desktop: 0, tablet: 0, mobile: 0 };
+    Object.values(openPinModes).forEach((mode) => { if (counts[mode] !== undefined) counts[mode] += 1; });
+    return counts;
+  }, [openPinModes]);
+  const trackPin = useCallback((pin) => {
+    if (!pin?._id) return;
+    setOpenPinModes((prev) => {
+      const next = { ...prev };
+      if (pin.status === 'resolved') delete next[pin._id];
+      else next[pin._id] = pin.deviceMode || 'desktop';
+      return next;
+    });
+  }, []);
+  const untrackPin = useCallback((pinId) => {
+    setOpenPinModes((prev) => {
+      if (!(pinId in prev)) return prev;
+      const next = { ...prev };
+      delete next[pinId];
+      return next;
+    });
+  }, []);
   const [currentDocPage, setCurrentDocPage] = useState(1);
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
   const [sidebarTab, setSidebarTab] = useState('pins');
@@ -181,13 +209,11 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   useEffect(() => {
     getPinsApi(project._id)
       .then((res) => {
-        const counts = { desktop: 0, tablet: 0, mobile: 0 };
+        const open = {};
         for (const pin of res.data.pins) {
-          if (pin.status !== 'resolved' && counts[pin.deviceMode || 'desktop'] !== undefined) {
-            counts[pin.deviceMode || 'desktop']++;
-          }
+          if (pin.status !== 'resolved') open[pin._id] = pin.deviceMode || 'desktop';
         }
-        setDevicePinCounts(counts);
+        setOpenPinModes(open);
       })
       .catch(() => {});
   }, [project._id]);
@@ -347,13 +373,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
   const handleDeletePin = async (pinId) => {
     try {
-      // Decrement count before deleting
-      const pin = allPins.find((p) => p._id === pinId);
-      if (pin && pin.status !== 'resolved') {
-        const mode = pin.deviceMode || 'desktop';
-        setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
-      }
       await deletePinApi(project._id, pinId);
+      untrackPin(pinId);
       handleClosePin();
       await loadPins();
       await loadAllPins();
@@ -364,16 +385,9 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
   const handlePinUpdate = async (pinId, patchData) => {
     try {
-      if (patchData && patchData.status) {
-        const mode = deviceMode;
-        if (patchData.status === 'resolved') {
-          setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
-        } else if (patchData.status === 'pending' || patchData.status === 'open') {
-          setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
-        }
-      }
       const res = await updatePinApi(project._id, pinId, patchData);
       const updated = res.data?.pin;
+      if (updated) trackPin(updated);
       await loadPins();
       await loadAllPins();
       if (selectedPin?._id === pinId) {
@@ -431,13 +445,20 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         if (prev.some((p) => p._id === data.pin._id)) return prev;
         return [data.pin, ...prev];
       });
-      // Update device pin counts
-      if (data.pin.status !== 'resolved') {
-        const mode = data.pin.deviceMode || 'desktop';
-        setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
-      }
+      trackPin(data.pin);
     });
-  }, [onEvent, currentPageUrl, deviceMode]);
+  }, [onEvent, currentPageUrl, deviceMode, trackPin]);
+
+  // A deadline set, changed or removed by someone else applies right away
+  // (latest project/callback read through a ref so the listener is set once)
+  const reviewSyncRef = useRef({ project, onProjectUpdate });
+  reviewSyncRef.current = { project, onProjectUpdate };
+  useEffect(() => {
+    return onEvent('project:review_updated', (data) => {
+      const { project: current, onProjectUpdate: update } = reviewSyncRef.current;
+      if (data && 'review' in data && update) update({ ...current, review: data.review });
+    });
+  }, [onEvent]);
 
   // Pin updated (status change)
   useEffect(() => {
@@ -449,32 +470,19 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       setSelectedPin((prev) =>
         prev && prev._id === data.pin._id ? { ...prev, ...data.pin } : prev
       );
-      // Update device pin counts on status change
-      const mode = data.pin.deviceMode || 'desktop';
-      if (data.pin.status === 'resolved') {
-        setDevicePinCounts((prev) => ({ ...prev, [mode]: Math.max(0, (prev[mode] || 0) - 1) }));
-      } else if (data.pin.status !== 'resolved') {
-        setDevicePinCounts((prev) => ({ ...prev, [mode]: (prev[mode] || 0) + 1 }));
-      }
+      trackPin(data.pin);
     });
-  }, [onEvent]);
+  }, [onEvent, trackPin]);
 
   // Pin deleted
   useEffect(() => {
     return onEvent('pin:deleted', (data) => {
-      // Decrement device count if the deleted pin was active
-      setAllPins((prev) => {
-        const deleted = prev.find((p) => p._id === data.pinId);
-        if (deleted && deleted.status !== 'resolved') {
-          const mode = deleted.deviceMode || 'desktop';
-          setDevicePinCounts((c) => ({ ...c, [mode]: Math.max(0, (c[mode] || 0) - 1) }));
-        }
-        return prev.filter((p) => p._id !== data.pinId);
-      });
+      untrackPin(data.pinId);
+      setAllPins((prev) => prev.filter((p) => p._id !== data.pinId));
       setPins((prev) => prev.filter((p) => p._id !== data.pinId));
       setSelectedPin((prev) => (prev && prev._id === data.pinId ? null : prev));
     });
-  }, [onEvent]);
+  }, [onEvent, untrackPin]);
 
   // Comment created — update counts in pin lists
   useEffect(() => {
@@ -647,6 +655,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         {sidebarTab === 'pins' ? (
           <PinListSidebar
             readOnly={!canComment}
+            canManage={canManageProject}
             pins={shownAllPins}
             selectedPinId={selectedPin?._id}
             selectedPin={selectedPin}
@@ -802,6 +811,17 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           <div className="md:hidden flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-2 shrink-0">
             {!isDocumentProject ? deviceButtons : <span />}
             {modeToggle}
+          </div>
+        )}
+
+        {feedbackClosed && (
+          <div role="status" className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-caption text-amber-900 flex items-center justify-between gap-3 shrink-0">
+            <span>
+              <strong>Feedback closed:</strong> {project.review?.deadlineMessage || `Feedback has closed for this review round (${new Date(project.review.deadlineAt).toLocaleDateString()}).`}
+            </span>
+            <span className="font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded text-caption shrink-0">
+              {canManageProject ? 'You can still reply' : 'Read-only'}
+            </span>
           </div>
         )}
 

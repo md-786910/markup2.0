@@ -10,7 +10,14 @@ const { extractMentionedUserIds } = require('../utils/mentionHelper');
 const { createProjectNotifications } = require('../utils/notificationHelper');
 const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
 const { sanitizePinContext } = require('../utils/pinContext');
-const { refundUploads } = require('../utils/storage');
+const { refundUploads, releaseStorage, deleteStoredFiles } = require('../utils/storage');
+
+// The pin's author (a signed-in user) or someone who manages the project
+function isPinAuthorOrManager(req, pin) {
+  if (req.access === 'manage') return true;
+  const author = pin.createdBy?._id || pin.createdBy;
+  return !!author && String(author) === String(req.user._id);
+}
 
 exports.createPin = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
@@ -29,6 +36,7 @@ exports.createPin = asyncHandler(async (req, res) => {
   const viewportYPercent = req.body.viewportYPercent != null ? parseFloat(req.body.viewportYPercent) : null;
 
   if (xPercent == null || isNaN(xPercent) || yPercent == null || isNaN(yPercent) || !pageUrl) {
+    await refundUploads(req); // the screenshot was reserved by enforceStorageQuota
     return res.status(400).json({ message: 'xPercent, yPercent, and pageUrl are required' });
   }
 
@@ -40,7 +48,9 @@ exports.createPin = asyncHandler(async (req, res) => {
   } : null;
 
   const projectDoc = await Project.findById(projectId).select('name organization settings review');
-  if (projectDoc?.review?.deadlineAt && new Date() > new Date(projectDoc.review.deadlineAt)) {
+  // After the deadline only people who manage the project can still add pins
+  // (same rule as comments)
+  if (projectDoc?.review?.deadlineAt && new Date() > new Date(projectDoc.review.deadlineAt) && req.access !== 'manage') {
     await refundUploads(req);
     return res.status(423).json({
       code: 'FEEDBACK_CLOSED',
@@ -220,8 +230,12 @@ exports.getPins = asyncHandler(async (req, res) => {
     const createdById = pin.createdBy?._id?.toString() || pin.createdBy?.toString();
     const authorUserIds = [...new Set([createdById, ...(info.commentAuthorIds || [])].filter(Boolean))];
 
+    const obj = pin.toObject();
+    // Technical details (console errors, requests, environment) are for the
+    // team, not outside collaborators (org guests), as on share links
+    if (req.user?.role === 'guest') delete obj.context;
     return {
-      ...pin.toObject(),
+      ...obj,
       commentsCount: info.count || 0,
       mentionedUserIds: info.mentionedUserIds || [],
       authorUserIds,
@@ -384,15 +398,27 @@ exports.attachScreenshot = asyncHandler(async (req, res) => {
   // Scoped to the project already authorized by projectAccess
   const pin = await Pin.findOne({ _id: pinId, project: req.project._id });
   if (!pin) {
+    await refundUploads(req); // reserved by enforceStorageQuota
     return res.status(404).json({ message: 'Pin not found' });
   }
+  // The late screenshot of a click belongs to whoever made the pin
+  if (!isPinAuthorOrManager(req, pin)) {
+    await refundUploads(req);
+    return res.status(403).json({ message: 'Only the person who added this pin can attach its screenshot.', code: 'ACCESS_LEVEL' });
+  }
 
+  // A replaced screenshot's file is deleted and its space given back
+  const previous = pin.screenshot?.path ? { path: pin.screenshot.path, size: pin.screenshot.size } : null;
   pin.screenshot = {
     filename: req.file.filename,
     path: `uploads/${req.file.filename}`,
     size: req.file.size,
   };
   await pin.save();
+  if (previous && previous.path !== pin.screenshot.path) {
+    deleteStoredFiles([previous.path]);
+    if (previous.size) await releaseStorage(req.project.organization, previous.size).catch(() => {});
+  }
 
   const populated = await Pin.findById(pin._id).populate('createdBy', 'name email');
 
@@ -410,6 +436,12 @@ exports.deletePin = asyncHandler(async (req, res) => {
   const pin = await Pin.findOne({ _id: pinId, project: req.project._id });
   if (!pin) {
     return res.status(404).json({ message: 'Pin not found' });
+  }
+
+  // Deleting a pin removes its whole thread (client feedback included): only
+  // its author or someone who manages the project may do that
+  if (!isPinAuthorOrManager(req, pin)) {
+    return res.status(403).json({ message: 'Only the person who added this pin or a project manager can delete it.', code: 'ACCESS_LEVEL' });
   }
 
   const projectId = pin.project.toString();

@@ -281,4 +281,4 @@ async function getEffectiveLimitsAsync(org) {
   return { ...base, ...overrides };
 }
 
-module.exports = { getSupportForPlan, getSupportForOrg, getEffectiveLimitsAsync, PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache, getDefaultTrialDaysAsync, clearTrialCache };
+module.exports = { USD_INR_RATE, getSupportForPlan, getSupportForOrg, getEffectiveLimitsAsync, PLANS, PLAN_LIST, UPGRADEABLE_PLANS, DEFAULT_TRIAL_DAYS, getLimitsForPlan, getLimitsForPlanAsync, getPlansWithOverrides, getNewSignupPlanMode, clearPlanCache, getDefaultTrialDaysAsync, clearTrialCache };

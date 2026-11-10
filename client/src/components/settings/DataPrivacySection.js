@@ -13,7 +13,7 @@ import { Banner, Button, Field, Input, Row, Section } from '../kc';
 import SettingsLayout, { Muted } from './SettingsLayout';
 
 // Settings → Data and privacy: data export (owner/admin) and scheduled
-// organization deletion (owner/admin: password + name/email, 7-day grace period, can be cancelled).
+// organization deletion (owner only: password + name/email, 7-day grace period, can be cancelled).
 export default function DataPrivacySection() {
   const { user, isOwner, isAdmin, updateUser } = useAuth();
   const [exporting, setExporting] = useState(false);
@@ -117,7 +117,21 @@ export default function DataPrivacySection() {
         </Row>
       </Section>
 
-      {(isOwner || isAdmin) && (
+      {!isOwner && (
+        <Section
+          tone="danger"
+          title="Danger zone"
+          description="Only the organization owner can delete the organization or cancel a scheduled deletion."
+        >
+          {scheduledAt && (
+            <Banner tone="danger" title={`Scheduled for deletion on ${deletionDate}`}>
+              Everything is read-only until then. Ask the owner if this should be cancelled.
+            </Banner>
+          )}
+        </Section>
+      )}
+
+      {isOwner && (
         <>
           <Section
             tone="danger"

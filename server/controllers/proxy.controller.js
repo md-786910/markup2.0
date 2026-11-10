@@ -13,6 +13,7 @@ const {
   rewriteCssUrls,
   rewriteJsUrls,
   injectScript,
+  siteKey,
 } = require("../utils/proxyRewriter");
 const asyncHandler = require("../utils/asyncHandler");
 const { isPublicUrl, safeLookup, beforeRedirect } = require("../utils/ssrfGuard");
@@ -416,6 +417,9 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
     "content-length", "content-encoding", "transfer-encoding", "connection",
     "keep-alive", "strict-transport-security", "set-cookie",
     "cache-control", "expires", "pragma",
+    // A reviewed site must never widen a service worker's scope on the API
+    // origin or wipe its storage
+    "service-worker-allowed", "clear-site-data",
   ]);
   Object.entries(response.headers).forEach(([key, value]) => {
     if (!headersToSkip.has(key.toLowerCase())) {
@@ -638,10 +642,9 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       httpsAgent: directHttpsAgent,
     };
 
-    // Forward cookies from client to upstream (exclude our internal cookies)
-    const internalCookies = new Set(['__markup_proxy_ctx', 'markup_token']);
+    // Forward cookies from client to upstream (never our own: markup_* and __markup_*)
     const upstreamCookies = Object.entries(req.cookies || {})
-      .filter(([name]) => !internalCookies.has(name) && !name.startsWith('__markup_'))
+      .filter(([name]) => !name.startsWith('markup_') && !name.startsWith('__markup_'))
       .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
       .join('; ');
     if (upstreamCookies) {
@@ -653,10 +656,14 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       axiosConfig.headers['Authorization'] = req.headers['authorization'];
     }
 
-    // Check for mirrored localStorage auth tokens (prefixed __markup_ls_)
+    // Check for mirrored localStorage auth tokens. The injected script names
+    // them __markup_ls_<site>__<key>: a token is only ever sent back to the
+    // site that stored it, never to another reviewed site.
     if (!axiosConfig.headers['Authorization']) {
-      const lsAuth = Object.entries(req.cookies || {})
-        .find(([name]) => name.startsWith('__markup_ls_') && /token|auth|jwt|access/i.test(name));
+      let lsPrefix = null;
+      try { lsPrefix = `__markup_ls_${siteKey(new URL(url).hostname)}__`; } catch {}
+      const lsAuth = lsPrefix && Object.entries(req.cookies || {})
+        .find(([name]) => name.startsWith(lsPrefix) && /token|auth|jwt|access/i.test(name.slice(lsPrefix.length)));
       if (lsAuth) {
         axiosConfig.headers['Authorization'] = 'Bearer ' + lsAuth[1];
       }

@@ -19,6 +19,7 @@ const { createProjectNotifications, createSingleNotification } = require('../uti
 const { signProxyToken } = require('../utils/proxyToken');
 const { seatLimitError } = require('../middleware/orgLimits');
 const { deleteProjectCascade } = require('../utils/cascade');
+const { refundUploads } = require('../utils/storage');
 const { URLS } = require('../config/env');
 const mongoose = require('mongoose');
 const Workspace = require('../models/Workspace');
@@ -56,15 +57,19 @@ function sanitizeShareSettings(shareSettings) {
 exports.createProject = asyncHandler(async (req, res) => {
   const { name, websiteUrl, projectType = 'website' } = req.body;
 
+  // Uploads were reserved by enforceStorageQuota: refusals give them back
   if (!name) {
+    await refundUploads(req);
     return res.status(400).json({ message: 'Project name is required' });
   }
 
   if (projectType === 'website' && !websiteUrl) {
+    await refundUploads(req);
     return res.status(400).json({ message: 'Website URL is required for website projects' });
   }
 
   if (projectType === 'document' && (!req.files || req.files.length === 0)) {
+    await refundUploads(req);
     return res.status(400).json({ message: 'At least one document file is required' });
   }
 
@@ -74,6 +79,7 @@ exports.createProject = asyncHandler(async (req, res) => {
     name: { $regex: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
   });
   if (existing) {
+    await refundUploads(req);
     return res.status(400).json({ message: 'A project with this name already exists' });
   }
 
@@ -110,13 +116,18 @@ exports.createProject = asyncHandler(async (req, res) => {
       }
 
       if (file.mimetype === 'application/pdf') {
+        // pdf-parse v2: a PDFParse instance per document (v1's pdfParse(buffer)
+        // function no longer exists, which made every PDF count as 1 page)
+        let parser = null;
         try {
-          const pdfParse = require('pdf-parse');
-          const dataBuffer = fs.readFileSync(file.path);
-          const pdfData = await pdfParse(dataBuffer);
-          pageCount = pdfData.numpages || 1;
+          const { PDFParse } = require('pdf-parse');
+          parser = new PDFParse({ data: fs.readFileSync(file.path) });
+          const info = await parser.getInfo();
+          pageCount = info.total || 1;
         } catch (err) {
           console.error('Failed to parse PDF page count:', err.message);
+        } finally {
+          if (parser) await parser.destroy().catch(() => {});
         }
       }
 
@@ -264,6 +275,14 @@ exports.updateProject = asyncHandler(async (req, res) => {
       ? await Workspace.findOne({ _id: workspace, organization: project.organization })
       : null;
     if (!target) return res.status(400).json({ message: 'Workspace not found' });
+    // Moving a project in follows the rule for creating one there: manage on
+    // the target workspace (its members, and its review link, will see it)
+    if (String(target._id) !== String(project.workspace || '')) {
+      const { workspaceLevel, atLeast } = require('../utils/access');
+      if (!atLeast(workspaceLevel(req.user, target), 'manage')) {
+        return res.status(403).json({ message: 'You need to manage a workspace to move projects into it.', code: 'ACCESS_LEVEL' });
+      }
+    }
     project.workspace = target._id;
   }
   if (settings && typeof settings === 'object') {
@@ -339,6 +358,12 @@ exports.inviteMember = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email });
 
   if (user) {
+    // People belong to one organization: someone from another org can't be
+    // added to this org's projects (same rule as workspace invitations)
+    if (user.organization && user.organization.toString() !== String(project.organization)) {
+      return res.status(400).json({ message: 'Already belongs to another organization' });
+    }
+
     // Existing user — add directly to project
     if (project.members.some((m) => m.toString() === user._id.toString())) {
       return res.status(400).json({ message: 'User is already a member' });

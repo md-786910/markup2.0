@@ -1,12 +1,10 @@
 const axios = require('axios');
+const { safeAxiosOptions } = require('./ssrfGuard');
 const { URLS } = require('../config/env');
 
 const CLIENT_ORIGIN = URLS.app;
 
-function stripHtml(html) {
-  if (!html) return '';
-  return html.replace(/<[^>]*>/g, '').trim();
-}
+const { stripHtml, escapeMarkdown } = require('./integrationText');
 
 const ACTION_MESSAGES = {
   'pin.created': (d) => `New feedback pin #${d.pinNumber} on **${d.projectName}** by ${d.actorName}`,
@@ -26,7 +24,8 @@ async function sendTeamsNotification(webhookUrl, data) {
   const messageFn = ACTION_MESSAGES[data.action];
   if (!messageFn) return;
 
-  const title = messageFn(data);
+  // Names come from users and guests: plain text, never Markdown links
+  const title = messageFn({ ...data, actorName: escapeMarkdown(data.actorName), projectName: escapeMarkdown(data.projectName) });
   const link = `${CLIENT_ORIGIN}/project/${data.projectId}?pin=${data.pinId || ''}`;
   const color = ACTION_COLORS[data.action] || 'accent';
 
@@ -44,7 +43,7 @@ async function sendTeamsNotification(webhookUrl, data) {
   if (data.comment) {
     body.push({
       type: 'TextBlock',
-      text: stripHtml(data.comment).substring(0, 200),
+      text: escapeMarkdown(stripHtml(data.comment).substring(0, 200)),
       wrap: true,
       isSubtle: true,
     });
@@ -53,7 +52,7 @@ async function sendTeamsNotification(webhookUrl, data) {
   if (data.context) {
     const ctx = data.context;
     const parts = [];
-    if (ctx.browser || ctx.os) parts.push(`${ctx.browser || ''} on ${ctx.os || ''}`.trim());
+    if (ctx.browser || ctx.os) parts.push(escapeMarkdown(`${ctx.browser || ''} on ${ctx.os || ''}`.trim()));
     if (ctx.screen && ctx.screen.w != null && ctx.screen.h != null) parts.push(`${ctx.screen.w}x${ctx.screen.h}`);
     const errCount = Array.isArray(ctx.consoleErrors) ? ctx.consoleErrors.length : 0;
     const reqCount = Array.isArray(ctx.failedRequests) ? ctx.failedRequests.length : 0;
@@ -89,7 +88,7 @@ async function sendTeamsNotification(webhookUrl, data) {
         },
       },
     ],
-  });
+  }, safeAxiosOptions);
 }
 
 module.exports = { sendTeamsNotification };

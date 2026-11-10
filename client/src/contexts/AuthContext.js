@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { TOKEN_KEY } from '../utils/constants';
-import { loginApi, signupApi, getMeApi } from '../services/authService';
+import { loginApi, signupApi, getMeApi, logoutApi } from '../services/authService';
 import { setSentryUser } from '../monitoring/sentry';
 import { identifyUser } from '../monitoring/analytics';
 import { signingOutOnPurpose } from '../utils/returnTo';
@@ -51,6 +51,9 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     signingOutOnPurpose();
+    // End the session on the server too (fire and forget: signing out never waits)
+    const current = localStorage.getItem(TOKEN_KEY);
+    if (current) logoutApi(current).catch(() => {});
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setUser(null);

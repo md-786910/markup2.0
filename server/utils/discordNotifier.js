@@ -1,12 +1,10 @@
 const axios = require('axios');
+const { safeAxiosOptions } = require('./ssrfGuard');
 const { URLS } = require('../config/env');
 
 const CLIENT_ORIGIN = URLS.app;
 
-function stripHtml(html) {
-  if (!html) return '';
-  return html.replace(/<[^>]*>/g, '').trim();
-}
+const { stripHtml, escapeMarkdown } = require('./integrationText');
 
 const ACTION_MESSAGES = {
   'pin.created': (d) => `New feedback pin #${d.pinNumber} on **${d.projectName}** by ${d.actorName}`,
@@ -29,13 +27,14 @@ async function sendDiscordNotification(webhookUrl, data) {
   const messageFn = ACTION_MESSAGES[data.action];
   if (!messageFn) return;
 
-  const title = messageFn(data);
+  // Names come from users and guests: plain text, never Markdown or mentions
+  const title = messageFn({ ...data, actorName: escapeMarkdown(data.actorName), projectName: escapeMarkdown(data.projectName) });
   const link = `${CLIENT_ORIGIN}/project/${data.projectId}?pin=${data.pinId || ''}`;
 
   const fields = [];
   if (data.context) {
     const ctx = data.context;
-    if (ctx.browser || ctx.os) fields.push({ name: 'Environment', value: `${ctx.browser || ''} on ${ctx.os || ''}`.trim(), inline: true });
+    if (ctx.browser || ctx.os) fields.push({ name: 'Environment', value: escapeMarkdown(`${ctx.browser || ''} on ${ctx.os || ''}`.trim()), inline: true });
     if (ctx.screen && ctx.screen.w != null && ctx.screen.h != null) fields.push({ name: 'Screen', value: `${ctx.screen.w}x${ctx.screen.h}`, inline: true });
     const errCount = Array.isArray(ctx.consoleErrors) ? ctx.consoleErrors.length : 0;
     const reqCount = Array.isArray(ctx.failedRequests) ? ctx.failedRequests.length : 0;
@@ -46,7 +45,7 @@ async function sendDiscordNotification(webhookUrl, data) {
 
   const embed = {
     title,
-    description: data.comment ? stripHtml(data.comment).substring(0, 200) : '',
+    description: data.comment ? escapeMarkdown(stripHtml(data.comment).substring(0, 200)) : '',
     url: link,
     color: ACTION_COLORS[data.action] || 0x3b82f6,
     timestamp: new Date().toISOString(),
@@ -56,7 +55,8 @@ async function sendDiscordNotification(webhookUrl, data) {
 
   await axios.post(webhookUrl, {
     embeds: [embed],
-  });
+    allowed_mentions: { parse: [] }, // never ping @everyone, roles or users
+  }, safeAxiosOptions);
 }
 
 module.exports = { sendDiscordNotification };

@@ -56,7 +56,7 @@ api.interceptors.response.use(
 
     const url = error.config?.url || "";
     const isAuthRoute =
-      url.includes("/auth/login") || url.includes("/auth/signup");
+      url.includes("/auth/login") || url.includes("/auth/signup") || url.includes("/auth/logout");
 
     if (error.response?.status === 401 && !isAuthRoute) {
       localStorage.removeItem(TOKEN_KEY);

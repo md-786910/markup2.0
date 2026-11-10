@@ -100,4 +100,13 @@ function beforeRedirect(options) {
   }
 }
 
-module.exports = { isPublicUrl, isPrivateAddress, isBlockedHost, safeLookup, beforeRedirect };
+// axios options for outbound calls to user-configured targets (integration
+// webhooks, Jira): the address is checked when connecting (DNS rebinding) and
+// on every redirect, not only when the target was saved.
+const http = require('http');
+const https = require('https');
+const safeHttpAgent = new http.Agent({ lookup: safeLookup });
+const safeHttpsAgent = new https.Agent({ lookup: safeLookup });
+const safeAxiosOptions = Object.freeze({ httpAgent: safeHttpAgent, httpsAgent: safeHttpsAgent, beforeRedirect, maxRedirects: 3 });
+
+module.exports = { isPublicUrl, isPrivateAddress, isBlockedHost, safeLookup, beforeRedirect, safeAxiosOptions };

@@ -52,7 +52,6 @@ function requireAdminRole(...allowedRoles) {
         code: 'INSUFFICIENT_ROLE',
       });
     }
-    next;
     next();
   };
 }

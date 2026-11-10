@@ -226,6 +226,7 @@ exports.testIntegration = asyncHandler(async (req, res) => {
       const { domain, email, apiToken, projectKey } = integration.config;
       await axios.get(`https://${domain}/rest/api/3/project/${projectKey}`, {
         auth: { username: email, password: apiToken },
+        ...require('../utils/ssrfGuard').safeAxiosOptions,
       });
     }
 

@@ -73,7 +73,7 @@ export default function OnboardingPage() {
   // Payment
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [livePlans, setLivePlans] = useState(null); // null = still loading
-  const [trialDays, setTrialDays] = useState(14);
+  const [trialDays, setTrialDays] = useState(30); // server default until /plans answers
   const [signupMode, setSignupMode] = useState('trial');
 
   // Setting-up state shown after Start is clicked on the Payment step
@@ -114,7 +114,7 @@ export default function OnboardingPage() {
     getPublicPlansApi()
       .then((res) => {
         if (!alive) return;
-        const days = res.data?.trialDays ?? 14;
+        const days = res.data?.trialDays ?? 30;
         const mode = res.data?.signupMode || 'trial';
         setTrialDays(days);
         setSignupMode(mode);
@@ -276,12 +276,12 @@ export default function OnboardingPage() {
     }
   };
 
-  // If the admin enabled a free plan, demote to it on payment cancel/fail so
-  // the user lands on dashboard with usable access. Otherwise the org stays on
-  // its trial (set during signup) and we still navigate to dashboard.
+  // On payment cancel/fail the user still lands on the dashboard. A new org on
+  // the trial (signup mode "trial") keeps it; only without a trial do we move
+  // to the free plan, when the admin enabled one, so the user has usable access.
   const fallbackToFreeOrTrial = async () => {
     const free = (livePlans || []).find((p) => p.price === 0 || p.price == null);
-    if (free) {
+    if (free && signupMode !== TRIAL_PLAN_ID) {
       try {
         const res = await upgradePlanApi(free.id);
         updateUser(res.data.user);

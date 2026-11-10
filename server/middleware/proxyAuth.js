@@ -2,9 +2,12 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { isProxyToken } = require('../utils/proxyToken');
 
-// A project-scoped proxy token may only be used for its own project.
+// Only a project-scoped proxy token (issued by GET /projects[/:id] to someone
+// with access to that project) opens the proxy, and only for its own project.
+// Session tokens are refused here: they would sit in a URL the proxied site can
+// read, and they would open the proxy for any projectId.
 function projectMismatch(decoded, req) {
-  return isProxyToken(decoded) && decoded.projectId !== String(req.query.projectId || '');
+  return !isProxyToken(decoded) || decoded.projectId !== String(req.query.projectId || '');
 }
 
 // Auth for proxy requests. The initial HTML load also performs a User.findById
@@ -39,7 +42,6 @@ module.exports = async (req, res, next) => {
       // page's proxy token is kept in this cookie (signature and project are
       // still verified below).
       else if (ctx.token) token = ctx.token;
-      else if (req.cookies && req.cookies.markup_token) token = req.cookies.markup_token;
       if (!token) return res.status(401).json({ message: 'No token provided' });
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
@@ -58,8 +60,6 @@ module.exports = async (req, res, next) => {
     token = req.query.token;
   } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     token = req.headers.authorization.split(' ')[1];
-  } else if (req.cookies && req.cookies.markup_token) {
-    token = req.cookies.markup_token;
   }
   if (!token) {
     return res.status(401).json({ message: 'No token provided' });
