@@ -130,6 +130,7 @@ export default function InviteDialog({ isOpen, onClose, activeProjects, workspac
               }}
               placeholder={emails.length ? '' : 'name@company.com'}
               className="min-w-[160px] flex-1 border-0 bg-transparent px-1 py-0.5 text-ui text-slate-900 outline-none placeholder:text-slate-500"
+              style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
             />
           </div>
         </Field>

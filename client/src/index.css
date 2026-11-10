@@ -44,8 +44,8 @@
     background-image: none !important;
   }
 
-  input:focus,
-  input:active,
+  input:focus:not(.border-0),
+  input:active:not(.border-0),
   select:focus,
   select:active,
   textarea:focus,
@@ -56,6 +56,18 @@
     box-shadow: none !important;
     border-width: 1px !important;
     border-color: #003dff !important;
+  }
+
+  input.border-0,
+  input.border-0:focus,
+  input.border-0:active,
+  .kc-input input,
+  .kc-input input:focus,
+  .kc-input input:active {
+    border: none !important;
+    border-width: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
   }
 }
 

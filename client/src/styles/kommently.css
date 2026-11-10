@@ -1452,12 +1452,22 @@ a.kc-card {
 }
 
 .kc-input:focus,
+.kc-input:focus-within,
 .kc-select:focus,
 .kc-textarea:focus {
   outline: none;
   border-color: var(--brand-600);
   border-width: 1px;
   box-shadow: none;
+}
+
+.kc-input input,
+.kc-input input:focus,
+.kc-input input:active {
+  border: none !important;
+  border-width: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .kc-input[aria-invalid="true"] {
