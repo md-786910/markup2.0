@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { workspaceTone } from '../layout/WorkspaceSwitcher';
 import { confirmDialog } from '../../utils/confirm';
 import { toast, toastError } from '../../utils/toast';
-import { WorkspaceMembersDialog, WorkspaceShareDialog } from './WorkspaceDialogs';
+import { WorkspaceMembersDialog } from './WorkspaceDialogs';
 import Modal from '../common/Modal';
 import { Badge, Button, DataTable, Field, Icon, Input, RowMenu, Section, Tile, TILE_TONES } from '../kc';
 import SettingsLayout, { Muted } from './SettingsLayout';
@@ -77,7 +77,6 @@ export default function WorkspacesTab() {
   const { isAdmin } = useAuth();
   const workspaces = isAdmin ? allWorkspaces : allWorkspaces.filter((w) => w.myLevel === 'manage');
   const [membersFor, setMembersFor] = useState(null);
-  const [shareFor, setShareFor] = useState(null);
   const [renameFor, setRenameFor] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -134,7 +133,6 @@ export default function WorkspacesTab() {
               <span className="font-medium text-gray-900 truncate">{w.name}</span>
               {w.isDefault && <Badge tone="neutral">Default</Badge>}
               {current?._id === w._id && <Badge status="review">Current</Badge>}
-              {w.shareSettings?.enabled && <Badge tone="approved">Review link on</Badge>}
             </div>
           </div>
         </div>
@@ -153,7 +151,6 @@ export default function WorkspacesTab() {
       render: (w) => (
         <span className="kc-table-actions">
           <Button size="sm" onClick={() => setMembersFor(w)}>Members</Button>
-          <Button size="sm" onClick={() => setShareFor(w)}>Share</Button>
           {isAdmin && (
             <RowMenu
               label={`More for ${w.name}`}
@@ -173,7 +170,7 @@ export default function WorkspacesTab() {
     <SettingsLayout title="Workspaces" subtitle="Group projects by client, team or product. The plan covers all of them.">
       <Section
         title="Workspaces"
-        description="Members get every project in a workspace; one review link shares them all with a client."
+        description="Members get every project in a workspace."
         action={isAdmin ? <Button variant="primary" icon="plus" onClick={() => setCreateOpen(true)} style={{ flexShrink: 0 }}>New workspace</Button> : null}
       >
         {workspaces.length > 4 && (
@@ -201,9 +198,6 @@ export default function WorkspacesTab() {
       )}
       {membersFor && (
         <WorkspaceMembersDialog workspace={membersFor} onClose={() => setMembersFor(null)} onSaved={() => refresh().catch(() => {})} />
-      )}
-      {shareFor && (
-        <WorkspaceShareDialog workspace={shareFor} onClose={() => setShareFor(null)} onSaved={() => refresh().catch(() => {})} />
       )}
     </SettingsLayout>
   );

@@ -3,16 +3,12 @@ import Modal from '../common/Modal';
 import {
   getOrgPeopleApi,
   setWorkspaceMembersApi,
-  enableWorkspaceShareApi,
-  updateWorkspaceShareApi,
-  disableWorkspaceShareApi,
   inviteToWorkspaceApi,
   getWorkspaceInvitationsApi,
 } from '../../services/workspaceService';
 import { cancelInvitationApi, resendInvitationApi } from '../../services/invitationService';
 import { toast, toastError } from '../../utils/toast';
-import { confirmDialog } from '../../utils/confirm';
-import { Avatar, Badge, Banner, Button, Checkbox, Field, Input, Select } from '../kc';
+import { Avatar, Badge, Button, Field, Input, Select } from '../kc';
 
 const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member', guest: 'Guest' };
 
@@ -212,124 +208,6 @@ export function WorkspaceMembersDialog({ workspace, onClose, onSaved }) {
         <Button onClick={onClose}>Cancel</Button>
         <Button variant="primary" loading={saving} disabled={loading} onClick={save}>Save changes</Button>
       </div>
-    </Modal>
-  );
-}
-
-/** One review link for every project in a workspace. */
-export function WorkspaceShareDialog({ workspace, onClose, onSaved }) {
-  const initial = workspace.shareSettings || {};
-  const [share, setShare] = useState(initial.enabled ? initial : null);
-  const [allowComments, setAllowComments] = useState(initial.allowComments !== false);
-  const [password, setPassword] = useState('');
-  const [removePassword, setRemovePassword] = useState(false);
-  const [expiresAt, setExpiresAt] = useState(initial.expiresAt ? String(initial.expiresAt).slice(0, 10) : '');
-  const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const url = share?.token ? `${window.location.origin}/review/w/${share.token}` : '';
-
-  const run = async (fn, okMessage) => {
-    setBusy(true);
-    try {
-      const res = await fn();
-      if (res?.data?.shareSettings) setShare(res.data.shareSettings);
-      if (okMessage) toast.success(okMessage);
-      onSaved?.();
-      return res;
-    } catch (err) {
-      toastError(err, 'Could not update the review link.');
-      return null;
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const create = () => run(() => enableWorkspaceShareApi(workspace._id, { allowComments: true }), 'Review link created.');
-
-  const save = () => {
-    const data = { allowComments, expiresAt: expiresAt || null };
-    if (password) data.password = password;
-    else if (removePassword) data.password = null;
-    return run(() => updateWorkspaceShareApi(workspace._id, data), 'Link settings saved.').then((res) => {
-      if (res) { setPassword(''); setRemovePassword(false); }
-    });
-  };
-
-  const turnOff = async () => {
-    const ok = await confirmDialog({
-      title: 'Turn off this review link?',
-      message: 'People with the link lose access right away. Links of individual projects keep working.',
-      confirmLabel: 'Turn off',
-      danger: true,
-    });
-    if (!ok) return;
-    const res = await run(() => disableWorkspaceShareApi(workspace._id), 'Review link turned off.');
-    if (res) setShare(null);
-  };
-
-  const copy = () => {
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    }).catch(() => {});
-  };
-
-  return (
-    <Modal isOpen onClose={onClose} title={`Share ${workspace.name}`} size="md">
-      {!share ? (
-        <div>
-          <p className="m-0 text-ui text-gray-600">
-            Create one link for clients to review every project in this workspace. They pick a project and comment, with just a name
-            and email. New projects show up automatically.
-          </p>
-          <div className="mt-5 flex justify-end gap-2">
-            <Button onClick={onClose}>Cancel</Button>
-            <Button variant="primary" loading={busy} onClick={create}>Create review link</Button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          <Field id="ws-review-link" label="Review link">
-            <div className="flex gap-2">
-              <Input id="ws-review-link" readOnly value={url} onFocus={(e) => e.target.select()} style={{ background: 'var(--slate-50)' }} />
-              <Button icon="copy" onClick={copy}>{copied ? 'Copied' : 'Copy link'}</Button>
-            </div>
-          </Field>
-
-          <Checkbox checked={allowComments} onChange={setAllowComments} label="Allow comments" description="Off makes the link view-only." />
-
-          <Field id="ws-review-password" label={share.hasPassword ? 'Password (set)' : 'Password'}>
-            <Input
-              id="ws-review-password"
-              type="password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setRemovePassword(false); }}
-              placeholder={share.hasPassword ? 'Enter a new password to change it' : 'Optional'}
-              autoComplete="new-password"
-            />
-          </Field>
-          {share.hasPassword && !password && (
-            <Checkbox checked={removePassword} onChange={setRemovePassword} label="Remove the password" />
-          )}
-
-          <Field id="ws-review-expires" label="Expires on" hint={expiresAt ? null : 'Never, until you turn the link off.'}>
-            <Input id="ws-review-expires" type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} style={{ maxWidth: 200 }} />
-          </Field>
-
-          {share.expiresAt && new Date(share.expiresAt) < new Date() && (
-            <Banner tone="warning">This link has expired. Pick a new date or clear it.</Banner>
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-4">
-            <Button variant="danger-quiet" disabled={busy} onClick={turnOff}>Turn off link</Button>
-            <div className="flex gap-2">
-              <Button onClick={onClose}>Close</Button>
-              <Button variant="primary" loading={busy} onClick={save}>Save changes</Button>
-            </div>
-          </div>
-        </div>
-      )}
     </Modal>
   );
 }

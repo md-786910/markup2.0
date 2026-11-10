@@ -151,7 +151,7 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
 
   // Same look as the comment sidebar's property fields
   const fieldCls =
-    'w-full h-8 appearance-none rounded-lg border border-slate-200 bg-white pr-7 text-[12.5px] font-medium text-slate-800 transition-colors hover:border-slate-300 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:cursor-default';
+    'no-arrow w-full h-8 appearance-none rounded-lg border border-slate-200 bg-white pr-7 text-[12.5px] font-medium text-slate-800 transition-colors hover:border-slate-300 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:cursor-default';
   const chevron = (
     <svg className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />

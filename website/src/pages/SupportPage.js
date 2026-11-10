@@ -8,7 +8,7 @@ import { SiteLayout, Section, SectionHeader, Icon } from '../components/site';
 const HELP_ITEMS = [
   {
     question: 'How do I invite a client to review?',
-    answer: 'Open the project and click Share to create a review link. Clients open it, add their name and email once, and pin comments without an account. You can add a password and an expiry date, or make the link view-only. To share every project of a client at once, turn on the review link of their workspace in Settings → Workspaces.',
+    answer: 'Open the project and click Share to create a review link. Clients open it, add their name and email once, and pin comments without an account. You can add a password and an expiry date, or make the link view-only.',
   },
   {
     question: 'How do I control who can see a project?',

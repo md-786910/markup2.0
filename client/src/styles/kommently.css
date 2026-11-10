@@ -1343,7 +1343,6 @@ a.kc-card {
 }
 
 .kc-input,
-.kc-select,
 .kc-textarea {
   height: var(--field-height);
   width: 100%;
@@ -1353,6 +1352,82 @@ a.kc-card {
   padding: 0 10px;
   font: 400 13px var(--font-sans);
   color: var(--text);
+}
+
+.kc-select {
+  height: var(--field-height);
+  width: 100%;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-md);
+  background-color: var(--surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px 16px;
+  padding: 0 32px 0 10px;
+  font: 400 13px var(--font-sans);
+  color: var(--text);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.kc-select-wrap {
+  position: relative;
+  display: inline-flex;
+  width: 100%;
+  vertical-align: middle;
+}
+
+.kc-select-wrap .kc-select {
+  width: 100%;
+  padding-right: 32px;
+  background-image: none !important;
+}
+
+.kc-select-arrow {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  margin-top: -8px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--slate-500);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s ease;
+  transform-origin: center center;
+}
+
+.kc-select-arrow svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.kc-select-wrap:hover .kc-select-arrow {
+  color: var(--slate-700);
+}
+
+.kc-select-wrap.is-disabled .kc-select-arrow,
+.kc-select-wrap .kc-select:disabled ~ .kc-select-arrow {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kc-select-wrap.is-open .kc-select-arrow,
+.kc-select-wrap:focus-within .kc-select-arrow,
+.kc-select-wrap .kc-select:focus ~ .kc-select-arrow {
+  transform: rotate(180deg);
+  color: var(--brand-600);
+}
+
+.kc-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .kc-textarea {
@@ -1367,9 +1442,13 @@ a.kc-card {
 }
 
 .kc-input:hover,
-.kc-select:hover,
 .kc-textarea:hover {
   border-color: var(--slate-500);
+}
+
+.kc-select:hover {
+  border-color: var(--slate-500);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23334155' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
 }
 
 .kc-input:focus,

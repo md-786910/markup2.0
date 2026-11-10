@@ -675,14 +675,74 @@ export const Input = React.forwardRef(function Input({ className, ...p }, ref) {
   return <input ref={ref} type="text" className={cx('kc-input', className)} {...p} />;
 });
 // options: strings or { value, label }
-export const Select = React.forwardRef(function Select({ options = [], className, children, ...p }, ref) {
+export const Select = React.forwardRef(function Select(
+  { options = [], className, style, disabled, children, onChange, onFocus, onBlur, onMouseDown, onKeyDown, ...p },
+  ref
+) {
+  const [isOpen, setIsOpen] = useState(false);
+  const wasOpenRef = useRef(false);
+
+  const handleMouseDown = (e) => {
+    if (!disabled) {
+      wasOpenRef.current = isOpen;
+      if (wasOpenRef.current) {
+        setIsOpen(false);
+        e.currentTarget.blur();
+      } else {
+        setIsOpen(true);
+      }
+    }
+    onMouseDown?.(e);
+  };
+
+  const handleFocus = (e) => {
+    if (!disabled) setIsOpen(true);
+    onFocus?.(e);
+  };
+
+  const handleBlur = (e) => {
+    setIsOpen(false);
+    onBlur?.(e);
+  };
+
+  const handleChange = (e) => {
+    setIsOpen(false);
+    e.target.blur();
+    onChange?.(e);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setIsOpen(false);
+      e.target.blur();
+    }
+    onKeyDown?.(e);
+  };
+
   return (
-    <select ref={ref} className={cx('kc-select', className)} {...p}>
-      {children || options.map((x) => {
-        const o = typeof x === 'string' ? { value: x, label: x } : x;
-        return <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>;
-      })}
-    </select>
+    <div className={cx('kc-select-wrap', isOpen && 'is-open', disabled && 'is-disabled')} style={style}>
+      <select
+        ref={ref}
+        disabled={disabled}
+        className={cx('kc-select', className)}
+        onMouseDown={handleMouseDown}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        {...p}
+      >
+        {children || options.map((x) => {
+          const o = typeof x === 'string' ? { value: x, label: x } : x;
+          return <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>;
+        })}
+      </select>
+      <span className="kc-select-arrow" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </span>
+    </div>
   );
 });
 export const Textarea = React.forwardRef(function Textarea({ className, ...p }, ref) {
