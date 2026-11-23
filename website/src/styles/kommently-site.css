@@ -2136,17 +2136,10 @@ a.kc-card {
   position: relative;
 }
 
+/* Flat colours only (no gradients or coloured glows): the element is kept for
+   layout compatibility but paints nothing. */
 .km-split-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 120%;
-  height: 120%;
-  background: radial-gradient(circle at center, rgba(0, 61, 255, 0.16) 0%, rgba(59, 130, 246, 0.12) 35%, rgba(219, 230, 254, 0.28) 55%, transparent 75%);
-  filter: blur(48px);
-  pointer-events: none;
-  z-index: 0;
+  display: none;
 }
 
 .km-split-stage {

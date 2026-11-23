@@ -47,8 +47,24 @@ async function buildSignupPlanFields() {
     trialEndsAt,
   };
 }
+exports.buildSignupPlanFields = buildSignupPlanFields;
 
 const generateSessionToken = () => crypto.randomBytes(32).toString("hex");
+
+// Real-time connections are checked only when they open: after the session
+// token changes, close this user's open sockets so an ended session stops
+// receiving events. The apps reconnect with the token they hold now (a renewed
+// one keeps working, an ended one is refused). `delayMs` leaves time for the
+// response carrying a renewed token to reach this browser's other tabs.
+function endUserSockets(req, userId, delayMs = 0) {
+  const io = req.app && req.app.get("io");
+  if (!io || !userId) return;
+  const run = () => {
+    try { io.in(`user:${userId}`).disconnectSockets(true); } catch { /* best effort */ }
+  };
+  if (delayMs > 0) setTimeout(run, delayMs).unref?.();
+  else run();
+}
 
 const getLocationFromIp = (ip) => {
   const geo = geoip.lookup(ip);
@@ -167,6 +183,9 @@ exports.signup = asyncHandler(async (req, res) => {
     return res
       .status(400)
       .json({ message: "Name, email, and password are required" });
+  }
+  if (typeof email !== "string" || typeof password !== "string") {
+    return res.status(400).json({ message: "Enter a valid email and password" });
   }
 
   const policy = validatePassword(password);
@@ -374,6 +393,9 @@ exports.login = asyncHandler(async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ message: "Email and password are required" });
   }
+  if (typeof email !== "string" || typeof password !== "string") {
+    return res.status(400).json({ message: "Invalid credentials" });
+  }
 
   const user = await User.findOne({ email: email.toLowerCase().trim() }).select(
     "+passwordHash",
@@ -405,6 +427,8 @@ async function startSession(req, res, user) {
     ? await Organization.findById(user.organization)
     : null;
   await setCookieAndRespond(res, user, org);
+  // Sessions on other devices end with this sign-in
+  endUserSockets(req, user._id, 3000);
 }
 
 /**
@@ -414,6 +438,7 @@ async function startSession(req, res, user) {
  */
 exports.logout = asyncHandler(async (req, res) => {
   await User.updateOne({ _id: req.user._id }, { $set: { sessionToken: generateSessionToken() } });
+  endUserSockets(req, req.user._id);
   res.clearCookie("markup_token", { path: "/" });
   res.clearCookie(CSRF_COOKIE, { path: "/" });
   res.json({ message: "Signed out" });
@@ -506,6 +531,7 @@ exports.changePassword = asyncHandler(async (req, res) => {
 
   // A fresh token keeps this device signed in; every other session ends
   await setCookieAndRespond(res, user, req.organization || null, 200, { message: "Password changed successfully" });
+  endUserSockets(req, user._id, 3000);
 });
 
 // Upload avatar
@@ -536,7 +562,18 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
       });
   }
 
-  // Projects this user owns are deleted with all their records and files
+  // Projects this user created belong to the organization's work (the team's
+  // pins, comments and files): they move to the organization owner. Without an
+  // organization owner to take them, they are deleted as before.
+  const orgOwnerId = req.organization?.owner && String(req.organization.owner) !== String(userId)
+    ? req.organization.owner
+    : null;
+  if (orgOwnerId) {
+    await Project.updateMany(
+      { owner: userId, organization: req.organization._id },
+      { $set: { owner: orgOwnerId } },
+    );
+  }
   const ownedProjects = await Project.find({ owner: userId });
   for (const project of ownedProjects) {
     await deleteProjectCascade(project);
@@ -633,6 +670,7 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   user.resetPasswordExpires = undefined;
   user.sessionToken = generateSessionToken(); // Invalidate all sessions
   await user.save();
+  endUserSockets(req, user._id);
 
   res.json({ message: "Password has been reset successfully" });
 });

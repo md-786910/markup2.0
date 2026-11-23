@@ -170,7 +170,9 @@ exports.deleteComment = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'Comment not found' });
   }
 
-  if (!comment.author || comment.author.toString() !== req.user._id.toString()) {
+  // Its author, or someone who manages the project (moderation, incl. guest comments)
+  const isAuthor = !!comment.author && comment.author.toString() === req.user._id.toString();
+  if (!isAuthor && req.access !== 'manage') {
     return res.status(403).json({ message: 'Not authorized to delete this comment' });
   }
 

@@ -26,7 +26,10 @@ async function verifySharePassword(supplied, shareSettings) {
     return bcrypt.compare(String(supplied), shareSettings.passwordHash);
   }
   if (shareSettings.password) {
-    return supplied === shareSettings.password;
+    // Constant-time compare (lengths are compared on fixed-size digests)
+    const a = crypto.createHash('sha256').update(String(supplied)).digest();
+    const b = crypto.createHash('sha256').update(String(shareSettings.password)).digest();
+    return crypto.timingSafeEqual(a, b);
   }
   return false;
 }
@@ -277,7 +280,9 @@ exports.getGuestComments = asyncHandler(async (req, res) => {
   const project = await loadSharedProject(req, res);
   if (!project) return;
 
-  const pin = await Pin.findOne({ _id: pinId, project: project._id }).select('_id');
+  const pin = require('mongoose').isValidObjectId(pinId)
+    ? await Pin.findOne({ _id: pinId, project: project._id }).select('_id')
+    : null;
   if (!pin) {
     return res.status(404).json({ message: 'Pin not found.' });
   }
@@ -472,4 +477,18 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
 
   metric('comment.created', { source: 'guest' });
   res.status(201).json({ comment });
+});
+
+/**
+ * Before multer on POST /:shareToken/pins/:pinId/comments: the review link
+ * must be valid (password, unlocked org) and allow comments before any
+ * attachment is written to disk. The handler checks everything again.
+ */
+exports.requireGuestCommentAccess = asyncHandler(async (req, res, next) => {
+  const project = await loadSharedProject(req, res, { write: true });
+  if (!project) return;
+  if (!req.share.allowComments) {
+    return res.status(403).json({ message: 'Guest commenting is disabled for this project.' });
+  }
+  next();
 });

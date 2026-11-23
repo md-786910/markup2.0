@@ -56,8 +56,15 @@ export function NotificationProvider({ children }) {
     if (!currentToken || !userId) return;
 
     const socket = io(SOCKET_URL, {
-      auth: { token: currentToken },
+      // Current token on every (re)connect (renewed in another tab, etc.)
+      auth: (cb) => cb({ token: localStorage.getItem(TOKEN_KEY) || currentToken }),
       transports: ['websocket', 'polling'],
+    });
+
+    // The server closes a user's connections when their session changes; come
+    // back with the current token (an ended session is refused on connect)
+    socket.on('disconnect', (reason) => {
+      if (reason === 'io server disconnect' && localStorage.getItem(TOKEN_KEY)) socket.connect();
     });
 
     socketRef.current = socket;

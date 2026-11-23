@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getProjectInvitationsApi, cancelInvitationApi, resendInvitationApi } from '../../services/invitationService';
-import { getOrgPeopleApi, getWorkspaceInvitationsApi, updateOrgRoleApi } from '../../services/workspaceService';
+import { getOrgPeopleApi, getWorkspaceInvitationsApi, updateOrgRoleApi, removeOrgMemberApi } from '../../services/workspaceService';
+import { useAuth } from '../../hooks/useAuth';
+import TransferOwnershipDialog from './TransferOwnershipDialog';
 import { toast, toastError } from '../../utils/toast';
 import { confirmDialog } from '../../utils/confirm';
 import { useWorkspaces } from '../../contexts/WorkspaceContext';
@@ -35,7 +37,9 @@ export default function TeamView({
   const [roleSaving, setRoleSaving] = useState(null);
   const [busyInvite, setBusyInvite] = useState(null);
   const [removing, setRemoving] = useState(null);
+  const [transferring, setTransferring] = useState(null);
   const [inviteRole, setInviteRole] = useState('member');
+  const { isOwner, updateUser } = useAuth();
 
   const effectiveView = view === 'invites' && !isAdmin ? 'members' : view;
   useEffect(() => { setSearch(''); }, [effectiveView]);
@@ -137,6 +141,25 @@ export default function TeamView({
     }
   };
 
+  const removeFromOrg = async (member) => {
+    const who = member.name || member.email;
+    const ok = await confirmDialog({
+      title: `Remove ${who} from the organization?`,
+      message: 'They lose access to every workspace and project and are signed out. Projects they created move to the organization owner; their pins and comments stay. Their seat is freed.',
+      confirmLabel: 'Remove from organization',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await removeOrgMemberApi(member._id);
+      toast.success(res.data?.message || `${who} was removed from the organization.`);
+      await loadPeople();
+      onProjectsChanged();
+    } catch (err) {
+      toastError(err, 'Could not remove them from the organization.');
+    }
+  };
+
   const resend = async (inv) => {
     setBusyInvite(inv._id);
     try {
@@ -228,6 +251,12 @@ export default function TeamView({
             items.push({ label: 'Manage project access', icon: 'user', onClick: () => navigate(`/project/${list[0]._id}/members`) });
             items.push({ label: 'Remove from a project', icon: 'trash', tone: 'danger', onClick: () => setRemoving(m) });
           }
+          // Owner and admins; the owner can't be removed (not `editable`)
+          items.push({ divider: true });
+          if (isOwner && (role === 'admin' || role === 'member')) {
+            items.push({ label: 'Transfer ownership', icon: 'user', onClick: () => setTransferring(m) });
+          }
+          items.push({ label: 'Remove from organization', icon: 'trash', tone: 'danger', onClick: () => removeFromOrg(m) });
         }
 
         if (m.email) {
@@ -367,6 +396,11 @@ export default function TeamView({
         onInvited={() => { onProjectsChanged(); loadPeople(); setTimeout(loadInvitations, 400); }}
       />
       <RemoveFromProjectDialog member={removing} onClose={() => setRemoving(null)} onRemoved={onProjectsChanged} />
+      <TransferOwnershipDialog
+        member={transferring}
+        onClose={() => setTransferring(null)}
+        onTransferred={() => { updateUser({ role: 'admin' }); loadPeople(); onProjectsChanged(); }}
+      />
     </div>
   );
 }

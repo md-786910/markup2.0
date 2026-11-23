@@ -15,7 +15,7 @@ import { ACCEPTED_ATTACHMENT_TYPES } from '../utils/attachmentHelpers';
 import { toast, toastError } from '../utils/toast';
 import { getClientEnvironment } from '../utils/clientEnv';
 import IframeContainer from '../components/project/IframeContainer';
-import { useIframeMessages } from '../hooks/useIframeMessages';
+import { useIframeMessages, PROXY_ORIGIN } from '../hooks/useIframeMessages';
 import { normalizePageUrl } from '../utils/pageUrl';
 import useEscape from '../hooks/useEscape';
 import BrandMark from '../components/common/BrandMark';
@@ -221,6 +221,8 @@ export default function GuestProjectPage() {
   // Clicking a pin marker inside the page opens its thread
   useEffect(() => {
     const handler = (event) => {
+      // Only the review iframe (served by the API's website proxy)
+      if (PROXY_ORIGIN && event.origin !== PROXY_ORIGIN) return;
       if (event.data?.type !== 'MARKUP_PIN_CLICK') return;
       const pin = pins.find((p) => p._id === event.data.pinId);
       if (pin) handlePinClick(pin);

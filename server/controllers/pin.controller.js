@@ -262,6 +262,9 @@ exports.updatePin = asyncHandler(async (req, res) => {
 
   if (status) {
     const norm = status === 'pending' ? 'open' : status;
+    if (typeof norm === 'string' && norm.trim().length > 200) {
+      return res.status(400).json({ message: 'Status is too long.' });
+    }
     if (typeof norm === 'string' && norm.trim()) {
       pin.status = norm.trim();
     }
@@ -468,20 +471,28 @@ exports.reorderPins = asyncHandler(async (req, res) => {
   if (!Array.isArray(moves)) {
     return res.status(400).json({ message: 'moves array required' });
   }
+  if (moves.length > 1000) {
+    return res.status(400).json({ message: 'Too many moves in one request' });
+  }
 
-  const bulkOps = moves.map((m) => {
+  const { isValidObjectId } = require('mongoose');
+  const bulkOps = [];
+  for (const m of moves) {
+    // Skip entries that can't match a pin or change nothing (they used to fail the whole batch)
+    if (!m || !isValidObjectId(m.pinId)) continue;
     const update = {};
-    if (m.position != null) update.position = Number(m.position);
-    if (m.status && typeof m.status === 'string') {
+    if (m.position != null && Number.isFinite(Number(m.position))) update.position = Number(m.position);
+    if (m.status && typeof m.status === 'string' && m.status.trim() && m.status.trim().length <= 200) {
       update.status = m.status === 'pending' ? 'open' : m.status.trim();
     }
-    return {
+    if (!Object.keys(update).length) continue;
+    bulkOps.push({
       updateOne: {
         filter: { _id: m.pinId, project: req.project._id },
         update: { $set: update },
       },
-    };
-  });
+    });
+  }
 
   if (bulkOps.length > 0) {
     await Pin.bulkWrite(bulkOps);

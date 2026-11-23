@@ -64,7 +64,7 @@ export default function ProfilePage() {
   const deleteAccount = async () => {
     const ok = await confirmDialog({
       title: 'Delete your account?',
-      message: 'This permanently deletes your account and removes you from this organization\'s projects. Projects you created are deleted with their pins and comments. Your comments on other projects stay, shown as "Deleted user". This cannot be undone.',
+      message: 'This permanently deletes your account and removes you from this organization\'s projects. Projects you created stay with the team and move to the organization owner. Your comments stay, shown as "Deleted user". This cannot be undone.',
       confirmLabel: 'Delete my account',
       danger: true,
     });

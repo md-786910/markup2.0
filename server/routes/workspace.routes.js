@@ -17,6 +17,8 @@ const {
   inviteToWorkspace,
   getWorkspaceInvitations,
   updateOrgRole,
+  removeOrgMember,
+  transferOwnership,
 } = require('../controllers/workspace.controller');
 
 router.use(auth);
@@ -24,6 +26,8 @@ router.use(auth);
 router.get('/', getWorkspaces);
 router.get('/people', getOrgPeople);
 router.patch('/people/:userId/role', authorize('owner', 'admin'), updateOrgRole);
+router.delete('/people/:userId', authorize('owner', 'admin'), removeOrgMember);
+router.post('/people/:userId/transfer-ownership', authorize('owner'), require('../middleware/rateLimiters').authLimiter, transferOwnership);
 router.post('/', authorize('owner', 'admin'), checkOrgNotLocked, checkWorkspaceLimit, createWorkspace);
 router.patch('/:workspaceId', authorize('owner', 'admin'), checkOrgNotLocked, updateWorkspace);
 router.delete('/:workspaceId', authorize('owner', 'admin'), checkOrgNotLocked, deleteWorkspace);

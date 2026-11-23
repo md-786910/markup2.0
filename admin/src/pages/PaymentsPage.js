@@ -12,14 +12,14 @@ const PROVIDER_META = {
     currency: 'INR (USD × 84)',
     description: 'Cards, UPI, netbanking, wallets — for Indian customers.',
     requiredEnv: ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET'],
-    accent: 'from-blue-500 to-indigo-500',
+    accent: 'bg-blue-600',
   },
   paypal: {
     name: 'PayPal',
     currency: 'USD',
     description: 'PayPal balance + cards — for international customers.',
     requiredEnv: ['PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID'],
-    accent: 'from-yellow-400 to-blue-600',
+    accent: 'bg-amber-400',
   },
 };
 
@@ -117,7 +117,7 @@ export default function PaymentsPage() {
                 draftActive === id ? 'border-blue-500 ring-2 ring-blue-100' : 'border-gray-200'
               }`}
             >
-              <div className={`h-2 w-full bg-gradient-to-r ${meta.accent}`} />
+              <div className={`h-2 w-full ${meta.accent}`} />
               <div className="p-5 space-y-4">
                 <div className="flex items-start justify-between">
                   <div>

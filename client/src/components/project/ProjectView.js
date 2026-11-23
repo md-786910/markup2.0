@@ -14,7 +14,7 @@ import NewPinCommentPopup from "./NewPinCommentPopup";
 import NotificationBell from "../common/NotificationBell";
 import MembersPresencePopover from "./MembersPresencePopover";
 import { useAuth } from "../../hooks/useAuth";
-import { useIframeMessages } from "../../hooks/useIframeMessages";
+import { useIframeMessages, PROXY_ORIGIN } from "../../hooks/useIframeMessages";
 import {
   getPinsApi,
   updatePinApi,
@@ -357,6 +357,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   // Listen for pin clicks from iframe
   useEffect(() => {
     const handler = (event) => {
+      // Only the review iframe (served by the API's website proxy)
+      if (PROXY_ORIGIN && event.origin !== PROXY_ORIGIN) return;
       const data = event.data;
       if (data?.type === "MARKUP_PIN_CLICK") {
         const pin = pins.find((p) => p._id === data.pinId) || allPins.find((p) => p._id === data.pinId);

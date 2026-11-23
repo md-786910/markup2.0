@@ -73,7 +73,7 @@ app.use(
       // Not allowed: answer without CORS headers so the browser blocks it
       return cb(null, false);
     },
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token", "X-Guest-Access"],
     credentials: true,
   }),

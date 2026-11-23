@@ -24,9 +24,6 @@ export const getInvoicesApi = () =>
 export const downloadInvoicePdfApi = (id) =>
   api.get(`/billing/invoices/${id}/pdf`, { responseType: 'blob' });
 
-export const createPortalSessionApi = () =>
-  api.post('/billing/portal-session');
-
 export const getBillingConfigApi = () =>
   api.get('/billing/config');
 

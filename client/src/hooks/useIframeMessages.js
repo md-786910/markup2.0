@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 // The review iframe is served by the API (website proxy); messages from any
 // other window are ignored. If the API address isn't absolute, no check is made.
-const PROXY_ORIGIN = (() => {
+export const PROXY_ORIGIN = (() => {
   try {
     return new URL(process.env.REACT_APP_BASE_URL || "http://localhost:5000/api").origin;
   } catch {

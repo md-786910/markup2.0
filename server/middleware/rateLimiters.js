@@ -160,6 +160,22 @@ const supportReplyLimiter = rateLimit({
   ...shared,
 });
 
+// Review-link passwords: wrong guesses per visitor per link. Only requests that
+// carry a password count, and a correct one (2xx) is not counted.
+const guestPasswordLimiter = rateLimit({
+  windowMs: FIFTEEN_MIN,
+  max: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => !req.query?.password,
+  keyGenerator: (req) => `${String(req.params.shareToken || req.params.workspaceToken || '').slice(0, 128)}:${rateLimit.ipKeyGenerator(req.ip || '')}`,
+  // Shaped like a wrong-password answer so the review page shows it under the field
+  message: { message: 'Too many wrong passwords. Please wait 15 minutes and try again.', requiresPassword: true, invalidPassword: true },
+  store: store('guest-password'),
+  ...shared,
+});
+
 const loginEmailLimiter = emailLimiter('login', FIFTEEN_MIN, 10, { skipSuccessfulRequests: true });
 const passwordResetEmailLimiter = emailLimiter('reset', 60 * 60 * 1000, 3);
 const otpEmailLimiter = emailLimiter('otp', 60 * 60 * 1000, 6);
@@ -175,4 +191,5 @@ module.exports = {
   supportReplyLimiter,
   passwordResetEmailLimiter,
   otpEmailLimiter,
+  guestPasswordLimiter,
 };

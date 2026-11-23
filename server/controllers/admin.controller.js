@@ -84,7 +84,8 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
   const sevenDaysAgo = new Date(now.getTime() - 7 * DAY_MS);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * DAY_MS);
   const inSevenDays = new Date(now.getTime() + 7 * DAY_MS);
-  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  // UTC month starts, like the billing dates and Mongo's month grouping
+  const sixMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1));
 
   const [
     plans,
@@ -1271,7 +1272,8 @@ exports.getAuditLog = asyncHandler(async (req, res) => {
 exports.getRevenue = asyncHandler(async (req, res) => {
   const now = new Date();
   const dayMs = 24 * 60 * 60 * 1000;
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // UTC month start, like the billing dates (utils/billingDates.js)
+  const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const fourteenDaysAhead = new Date(now.getTime() + 14 * dayMs);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * dayMs);
 

@@ -549,6 +549,10 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       .json({ message: "url and projectId query params are required" });
   }
 
+  if (!require('mongoose').isValidObjectId(projectId)) {
+    return res.status(404).json({ message: "Project not found" });
+  }
+
   // SSRF guard: only public http(s) destinations may be proxied
   if (!(await isPublicUrl(url))) {
     return res.status(403).json({ message: "This address cannot be loaded through the proxy" });

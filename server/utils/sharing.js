@@ -28,8 +28,10 @@ async function orgAllowsShareLinks(orgId) {
   const key = String(orgId);
   const hit = planCache.get(key);
   if (hit && Date.now() - hit.at < PLAN_TTL) return hit.ok;
-  const org = await require('../models/Organization').findById(orgId).select('plan').lean();
-  const ok = !!org && org.plan !== 'free';
+  const org = await require('../models/Organization').findById(orgId).select('plan trialEndsAt').lean();
+  // An expired trial is not a paid plan or a running trial
+  const trialExpired = !!org && org.plan === 'trial' && !!org.trialEndsAt && new Date(org.trialEndsAt) < new Date();
+  const ok = !!org && org.plan !== 'free' && !trialExpired;
   if (planCache.size > 5000) planCache.clear();
   planCache.set(key, { ok, at: Date.now() });
   return ok;

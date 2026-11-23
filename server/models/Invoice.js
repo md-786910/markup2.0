@@ -14,7 +14,7 @@ const invoiceSchema = new mongoose.Schema({
     default: 'razorpay',
     index: true,
   },
-  razorpayOrderId: { type: String },
+  razorpayOrderId: { type: String, index: true, sparse: true },
   razorpayPaymentId: { type: String },
   paypalOrderId: { type: String, index: true, sparse: true },
   paypalCaptureId: { type: String },

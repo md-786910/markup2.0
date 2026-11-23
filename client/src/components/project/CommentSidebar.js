@@ -477,7 +477,7 @@ export default function CommentSidebar({
                         <span className="shrink-0 rounded bg-slate-100 px-1 text-micro text-slate-500">Guest</span>
                       )}
                       <small title={formatFullTimestamp(comment.createdAt)}>{formatDateTime(comment.createdAt)}</small>
-                      {isMine && (
+                      {(isMine || canManage) && (
                         confirmDeleteComment === comment._id ? (
                           <span className="ml-auto inline-flex shrink-0 items-center gap-1">
                             <button
@@ -499,6 +499,7 @@ export default function CommentSidebar({
                         ) : (
                           editingComment !== comment._id && (
                             <span className="acts">
+                              {isMine && (
                               <button
                                 onClick={() => {
                                   setEditingComment(comment._id);
@@ -512,6 +513,7 @@ export default function CommentSidebar({
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
                                 </svg>
                               </button>
+                              )}
                               <button
                                 onClick={() => setConfirmDeleteComment(comment._id)}
                                 className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-500 hover:bg-red-50 hover:text-red-600"

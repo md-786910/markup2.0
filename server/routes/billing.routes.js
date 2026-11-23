@@ -5,7 +5,6 @@ const {
   getBillingConfig,
   upgradePlan,
   createCheckoutSession,
-  createPortalSession,
   verifyPayment,
   getInvoices,
   downloadInvoicePdf,
@@ -20,7 +19,6 @@ router.get('/plan', getPlan);
 router.get('/config', getBillingConfig);
 router.post('/upgrade', upgradePlan);
 router.post('/checkout-session', createCheckoutSession);
-router.post('/portal-session', createPortalSession);
 router.post('/verify-payment', verifyPayment);
 router.get('/invoices', getInvoices);
 router.get('/invoices/:id/pdf', downloadInvoicePdf);

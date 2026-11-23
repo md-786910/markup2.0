@@ -14,7 +14,7 @@ const blockList = new net.BlockList();
   ['224.0.0.0', 4], ['240.0.0.0', 4],
 ].forEach(([addr, prefix]) => blockList.addSubnet(addr, prefix, 'ipv4'));
 [
-  ['::', 128], ['::1', 128], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8],
+  ['::', 128], ['::1', 128], ['::', 96] /* deprecated IPv4-compatible (::a.b.c.d) */, ['fc00::', 7], ['fe80::', 10], ['ff00::', 8],
   ['64:ff9b::', 96], ['2001:db8::', 32],
 ].forEach(([addr, prefix]) => blockList.addSubnet(addr, prefix, 'ipv6'));
 

@@ -18,7 +18,8 @@ async function handlePaypalWebhook(req, res) {
     return res.json({ received: true });
   } catch (err) {
     console.error('[paypal] webhook error:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    // Details stay in the server log
+    return res.status(400).send('Webhook Error');
   }
 }
 

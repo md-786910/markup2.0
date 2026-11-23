@@ -375,3 +375,105 @@ exports.updateOrgRole = asyncHandler(async (req, res) => {
   await target.save({ validateBeforeSave: false });
   res.json({ user: { _id: target._id, name: target.name, email: target.email, role: target.role } });
 });
+
+/**
+ * DELETE /api/workspaces/people/:userId — takes a person out of the
+ * organization (owners and admins; an admin can't remove another admin's
+ * superior). Their project and workspace access ends, their seat is freed,
+ * projects they created move to the organization owner, their open pins are
+ * unassigned and their sessions end. Their pins and comments stay. They keep
+ * their account and can start their own organization.
+ */
+exports.removeOrgMember = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  if (req.user._id.toString() === String(userId)) {
+    return res.status(400).json({ message: 'You cannot remove yourself from the organization.' });
+  }
+  const target = mongoose.isValidObjectId(userId)
+    ? await User.findOne({ _id: userId, organization: req.user.organization })
+    : null;
+  if (!target) return res.status(404).json({ message: 'User not found' });
+  if (target.role === 'owner' || target.role === 'superadmin') {
+    return res.status(403).json({ message: 'The organization owner cannot be removed.' });
+  }
+  if (!canAssignRole(req.user.role, target.role)) {
+    return res.status(403).json({ message: 'You cannot remove someone with a higher role than yours.' });
+  }
+
+  const orgId = req.user.organization;
+  const org = req.organization;
+  const ownerId = org?.owner || req.user._id;
+  const projectIds = (await Project.find({ organization: orgId }).select('_id').lean()).map((p) => p._id);
+
+  await Promise.all([
+    // Their projects stay with the team
+    Project.updateMany({ organization: orgId, owner: target._id }, { $set: { owner: ownerId } }),
+    Project.updateMany({ organization: orgId, members: target._id }, { $pull: { members: target._id } }),
+    Project.updateMany({ organization: orgId, 'memberAccess.user': target._id }, { $pull: { memberAccess: { user: target._id } } }),
+    Workspace.updateMany({ organization: orgId, 'members.user': target._id }, { $pull: { members: { user: target._id } } }),
+    require('../models/Pin').updateMany({ project: { $in: projectIds }, assignee: target._id }, { $set: { assignee: null } }),
+    require('../models/Notification').deleteMany({ recipient: target._id }),
+  ]);
+
+  // Out of the organization, signed out everywhere. Like a new signup, they
+  // get an organization of their own (a signed-in user always has one).
+  const Organization = require('../models/Organization');
+  const { buildSignupPlanFields } = require('./auth.controller');
+  const ownOrg = await Organization.create({
+    name: `${target.name || 'My'}'s Workspace`,
+    owner: target._id,
+    ...(await buildSignupPlanFields()),
+  });
+  target.organization = ownOrg._id;
+  target.role = 'owner';
+  target.sessionToken = crypto.randomBytes(32).toString('hex');
+  await target.save({ validateBeforeSave: false });
+  const io = req.app.get('io');
+  if (io) { try { io.in(`user:${target._id}`).disconnectSockets(true); } catch { /* best effort */ } }
+
+  logOrgActivity(orgId, req.user._id, 'member.removed', { name: target.name, email: target.email, scope: 'organization' });
+  res.json({ message: `${target.name || target.email} was removed from the organization.` });
+});
+
+/**
+ * POST /api/workspaces/people/:userId/transfer-ownership { password } — the
+ * owner hands the organization to a member or admin, and becomes an admin.
+ * Needs the owner's password (a wrong one is a 400, not a 401).
+ */
+exports.transferOwnership = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const { password } = req.body || {};
+  if (req.user.role !== 'owner') {
+    return res.status(403).json({ message: 'Only the organization owner can transfer ownership.' });
+  }
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ message: 'Password is required.' });
+  }
+  if (req.user._id.toString() === String(userId)) {
+    return res.status(400).json({ message: 'You already own this organization.' });
+  }
+  const target = mongoose.isValidObjectId(userId)
+    ? await User.findOne({ _id: userId, organization: req.user.organization })
+    : null;
+  if (!target) return res.status(404).json({ message: 'User not found' });
+  if (!['admin', 'member'].includes(target.role)) {
+    return res.status(400).json({ message: 'Make them a member or admin first: guests cannot own the organization.' });
+  }
+  const me = await User.findById(req.user._id).select('+passwordHash');
+  if (!me || !(await me.comparePassword(password))) {
+    return res.status(400).json({ message: 'Incorrect password.' });
+  }
+  const Organization = require('../models/Organization');
+  const updated = await Organization.findOneAndUpdate(
+    { _id: req.user.organization, owner: req.user._id },
+    { $set: { owner: target._id } },
+  );
+  if (!updated) return res.status(409).json({ message: 'Ownership changed in the meantime. Reload and try again.' });
+
+  target.role = 'owner';
+  await target.save({ validateBeforeSave: false });
+  await User.updateOne({ _id: req.user._id }, { $set: { role: 'admin' } });
+
+  logOrgActivity(req.user.organization, req.user._id, 'member.role_changed', { name: target.name, email: target.email, role: 'owner', scope: 'organization' });
+  res.json({ message: `${target.name || target.email} now owns the organization.` });
+});

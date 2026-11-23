@@ -9,18 +9,46 @@ const SIZE_CLASSES = {
   '2xl': 'max-w-3xl',
 };
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
+
 // Centered dialog. Closes on Escape and backdrop click, moves focus into the
 // panel and gives it back on close. With `title` it renders the header and a
 // padded body; without, `children` is the whole panel (e.g. ConfirmHost).
 export default function Modal({ isOpen, onClose, title, children, footer, size = 'md', className, labelledBy }) {
   const panelRef = useRef(null);
   const titleId = useId();
+  // Latest onClose without re-running the focus effect: parents often pass a
+  // new function on every render, which used to move focus out of the dialog
+  // (and back) while someone was typing in it.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!isOpen) return undefined;
     const previous = document.activeElement;
     const onKey = (e) => {
-      if (e.key === 'Escape' && !e.defaultPrevented) onClose?.();
+      if (e.key === 'Escape' && !e.defaultPrevented) {
+        onCloseRef.current?.();
+        return;
+      }
+      // Keep Tab inside the dialog (only when focus is in this panel, so menus
+      // rendered elsewhere and dialogs stacked on top keep their own keys)
+      const panel = panelRef.current;
+      if (e.key !== 'Tab' || !panel || !panel.contains(document.activeElement)) return;
+      const focusable = Array.from(panel.querySelectorAll(FOCUSABLE)).filter((el) => el.offsetParent !== null || el === document.activeElement);
+      if (!focusable.length) {
+        e.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     if (!panelRef.current?.contains(document.activeElement)) panelRef.current?.focus();
@@ -28,7 +56,7 @@ export default function Modal({ isOpen, onClose, title, children, footer, size =
       document.removeEventListener('keydown', onKey);
       if (previous && typeof previous.focus === 'function') previous.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

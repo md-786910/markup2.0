@@ -531,6 +531,7 @@ export default function TaskBoard({
                 ref={newColumnInputRef}
                 type="text"
                 placeholder="Column name (e.g. In QA)…"
+                maxLength={80}
                 value={newColumnTitle}
                 onChange={(e) => setNewColumnTitle(e.target.value)}
                 onKeyDown={(e) => {

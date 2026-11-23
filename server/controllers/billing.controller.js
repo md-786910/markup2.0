@@ -328,14 +328,6 @@ exports.downloadInvoicePdf = asyncHandler(async (req, res) => {
 });
 
 /**
- * POST /api/billing/portal-session
- * Razorpay/PayPal don't expose a hosted customer portal natively.
- */
-exports.createPortalSession = asyncHandler(async (req, res) => {
-  return res.status(400).json({ message: 'Customer portal not supported natively. Please view the Invoices tab.' });
-});
-
-/**
  * POST /api/billing/upgrade
  * No-payment upgrade path (free plan or admin-driven). Does not touch any
  * payment provider — pure plan/limits state mutation.
