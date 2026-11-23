@@ -50,11 +50,29 @@ export function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose,
                 <div style={{ display: 'grid', gap: 8, padding: '4px 6px 6px' }}>
                   <div className="kc-field">
                     <label htmlFor="date-from">From</label>
-                    <input id="date-from" type="date" className="kc-input" value={dateRange.start} onChange={(e) => set({ preset: 'custom', start: e.target.value })} />
+                    <input
+                      id="date-from"
+                      type="date"
+                      className="kc-input"
+                      value={dateRange.start}
+                      max={dateRange.end || undefined}
+                      onChange={(e) => {
+                        const start = e.target.value;
+                        const end = dateRange.end && start && dateRange.end < start ? '' : dateRange.end;
+                        set({ preset: 'custom', start, end });
+                      }}
+                    />
                   </div>
                   <div className="kc-field">
                     <label htmlFor="date-to">To</label>
-                    <input id="date-to" type="date" className="kc-input" value={dateRange.end} onChange={(e) => set({ preset: 'custom', end: e.target.value })} />
+                    <input
+                      id="date-to"
+                      type="date"
+                      className="kc-input"
+                      value={dateRange.end}
+                      min={dateRange.start || undefined}
+                      onChange={(e) => set({ preset: 'custom', end: e.target.value })}
+                    />
                   </div>
                 </div>
               </>

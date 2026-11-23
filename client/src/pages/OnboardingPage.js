@@ -7,6 +7,7 @@ import { CoverArt, AuthHeading } from '../components/layout/AuthLayout';
 import PasswordInput from '../components/common/PasswordInput';
 import { Badge, Banner, Button, Field, Icon, Input, Logo, Progress, cx } from '../components/kc';
 import { track } from '../monitoring/analytics';
+import { SITE_URL } from '../config/site';
 
 const STEPS = [
   { id: 'organization', label: 'Organization' },
@@ -164,7 +165,11 @@ export default function OnboardingPage() {
   const progress = ((step + 1) / STEPS.length) * 100;
 
   const handleBack = () => {
-    if (step > 0) setStep(step - 1);
+    if (step > 0) {
+      setStep(step - 1);
+    } else {
+      window.location.href = SITE_URL;
+    }
   };
 
   const handleOrgNext = () => {
@@ -516,9 +521,12 @@ export default function OnboardingPage() {
                 className="hidden" />
             </Field>
 
-            <Button variant="primary" size="lg" block onClick={handleOrgNext} disabled={!orgName.trim()}>
-              Continue
-            </Button>
+            <div className="kc-onb-actions">
+              <Button variant="secondary" size="lg" onClick={handleBack}>Back</Button>
+              <Button variant="primary" size="lg" className="grow" onClick={handleOrgNext} disabled={!orgName.trim()}>
+                Continue
+              </Button>
+            </div>
           </div>
           <p className="kc-auth-alt">
             Already have an account? <Link to="/login" className="kc-link">Sign in</Link>
@@ -735,7 +743,7 @@ function OnboardingLayout({ wide = false, children }) {
   return (
     <div className="kc kc-auth">
       <aside className="kc-auth-art">
-        <a href="/" className="kc-auth-logo" aria-label="Kommently home"><Logo size={28} wordmark onDark /></a>
+        <a href={SITE_URL} className="kc-auth-logo" aria-label="Kommently home"><Logo size={28} wordmark onDark /></a>
         <div className="kc-auth-art-in" aria-hidden="true">
           <CoverArt className="kc-auth-cover" />
           <p className="kc-auth-promise">Point at the page. Say what to change.</p>
@@ -744,7 +752,7 @@ function OnboardingLayout({ wide = false, children }) {
         <p className="kc-auth-foot">&copy; {year} Kommently</p>
       </aside>
       <main className="kc-auth-form">
-        <a href="/" className="kc-auth-logo kc-auth-logo-sm" aria-label="Kommently home"><Logo size={28} wordmark /></a>
+        <a href={SITE_URL} className="kc-auth-logo kc-auth-logo-sm" aria-label="Kommently home"><Logo size={28} wordmark /></a>
         <div className={cx('kc-auth-body', wide && 'kc-onb-wide')}>{children}</div>
         <p className="kc-auth-foot kc-auth-foot-sm">&copy; {year} Kommently</p>
       </main>

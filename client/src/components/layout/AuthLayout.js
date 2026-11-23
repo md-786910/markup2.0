@@ -1,5 +1,6 @@
 import React from 'react';
 import { Logo } from '../kc';
+import { SITE_URL } from '../../config/site';
 
 // The design system's cover artwork (kommently-design-system/preview/Cover.html):
 // four brand blocks (brand-600, slate-900, brand-100, brand-400, radius-2xl)
@@ -42,7 +43,7 @@ export default function AuthLayout({ children }) {
   return (
     <div className="kc kc-auth">
       <aside className="kc-auth-art">
-        <a href="/" className="kc-auth-logo" aria-label="Kommently home"><Logo size={28} wordmark onDark /></a>
+        <a href={SITE_URL} className="kc-auth-logo" aria-label="Kommently home"><Logo size={28} wordmark onDark /></a>
         <div className="kc-auth-art-in" aria-hidden="true">
           <CoverArt className="kc-auth-cover" />
           <p className="kc-auth-promise">Point at the page. Say what to change.</p>
@@ -51,7 +52,7 @@ export default function AuthLayout({ children }) {
         <p className="kc-auth-foot">&copy; {year} Kommently</p>
       </aside>
       <main className="kc-auth-form">
-        <a href="/" className="kc-auth-logo kc-auth-logo-sm" aria-label="Kommently home"><Logo size={28} wordmark /></a>
+        <a href={SITE_URL} className="kc-auth-logo kc-auth-logo-sm" aria-label="Kommently home"><Logo size={28} wordmark /></a>
         <div className="kc-auth-body">{children}</div>
         <p className="kc-auth-foot kc-auth-foot-sm">&copy; {year} Kommently</p>
       </main>

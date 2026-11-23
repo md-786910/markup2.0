@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { forgotPasswordApi } from '../../services/authService';
 import { AuthHeading } from '../layout/AuthLayout';
 import { Banner, Button, Field, Icon, Input } from '../kc';
+import { SITE_URL } from '../../config/site';
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
@@ -43,9 +44,14 @@ export default function ForgotPasswordForm() {
         <Field id="forgot-email" label="Email">
           <Input id="forgot-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" />
         </Field>
-        <Button type="submit" variant="primary" size="lg" block loading={loading}>
-          {loading ? 'Sending…' : 'Send reset link'}
-        </Button>
+        <div className="kc-onb-actions">
+          <Button type="button" variant="secondary" size="lg" disabled={loading} onClick={() => { window.location.href = SITE_URL; }}>
+            Back
+          </Button>
+          <Button type="submit" variant="primary" size="lg" className="grow" loading={loading}>
+            {loading ? 'Sending…' : 'Send reset link'}
+          </Button>
+        </div>
       </form>
       <p className="kc-auth-alt">
         Remember your password? <Link to="/login" className="kc-link">Log in</Link>

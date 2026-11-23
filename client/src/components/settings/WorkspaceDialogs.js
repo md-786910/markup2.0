@@ -124,7 +124,7 @@ export function WorkspaceMembersDialog({ workspace, onClose, onSaved }) {
   };
 
   return (
-    <Modal isOpen onClose={onClose} title={`Members of ${workspace.name}`} size="md">
+    <Modal isOpen onClose={onClose} title={`Members of ${workspace.name}`} size="xl">
       <p className="m-0 mb-4 text-ui text-gray-600">
         People with access here get it on every project in this workspace, including new ones. Owners and admins can manage
         everything; guests can comment at most.

@@ -5,6 +5,7 @@ import { takeReturnTo } from '../../utils/returnTo';
 import PasswordInput from '../common/PasswordInput';
 import { AuthHeading } from '../layout/AuthLayout';
 import { Banner, Button, Field, Input } from '../kc';
+import { SITE_URL } from '../../config/site';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -64,9 +65,14 @@ export default function LoginForm() {
           <div className="kc-auth-row" style={{ justifyContent: 'flex-end' }}>
             <Link to="/forgot-password" className="kc-link" style={{ fontSize: 13 }}>Forgot password?</Link>
           </div>
-          <Button type="submit" variant="primary" size="lg" block loading={loading}>
-            {loading ? 'Logging in…' : 'Log in'}
-          </Button>
+          <div className="kc-onb-actions">
+            <Button type="button" variant="secondary" size="lg" disabled={loading} onClick={() => { window.location.href = SITE_URL; }}>
+              Back
+            </Button>
+            <Button type="submit" variant="primary" size="lg" className="grow" loading={loading}>
+              {loading ? 'Logging in…' : 'Log in'}
+            </Button>
+          </div>
         </form>
       </div>
 
