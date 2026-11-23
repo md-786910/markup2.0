@@ -109,7 +109,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
 
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 animate-scale-in">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h3 className="text-body-lg font-semibold text-gray-900">Share Project</h3>

@@ -338,7 +338,7 @@ export default function InviteMemberModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Invite Member">
+    <Modal isOpen={isOpen} onClose={onClose} title="Invite Member" size="xl">
       {error && (
         <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg mb-4 text-body-sm flex items-center gap-2">
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
