@@ -40,6 +40,16 @@ function load() {
 }
 
 /**
+ * Starts loading the chat in the background (e.g. when a menu with a chat
+ * button opens) so openChat() is instant. Crisp's bubble stays hidden.
+ */
+export function preloadChat() {
+  if (!WEBSITE_ID || loading) return;
+  queue('do', 'chat:hide');
+  load().catch(() => {});
+}
+
+/**
  * Opens the chat. Optional visitor details help support answer faster:
  * { email, name, data: { plan: 'pro', organization: 'Acme' } }.
  * Returns false when chat isn't configured (callers fall back to email).

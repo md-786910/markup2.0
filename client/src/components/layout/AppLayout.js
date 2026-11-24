@@ -9,7 +9,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useWorkspaces } from '../../contexts/WorkspaceContext';
 import { ShellProvider, useShell } from '../../contexts/ShellContext';
 import { openSupport } from '../../utils/supportPanel';
-import { openChat, chatAvailable } from '../../utils/supportChat';
+import { openChat, chatAvailable, preloadChat } from '../../utils/supportChat';
 import { uploadUrl } from '../../utils/uploadUrl';
 import { getProjectsApi } from '../../services/projectService';
 import { Avatar, Icon, IconButton, Logo, Menu, SearchPalette, Tile, cx, useDismiss } from '../kc';
@@ -91,6 +91,8 @@ function Shell() {
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [acctOpen, setAcctOpen] = useState(null); // 'rail' | 'bottom' | null
+  // Load the chat while the account menu is open, so "Chat with support" opens at once
+  useEffect(() => { if (acctOpen) preloadChat(); }, [acctOpen]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchProjects, setSearchProjects] = useState([]);
   const mainRef = useRef(null);
