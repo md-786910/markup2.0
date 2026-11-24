@@ -495,6 +495,12 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           return {
             ...p,
             commentsCount: (p.commentsCount || 0) + 1,
+            // A pin made by someone else arrives before its first comment, so fill it in here
+            firstComment: p.firstComment || {
+              body: data.comment.body,
+              author: data.comment.author,
+              createdAt: data.comment.createdAt,
+            },
             latestComment: {
               body: data.comment.body,
               author: data.comment.author,
