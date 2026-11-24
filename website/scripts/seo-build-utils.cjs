@@ -24,7 +24,6 @@ function buildOrganizationSchema() {
     url: getSiteUrl(),
     logo: absoluteUrl(metadata.site.logo),
     email: metadata.site.email,
-    sameAs: [getSiteUrl()],
   };
 }
 
@@ -48,10 +47,8 @@ function buildSoftwareSchema() {
     image: absoluteUrl(metadata.site.defaultOgImage),
     description: 'Visual comment software for pinning feedback on live websites, PDFs, and launch assets with real-time collaboration and guest review links.',
     offers: [
-      { '@type': 'Offer', name: 'Free', price: '0', priceCurrency: 'USD' },
-      { '@type': 'Offer', name: 'Starter', price: '12', priceCurrency: 'USD' },
-      { '@type': 'Offer', name: 'Pro', price: '29', priceCurrency: 'USD' },
-    ],
+      ['Free', '0'], ['Starter', '12'], ['Pro', '29'],
+    ].map(([name, price]) => ({ '@type': 'Offer', name, price, priceCurrency: 'USD', url: absoluteUrl('/pricing') })),
   };
 }
 
@@ -102,7 +99,6 @@ function renderMeta(route) {
   return [
     `<title>${escapeHtml(route.title)}</title>`,
     `<meta name="description" content="${escapeHtml(route.description)}" data-seo="true" />`,
-    `<meta name="keywords" content="${escapeHtml(route.keywords)}" data-seo="true" />`,
     '<meta name="robots" content="index, follow, max-image-preview:large" data-seo="true" />',
     `<link rel="canonical" href="${escapeHtml(canonical)}" data-seo="true" />`,
     `<meta property="og:title" content="${escapeHtml(route.title)}" data-seo="true" />`,
@@ -112,6 +108,7 @@ function renderMeta(route) {
     `<meta property="og:image" content="${escapeHtml(image)}" data-seo="true" />`,
     '<meta property="og:image:width" content="1200" data-seo="true" />',
     '<meta property="og:image:height" content="630" data-seo="true" />',
+    `<meta property="og:image:alt" content="${escapeHtml(metadata.site.ogImageAlt)}" data-seo="true" />`,
     `<meta property="og:site_name" content="${escapeHtml(metadata.site.name)}" data-seo="true" />`,
     `<meta property="og:locale" content="${escapeHtml(metadata.site.locale)}" data-seo="true" />`,
     '<meta name="twitter:card" content="summary_large_image" data-seo="true" />',
@@ -119,6 +116,7 @@ function renderMeta(route) {
     `<meta name="twitter:title" content="${escapeHtml(route.title)}" data-seo="true" />`,
     `<meta name="twitter:description" content="${escapeHtml(route.description)}" data-seo="true" />`,
     `<meta name="twitter:image" content="${escapeHtml(image)}" data-seo="true" />`,
+    `<meta name="twitter:image:alt" content="${escapeHtml(metadata.site.ogImageAlt)}" data-seo="true" />`,
   ].join('\n    ');
 }
 
@@ -137,6 +135,7 @@ function renderFallback(route) {
     '<main id="main-content">',
     `<h1>${escapeHtml(route.h1)}</h1>`,
     `<p>${escapeHtml(route.summary || route.description)}</p>`,
+    ...(route.faq || []).map((item) => `<h2>${escapeHtml(item.question)}</h2><p>${escapeHtml(item.answer)}</p>`),
     `<nav aria-label="Public pages">${links}</nav>`,
     '</main>',
   ].join('');

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const {
+  escapeHtml,
   metadata,
   renderFallback,
   renderJsonLd,
@@ -28,3 +29,10 @@ metadata.routes.forEach((route) => {
   fs.mkdirSync(outputDir, { recursive: true });
   fs.writeFileSync(path.join(outputDir, 'index.html'), renderPage(route));
 });
+
+// Served by nginx with a real 404 status for unknown paths (no soft 404s);
+// the app then renders its own not-found page.
+const notFoundTitle = `Page Not Found | ${metadata.site.name}`;
+fs.writeFileSync(path.join(buildDir, '404.html'), template
+  .replace('</head>', `<title>${escapeHtml(notFoundTitle)}</title>
+    <meta name="robots" content="noindex, nofollow" data-seo="true" /></head>`));

@@ -34,7 +34,7 @@ export function useDismiss(ref, open, onClose, extraRef = null) {
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e) => {
-      if (ref.current?.contains(e.target) || extraRef?.current?.contains(e.target)) return;
+      if (ref.current?.contains(e.target) || extraRef?.current?.contains(e.target) || e.target.closest?.('[data-float]')) return;
       onClose();
     };
     const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose(); } };
@@ -70,7 +70,7 @@ function FloatingPanel({ anchorRef, panelRef, align = 'left', width, children })
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
   }, [anchorRef, panelRef, align, width]);
   return createPortal(
-    <div ref={panelRef} style={style || { position: 'fixed', visibility: 'hidden' }} className={`${width === 'match' ? '' : width} bg-white border border-gray-200 rounded-xl shadow-[var(--shadow-menu)] p-1.5`}>
+    <div ref={panelRef} data-float style={style || { position: 'fixed', visibility: 'hidden' }} className={`${width === 'match' ? '' : width} bg-white border border-gray-200 rounded-xl shadow-[var(--shadow-menu)] p-1.5`}>
       {children}
     </div>,
     document.body,
@@ -284,8 +284,8 @@ export function SelectMenu({ value, options, onChange, disabled = false, variant
   useDismiss(ref, open, () => setOpen(false), panelRef);
   const selected = options.find((o) => o.value === value);
   const trigger = variant === 'field'
-    ? `w-full flex items-center justify-between gap-2 h-9 px-2.5 text-ui bg-white border rounded-lg ${open ? 'border-blue-600 outline outline-2 outline-offset-1 outline-blue-600' : 'border-control hover:border-gray-500'}`
-    : 'flex items-center gap-1.5 h-8 pl-2.5 pr-2 rounded-lg text-ui font-medium border bg-white border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors';
+    ? `w-full flex items-center justify-between gap-2 h-9 px-2.5 text-ui bg-white border border-solid rounded-lg ${open ? 'border-blue-600 outline outline-2 outline-offset-1 outline-blue-600' : 'border-control hover:border-gray-500'}`
+    : 'flex items-center gap-1.5 h-8 pl-2.5 pr-2 rounded-lg text-ui font-medium border border-solid bg-white border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors';
   return (
     <div ref={ref} className={`relative ${variant === 'field' ? 'w-full' : ''}`}>
       <button type="button" disabled={disabled} onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel} className={`${trigger} disabled:opacity-50 disabled:pointer-events-none ${className}`}>
@@ -300,6 +300,102 @@ export function SelectMenu({ value, options, onChange, disabled = false, variant
                 {o.label}
               </MenuOption>
             ))}
+          </div>
+        </FloatingPanel>
+      )}
+    </div>
+  );
+}
+
+// Date (and optional time) picker; same value format as <input type="date">
+// ('YYYY-MM-DD') or type="datetime-local" ('YYYY-MM-DDTHH:mm'), '' when empty.
+const pad = (n) => String(n).padStart(2, '0');
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+export function DatePicker({ value = '', onChange, withTime = false, min, max, disabled = false, placeholder = 'Pick a date', ariaLabel, className, id }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const panelRef = useRef(null);
+  useDismiss(ref, open, () => setOpen(false), panelRef);
+  const [date, time = '17:00'] = (value || '').split('T');
+  const sel = date ? new Date(`${date}T00:00`) : null;
+  const [view, setView] = useState(() => sel || new Date());
+  useEffect(() => { if (open) setView(sel || new Date()); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const emit = (d, t = time) => onChange?.(d ? (withTime ? `${d}T${t}` : d) : '');
+  const first = new Date(view.getFullYear(), view.getMonth(), 1);
+  const start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7));
+  const days = Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
+  const today = ymd(new Date());
+  const minD = min?.slice(0, 10); const maxD = max?.slice(0, 10);
+  const out = (k) => (minD && k < minD) || (maxD && k > maxD);
+  const shift = (m) => setView(new Date(view.getFullYear(), view.getMonth() + m, 1));
+  const [hh, mm] = time.split(':');
+  const label = sel
+    ? sel.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) + (withTime ? `, ${time}` : '')
+    : placeholder;
+  const navBtn = 'w-7 h-7 grid place-items-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-900';
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <button
+        id={id}
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        className={className || `w-full flex items-center gap-2 h-9 px-2.5 text-ui bg-white border border-solid rounded-lg text-left disabled:opacity-50 ${open ? 'border-blue-600' : 'border-control hover:border-gray-500'}`}
+      >
+        <svg className="w-4 h-4 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" /></svg>
+        <span className={`flex-1 truncate ${sel ? 'text-gray-900' : 'text-gray-500'}`}>{label}</span>
+      </button>
+      {open && (
+        <FloatingPanel anchorRef={ref} panelRef={panelRef} width="w-72">
+          <div className="p-1.5" role="dialog" aria-label={ariaLabel || 'Choose date'}>
+            <div className="flex items-center justify-between mb-2">
+              <button type="button" className={navBtn} onClick={() => shift(-1)} aria-label="Previous month">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 6l-6 6 6 6" /></svg>
+              </button>
+              <span className="text-ui font-semibold text-gray-900">{view.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
+              <button type="button" className={navBtn} onClick={() => shift(1)} aria-label="Next month">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" /></svg>
+              </button>
+            </div>
+            <div className="grid grid-cols-7 gap-0.5 text-center">
+              {WEEKDAYS.map((w) => <span key={w} className="text-caption text-gray-500 py-1">{w}</span>)}
+              {days.map((d) => {
+                const k = ymd(d);
+                const isSel = k === date;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    disabled={out(k)}
+                    onClick={() => { emit(k); if (!withTime) setOpen(false); }}
+                    className={`h-8 rounded-md text-ui disabled:opacity-30 disabled:pointer-events-none ${isSel ? 'bg-blue-600 text-white font-medium' : k === today ? 'text-blue-600 font-semibold hover:bg-gray-100' : d.getMonth() === view.getMonth() ? 'text-gray-900 hover:bg-gray-100' : 'text-gray-400 hover:bg-gray-100'}`}
+                  >
+                    {d.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+            {withTime && (
+              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+                <span className="text-ui text-gray-500 mr-auto">Time</span>
+                <div className="w-20"><SelectMenu variant="field" ariaLabel="Hour" value={hh} onChange={(h) => emit(date || today, `${h}:${mm}`)} options={Array.from({ length: 24 }, (_, i) => ({ value: pad(i), label: pad(i) }))} /></div>
+                <span className="text-gray-500">:</span>
+                <div className="w-20"><SelectMenu variant="field" ariaLabel="Minute" value={mm} onChange={(m) => emit(date || today, `${hh}:${m}`)} options={Array.from({ length: 12 }, (_, i) => ({ value: pad(i * 5), label: pad(i * 5) })).concat(Number(mm) % 5 ? [{ value: mm, label: mm }] : [])} /></div>
+              </div>
+            )}
+            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+              <Button size="sm" variant="ghost" onClick={() => { emit(''); setOpen(false); }}>Clear</Button>
+              {withTime
+                ? <Button size="sm" variant="primary" onClick={() => setOpen(false)}>Done</Button>
+                : <Button size="sm" variant="ghost" disabled={out(today)} onClick={() => { emit(today); setOpen(false); }}>Today</Button>}
+            </div>
           </div>
         </FloatingPanel>
       )}

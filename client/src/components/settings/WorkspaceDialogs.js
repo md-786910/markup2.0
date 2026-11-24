@@ -8,7 +8,8 @@ import {
 } from '../../services/workspaceService';
 import { cancelInvitationApi, resendInvitationApi } from '../../services/invitationService';
 import { toast, toastError } from '../../utils/toast';
-import { Avatar, Badge, Button, Field, Input, Select } from '../kc';
+import { Avatar, Badge, Button, Field, Input } from '../kc';
+import { SelectMenu } from '../ui';
 
 const ROLE_LABEL = { owner: 'Owner', admin: 'Admin', member: 'Member', guest: 'Guest' };
 
@@ -135,18 +136,20 @@ export function WorkspaceMembersDialog({ workspace, onClose, onSaved }) {
         </Field>
         <div className="flex flex-wrap items-end gap-2">
           <Field id="ws-invite-level" label="Access" style={{ flex: '1 1 140px' }}>
-            <Select
-              id="ws-invite-level"
+            <SelectMenu
+              variant="field"
+              ariaLabel="Access"
               value={inviteLevel}
-              onChange={(e) => setInviteLevel(e.target.value)}
+              onChange={setInviteLevel}
               options={LEVEL_OPTIONS.map((o) => ({ value: o.value, label: o.label, disabled: inviteRole === 'guest' && o.value === 'manage' }))}
             />
           </Field>
           <Field id="ws-invite-role" label="Joins as" style={{ flex: '1 1 140px' }}>
-            <Select
-              id="ws-invite-role"
+            <SelectMenu
+              variant="field"
+              ariaLabel="Joins as"
               value={inviteRole}
-              onChange={(e) => { const r = e.target.value; setInviteRole(r); if (r === 'guest' && inviteLevel === 'manage') setInviteLevel('comment'); }}
+              onChange={(r) => { setInviteRole(r); if (r === 'guest' && inviteLevel === 'manage') setInviteLevel('comment'); }}
               options={[
                 { value: 'member', label: 'Team member' },
                 { value: 'guest', label: 'Guest (comments at most)' },
@@ -189,10 +192,11 @@ export function WorkspaceMembersDialog({ workspace, onClose, onSaved }) {
                 <span className="w-36 text-right text-caption text-gray-500">Manages all</span>
               ) : (
                 <div className="w-36 shrink-0">
-                  <Select
+                  <SelectMenu
+                    variant="field"
                     value={levels.get(p._id) || ''}
-                    onChange={(e) => setLevel(p._id, e.target.value)}
-                    aria-label={`Access for ${p.name || p.email}`}
+                    onChange={(v) => setLevel(p._id, v)}
+                    ariaLabel={`Access for ${p.name || p.email}`}
                     options={[
                       { value: '', label: 'No access' },
                       ...LEVEL_OPTIONS.map((o) => ({ value: o.value, label: o.label, disabled: p.role === 'guest' && o.value === 'manage' })),

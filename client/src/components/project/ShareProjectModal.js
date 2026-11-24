@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { enableShareApi, updateShareApi, updateProjectApi, updateReviewSettingsApi } from '../../services/projectService';
 import useEscape from '../../hooks/useEscape';
+import { DatePicker } from '../ui';
 
 // "YYYY-MM-DDTHH:mm" in the viewer's own time zone, the format a
 // datetime-local input shows and gives back (it is read as local time on save;
@@ -269,11 +270,12 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
               <div className="space-y-1.5 mb-3">
                 <label className="text-label text-gray-700 block">Feedback deadline (optional)</label>
                 <p className="text-caption text-gray-400">New feedback is politely refused after this time</p>
-                <input
-                  type="datetime-local"
+                <DatePicker
+                  withTime
                   value={deadlineAt}
-                  onChange={(e) => setDeadlineAt(e.target.value)}
-                  className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  onChange={setDeadlineAt}
+                  placeholder="No deadline"
+                  ariaLabel="Feedback deadline"
                 />
               </div>
 

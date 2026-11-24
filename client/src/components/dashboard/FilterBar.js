@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { PROJECT_TYPES, OWNERSHIP_OPTIONS } from '../../utils/projectConstants';
 import { FilterPills, Icon, PillMenu, cx, useDismiss } from '../kc';
+import { DatePicker } from '../ui';
 
 const DATE_OPTIONS = [
   { value: 'today', label: 'Today' },
@@ -50,14 +51,11 @@ export function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose,
                 <div style={{ display: 'grid', gap: 8, padding: '4px 6px 6px' }}>
                   <div className="kc-field">
                     <label htmlFor="date-from">From</label>
-                    <input
+                    <DatePicker
                       id="date-from"
-                      type="date"
-                      className="kc-input"
                       value={dateRange.start}
                       max={dateRange.end || undefined}
-                      onChange={(e) => {
-                        const start = e.target.value;
+                      onChange={(start) => {
                         const end = dateRange.end && start && dateRange.end < start ? '' : dateRange.end;
                         set({ preset: 'custom', start, end });
                       }}
@@ -65,13 +63,11 @@ export function DateFilterDropdown({ value, onChange, isOpen, onToggle, onClose,
                   </div>
                   <div className="kc-field">
                     <label htmlFor="date-to">To</label>
-                    <input
+                    <DatePicker
                       id="date-to"
-                      type="date"
-                      className="kc-input"
                       value={dateRange.end}
                       min={dateRange.start || undefined}
-                      onChange={(e) => set({ preset: 'custom', end: e.target.value })}
+                      onChange={(end) => set({ preset: 'custom', end })}
                     />
                   </div>
                 </div>

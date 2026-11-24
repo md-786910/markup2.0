@@ -325,7 +325,7 @@ export function Tile({ name, letter, tone = 'blue', size = 28 }) {
 export function useDismiss(ref, open, onClose, triggerRef) {
   useEffect(() => {
     if (!open) return undefined;
-    const onDown = (e) => { if (!ref.current?.contains(e.target)) onClose(); };
+    const onDown = (e) => { if (!ref.current?.contains(e.target) && !e.target.closest?.('[data-float]')) onClose(); };
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
       e.stopPropagation();

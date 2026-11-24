@@ -18,6 +18,7 @@ import { formatFullTimestamp } from "../../utils/formatTimestamp";
 import { toastError } from '../../utils/toast';
 import TechnicalDetails from './TechnicalDetails';
 import { getAvatarColor } from "../../utils/avatarColors";
+import { DatePicker } from '../ui';
 
 function formatDateTime(dateStr) {
   const d = new Date(dateStr);
@@ -405,13 +406,13 @@ export default function CommentSidebar({
 
           <span>Due date</span>
           <div className={`kr-sel ${isOverdue ? "over" : ""} ${dueValue ? "" : "empty"}`}>
-            <input
-              type="date"
+            <DatePicker
+              className="kr-date"
               disabled={readOnly}
               value={dueValue}
-              onChange={(e) => handleDueDateSelect(e.target.value)}
-              aria-label="Due date"
-              title={isOverdue ? "Overdue" : undefined}
+              onChange={handleDueDateSelect}
+              placeholder="No due date"
+              ariaLabel="Due date"
             />
           </div>
 

@@ -47,6 +47,8 @@ export default function SEO({ route }) {
     if (!seo) {
       document.title = `Page Not Found | ${site.name}`;
       upsertMeta('meta[name="robots"][data-seo="true"]', { name: 'robots', content: 'noindex, nofollow' });
+      document.head.querySelector('link[rel="canonical"][data-seo="true"]')?.remove();
+      replaceJsonLd([]);
       return;
     }
 
@@ -55,7 +57,6 @@ export default function SEO({ route }) {
 
     document.title = seo.title;
     upsertMeta('meta[name="description"][data-seo="true"]', { name: 'description', content: seo.description });
-    upsertMeta('meta[name="keywords"][data-seo="true"]', { name: 'keywords', content: seo.keywords });
     upsertMeta('meta[name="robots"][data-seo="true"]', { name: 'robots', content: 'index, follow, max-image-preview:large' });
     upsertLink('canonical', canonical);
 
@@ -66,6 +67,7 @@ export default function SEO({ route }) {
     upsertMeta('meta[property="og:image"][data-seo="true"]', { property: 'og:image', content: image });
     upsertMeta('meta[property="og:image:width"][data-seo="true"]', { property: 'og:image:width', content: '1200' });
     upsertMeta('meta[property="og:image:height"][data-seo="true"]', { property: 'og:image:height', content: '630' });
+    upsertMeta('meta[property="og:image:alt"][data-seo="true"]', { property: 'og:image:alt', content: site.ogImageAlt });
     upsertMeta('meta[property="og:site_name"][data-seo="true"]', { property: 'og:site_name', content: site.name });
     upsertMeta('meta[property="og:locale"][data-seo="true"]', { property: 'og:locale', content: site.locale });
 
@@ -74,6 +76,7 @@ export default function SEO({ route }) {
     upsertMeta('meta[name="twitter:title"][data-seo="true"]', { name: 'twitter:title', content: seo.title });
     upsertMeta('meta[name="twitter:description"][data-seo="true"]', { name: 'twitter:description', content: seo.description });
     upsertMeta('meta[name="twitter:image"][data-seo="true"]', { name: 'twitter:image', content: image });
+    upsertMeta('meta[name="twitter:image:alt"][data-seo="true"]', { name: 'twitter:image:alt', content: site.ogImageAlt });
 
     replaceJsonLd(buildJsonLd(seo));
   }, [route]);

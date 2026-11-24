@@ -29,7 +29,6 @@ export function buildOrganizationSchema() {
     url: getSiteUrl(),
     logo: absoluteUrl(site.logo),
     email: site.email,
-    sameAs: [getSiteUrl()],
   };
 }
 
@@ -53,10 +52,8 @@ export function buildSoftwareSchema() {
     image: absoluteUrl(site.defaultOgImage),
     description: 'Visual comment software for pinning feedback on live websites, PDFs, and launch assets with real-time collaboration and guest review links.',
     offers: [
-      { '@type': 'Offer', name: 'Free', price: '0', priceCurrency: 'USD' },
-      { '@type': 'Offer', name: 'Starter', price: '12', priceCurrency: 'USD' },
-      { '@type': 'Offer', name: 'Pro', price: '29', priceCurrency: 'USD' },
-    ],
+      ['Free', '0'], ['Starter', '12'], ['Pro', '29'],
+    ].map(([name, price]) => ({ '@type': 'Offer', name, price, priceCurrency: 'USD', url: absoluteUrl('/pricing') })),
   };
 }
 

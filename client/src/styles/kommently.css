@@ -5344,3 +5344,150 @@ button.kr-row:hover {
 .kc-auth .kc-auth-art :focus-visible {
   outline-color: var(--brand-400);
 }
+/* ---------- project picker (searchable select) ---------- */
+.kc-picker {
+  position: relative;
+  display: inline-flex;
+  width: 240px;
+  max-width: 100%;
+}
+
+.kc-picker-trigger {
+  width: 100%;
+  height: var(--field-height);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font: 500 13px var(--font-sans);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.kc-picker-trigger:hover {
+  border-color: var(--slate-500);
+}
+
+.kc-picker-trigger:focus-visible,
+.kc-picker-trigger.is-open {
+  outline: none;
+  border-color: var(--brand-600);
+}
+
+.kc-picker-type {
+  color: var(--slate-500);
+  flex-shrink: 0;
+}
+
+.kc-picker-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kc-picker-arrow {
+  color: var(--slate-500);
+  flex-shrink: 0;
+  transition: transform .15s ease;
+}
+
+.kc-picker-trigger.is-open .kc-picker-arrow {
+  transform: rotate(180deg);
+  color: var(--brand-600);
+}
+
+.kc-picker-pop {
+  top: calc(100% + 6px);
+  right: 0;
+}
+
+.kc-picker-menu {
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 0;
+  overflow: hidden;
+}
+
+.kc-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 40px;
+  border-bottom: 1px solid var(--border);
+  color: var(--slate-500);
+}
+
+.kc-picker-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: 400 13px var(--font-sans);
+  color: var(--text);
+}
+
+.kc-picker-search input::placeholder {
+  color: var(--slate-500);
+}
+
+.kc-picker-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.kc-picker-list .mi svg {
+  color: var(--slate-500);
+  flex-shrink: 0;
+}
+
+.kc-picker-list .mi.is-active {
+  background: var(--slate-100);
+  color: var(--text);
+}
+
+.kc-picker-list .mi.on .ck svg {
+  color: var(--brand-600);
+}
+
+.kc-picker-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kc-picker-empty {
+  padding: 16px 9px;
+  font-size: 13px;
+  color: var(--slate-500);
+  text-align: center;
+}
+
+/* Due date button in the pin sidebar (DatePicker) */
+.kr-sel .kr-date {
+  width: 100%;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--slate-50);
+  color: var(--text);
+  font: 500 13px var(--font-sans);
+  text-align: left;
+}
+.kr-sel .kr-date:hover { border-color: var(--border-strong); }
+.kr-sel .kr-date[aria-expanded="true"] { border-color: var(--brand-600); background: var(--surface); }
+.kr-sel .kr-date:disabled { background: transparent; border-color: transparent; cursor: default; opacity: 1; }
+.kr-sel.over .kr-date span { color: var(--danger-600); }

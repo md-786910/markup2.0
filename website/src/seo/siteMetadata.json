@@ -8,6 +8,7 @@
     "locale": "en_US",
     "twitterHandle": "@Kommently",
     "defaultOgImage": "/og-image.png",
+    "ogImageAlt": "Kommently: pin comments on live websites, PDFs and images",
     "logo": "/icon-512x512.png"
   },
   "blockedPaths": [
@@ -28,8 +29,7 @@
     {
       "path": "/",
       "title": "Kommently | Feedback on Any Website, No Install Needed",
-      "description": "Pin comments on live websites, staging and logged-in pages, PDFs and images. Turn every comment into a task with status, priority, assignee and due date. Free 30-day Pro trial.",
-      "keywords": "website feedback tool, visual feedback, website annotation, client review tool, pdf review, design review software",
+      "description": "Pin comments on live websites, staging and logged-in pages, PDFs and images. Every comment becomes a task. Free 30-day Pro trial, no card needed.",
       "h1": "Point at the page. Say what to change.",
       "summary": "Kommently lets teams and clients pin comments on live websites, PDFs, and images, with a screenshot, page, and device size on every comment, and integrations for Slack, Jira, Discord, and Teams.",
       "changefreq": "weekly",
@@ -49,10 +49,9 @@
     },
     {
       "path": "/use-cases",
-      "title": "Kommently Use Cases | Visual Review for Agencies, Product, and Web Teams",
+      "title": "Use Cases for Agencies and Product Teams | Kommently",
       "description": "See how agencies, product teams, and web operations teams use Kommently to collect clearer feedback, reduce revision loops, and speed up approval cycles.",
-      "keywords": "customer review workflow, agency feedback software, product team review, client feedback tool",
-      "h1": "Review workflows that feel clear to every stakeholder.",
+      "h1": "Review workflows that feel clear to every stakeholder",
       "summary": "Use Kommently to keep client feedback, QA notes, and web launch reviews clear across every stakeholder group.",
       "changefreq": "monthly",
       "priority": 0.8,
@@ -75,8 +74,7 @@
       "path": "/pricing",
       "title": "Kommently Pricing | Visual Feedback Plans for Growing Teams",
       "description": "Compare Kommently pricing for visual website reviews, guest feedback links, real-time collaboration, integrations, and secure team workflows.",
-      "keywords": "Kommently pricing, visual feedback pricing, website annotation pricing, client feedback plans",
-      "h1": "Plans that scale with review volume, not confusion.",
+      "h1": "Simple pricing that grows with your reviews",
       "summary": "Choose the Kommently plan that matches your review volume, collaboration needs, and integration requirements.",
       "changefreq": "weekly",
       "priority": 0.9,
@@ -118,8 +116,7 @@
       "path": "/about",
       "title": "About Kommently | Visual Feedback Without the Chaos",
       "description": "Why we built Kommently: feedback that stays on the work itself, reviews that need no install, and clients who review with a link.",
-      "keywords": "about Kommently, visual feedback tool, website review software, client feedback",
-      "h1": "We make website feedback clear, fast and finished.",
+      "h1": "We make website feedback clear, fast and finished",
       "summary": "Kommently is a visual feedback tool for agencies, product teams and everyone who reviews websites, PDFs and images with their clients.",
       "changefreq": "monthly",
       "priority": 0.6,
@@ -141,8 +138,7 @@
       "path": "/support",
       "title": "Kommently Support Center | Help for Visual Website Reviews",
       "description": "Find help for guest review links, integrations, project access, billing, and visual feedback workflows in Kommently.",
-      "keywords": "Kommently support, website review help, guest review links, visual feedback support",
-      "h1": "Get unstuck quickly and keep reviews moving.",
+      "h1": "How can we help?",
       "summary": "Search common workflows, contact support, and get help with the review paths your team uses most.",
       "changefreq": "monthly",
       "priority": 0.7,
@@ -164,7 +160,6 @@
       "path": "/privacy",
       "title": "Privacy Policy | Kommently",
       "description": "Read the Kommently Privacy Policy to understand how personal information, project data, cookies, and service providers are handled.",
-      "keywords": "Kommently privacy policy, data protection, project data privacy",
       "h1": "Privacy Policy",
       "summary": "Kommently's privacy policy explains how account, project, usage, and cookie data are collected and protected.",
       "changefreq": "yearly",
@@ -187,7 +182,6 @@
       "path": "/terms",
       "title": "Terms of Service | Kommently",
       "description": "Read the Kommently Terms of Service for account rules, acceptable use, guest review links, billing, cancellation, and service terms.",
-      "keywords": "Kommently terms, terms of service, acceptable use policy",
       "h1": "Terms of Service",
       "summary": "Kommently's terms define the rules for using visual comments, guest review links, billing, and account access.",
       "changefreq": "yearly",
@@ -210,7 +204,6 @@
       "path": "/cookie-policy",
       "title": "Cookie Policy | Kommently",
       "description": "Learn how Kommently uses essential, analytics, preference, and marketing cookies and how visitors can manage cookie consent.",
-      "keywords": "Kommently cookie policy, cookie consent, analytics cookies",
       "h1": "Cookie Policy",
       "summary": "Kommently's cookie policy explains cookie types, consent controls, retention, and preference management.",
       "changefreq": "yearly",
@@ -231,9 +224,8 @@
     },
     {
       "path": "/website-review",
-      "title": "Website Review with Pins | Kommently",
+      "title": "Website Review Tool: Pin Comments on Live Sites | Kommently",
       "description": "Pin comments on live websites, staging and logged-in pages. Every comment keeps its spot, device size and a screenshot. Free 30-day Pro trial.",
-      "keywords": "website review tool, website annotation, website feedback, visual feedback",
       "h1": "Review live websites with pins",
       "summary": "Pin comments on live websites, staging and logged-in pages. Every comment keeps its spot, device size and a screenshot. Free 30-day Pro trial.",
       "changefreq": "monthly",
@@ -248,16 +240,15 @@
           "path": "/"
         },
         {
-          "name": "Review live websites with pins",
+          "name": "Website review",
           "path": "/website-review"
         }
       ]
     },
     {
       "path": "/document-review",
-      "title": "PDF and Document Review | Kommently",
+      "title": "PDF and Image Review with Pinned Comments | Kommently",
       "description": "Pin comments on PDFs and images: up to 10 per project, with replies, mentions and review status. Free 30-day Pro trial.",
-      "keywords": "pdf review, document review, pdf annotation, design review",
       "h1": "Review PDFs and images the same way",
       "summary": "Pin comments on PDFs and images: up to 10 per project, with replies, mentions and review status. Free 30-day Pro trial.",
       "changefreq": "monthly",
@@ -272,7 +263,7 @@
           "path": "/"
         },
         {
-          "name": "Review PDFs the same way",
+          "name": "Document review",
           "path": "/document-review"
         }
       ]
@@ -281,7 +272,6 @@
       "path": "/approvals",
       "title": "Review Status for Every Project | Kommently",
       "description": "Every project is In review, Changes requested or Approved, on its card and in the Projects panel. Free 30-day Pro trial.",
-      "keywords": "review status, approval workflow, design approval, project status",
       "h1": "Know where every project stands",
       "summary": "Every project is In review, Changes requested or Approved, on its card and in the Projects panel. Free 30-day Pro trial.",
       "changefreq": "monthly",
@@ -296,7 +286,7 @@
           "path": "/"
         },
         {
-          "name": "Know where every project stands",
+          "name": "Review status",
           "path": "/approvals"
         }
       ]
@@ -305,7 +295,6 @@
       "path": "/integrations",
       "title": "Slack, Jira, Discord and Teams Integrations | Kommently",
       "description": "Send new pins, comments, resolved and reopened pins to Slack, Jira, Discord or Microsoft Teams. Included from the Starter plan.",
-      "keywords": "slack integration, jira integration, discord integration, microsoft teams integration",
       "h1": "Send pins to the tools your team uses",
       "summary": "Send new pins, comments, resolved and reopened pins to Slack, Jira, Discord or Microsoft Teams. Included from the Starter plan.",
       "changefreq": "monthly",
@@ -320,7 +309,7 @@
           "path": "/"
         },
         {
-          "name": "Send pins to the tools your team uses",
+          "name": "Integrations",
           "path": "/integrations"
         }
       ]
@@ -329,7 +318,6 @@
       "path": "/teams",
       "title": "Workspaces for Teams and Clients | Kommently",
       "description": "One workspace per client, members and guests, pending invites and one review link per client. Free 30-day Pro trial.",
-      "keywords": "client workspaces, agency review tool, guest review, team collaboration",
       "h1": "One workspace for every client",
       "summary": "One workspace per client, members and guests, pending invites and one review link per client. Free 30-day Pro trial.",
       "changefreq": "monthly",
@@ -344,7 +332,7 @@
           "path": "/"
         },
         {
-          "name": "One workspace for every client",
+          "name": "Teams",
           "path": "/teams"
         }
       ]

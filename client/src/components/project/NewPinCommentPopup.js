@@ -9,6 +9,7 @@ import useEscape from '../../hooks/useEscape';
 import AttachmentChip from './AttachmentChip';
 import { ACCEPTED_ATTACHMENT_TYPES } from '../../utils/attachmentHelpers';
 import { toastError } from '../../utils/toast';
+import { DatePicker, SelectMenu } from '../ui';
 
 // Register mention module and blot with Quill
 Quill.register({ 'blots/mention': MentionBlot, 'modules/mention': Mention });
@@ -152,14 +153,9 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
   // Same look as the comment sidebar's property fields
   const fieldCls =
     'no-arrow w-full h-8 appearance-none rounded-lg border border-slate-200 bg-white pr-7 text-[12.5px] font-medium text-slate-800 transition-colors hover:border-slate-300 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:cursor-default';
-  const chevron = (
-    <svg className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-    </svg>
-  );
   const STATUS_DOT = { open: 'bg-blue-600', in_progress: 'bg-amber-500', in_review: 'bg-sky-500', resolved: 'bg-emerald-500' };
   const PRIORITY_DOT = { low: 'bg-slate-300', normal: 'bg-slate-400', high: 'bg-amber-500', urgent: 'bg-red-500' };
-  const assigneeName = members.find((m) => m._id === props.assignee)?.name || members.find((m) => m._id === props.assignee)?.email || '';
+  const dotLabel = (cls, text) => <span className="inline-flex items-center gap-2"><span className={`h-2 w-2 shrink-0 rounded-full ${cls}`} />{text}</span>;
   const row = 'grid min-h-8 grid-cols-[68px_minmax(0,1fr)] items-center gap-x-2';
   const rowLabel = 'text-[12px] font-medium text-slate-500';
 
@@ -294,65 +290,30 @@ export default function NewPinCommentPopup({ pinData, projectId, onClose, onPinS
           <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-4">
             <div className={row}>
               <span className={rowLabel}>Status</span>
-              <div className="relative">
-                <span className={`pointer-events-none absolute left-2.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full ${STATUS_DOT[props.status] || STATUS_DOT.open}`} />
-                <select value={props.status} onChange={(e) => setProp('status', e.target.value)} className={`${fieldCls} pl-7`} aria-label="Status">
-                  <option value="open">Open</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="in_review">In Review</option>
-                  <option value="resolved">Resolved</option>
-                </select>
-                {chevron}
-              </div>
+              <SelectMenu variant="field" className="!h-8" ariaLabel="Status" value={props.status} onChange={(v) => setProp('status', v)}
+                options={[['open', 'Open'], ['in_progress', 'In Progress'], ['in_review', 'In Review'], ['resolved', 'Resolved']].map(([value, label]) => ({ value, label: dotLabel(STATUS_DOT[value], label) }))} />
             </div>
 
             <div className={row}>
               <span className={rowLabel}>Priority</span>
-              <div className="relative">
-                <span className={`pointer-events-none absolute left-2.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full ${PRIORITY_DOT[props.priority] || PRIORITY_DOT.normal}`} />
-                <select value={props.priority} onChange={(e) => setProp('priority', e.target.value)} className={`${fieldCls} pl-7`} aria-label="Priority">
-                  <option value="low">Low</option>
-                  <option value="normal">Normal</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-                {chevron}
-              </div>
+              <SelectMenu variant="field" className="!h-8" ariaLabel="Priority" value={props.priority} onChange={(v) => setProp('priority', v)}
+                options={[['low', 'Low'], ['normal', 'Normal'], ['high', 'High'], ['urgent', 'Urgent']].map(([value, label]) => ({ value, label: dotLabel(PRIORITY_DOT[value], label) }))} />
             </div>
 
             <div className={row}>
               <span className={rowLabel}>Assignee</span>
-              <div className="relative">
-                {assigneeName ? (
-                  <span className="pointer-events-none absolute left-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-blue-100 text-[10px] font-semibold text-blue-700">
-                    {assigneeName[0].toUpperCase()}
-                  </span>
-                ) : (
-                  <span className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border border-dashed border-slate-300" />
-                )}
-                <select
-                  value={props.assignee}
-                  onChange={(e) => setProp('assignee', e.target.value)}
-                  className={`${fieldCls} truncate pl-8 ${assigneeName ? 'text-slate-900' : 'text-slate-500'}`}
-                  aria-label="Assignee"
-                >
-                  <option value="">Unassigned</option>
-                  {members.map((m) => (
-                    <option key={m._id} value={m._id}>{m.name || m.email}</option>
-                  ))}
-                </select>
-                {chevron}
-              </div>
+              <SelectMenu variant="field" className="!h-8" ariaLabel="Assignee" value={props.assignee} onChange={(v) => setProp('assignee', v)}
+                options={[{ value: '', label: 'Unassigned' }, ...members.map((m) => ({ value: m._id, label: m.name || m.email }))]} />
             </div>
 
             <div className={row}>
               <span className={rowLabel}>Due date</span>
-              <input
-                type="date"
+              <DatePicker
                 value={props.dueAt}
-                onChange={(e) => setProp('dueAt', e.target.value)}
-                className={`${fieldCls} px-2.5 ${props.dueAt ? 'text-slate-900' : 'text-slate-400'}`}
-                aria-label="Due date"
+                onChange={(v) => setProp('dueAt', v)}
+                className={`${fieldCls} border-solid flex items-center gap-2 px-2.5 text-left`}
+                placeholder="No due date"
+                ariaLabel="Due date"
               />
             </div>
 

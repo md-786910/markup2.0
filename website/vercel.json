@@ -1,4 +1,13 @@
 {
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/customers",
+      "destination": "/use-cases",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/static/(.*)",

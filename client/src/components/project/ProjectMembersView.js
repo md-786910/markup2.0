@@ -21,8 +21,9 @@ import {
   PageHeader,
   RowMenu,
   Section,
-  Select,
 } from '../kc';
+import { SelectMenu } from '../ui';
+import ProjectPicker from './ProjectPicker';
 
 const LEVEL_LABEL = {
   manage: 'Can manage',
@@ -236,18 +237,18 @@ export default function ProjectMembersView({
         }
 
         return (
-          <Select
+          <SelectMenu
+            variant="field"
             value={currentLevel}
             disabled={roleLoading === m._id}
-            onChange={(e) => handleAccessChange(m._id, e.target.value)}
-            aria-label={`Access for ${m.name || m.email}`}
-          >
-            <option value="manage" disabled={m.role === 'guest'}>
-              Can manage{m.role === 'guest' ? ' (disabled for guests)' : ''}
-            </option>
-            <option value="comment">Can comment</option>
-            <option value="view">Can view</option>
-          </Select>
+            onChange={(level) => handleAccessChange(m._id, level)}
+            ariaLabel={`Access for ${m.name || m.email}`}
+            options={[
+              { value: 'manage', label: 'Can manage', disabled: m.role === 'guest', description: m.role === 'guest' ? 'Not available for guests' : undefined },
+              { value: 'comment', label: 'Can comment' },
+              { value: 'view', label: 'Can view' },
+            ]}
+          />
         );
       },
     },
@@ -332,17 +333,15 @@ export default function ProjectMembersView({
         actions={
           <div className="flex items-center gap-2 flex-wrap">
             {showProjectPicker && projects.length > 1 && (
-              <div style={{ minWidth: 200 }}>
-                <Select
-                  value={projectId}
-                  onChange={(e) => onSelectProject?.(e.target.value)}
-                  options={projects.map((p) => ({ value: p._id, label: p.name }))}
-                  aria-label="Select project"
-                />
-              </div>
+              <ProjectPicker
+                projects={projects}
+                value={projectId}
+                onChange={(id) => onSelectProject?.(id)}
+              />
             )}
             <Button
               variant="secondary"
+              icon="grid"
               onClick={() => navigate('/dashboard')}
             >
               Dashboard
@@ -385,10 +384,11 @@ export default function ProjectMembersView({
               />
             </Field>
             <Field id="member-role" label="Role" style={{ width: 220, margin: 0 }}>
-              <Select
-                id="member-role"
+              <SelectMenu
+                variant="field"
+                ariaLabel="Role"
                 value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value)}
+                onChange={setInviteRole}
                 options={ROLE_OPTIONS}
               />
             </Field>
