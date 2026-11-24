@@ -32,7 +32,7 @@ export const INTEGRATION_PROVIDERS = [
 // Settings pages; `who` limits an item to org admins or workspace managers
 export const SETTINGS_PAGES = [
   { group: 'Organization', id: 'general', label: 'General', icon: 'gear', to: '/settings' },
-  { group: 'Organization', id: 'billing', label: 'Plan and billing', icon: 'card', to: '/settings?tab=billing' },
+  { group: 'Organization', id: 'billing', label: 'Plan and billing', icon: 'card', to: '/settings?tab=billing', who: 'admins' },
   { group: 'Organization', id: 'workspaces', label: 'Workspaces', icon: 'layers', to: '/settings?tab=workspaces', who: 'managers' },
   { group: 'Organization', id: 'project-members', label: 'Project members', icon: 'team', to: '/settings?tab=project-members' },
   { group: 'Organization', id: 'activity', label: 'Activity log', icon: 'activity', to: '/settings?tab=activity', who: 'admins' },

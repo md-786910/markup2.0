@@ -208,8 +208,38 @@ function siteKey(host) {
   var parts = h.split('.');
   var n = 2;
   if (parts.length > 2 && parts[parts.length - 1].length === 2 && parts[parts.length - 2].length <= 3) n = 3;
+  // Hosting platforms where every customer gets a subdomain: each subdomain is
+  // its own site (a.vercel.app must never receive b.vercel.app's tokens)
+  var shared = ['vercel.app', 'netlify.app', 'github.io', 'gitlab.io', 'pages.dev', 'workers.dev',
+    'web.app', 'firebaseapp.com', 'herokuapp.com', 'onrender.com', 'fly.dev', 'railway.app',
+    'up.railway.app', 'azurewebsites.net', 'azurestaticapps.net', 'cloudfront.net', 'appspot.com',
+    'amplifyapp.com', 'glitch.me', 'surge.sh', 'webflow.io', 'wixsite.com', 'myshopify.com',
+    'wpengine.com', 'wpenginepowered.com', 'ngrok.io', 'ngrok.app', 'ngrok-free.app', 'ngrok-free.dev',
+    'loca.lt', 'trycloudflare.com', 'framer.app', 'framer.website', 'bubbleapps.io', 'carrd.co',
+    'squarespace.com', 'replit.app', 'repl.co', 'vercel.dev', 'netlify.com', 'onrender.app',
+    'deno.dev', 'stackblitz.io', 'csb.app', 'kinsta.cloud', 'pantheonsite.io', 'webhostapp.com',
+    'blogspot.com', 'wordpress.com', 'hubspotpagebuilder.com', 'hs-sites.com', 'odoo.com', 'lovable.app'];
+  for (var i = 0; i < shared.length; i++) {
+    var s = shared[i];
+    if (h.length > s.length && h.slice(-s.length - 1) === '.' + s) {
+      n = Math.max(n, s.split('.').length + 1);
+    }
+  }
   if (/^[0-9.]+$/.test(h) || h.indexOf(':') !== -1) n = parts.length;
   return parts.slice(-n).join('.').replace(/[^a-z0-9.-]/g, '_');
+}
+
+// Where the injected script may post its MARKUP_* messages: the app (team and
+// guest pages both run there) plus EXTRA_CORS_ORIGINS. On local plain-HTTP setups
+// (API_URL not https) the app may run on any dev port, so '*' is kept there.
+function parentOrigins() {
+  const { URLS } = require('../config/env');
+  if (!/^https:/.test(URLS.api)) return ['*'];
+  const list = [URLS.app, ...(process.env.EXTRA_CORS_ORIGINS || '').split(',')]
+    .map((o) => { try { return new URL(o.trim()).origin; } catch { return null; } })
+    .filter((o) => o && o !== 'null');
+  const unique = [...new Set(list)];
+  return unique.length ? unique : ['*'];
 }
 
 function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest) {
@@ -226,10 +256,24 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   var __markupProjectId = ${jsString(projectId)};
   var __markupPageOrigin = ${jsString(pageOrigin)};
   var __markupIsGuest = ${isGuest ? 'true' : 'false'};
+  // Messages to the app go only to the app's origin(s); '*' only on local http setups
+  var __markupParentOrigins = ${JSON.stringify(parentOrigins())};
+  function __markupPost(msg) {
+    var targets = __markupParentOrigins;
+    try {
+      var ao = window.location.ancestorOrigins;
+      if (ao && ao.length && targets.indexOf(ao[0]) !== -1) targets = [ao[0]];
+    } catch (e) {}
+    for (var i = 0; i < targets.length; i++) {
+      try { window.parent.postMessage(msg, targets[i]); } catch (e) {}
+    }
+  }
   ${siteKey.toString()}
   // Mirrored localStorage tokens are tagged with the reviewed site, so the proxy
   // forwards them only to that site (see proxy.controller.js)
   var __markupLsPrefix = (function() { try { return '__markup_ls_' + siteKey(new URL(__markupPageOrigin).hostname) + '__'; } catch (e) { return '__markup_ls___'; } })();
+  // Our own cookies bypass the per-site cookie jar (see cookieScript in injectScript)
+  function __markupSetRawCookie(v) { if (window.__markupRawCookie) window.__markupRawCookie(v); else document.cookie = v; }
   var __markupToken = '';
   try {
     __markupToken = new URLSearchParams(window.location.search).get('token') || '';
@@ -663,7 +707,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   Storage.prototype.setItem = function(key, value) {
     _lsSetItem.apply(this, arguments);
     if (/token|auth|session|jwt|access/i.test(key) && !/^markup_/i.test(key) && typeof value === 'string' && value.length < 4096) {
-      try { document.cookie = __markupLsPrefix + encodeURIComponent(key) + '=' + encodeURIComponent(value) + '; path=/; max-age=86400; samesite=lax'; } catch(e) {}
+      try { __markupSetRawCookie(__markupLsPrefix + encodeURIComponent(key) + '=' + encodeURIComponent(value) + '; path=/; max-age=86400; samesite=lax'); } catch(e) {}
     }
   };
   try {
@@ -672,7 +716,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       if (/token|auth|session|jwt|access/i.test(lsKey) && !/^markup_/i.test(lsKey)) {
         var lsVal = localStorage.getItem(lsKey);
         if (lsVal && lsVal.length < 4096) {
-          document.cookie = __markupLsPrefix + encodeURIComponent(lsKey) + '=' + encodeURIComponent(lsVal) + '; path=/; max-age=86400; samesite=lax';
+          __markupSetRawCookie(__markupLsPrefix + encodeURIComponent(lsKey) + '=' + encodeURIComponent(lsVal) + '; path=/; max-age=86400; samesite=lax');
         }
       }
     }
@@ -689,7 +733,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
         var originalPath = resolved.pathname + resolved.search + resolved.hash;
         __markupPageUrl = resolved.href;
         _pushState.call(this, state, title, originalPath);
-        window.parent.postMessage({ type: 'MARKUP_READY', pageUrl: resolved.href, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight }, '*');
+        __markupPost({ type: 'MARKUP_READY', pageUrl: resolved.href, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight });
         return;
       } catch(e) {}
     }
@@ -721,7 +765,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
       var currentPath = window.location.pathname + window.location.search + window.location.hash;
       var resolved = new URL(currentPath, __markupPageOrigin);
       __markupPageUrl = resolved.href;
-      window.parent.postMessage({ type: 'MARKUP_READY', pageUrl: resolved.href, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight }, '*');
+      __markupPost({ type: 'MARKUP_READY', pageUrl: resolved.href, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight });
     } catch(e) {}
   }
   window.addEventListener('popstate', updatePageUrlFromLocation);
@@ -1079,7 +1123,7 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   }
 
   function sendMessage(type, data) {
-    window.parent.postMessage(Object.assign({ type: type }, data), '*');
+    __markupPost(Object.assign({ type: type }, data));
   }
 
   var _pinElements = {};
@@ -1553,14 +1597,62 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
 })();
 </script>`;
 
+  // Every reviewed site shares the proxy origin's cookie jar. The site's cookies
+  // are stored under its own prefix (the proxy does the same for Set-Cookie and
+  // forwards only the target site's cookies), so the page reads and writes only
+  // its own: a site never sees another site's cookies through document.cookie,
+  // and its cookies are never sent to another site.
+  let cookiePrefix = '__mkc___';
+  try { cookiePrefix = siteCookiePrefix(new URL(pageUrl).hostname); } catch {}
+  const cookieScript = `
+<script>
+(function() {
+  var prefix = ${jsString(cookiePrefix)};
+  var desc = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
+  if (!desc || !desc.get || !desc.set) return;
+  try {
+    Object.defineProperty(window, '__markupRawCookie', {
+      value: function(v) { try { desc.set.call(document, v); } catch (e) {} }
+    });
+  } catch (e) {}
+  if (!desc.configurable) return;
+  try {
+    Object.defineProperty(Document.prototype, 'cookie', {
+      configurable: true,
+      enumerable: desc.enumerable,
+      get: function() {
+        var raw = desc.get.call(this) || '';
+        var list = raw ? raw.split(/;\\s*/) : [];
+        var out = [];
+        for (var i = 0; i < list.length; i++) {
+          if (list[i].indexOf(prefix) === 0) out.push(list[i].slice(prefix.length));
+        }
+        return out.join('; ');
+      },
+      set: function(v) {
+        var str = String(v);
+        var semi = str.indexOf(';');
+        var pair = (semi === -1 ? str : str.slice(0, semi)).replace(/^\\s+/, '');
+        var attrs = semi === -1 ? '' : str.slice(semi);
+        var eq = pair.indexOf('=');
+        var name = eq === -1 ? '' : pair.slice(0, eq);
+        if (/^(markup_|__markup_|__mkc_)/i.test(name)) return;
+        attrs = attrs.replace(/;\\s*(domain|path|samesite|secure)(=[^;]*)?/gi, '');
+        desc.set.call(this, prefix + pair + attrs + '; path=/; samesite=lax');
+      }
+    });
+  } catch (e) {}
+})();
+</script>`;
+
   // Insert the capture script as early as possible (right after <head>), so it
   // precedes the page's smooth-scroll library + init scripts.
   const headMatch = html.match(/<head[^>]*>/i);
   if (headMatch) {
     const idx = headMatch.index + headMatch[0].length;
-    html = html.slice(0, idx) + captureScript + html.slice(idx);
+    html = html.slice(0, idx) + cookieScript + captureScript + html.slice(idx);
   } else {
-    html = captureScript + html;
+    html = cookieScript + captureScript + html;
   }
 
   // Inject the main script before the LAST </body> to avoid inserting inside inline
@@ -1572,4 +1664,9 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   return html + injectionScript;
 }
 
-module.exports = { rewriteHtml, rewriteCssUrls, rewriteJsUrls, injectScript, siteKey };
+// Name prefix for a reviewed site's cookies in the proxy origin's cookie jar
+function siteCookiePrefix(host) {
+  return `__mkc_${siteKey(host)}__`;
+}
+
+module.exports = { rewriteHtml, rewriteCssUrls, rewriteJsUrls, injectScript, siteKey, siteCookiePrefix };

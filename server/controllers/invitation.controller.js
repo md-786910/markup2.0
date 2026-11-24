@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const Invitation = require('../models/Invitation');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendInvitationEmail } = require('../utils/mailer');
@@ -27,7 +26,7 @@ async function canManageInvitation(user, invitation) {
 exports.getInvitation = asyncHandler(async (req, res) => {
   const { token } = req.params;
 
-  const invitation = await Invitation.findOne({ token, status: 'pending' })
+  const invitation = await Invitation.findOne({ ...Invitation.tokenFilter(token), status: 'pending' })
     .populate('project', 'name websiteUrl')
     .populate('workspace', 'name')
     .populate('invitedBy', 'name');
@@ -109,12 +108,15 @@ exports.resendInvitation = asyncHandler(async (req, res) => {
   }
 
   // Rotate the token so any link in an earlier email remains invalid.
-  invitation.token = crypto.randomBytes(32).toString('hex');
+  // The new token is stored hashed; only the email carries the raw value.
+  const { raw: rawToken, token: tokenHash, tokenHashed } = Invitation.newToken();
+  invitation.token = tokenHash;
+  invitation.tokenHashed = tokenHashed;
   invitation.expiresAt = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
   await invitation.save();
 
   const clientOrigin = URLS.app;
-  const signupUrl = `${clientOrigin}/signup?token=${invitation.token}`;
+  const signupUrl = `${clientOrigin}/signup?token=${rawToken}`;
 
   try {
     await sendInvitationEmail(

@@ -18,15 +18,60 @@ function buildPinLink(projectId, pinId) {
  * Get all project members (owner + members) except the actor and those who muted the project.
  * Returns array of { _id, name, email }.
  */
-async function getRecipients(projectId, excludeUserId) {
-  const project = await Project.findById(projectId)
-    .populate('owner', 'name email mutedProjectEmails')
-    .populate('members', 'name email mutedProjectEmails');
-  if (!project) return [];
+// Fields of the people a project notifies, for both the in-app notifications
+// (utils/notificationHelper) and the emails
+const AUDIENCE_FIELDS = 'name email avatar mutedProjectEmails';
 
-  // Project members plus the members of its workspace
-  const { workspaceMemberUsers } = require('./workspaces');
-  const all = [project.owner, ...(project.members || []), ...(await workspaceMemberUsers(project, 'name email mutedProjectEmails'))].filter(Boolean);
+// Calls for the same project while one load is running share it (a comment
+// or a status change notifies in-app and by email at the same moment). Only
+// in-flight loads are shared, never cached: each new event reads membership fresh.
+const audienceLoads = new Map();
+
+/**
+ * The project ({ _id, name, owner, members, workspace, organization }) and the
+ * people it notifies, in order: owner, project members, then members of its
+ * workspace (same organization only). Users that no longer exist are left out.
+ * Three queries: project, workspace, users. Returned objects are shared
+ * between concurrent callers: don't mutate them.
+ */
+function loadProjectAudience(projectId) {
+  const key = String(projectId);
+  if (audienceLoads.has(key)) return audienceLoads.get(key);
+  const load = (async () => {
+    const project = await Project.findById(projectId).select('name owner members workspace organization').lean();
+    if (!project) return { project: null, users: [] };
+
+    const Workspace = require('../models/Workspace');
+    const workspace = project.workspace
+      ? await Workspace.findById(project.workspace).select('members').lean()
+      : await Workspace.findOne({ organization: project.organization, isDefault: true }).select('members').lean();
+
+    const directIds = [project.owner, ...(project.members || [])].filter(Boolean);
+    const workspaceIds = (workspace?.members || []).map((m) => m.user).filter(Boolean);
+    const or = [];
+    if (directIds.length) or.push({ _id: { $in: directIds } });
+    if (workspaceIds.length) or.push({ _id: { $in: workspaceIds }, organization: project.organization });
+    const found = or.length ? await User.find({ $or: or }).select(`${AUDIENCE_FIELDS} organization`).lean() : [];
+    const byId = new Map(found.map((u) => [u._id.toString(), u]));
+
+    // Keep the old order; a workspace member only counts when in the project's org
+    const users = [];
+    for (const id of directIds) if (byId.has(id.toString())) users.push(byId.get(id.toString()));
+    const orgStr = project.organization ? project.organization.toString() : null;
+    for (const id of workspaceIds) {
+      const u = byId.get(id.toString());
+      if (u && (u.organization ? u.organization.toString() : null) === orgStr) users.push(u);
+    }
+    return { project, users };
+  })();
+  audienceLoads.set(key, load);
+  load.finally(() => audienceLoads.delete(key)).catch(() => {});
+  return load;
+}
+
+async function getRecipients(projectId, excludeUserId) {
+  const { project, users: all } = await loadProjectAudience(projectId);
+  if (!project) return [];
   const excludeStr = excludeUserId ? excludeUserId.toString() : '';
   const projIdStr = projectId ? projectId.toString() : '';
   const seen = new Set();
@@ -174,4 +219,4 @@ async function notifyIntegrations(projectId, orgId, eventData) {
   }
 }
 
-module.exports = { emitToProject, emailProjectMembers, emailMentionedUsers, notifyIntegrations, getRecipients };
+module.exports = { emitToProject, emailProjectMembers, emailMentionedUsers, notifyIntegrations, getRecipients, loadProjectAudience };

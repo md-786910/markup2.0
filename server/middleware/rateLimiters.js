@@ -126,14 +126,14 @@ const twoFactorLimiter = rateLimit({
   ...shared,
 });
 
-// User id inside a 2FA challenge, read without verifying (only used as a key)
+// User id inside a genuine (signed) admin 2FA challenge. Forged challenges are
+// not counted against anyone: otherwise anyone who knows an admin's id could
+// use up that admin's attempts and keep them from signing in. (Forged ones are
+// refused by the controller and still count on the per-IP limiters.)
 function challengeUserId(req) {
-  try {
-    const payload = JSON.parse(Buffer.from(String(req.body?.challengeToken || '').split('.')[1] || '', 'base64url').toString());
-    return typeof payload.id === 'string' ? `u:${payload.id}` : null;
-  } catch {
-    return null;
-  }
+  const { readChallenge } = require('../utils/twoFactor');
+  const challenge = readChallenge(req.body?.challengeToken, 'admin');
+  return challenge && typeof challenge.id === 'string' ? `u:${challenge.id}` : null;
 }
 
 // New support requests: per signed-in user, so one person can't flood the inbox
@@ -176,6 +176,34 @@ const guestPasswordLimiter = rateLimit({
   ...shared,
 });
 
+// Guest writes (pins and comments through a review link): per link and visitor,
+// so one link can't be used to flood a team with feedback and notifications
+const guestWriteLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `${String(req.params.shareToken || '').slice(0, 128)}:${rateLimit.ipKeyGenerator(req.ip || '')}`,
+  message: { message: 'You have left a lot of feedback in a short time. Please wait a few minutes and try again.' },
+  store: store('guest-write'),
+  ...shared,
+});
+
+// Website proxy: pages pull many assets, so the limits are generous; they stop
+// the proxy being used as a bulk fetcher. Signed-in reviewers per user, guests
+// (share links) per IP. Mounted after proxyAuth, which sets req.user.
+const proxyLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: (req) => (req.user ? 6000 : 2000),
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
+  keyGenerator: (req) => (req.user ? `u:${req.user._id}` : `ip:${rateLimit.ipKeyGenerator(req.ip || '')}`),
+  message: { message: 'Too many requests through the review proxy. Please wait a few minutes.' },
+  store: store('proxy'),
+  ...shared,
+});
+
 const loginEmailLimiter = emailLimiter('login', FIFTEEN_MIN, 10, { skipSuccessfulRequests: true });
 const passwordResetEmailLimiter = emailLimiter('reset', 60 * 60 * 1000, 3);
 const otpEmailLimiter = emailLimiter('otp', 60 * 60 * 1000, 6);
@@ -192,4 +220,6 @@ module.exports = {
   passwordResetEmailLimiter,
   otpEmailLimiter,
   guestPasswordLimiter,
+  guestWriteLimiter,
+  proxyLimiter,
 };

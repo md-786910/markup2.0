@@ -9,7 +9,9 @@ const CLIENT_ORIGIN = URLS.app;
  * Returns { id, key, self } from Jira API.
  */
 async function createJiraIssue(config, data) {
-  const { domain, email, apiToken, projectKey, issueType } = config;
+  const { domain, email, projectKey, issueType } = config;
+  // Stored encrypted (utils/integrationSecrets); legacy plaintext passes through
+  const apiToken = require('./integrationSecrets').revealSecret(config.apiToken);
 
   if (!domain || !email || !apiToken || !projectKey) {
     throw new Error('Jira integration is not fully configured');

@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
 const asyncHandler = require('../utils/asyncHandler');
@@ -8,15 +9,43 @@ const { isProxyToken } = require('../utils/proxyToken');
 
 const LAST_SEEN_INTERVAL_MS = 5 * 60 * 1000;
 
+// Fields the User schema never selects by default (select: false)
+const USER_HIDDEN = { passwordHash: 0, resetPasswordToken: 0, resetPasswordExpires: 0 };
+
+// The user and their organization in one round trip, read fresh on every
+// request (no cache: logout, a password change or removal from the org must
+// take effect at once). Hydrated into normal documents, like findById's.
+async function loadUserAndOrg(userId) {
+  const [row] = await User.aggregate([
+    { $match: { _id: new mongoose.Types.ObjectId(String(userId)) } },
+    { $project: USER_HIDDEN },
+    { $limit: 1 },
+    {
+      $lookup: {
+        from: Organization.collection.name,
+        localField: 'organization',
+        foreignField: '_id',
+        as: '__org',
+      },
+    },
+  ]);
+  if (!row) return { user: null, org: null };
+  const orgRow = row.__org?.[0] || null;
+  delete row.__org;
+  return {
+    user: User.hydrate(row, USER_HIDDEN),
+    org: orgRow ? Organization.hydrate(orgRow) : null,
+  };
+}
+
 const auth = asyncHandler(async (req, res, next) => {
   let token = null;
 
-  // Check query param first (used by proxy routes where the proxied app may send
-  // its own Authorization header that would conflict with our JWT verification)
+  // Bearer header only. Session tokens are never read from the query string:
+  // URLs end up in logs and Referer headers (the proxy has its own
+  // project-scoped token in middleware/proxyAuth.js).
   const header = req.headers.authorization;
-  if (req.query && req.query.token) {
-    token = req.query.token;
-  } else if (header && header.startsWith('Bearer ')) {
+  if (header && header.startsWith('Bearer ')) {
     token = header.split(' ')[1];
   }
   // No cookie fallback: a session cookie on the API host would be usable by
@@ -31,13 +60,14 @@ const auth = asyncHandler(async (req, res, next) => {
     if (isProxyToken(decoded)) {
       return res.status(401).json({ message: 'Invalid token' });
     }
-    const user = await User.findById(decoded.id);
+    const { user, org } = await loadUserAndOrg(decoded.id);
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    // Single-device session enforcement
-    if (decoded.sessionToken && user.sessionToken && decoded.sessionToken !== user.sessionToken) {
+    // Single-device session enforcement: the token must carry the user's current
+    // session (a user without one has been signed out everywhere)
+    if (!user.sessionToken || decoded.sessionToken !== user.sessionToken) {
       return res.status(401).json({
         message: 'Session expired. You have been logged in on another device.',
         code: 'SESSION_REPLACED',
@@ -54,7 +84,6 @@ const auth = asyncHandler(async (req, res, next) => {
 
     // Populate organization context if user has one
     if (user.organization) {
-      const org = await Organization.findById(user.organization);
       if (org) {
         await checkTrialExpiry(org);
         // Plan limits (with admin plan config) plus per-org superadmin overrides

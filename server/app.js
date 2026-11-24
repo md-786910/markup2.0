@@ -59,6 +59,17 @@ app.use(
     frameguard: false,
   }),
 );
+// helmet's CSP and frameguard are off because reviewed sites run on this origin
+// through /api/proxy. Every other API response (JSON, the unsubscribe page) gets a
+// lock-down policy: no scripts, nothing framed or framing it. /uploads sets its own.
+const API_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
+app.use((req, res, next) => {
+  if (!req.path.startsWith("/api/proxy") && !req.path.startsWith("/uploads")) {
+    res.setHeader("Content-Security-Policy", API_CSP);
+    res.setHeader("X-Frame-Options", "DENY");
+  }
+  next();
+});
 // CORS allowlist: the app, admin and website URLs from .env (+ EXTRA_CORS_ORIGINS).
 // Localhost matches in dev only.
 const LOCALHOST_RE = /^https?:\/\/localhost(:\d+)?$/;
@@ -251,6 +262,21 @@ app.use((req, res, next) => {
   } catch {
     return next();
   }
+});
+
+// Unknown API routes answer in JSON like every other API response
+app.use("/api", (req, res) => {
+  res.status(404).json({ message: "Not found" });
+});
+
+// A malformed id or value in the URL/body (Mongoose CastError, schema
+// validation) is the client's mistake: a 400, not a 5xx reported to Sentry
+app.use((err, req, res, next) => {
+  if (err && (err.name === "CastError" || err.name === "ValidationError") && !err.status) {
+    err.status = 400;
+    if (err.name === "CastError") err.message = "Invalid id or value";
+  }
+  next(err);
 });
 
 // Report unexpected (5xx) errors to Sentry before our handler responds

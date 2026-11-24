@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
@@ -40,10 +41,17 @@ const invitationSchema = new Schema({
     enum: ['view', 'comment', 'manage'],
     default: null,
   },
+  // SHA-256 of the emailed signup token (tokenHashed: true). Invitations
+  // created before hashing keep the raw token (tokenHashed unset) and are still
+  // found by tokenFilter until they are used, resent or expire.
   token: {
     type: String,
     required: true,
     unique: true,
+  },
+  tokenHashed: {
+    type: Boolean,
+    default: false,
   },
   status: {
     type: String,
@@ -70,6 +78,31 @@ const invitationSchema = new Schema({
 invitationSchema.pre('validate', function () {
   if (!this.project && !this.workspace) this.invalidate('project', 'An invitation needs a project or a workspace');
 });
+
+function hashInvitationToken(raw) {
+  return crypto.createHash('sha256').update(String(raw)).digest('hex');
+}
+
+// A new signup token: `raw` goes in the emailed link, the rest is stored
+invitationSchema.statics.newToken = function newToken() {
+  const raw = crypto.randomBytes(32).toString('hex');
+  return { raw, token: hashInvitationToken(raw), tokenHashed: true };
+};
+
+// Query matching the invitation for a raw token from a link: hashed rows by
+// hash, legacy rows by the raw value. A stored hash used as a link token
+// matches nothing (it is only compared against legacy, unhashed rows).
+invitationSchema.statics.tokenFilter = function tokenFilter(raw) {
+  if (typeof raw !== 'string' || !raw || raw.length > 256) return { _id: null };
+  return {
+    $or: [
+      { token: hashInvitationToken(raw), tokenHashed: true },
+      { token: raw, tokenHashed: { $ne: true } },
+    ],
+  };
+};
+
+invitationSchema.statics.hashToken = hashInvitationToken;
 
 invitationSchema.index({ email: 1, project: 1 });
 invitationSchema.index({ email: 1, workspace: 1 });

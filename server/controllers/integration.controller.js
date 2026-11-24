@@ -6,6 +6,10 @@ const { sendDiscordNotification } = require('../utils/discordNotifier');
 const { sendTeamsNotification } = require('../utils/teamsNotifier');
 const { logOrgActivity } = require('../utils/activityLogger');
 const { isPublicUrl } = require('../utils/ssrfGuard');
+const { revealSecret, revealConfig } = require('../utils/integrationSecrets');
+
+// Jira project keys go into API paths: letters, digits and underscores only
+const JIRA_PROJECT_KEY_RE = /^[A-Z][A-Z0-9_]{0,19}$/i;
 
 // Integration targets are called server-side, so they must be public HTTPS
 // endpoints (no internal hosts). Returns an error message, or null when valid.
@@ -16,6 +20,9 @@ async function validateIntegrationTarget(type, config) {
     if (!url.startsWith('https://') || !(await isPublicUrl(url))) {
       return 'Webhook URL must be a public https:// URL.';
     }
+  }
+  if (type === 'jira' && config.projectKey !== undefined && !JIRA_PROJECT_KEY_RE.test(String(config.projectKey))) {
+    return 'Jira project key must be letters, digits or underscores (e.g. WEB), up to 20 characters.';
   }
   if (type === 'jira' && config.domain !== undefined) {
     const domain = String(config.domain);
@@ -30,11 +37,22 @@ async function validateIntegrationTarget(type, config) {
 // A masked or empty token sent back on update means "keep the stored token".
 const TOKEN_MASK = '••••';
 
+// Secrets are stored encrypted: the response carries the webhook URL in plain
+// (the settings form edits it) and only the last 4 characters of the Jira token.
 function maskIntegration(doc) {
   if (!doc) return doc;
   const obj = doc.toObject ? doc.toObject() : { ...doc };
-  if (obj.config && obj.config.apiToken) {
-    obj.config = { ...obj.config, apiToken: `${TOKEN_MASK}${String(obj.config.apiToken).slice(-4)}` };
+  if (obj.config && typeof obj.config === 'object') {
+    const config = { ...obj.config };
+    if (config.webhookUrl) {
+      try { config.webhookUrl = revealSecret(config.webhookUrl); } catch { config.webhookUrl = ''; }
+    }
+    if (config.apiToken) {
+      let tail = '';
+      try { tail = String(revealSecret(config.apiToken)).slice(-4); } catch { /* unreadable: mask only */ }
+      config.apiToken = `${TOKEN_MASK}${tail}`;
+    }
+    obj.config = config;
   }
   return obj;
 }
@@ -146,6 +164,17 @@ exports.updateIntegration = asyncHandler(async (req, res) => {
     const { apiToken, ...rest } = config;
     config = rest;
   }
+  // The stored token is only ever sent to the site and account it was entered
+  // for: a new domain or email needs the token typed again
+  if (integration.type === 'jira' && config && typeof config === 'object' && !config.apiToken) {
+    const stored = integration.config || {};
+    const norm = (v) => String(v ?? '').trim().toLowerCase();
+    const domainChanged = config.domain !== undefined && norm(config.domain) !== norm(stored.domain);
+    const emailChanged = config.email !== undefined && norm(config.email) !== norm(stored.email);
+    if (domainChanged || emailChanged) {
+      return res.status(400).json({ message: 'Enter the API token again when you change the Jira site or email.', code: 'JIRA_TOKEN_REQUIRED' });
+    }
+  }
   const targetError = await validateIntegrationTarget(integration.type, config);
   if (targetError) {
     return res.status(400).json({ message: targetError });
@@ -214,6 +243,7 @@ exports.testIntegration = asyncHandler(async (req, res) => {
   };
 
   try {
+    // Secrets are stored encrypted (the notifiers decrypt the webhook URL)
     if (integration.type === 'slack') {
       await sendSlackNotification(integration.config.webhookUrl, testData);
     } else if (integration.type === 'discord') {
@@ -223,8 +253,11 @@ exports.testIntegration = asyncHandler(async (req, res) => {
     } else if (integration.type === 'jira') {
       // For Jira, just test the connection by fetching the project
       const axios = require('axios');
-      const { domain, email, apiToken, projectKey } = integration.config;
-      await axios.get(`https://${domain}/rest/api/3/project/${projectKey}`, {
+      const { domain, email, apiToken, projectKey } = revealConfig(integration.config);
+      if (!JIRA_PROJECT_KEY_RE.test(String(projectKey || ''))) {
+        return res.status(400).json({ message: 'Test failed: the Jira project key is not valid.' });
+      }
+      await axios.get(`https://${domain}/rest/api/3/project/${encodeURIComponent(projectKey)}`, {
         auth: { username: email, password: apiToken },
         ...require('../utils/ssrfGuard').safeAxiosOptions,
       });

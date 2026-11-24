@@ -10,6 +10,71 @@ export const PROXY_ORIGIN = (() => {
   }
 })();
 
+// The review iframe (IframeContainer) carries this attribute. Messages must come
+// from its window: the proxy origin alone also matches frames nested inside the
+// reviewed page and windows it opens (SEC-13).
+export const REVIEW_FRAME_ATTR = "data-markup-review";
+
+// Where parent -> iframe messages may go: the proxy origin when known
+export const PROXY_TARGET_ORIGIN = PROXY_ORIGIN || "*";
+
+export function isReviewFrameMessage(event) {
+  if (PROXY_ORIGIN && event.origin !== PROXY_ORIGIN) return false;
+  if (!event.source) return false;
+  const frames = document.querySelectorAll(`iframe[${REVIEW_FRAME_ATTR}]`);
+  for (let i = 0; i < frames.length; i += 1) {
+    if (frames[i].contentWindow === event.source) return true;
+  }
+  return false;
+}
+
+const KNOWN_TYPES = new Set([
+  "MARKUP_READY",
+  "MARKUP_NAVIGATING",
+  "MARKUP_SCROLL",
+  "MARKUP_CLICK",
+  "MARKUP_SCREENSHOT",
+  "MARKUP_PIN_CLICK",
+  "MARKUP_BLOCKED",
+]);
+
+const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+// Optional number: null/undefined stay null, anything else must be finite
+const optNum = (v) => (v == null ? null : isNum(v) ? v : undefined);
+const optStr = (v, max) => (v == null ? null : typeof v === "string" && v.length <= max ? v : undefined);
+const isPageUrl = (v) => typeof v === "string" && v.length <= 4096 && /^https?:\/\//i.test(v);
+
+// Checks a MARKUP_* message's fields; returns false for anything malformed
+function validMessage(data) {
+  switch (data.type) {
+    case "MARKUP_NAVIGATING":
+      return true;
+    case "MARKUP_BLOCKED":
+      return data.domain == null || (typeof data.domain === "string" && data.domain.length <= 255);
+    case "MARKUP_READY":
+      return (data.pageUrl == null || isPageUrl(data.pageUrl))
+        && optNum(data.documentWidth) !== undefined && optNum(data.documentHeight) !== undefined;
+    case "MARKUP_SCROLL":
+      return ["scrollX", "scrollY", "documentWidth", "documentHeight", "viewportWidth", "viewportHeight"]
+        .every((k) => isNum(data[k]));
+    case "MARKUP_CLICK":
+      return isNum(data.xPercent) && isNum(data.yPercent)
+        && ["viewportXPercent", "viewportYPercent", "elementOffsetX", "elementOffsetY", "documentWidth", "documentHeight"]
+          .every((k) => optNum(data[k]) !== undefined)
+        && optStr(data.clickId, 100) !== undefined
+        && optStr(data.selector, 20000) !== undefined
+        && isPageUrl(data.pageUrl)
+        && (data.context == null || (typeof data.context === "object" && !Array.isArray(data.context)));
+    case "MARKUP_SCREENSHOT":
+      return optStr(data.clickId, 100) !== undefined
+        && (data.screenshot == null || (typeof data.screenshot === "string" && /^data:image\/(jpeg|png|webp);base64,/.test(data.screenshot)));
+    case "MARKUP_PIN_CLICK":
+      return typeof data.pinId === "string" && data.pinId.length <= 64;
+    default:
+      return false;
+  }
+}
+
 export function useIframeMessages() {
   // Scroll data stored in ref — updates do NOT trigger re-renders
   const scrollRef = useRef({
@@ -44,14 +109,14 @@ export function useIframeMessages() {
 
   useEffect(() => {
     const handler = (event) => {
-      if (PROXY_ORIGIN && event.origin !== PROXY_ORIGIN) return;
       const data = event.data;
-      if (
-        !data ||
-        typeof data.type !== "string" ||
-        !data.type.startsWith("MARKUP_")
-      )
+      if (!data || typeof data.type !== "string" || !data.type.startsWith("MARKUP_")) return;
+      if (!isReviewFrameMessage(event) || !KNOWN_TYPES.has(data.type) || !validMessage(data)) {
+        // Forged or malformed: also keep it from the page's other MARKUP_*
+        // listeners (ProjectView's pin-click handler is registered after this one)
+        event.stopImmediatePropagation();
         return;
+      }
 
       switch (data.type) {
         case "MARKUP_NAVIGATING":

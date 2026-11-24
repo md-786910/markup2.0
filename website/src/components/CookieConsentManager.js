@@ -6,6 +6,7 @@ import {
   createConsentPayload,
   DEFAULT_COOKIE_PREFERENCES,
   readCookieConsent,
+  startAnalytics,
   writeCookieConsent,
 } from '../utils/cookieConsent';
 
@@ -24,6 +25,7 @@ export default function CookieConsentManager() {
 
   useEffect(() => {
     const existingConsent = readCookieConsent();
+    startAnalytics(existingConsent);
     setSavedConsent(existingConsent);
     setDraftPreferences(existingConsent?.preferences || DEFAULT_COOKIE_PREFERENCES);
     setMounted(true);

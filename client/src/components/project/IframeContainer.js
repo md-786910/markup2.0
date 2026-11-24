@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { PROXY_TARGET_ORIGIN } from '../../hooks/useIframeMessages';
 
 const DESKTOP_WIDTH = 1440;
 const SLOW_LOAD_MS = 20000;
@@ -62,7 +63,7 @@ export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, se
     try {
       iframe.contentWindow.postMessage(
         { type: 'MARKUP_NAVIGATE', url: targetUrl },
-        '*'
+        PROXY_TARGET_ORIGIN
       );
     } catch {
       // If postMessage fails (cross-origin), fall back to setting src directly
@@ -78,7 +79,7 @@ export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, se
     const sendPinMode = () => {
       iframe.contentWindow.postMessage(
         { type: 'MARKUP_PIN_MODE', enabled: pinMode },
-        '*'
+        PROXY_TARGET_ORIGIN
       );
     };
 
@@ -109,7 +110,7 @@ export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, se
       }));
       iframe.contentWindow.postMessage(
         { type: 'MARKUP_UPDATE_PINS', pins: pinData },
-        '*'
+        PROXY_TARGET_ORIGIN
       );
     };
 
@@ -125,7 +126,7 @@ export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, se
     if (!iframe || !focusPin?.id) return undefined;
     const send = () => {
       try {
-        iframe.contentWindow.postMessage({ type: 'MARKUP_SELECT_PIN', pinId: focusPin.id, scroll: true }, '*');
+        iframe.contentWindow.postMessage({ type: 'MARKUP_SELECT_PIN', pinId: focusPin.id, scroll: true }, PROXY_TARGET_ORIGIN);
       } catch {
         // iframe not ready; the load listener sends it
       }
@@ -155,6 +156,7 @@ export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, se
           opacity: loading ? 0 : 1,
         }}
         sandbox="allow-scripts allow-same-origin allow-forms"
+        data-markup-review=""
         onLoad={onLoad}
       />
       <div

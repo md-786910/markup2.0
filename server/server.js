@@ -79,13 +79,13 @@ connectDB()
         if (!user) return next(new Error("User not found"));
         // Single-session enforcement, same as the HTTP auth middleware
         if (
-          decoded.sessionToken &&
-          user.sessionToken &&
+          !user.sessionToken ||
           decoded.sessionToken !== user.sessionToken
         ) {
           return next(new Error("Session expired"));
         }
         socket.user = user;
+        socket.tokenExp = decoded.exp;
         // socket.data is visible to other instances (fetchSockets via the Redis adapter)
         socket.data.userId = user._id.toString();
         next();
@@ -101,10 +101,35 @@ connectDB()
         socket.join(`user:${socket.user._id.toString()}`);
       }
 
+      // The JWT is checked when the socket opens: close it when the token
+      // expires, so a connection never outlives its session
+      if (socket.tokenExp) {
+        const ms = socket.tokenExp * 1000 - Date.now();
+        const timer = setTimeout(() => socket.disconnect(true), Math.max(ms, 0));
+        timer.unref?.();
+        socket.on("disconnect", () => clearTimeout(timer));
+      }
+
+      // Presence: someone is "left" only when none of their tabs remain in the room
+      const announceLeft = async (projectId) => {
+        const userId = socket.user._id.toString();
+        try {
+          const sockets = await io.in(`project:${projectId}`).fetchSockets();
+          if (sockets.some((s) => s.id !== socket.id && s.data.userId === userId)) return;
+        } catch {}
+        const now = new Date();
+        User.findByIdAndUpdate(socket.user._id, { lastSeen: now }).catch(() => {});
+        socket.to(`project:${projectId}`).emit("presence:left", {
+          userId,
+          lastSeen: now.toISOString(),
+        });
+      };
+
       socket.on("join:project", async (projectId) => {
         // Only project members (or admins of the project's org) may join its room
         try {
           if (!mongoose.isValidObjectId(projectId)) return;
+          if (socket.rooms.has(`project:${projectId}`)) return;
           const project = await Project.findById(projectId).select(
             "owner members memberAccess organization workspace",
           );
@@ -112,7 +137,11 @@ connectDB()
         } catch {
           return;
         }
-        socket.join(`project:${projectId}`);
+        // Pin events carry technical details (console errors, requests) that
+        // org guests don't get: they listen in a sub-room that receives pins
+        // without them (utils/realtime.js emitPin)
+        const audience = socket.user.role === "guest" ? "guests" : "team";
+        socket.join([`project:${projectId}`, `project:${projectId}:${audience}`]);
         socket.data.projectId = projectId;
 
         // Broadcast to others that this user is online
@@ -133,30 +162,18 @@ connectDB()
         }
       });
 
-      socket.on("leave:project", (projectId) => {
+      socket.on("leave:project", async (projectId) => {
+        if (!socket.rooms.has(`project:${projectId}`)) return;
         socket.leave(`project:${projectId}`);
-        const now = new Date();
-        User.findByIdAndUpdate(socket.user._id, { lastSeen: now }).catch(
-          () => {},
-        );
-        socket.to(`project:${projectId}`).emit("presence:left", {
-          userId: socket.user._id.toString(),
-          lastSeen: now.toISOString(),
-        });
+        socket.leave(`project:${projectId}:team`);
+        socket.leave(`project:${projectId}:guests`);
+        if (socket.data.projectId === projectId) socket.data.projectId = null;
+        await announceLeft(projectId);
       });
 
       socket.on("disconnect", () => {
         const projectId = socket.data.projectId;
-        if (projectId) {
-          const now = new Date();
-          User.findByIdAndUpdate(socket.user._id, { lastSeen: now }).catch(
-            () => {},
-          );
-          socket.to(`project:${projectId}`).emit("presence:left", {
-            userId: socket.user._id.toString(),
-            lastSeen: now.toISOString(),
-          });
-        }
+        if (projectId) announceLeft(projectId);
       });
     });
 

@@ -24,6 +24,18 @@ const { URLS } = require('../config/env');
 const mongoose = require('mongoose');
 const Workspace = require('../models/Workspace');
 const { ensureDefaultWorkspace, visibleProjectsQuery } = require('../utils/workspaces');
+const { isValidWebsiteUrl, MIN_SHARE_PASSWORD_LENGTH } = require('../utils/inputValidation');
+
+const INVALID_WEBSITE_URL = 'Enter a valid website address starting with http:// or https://';
+
+// A non-empty review-link password must have a minimum length ('' / null clears it)
+function sharePasswordError(password) {
+  if (password === undefined || password === null || password === '') return null;
+  if (typeof password !== 'string' || password.length < MIN_SHARE_PASSWORD_LENGTH || password.length > 200) {
+    return `The link password must be ${MIN_SHARE_PASSWORD_LENGTH} to 200 characters.`;
+  }
+  return null;
+}
 
 // A workspace id from the request that belongs to the org, else the default one
 async function resolveWorkspace(orgId, requestedId) {
@@ -54,6 +66,15 @@ function sanitizeShareSettings(shareSettings) {
   return obj;
 }
 
+// Share settings for someone with `level` on the project: the link token opens
+// the guest review (and guest posting), so only people who manage the project
+// get it
+function shareSettingsFor(shareSettings, level) {
+  const obj = sanitizeShareSettings(shareSettings);
+  if (obj && level !== 'manage') delete obj.token;
+  return obj;
+}
+
 exports.createProject = asyncHandler(async (req, res) => {
   const { name, websiteUrl, projectType = 'website' } = req.body;
 
@@ -66,6 +87,11 @@ exports.createProject = asyncHandler(async (req, res) => {
   if (projectType === 'website' && !websiteUrl) {
     await refundUploads(req);
     return res.status(400).json({ message: 'Website URL is required for website projects' });
+  }
+
+  if (projectType === 'website' && !isValidWebsiteUrl(websiteUrl)) {
+    await refundUploads(req);
+    return res.status(400).json({ message: INVALID_WEBSITE_URL });
   }
 
   if (projectType === 'document' && (!req.files || req.files.length === 0)) {
@@ -121,7 +147,8 @@ exports.createProject = asyncHandler(async (req, res) => {
         let parser = null;
         try {
           const { PDFParse } = require('pdf-parse');
-          parser = new PDFParse({ data: fs.readFileSync(file.path) });
+          // Async read: a large PDF no longer blocks the event loop
+          parser = new PDFParse({ data: await fs.promises.readFile(file.path) });
           const info = await parser.getInfo();
           pageCount = info.total || 1;
         } catch (err) {
@@ -181,34 +208,45 @@ exports.getProjects = asyncHandler(async (req, res) => {
     .populate('members', 'name email role lastSeen avatar');
 
   // Per-project open/resolved pin and comment counts for the dashboard cards,
-  // computed in MongoDB instead of loading every pin into memory.
+  // computed in MongoDB: one grouped pass over the pins (only project, status
+  // and _id), then one over the comments of those pins (index { pin: 1, … }),
+  // instead of a $lookup per pin. The access levels load at the same time.
   const projectIds = projects.map((p) => p._id);
-  const stats = await Pin.aggregate([
-    { $match: { project: { $in: projectIds } } },
-    {
-      $lookup: {
-        from: Comment.collection.name,
-        localField: '_id',
-        foreignField: 'pin',
-        pipeline: [{ $project: { _id: 1 } }],
-        as: 'comments',
-      },
-    },
-    {
-      $group: {
-        _id: '$project',
-        resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
-        total: { $sum: 1 },
-        comments: { $sum: { $size: '$comments' } },
-      },
-    },
-  ]);
-  const statsByProject = new Map(stats.map((st) => [st._id.toString(), st]));
-
   const { projectLevelsFor } = require('../utils/workspaces');
-  const levels = await projectLevelsFor(req.user, projects);
+  const [pinStats, levels] = await Promise.all([
+    projectIds.length ? Pin.aggregate([
+      { $match: { project: { $in: projectIds } } },
+      { $project: { project: 1, status: 1 } },
+      {
+        $group: {
+          _id: '$project',
+          resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+          total: { $sum: 1 },
+          pinIds: { $push: '$_id' },
+        },
+      },
+    ]) : [],
+    projectLevelsFor(req.user, projects),
+  ]);
+  const projectOfPin = new Map();
+  for (const st of pinStats) for (const pinId of st.pinIds) projectOfPin.set(pinId.toString(), st._id.toString());
+  const commentCounts = projectOfPin.size ? await Comment.aggregate([
+    { $match: { pin: { $in: pinStats.flatMap((st) => st.pinIds) } } },
+    { $group: { _id: '$pin', n: { $sum: 1 } } },
+  ]) : [];
+  const commentsByProject = new Map();
+  for (const c of commentCounts) {
+    const projectId = projectOfPin.get(c._id.toString());
+    commentsByProject.set(projectId, (commentsByProject.get(projectId) || 0) + c.n);
+  }
+  const statsByProject = new Map(pinStats.map((st) => [
+    st._id.toString(),
+    { resolved: st.resolved, total: st.total, comments: commentsByProject.get(st._id.toString()) || 0 },
+  ]));
   const projectsWithCounts = projects.map((project, i) => ({
     ...project.toObject(),
+    // toObject() skips the schema's toJSON transform: strip the share secrets here
+    shareSettings: shareSettingsFor(project.shareSettings, levels[i]),
     access: levels[i],
     workspace: project.workspace || defaultWs._id,
     commentCount: statsByProject.get(project._id.toString())?.comments || 0,
@@ -228,7 +266,12 @@ exports.getProject = asyncHandler(async (req, res) => {
   // Workspace members see the project too: offered for @mentions and presence
   const { workspaceMemberUsers } = require('../utils/workspaces');
   const workspaceMembers = await workspaceMemberUsers(project, 'name email role lastSeen avatar');
-  res.json({ project, access: req.access, workspaceMembers, proxyToken: signProxyToken(req.user, project._id) });
+  res.json({
+    project: { ...project.toJSON(), shareSettings: shareSettingsFor(project.shareSettings, req.access) },
+    access: req.access,
+    workspaceMembers,
+    proxyToken: signProxyToken(req.user, project._id),
+  });
 });
 
 exports.getWorkspaceMembers = asyncHandler(async (req, res) => {
@@ -263,6 +306,10 @@ exports.updateProject = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Only the project owner or admin can update' });
   }
 
+  if (websiteUrl !== undefined && websiteUrl !== null && websiteUrl !== '' && !isValidWebsiteUrl(websiteUrl)) {
+    return res.status(400).json({ message: INVALID_WEBSITE_URL });
+  }
+
   const oldProjectStatus = project.projectStatus;
   const oldStatus = project.status;
 
@@ -282,6 +329,10 @@ exports.updateProject = asyncHandler(async (req, res) => {
       if (!atLeast(workspaceLevel(req.user, target), 'manage')) {
         return res.status(403).json({ message: 'You need to manage a workspace to move projects into it.', code: 'ACCESS_LEVEL' });
       }
+      // Members of the old workspace may lose access: their sockets re-join after the move
+      const { workspaceOfProject } = require('../utils/workspaces');
+      const oldWs = await workspaceOfProject(project);
+      req.movedFromMembers = (oldWs?.members || []).map((m) => m.user);
     }
     project.workspace = target._id;
   }
@@ -295,6 +346,7 @@ exports.updateProject = asyncHandler(async (req, res) => {
     }
   }
   await project.save();
+  if (req.movedFromMembers?.length) require('../utils/realtime').reconnectUsers(req.app.get('io'), req.movedFromMembers);
 
   // Activity log for status changes
   if (projectStatus && projectStatus !== oldProjectStatus) {
@@ -441,7 +493,8 @@ exports.inviteMember = asyncHandler(async (req, res) => {
     }
   }
 
-  const token = crypto.randomBytes(32).toString('hex');
+  // Stored hashed; the raw token only goes in the emailed link
+  const { raw: token, token: tokenHash, tokenHashed } = Invitation.newToken();
   const invitation = await Invitation.create({
     email,
     project: project._id,
@@ -449,7 +502,8 @@ exports.inviteMember = asyncHandler(async (req, res) => {
     invitedBy: req.user._id,
     role: roleToAssign,
     level: levelToGrant,
-    token,
+    token: tokenHash,
+    tokenHashed,
   });
 
   // Activity log
@@ -551,6 +605,8 @@ exports.updateMemberRole = asyncHandler(async (req, res) => {
   }
 
   await User.findByIdAndUpdate(userId, { role });
+  // Access depends on the org role: reconnect their sockets so rooms are re-checked
+  require('../utils/realtime').reconnectUsers(req.app.get('io'), [userId]);
 
   // Activity log
   logActivity(project._id, req.user._id, 'member.role_changed', {
@@ -616,6 +672,9 @@ exports.removeMember = asyncHandler(async (req, res) => {
   project.memberAccess = (project.memberAccess || []).filter((m) => m.user.toString() !== userId);
   await project.save();
   await User.findByIdAndUpdate(userId, { $pull: { mutedProjectEmails: project._id } });
+  // Their open tabs stop receiving this project's events (unless the
+  // workspace or their org role still gives them access)
+  await require('../utils/realtime').leaveProjectIfNoAccess(io, targetUser, project);
 
   // Activity log
   logActivity(project._id, req.user._id, 'member.removed', {
@@ -704,6 +763,8 @@ exports.enableShare = asyncHandler(async (req, res) => {
   }
 
   const { password, allowComments = true, expiresAt } = req.body;
+  const passwordError = sharePasswordError(password);
+  if (passwordError) return res.status(400).json({ message: passwordError });
 
   if (!project.shareSettings?.token) {
     project.shareSettings = {
@@ -749,6 +810,8 @@ exports.updateShare = asyncHandler(async (req, res) => {
   }
 
   const { password, allowComments, expiresAt } = req.body;
+  const passwordError = sharePasswordError(password);
+  if (passwordError) return res.status(400).json({ message: passwordError });
 
   if (!project.shareSettings?.token) {
     return res.status(400).json({ message: 'Sharing is not enabled for this project.' });

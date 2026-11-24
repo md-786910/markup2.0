@@ -4,6 +4,7 @@ const Comment = require('../models/Comment');
 const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 const { emitToProject, emailProjectMembers, notifyIntegrations } = require('../utils/notifier');
+const { emitPin } = require('../utils/realtime');
 const { logActivity } = require('../utils/activityLogger');
 const { metric } = require('../instrument');
 const { extractMentionedUserIds } = require('../utils/mentionHelper');
@@ -39,6 +40,11 @@ exports.createPin = asyncHandler(async (req, res) => {
     await refundUploads(req); // the screenshot was reserved by enforceStorageQuota
     return res.status(400).json({ message: 'xPercent, yPercent, and pageUrl are required' });
   }
+  // A website page (http/https) or a document page ("doc:...")
+  if (!require('../utils/inputValidation').isValidPageUrl(pageUrl)) {
+    await refundUploads(req);
+    return res.status(400).json({ message: 'pageUrl must be a web address (http/https) or a document page.' });
+  }
 
   // Screenshot file uploaded via multer
   const screenshot = req.file ? {
@@ -59,21 +65,14 @@ exports.createPin = asyncHandler(async (req, res) => {
     });
   }
 
-  // Get next incremental pin number for this project
-  const lastPin = await Pin.findOne({ project: projectId })
-    .sort({ pinNumber: -1 })
-    .select('pinNumber')
-    .lean();
-  const pinNumber = (lastPin?.pinNumber || 0) + 1;
-
   const context = sanitizePinContext(req.body.context, {
     projectSettings: projectDoc?.settings,
     isGuest: false,
     userAgent: req.headers['user-agent'],
   });
 
-  const pin = await Pin.create({
-    project: projectId,
+  // Next incremental pin number for this project (safe under concurrent posts)
+  const pin = await require('../utils/pinNumber').createNumberedPin(projectId, {
     pageUrl,
     createdBy: req.user._id,
     xPercent,
@@ -87,9 +86,9 @@ exports.createPin = asyncHandler(async (req, res) => {
     viewportXPercent,
     viewportYPercent,
     screenshot,
-    pinNumber,
     context,
   });
+  const { pinNumber } = pin;
   // New feedback after a sign-off: the round is back in review
   await Project.updateOne({ _id: projectId, projectStatus: 'approved' }, { $set: { projectStatus: 'in_review' } });
 
@@ -97,7 +96,7 @@ exports.createPin = asyncHandler(async (req, res) => {
 
   // Real-time notification (email is sent when the first comment is created)
   const io = req.app.get('io');
-  emitToProject(io, projectId, 'pin:created', { pin: populated });
+  emitPin(io, projectId, 'pin:created', populated);
 
   // Activity log
   logActivity(projectId, req.user._id, 'pin.created', { pinNumber, pageUrl });
@@ -133,6 +132,76 @@ exports.createPin = asyncHandler(async (req, res) => {
   res.status(201).json({ pin: populated });
 });
 
+// getPins reads pins with lean() (hydrating hundreds of pin documents was most
+// of its time); this fills in the schema defaults a hydrated toObject() had for
+// fields missing on older pins (e.g. labels: [], priority: 'normal')
+let pinDefaults = null;
+function withPinDefaults(obj) {
+  if (!pinDefaults) {
+    pinDefaults = [];
+    Pin.schema.eachPath((p, st) => {
+      if (p === '_id' || st.defaultValue === undefined) return;
+      // Array defaults are factory functions; the others are plain values
+      pinDefaults.push([p.split('.'), st.instance === 'Array' ? () => [] : () => st.defaultValue]);
+    });
+  }
+  for (const [parts, make] of pinDefaults) {
+    let target = obj;
+    for (let i = 0; i < parts.length - 1 && target; i++) {
+      if (target[parts[i]] === undefined) target[parts[i]] = {};
+      target = target[parts[i]] !== null && typeof target[parts[i]] === 'object' ? target[parts[i]] : null;
+    }
+    const key = parts[parts.length - 1];
+    if (target && target[key] === undefined) target[key] = make();
+  }
+  return obj;
+}
+
+// Mention markup in a comment body (@[Name](id) or a data-id attribute), as
+// matched by utils/mentionHelper.extractMentionedUserIds
+const MENTION_MARKUP = /@\[|data-(?:id|mention-id|user-id)=/;
+
+// Per pin: comment count, first and latest comment, the distinct comment
+// authors and mentioned users. Only the first/latest bodies leave MongoDB: a
+// comment's mentions are stored on it (comment.controller), so a body is only
+// sent back to be scanned when it has mention markup but no stored mentions
+// (guest comments, comments written before mentions were stored).
+function pinCommentSummaries(pinIds) {
+  if (!pinIds.length) return Promise.resolve([]);
+  return Comment.aggregate([
+    { $match: { pin: { $in: pinIds } } },
+    { $sort: { pin: 1, createdAt: 1 } }, // index { pin: 1, createdAt: 1 }
+    {
+      $group: {
+        _id: '$pin',
+        count: { $sum: 1 },
+        firstBody: { $first: '$body' },
+        firstAuthor: { $first: '$author' },
+        firstCreatedAt: { $first: '$createdAt' },
+        latestBody: { $last: '$body' },
+        latestAuthor: { $last: '$author' },
+        latestCreatedAt: { $last: '$createdAt' },
+        mentions: { $addToSet: '$mentions' },
+        authors: { $addToSet: '$author' },
+        legacyMentionBodies: {
+          $push: {
+            $cond: [
+              {
+                $and: [
+                  { $eq: [{ $size: { $ifNull: ['$mentions', []] } }, 0] },
+                  { $regexMatch: { input: { $ifNull: ['$body', ''] }, regex: MENTION_MARKUP } },
+                ],
+              },
+              '$body',
+              '$$REMOVE',
+            ],
+          },
+        },
+      },
+    },
+  ]).allowDiskUse(true);
+}
+
 exports.getPins = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
   const { pageUrl, deviceMode, status, assignee, priority, label } = req.query;
@@ -165,29 +234,12 @@ exports.getPins = asyncHandler(async (req, res) => {
   const pins = await Pin.find(filter)
     .populate('createdBy', 'name email')
     .populate('assignee', 'name email')
-    .sort({ position: 1, createdAt: -1 });
+    .sort({ position: 1, createdAt: -1 })
+    .lean();
 
   // Get comment counts, first comment, and latest comment for each pin
   const pinIds = pins.map((p) => p._id);
-  const commentAgg = await Comment.aggregate([
-    { $match: { pin: { $in: pinIds } } },
-    { $sort: { createdAt: 1 } },
-    {
-      $group: {
-        _id: '$pin',
-        count: { $sum: 1 },
-        firstBody: { $first: '$body' },
-        firstAuthor: { $first: '$author' },
-        firstCreatedAt: { $first: '$createdAt' },
-        latestBody: { $last: '$body' },
-        latestAuthor: { $last: '$author' },
-        latestCreatedAt: { $last: '$createdAt' },
-        allMentions: { $push: '$mentions' },
-        allBodies: { $push: '$body' },
-        allAuthors: { $push: '$author' },
-      },
-    },
-  ]);
+  const commentAgg = await pinCommentSummaries(pinIds);
 
   // Populate comment authors (both first and latest)
   const authorIds = [
@@ -197,16 +249,16 @@ exports.getPins = asyncHandler(async (req, res) => {
   const authors = await require('../models/User').find(
     { _id: { $in: [...new Set(authorIds.map((id) => id.toString()))] } },
     'name email'
-  );
+  ).lean();
   const authorMap = {};
   authors.forEach((a) => { authorMap[a._id.toString()] = a; });
 
   const commentMap = {};
   commentAgg.forEach((c) => {
-    const directMentions = (c.allMentions || []).flat().filter(Boolean).map((id) => id.toString());
-    const bodyMentions = (c.allBodies || []).flatMap((b) => extractMentionedUserIds(b));
+    const directMentions = (c.mentions || []).flat().filter(Boolean).map((id) => id.toString());
+    const bodyMentions = (c.legacyMentionBodies || []).flatMap((b) => extractMentionedUserIds(b));
     const mentionedUserIds = [...new Set([...directMentions, ...bodyMentions])];
-    const commentAuthorIds = (c.allAuthors || []).filter(Boolean).map((id) => id.toString());
+    const commentAuthorIds = (c.authors || []).filter(Boolean).map((id) => id.toString());
 
     commentMap[c._id.toString()] = {
       count: c.count,
@@ -230,7 +282,7 @@ exports.getPins = asyncHandler(async (req, res) => {
     const createdById = pin.createdBy?._id?.toString() || pin.createdBy?.toString();
     const authorUserIds = [...new Set([createdById, ...(info.commentAuthorIds || [])].filter(Boolean))];
 
-    const obj = pin.toObject();
+    const obj = withPinDefaults(pin);
     // Technical details (console errors, requests, environment) are for the
     // team, not outside collaborators (org guests), as on share links
     if (req.user?.role === 'guest') delete obj.context;
@@ -316,7 +368,7 @@ exports.updatePin = asyncHandler(async (req, res) => {
 
   // Real-time notification
   const io = req.app.get('io');
-  emitToProject(io, pin.project.toString(), 'pin:updated', { pin: populated });
+  emitPin(io, pin.project.toString(), 'pin:updated', populated);
 
   // Notifications on assignment change
   if (pin.assignee && String(pin.assignee._id || pin.assignee) !== prevAssignee) {
@@ -427,7 +479,7 @@ exports.attachScreenshot = asyncHandler(async (req, res) => {
 
   // Real-time notification for late screenshot attachment
   const io = req.app.get('io');
-  if (io) emitToProject(io, req.project._id.toString(), 'pin:updated', { pin: populated });
+  if (io) emitPin(io, req.project._id.toString(), 'pin:updated', populated);
 
   res.json({ pin: populated });
 });
@@ -500,7 +552,9 @@ exports.reorderPins = asyncHandler(async (req, res) => {
 
   const io = req.app.get('io');
   if (io) {
-    emitToProject(io, req.project._id.toString(), 'pins:reordered', { moves });
+    // Only the moves that were applied, as applied (never the raw request body)
+    const applied = bulkOps.map((op) => ({ pinId: String(op.updateOne.filter._id), ...op.updateOne.update.$set }));
+    if (applied.length) emitToProject(io, req.project._id.toString(), 'pins:reordered', { moves: applied });
   }
 
   res.json({ success: true, count: bulkOps.length });

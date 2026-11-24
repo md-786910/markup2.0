@@ -40,8 +40,9 @@ export const uploadAvatarApi = (formData) =>
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
-export const deleteAccountApi = () =>
-  api.delete('/auth/account');
+// The password confirms the deletion (a wrong one is a 400, not a 401)
+export const deleteAccountApi = (password) =>
+  api.delete('/auth/account', { data: { password } });
 
 export const updateOrganizationApi = (formData) =>
   api.patch('/auth/organization', formData, {

@@ -133,6 +133,8 @@ exports.deleteWorkspace = asyncHandler(async (req, res) => {
   const defaultWs = await ensureDefaultWorkspace(orgId);
   const moved = await Project.updateMany({ organization: orgId, workspace: workspace._id }, { workspace: defaultWs._id });
   await workspace.deleteOne();
+  // Its members lose access to those projects: their sockets re-join what they can still open
+  require('../utils/realtime').reconnectUsers(req.app.get('io'), workspace.members.map((m) => m.user));
   logOrgActivity(orgId, req.user._id, 'workspace.deleted', { name: workspace.name, movedProjects: moved.modifiedCount });
   res.json({ message: 'Workspace deleted', movedTo: defaultWs._id, movedProjects: moved.modifiedCount });
 });
@@ -178,8 +180,11 @@ exports.setWorkspaceMembers = asyncHandler(async (req, res) => {
   if (users.length !== wanted.size) {
     return res.status(400).json({ message: 'Everyone added must be part of this organization' });
   }
+  const removed = workspace.members.map((m) => m.user.toString()).filter((id) => !wanted.has(id));
   workspace.members = users.map((u) => ({ user: u._id, level: capForRole(wanted.get(u._id.toString()), u.role) }));
   await workspace.save();
+  // People taken off the workspace stop receiving its projects' events
+  require('../utils/realtime').reconnectUsers(req.app.get('io'), removed);
   logOrgActivity(req.user.organization, req.user._id, 'workspace.members_updated', { name: workspace.name, count: users.length });
   const levels = new Map(workspace.members.map((m) => [m.user.toString(), m.level]));
   res.json({ members: users.map((u) => ({ ...u.toObject(), level: levels.get(u._id.toString()) })) });
@@ -197,6 +202,13 @@ const shareResponse = (workspace) => ({
 });
 
 async function applyShareInput(workspace, { password, allowComments, expiresAt }) {
+  // A non-empty link password needs a minimum length ('' / null removes it).
+  // Thrown before anything is saved; the error handler answers 400.
+  const { MIN_SHARE_PASSWORD_LENGTH } = require('../utils/inputValidation');
+  if (password !== undefined && password !== null && password !== ''
+    && (typeof password !== 'string' || password.length < MIN_SHARE_PASSWORD_LENGTH || password.length > 200)) {
+    throw Object.assign(new Error(`The link password must be ${MIN_SHARE_PASSWORD_LENGTH} to 200 characters.`), { status: 400 });
+  }
   if (password !== undefined) workspace.shareSettings.passwordHash = password ? await bcrypt.hash(String(password), 10) : null;
   if (allowComments !== undefined) workspace.shareSettings.allowComments = !!allowComments;
   if (expiresAt !== undefined) workspace.shareSettings.expiresAt = expiresAt || null;
@@ -315,9 +327,10 @@ exports.inviteToWorkspace = asyncHandler(async (req, res) => {
     const seatError = await seatLimitError(req.organization, role, email);
     if (seatError) { results.push({ email, status: 'error', ...seatError }); continue; }
 
-    const token = crypto.randomBytes(32).toString('hex');
+    // Stored hashed; the raw token only goes in the emailed link
+    const { raw: token, token: tokenHash, tokenHashed } = Invitation.newToken();
     await Invitation.create({
-      email, workspace: workspace._id, organization: req.user.organization, invitedBy: req.user._id, role, level: capForRole(requestedLevel, role), token,
+      email, workspace: workspace._id, organization: req.user.organization, invitedBy: req.user._id, role, level: capForRole(requestedLevel, role), token: tokenHash, tokenHashed,
     });
     let emailSent = true;
     try {
@@ -371,8 +384,11 @@ exports.updateOrgRole = asyncHandler(async (req, res) => {
     const seatError = await seatLimitError(req.organization, role);
     if (seatError) return res.status(403).json(seatError);
   }
+  const changed = target.role !== role;
   target.role = role;
   await target.save({ validateBeforeSave: false });
+  // Project access (and the guest/team event room) follows the org role
+  if (changed) require('../utils/realtime').reconnectUsers(req.app.get('io'), [target._id]);
   res.json({ user: { _id: target._id, name: target.name, email: target.email, role: target.role } });
 });
 

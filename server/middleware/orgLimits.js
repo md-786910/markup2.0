@@ -66,7 +66,8 @@ const checkOrgNotLocked = asyncHandler(async (req, res, next) => {
   if (!org) {
     return res.status(500).json({ message: 'Organization context missing' });
   }
-  if (org.isLocked) {
+  // A scheduled deletion is read-only even when another lock was lifted meanwhile
+  if (org.isLocked || org.deletionScheduledAt) {
     const isDeletion = org.deletionScheduledAt || org.lockedReason === DELETION_LOCK_REASON;
     return res.status(403).json({
       message: isDeletion

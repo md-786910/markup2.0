@@ -73,7 +73,7 @@ module.exports = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
-    if (decoded.sessionToken && user.sessionToken && decoded.sessionToken !== user.sessionToken) {
+    if (!user.sessionToken || decoded.sessionToken !== user.sessionToken) {
       return res.status(401).json({ message: 'Session expired', code: 'SESSION_REPLACED' });
     }
     req.user = { _id: user._id };

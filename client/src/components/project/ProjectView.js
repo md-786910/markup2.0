@@ -54,9 +54,11 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const limits = user?.orgLimits || {};
   const workspaceName = project.workspace?.name || project.workspaceName || user?.workspaceName || user?.companyName || 'Leanport';
 
-  const [pins, setPins] = useState([]);
+  // Every pin of the project (all pages and devices), from one request. The
+  // device's pins (sidebar) and the current page's pins (overlay) are derived
+  // from it, as are the per-device counts.
+  const [projectPins, setProjectPins] = useState([]);
   const [focusPin, setFocusPin] = useState(null);
-  const [allPins, setAllPins] = useState([]);
   const [selectedPin, setSelectedPin] = useState(null);
   const [pinMode, setPinMode] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
@@ -69,32 +71,17 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const [iframeLoading, setIframeLoading] = useState(true);
   const [viewportWidth, setViewportWidth] = useState(1440);
   const [deviceMode, setDeviceMode] = useState('desktop');
-  // Open (unresolved) pins per device, as { pinId: deviceMode }. Counts are
-  // derived from it, so applying the same event twice (our own change echoed
-  // back by the socket, or an edit that isn't a status change) can't drift them.
-  const [openPinModes, setOpenPinModes] = useState({});
+  // Open (unresolved) pins per device, derived from the project's pins, so
+  // applying the same event twice (our own change echoed back by the socket)
+  // can't drift them
   const devicePinCounts = useMemo(() => {
     const counts = { desktop: 0, tablet: 0, mobile: 0 };
-    Object.values(openPinModes).forEach((mode) => { if (counts[mode] !== undefined) counts[mode] += 1; });
+    projectPins.forEach((p) => {
+      const mode = p.deviceMode || 'desktop';
+      if (p.status !== 'resolved' && counts[mode] !== undefined) counts[mode] += 1;
+    });
     return counts;
-  }, [openPinModes]);
-  const trackPin = useCallback((pin) => {
-    if (!pin?._id) return;
-    setOpenPinModes((prev) => {
-      const next = { ...prev };
-      if (pin.status === 'resolved') delete next[pin._id];
-      else next[pin._id] = pin.deviceMode || 'desktop';
-      return next;
-    });
-  }, []);
-  const untrackPin = useCallback((pinId) => {
-    setOpenPinModes((prev) => {
-      if (!(pinId in prev)) return prev;
-      const next = { ...prev };
-      delete next[pinId];
-      return next;
-    });
-  }, []);
+  }, [projectPins]);
   const [currentDocPage, setCurrentDocPage] = useState(1);
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
   const [sidebarTab, setSidebarTab] = useState('pins');
@@ -151,23 +138,25 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     ? `doc:${currentDoc?.filename}:page:${currentDocPage}`
     : normalizePageUrl(iframeState.currentPageUrl || project.websiteUrl);
 
-  const loadPins = useCallback(async () => {
-    try {
-      const res = await getPinsApi(project._id, currentPageUrl, undefined, deviceMode);
-      setPins(res.data.pins);
-    } catch (err) {
-      toastError(err, 'Could not load comments for this page.');
-    }
-  }, [project._id, currentPageUrl, deviceMode]);
+  // The device's pins (sidebar, board) and the current page's pins (overlay),
+  // in the server's order, as GET /pins?deviceMode=&pageUrl= returned them
+  const allPins = useMemo(
+    () => projectPins.filter((p) => (p.deviceMode || 'desktop') === deviceMode),
+    [projectPins, deviceMode]
+  );
+  const pins = useMemo(() => {
+    const canonical = normalizePageUrl(currentPageUrl);
+    return allPins.filter((p) => p.pageUrl === currentPageUrl || p.pageUrl === canonical);
+  }, [allPins, currentPageUrl]);
 
-  const loadAllPins = useCallback(async () => {
+  const reloadPins = useCallback(async () => {
     try {
-      const res = await getPinsApi(project._id, undefined, undefined, deviceMode);
-      setAllPins(res.data.pins);
+      const res = await getPinsApi(project._id);
+      setProjectPins(res.data.pins);
     } catch (err) {
       toastError(err, 'Could not load comments.');
     }
-  }, [project._id, deviceMode]);
+  }, [project._id]);
 
   // Viewing one review round (Versions tab): only that version's pins
   const inVersion = useCallback(
@@ -182,41 +171,17 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     if (pinMode) setSelectedVersion(null);
   }, [pinMode]);
 
-  // Auto-fetch pins with cancellation when deps change (and after a socket
-  // reconnect, to pick up pins created while disconnected)
+  // Fetch the project's pins once (one request covers every page and device),
+  // and again after a socket reconnect, to pick up pins created while disconnected
   useEffect(() => {
     const controller = new AbortController();
-    getPinsApi(project._id, currentPageUrl, controller.signal, deviceMode)
-      .then((res) => setPins(res.data.pins))
-      .catch((err) => {
-        toastError(err, 'Could not load comments for this page.');
-      });
-    return () => controller.abort();
-  }, [project._id, currentPageUrl, deviceMode, resyncKey]);
-
-  // Auto-fetch all pins with cancellation (filtered by device mode)
-  useEffect(() => {
-    const controller = new AbortController();
-    getPinsApi(project._id, undefined, controller.signal, deviceMode)
-      .then((res) => setAllPins(res.data.pins))
+    getPinsApi(project._id, undefined, controller.signal)
+      .then((res) => setProjectPins(res.data.pins))
       .catch((err) => {
         toastError(err, 'Could not load comments.');
       });
     return () => controller.abort();
-  }, [project._id, deviceMode, resyncKey]);
-
-  // Fetch pin counts per device mode (all devices, for indicator dots)
-  useEffect(() => {
-    getPinsApi(project._id)
-      .then((res) => {
-        const open = {};
-        for (const pin of res.data.pins) {
-          if (pin.status !== 'resolved') open[pin._id] = pin.deviceMode || 'desktop';
-        }
-        setOpenPinModes(open);
-      })
-      .catch(() => {});
-  }, [project._id]);
+  }, [project._id, resyncKey]);
 
   // Handle clicks from iframe — store click data for pending pin (don't create yet)
   useEffect(() => {
@@ -258,12 +223,11 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       if (res?.data?.pin?.screenshot) {
         setSelectedPin((prev) => (prev && prev._id === pinId ? { ...prev, screenshot: res.data.pin.screenshot } : prev));
       }
-      loadAllPins();
-      loadPins();
+      reloadPins();
     } catch (err) {
       console.warn('Screenshot upload failed:', err);
     }
-  }, [project._id, loadAllPins, loadPins]);
+  }, [project._id, reloadPins]);
   const uploadScreenshotRef = useRef(uploadScreenshot);
   uploadScreenshotRef.current = uploadScreenshot;
 
@@ -376,10 +340,8 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const handleDeletePin = async (pinId) => {
     try {
       await deletePinApi(project._id, pinId);
-      untrackPin(pinId);
       handleClosePin();
-      await loadPins();
-      await loadAllPins();
+      await reloadPins();
     } catch (err) {
       toastError(err, 'Could not delete the pin.');
     }
@@ -389,9 +351,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     try {
       const res = await updatePinApi(project._id, pinId, patchData);
       const updated = res.data?.pin;
-      if (updated) trackPin(updated);
-      await loadPins();
-      await loadAllPins();
+      await reloadPins();
       if (selectedPin?._id === pinId) {
         setSelectedPin((prev) => ({ ...prev, ...(updated || patchData) }));
       }
@@ -436,20 +396,12 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   // Pin created by another member
   useEffect(() => {
     return onEvent('pin:created', (data) => {
-      setAllPins((prev) => {
-        if (prev.some((p) => p._id === data.pin._id)) return prev;
-        if (data.pin.deviceMode && data.pin.deviceMode !== deviceMode) return prev;
-        return [data.pin, ...prev];
-      });
-      setPins((prev) => {
-        if (data.pin.pageUrl !== currentPageUrl) return prev;
-        if (data.pin.deviceMode && data.pin.deviceMode !== deviceMode) return prev;
+      setProjectPins((prev) => {
         if (prev.some((p) => p._id === data.pin._id)) return prev;
         return [data.pin, ...prev];
       });
-      trackPin(data.pin);
     });
-  }, [onEvent, currentPageUrl, deviceMode, trackPin]);
+  }, [onEvent]);
 
   // A deadline set, changed or removed by someone else applies right away
   // (latest project/callback read through a ref so the listener is set once)
@@ -467,24 +419,20 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     return onEvent('pin:updated', (data) => {
       const updater = (prev) =>
         prev.map((p) => (p._id === data.pin._id ? { ...p, ...data.pin } : p));
-      setPins(updater);
-      setAllPins(updater);
+      setProjectPins(updater);
       setSelectedPin((prev) =>
         prev && prev._id === data.pin._id ? { ...prev, ...data.pin } : prev
       );
-      trackPin(data.pin);
     });
-  }, [onEvent, trackPin]);
+  }, [onEvent]);
 
   // Pin deleted
   useEffect(() => {
     return onEvent('pin:deleted', (data) => {
-      untrackPin(data.pinId);
-      setAllPins((prev) => prev.filter((p) => p._id !== data.pinId));
-      setPins((prev) => prev.filter((p) => p._id !== data.pinId));
+      setProjectPins((prev) => prev.filter((p) => p._id !== data.pinId));
       setSelectedPin((prev) => (prev && prev._id === data.pinId ? null : prev));
     });
-  }, [onEvent, untrackPin]);
+  }, [onEvent]);
 
   // Comment created — update counts in pin lists
   useEffect(() => {
@@ -508,8 +456,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             },
           };
         });
-      setPins(updater);
-      setAllPins(updater);
+      setProjectPins(updater);
     });
   }, [onEvent]);
 
@@ -521,8 +468,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           if (p._id !== data.pinId) return p;
           return { ...p, commentsCount: Math.max(0, (p.commentsCount || 1) - 1) };
         });
-      setPins(updater);
-      setAllPins(updater);
+      setProjectPins(updater);
     });
   }, [onEvent]);
 
@@ -531,22 +477,13 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
     const urlPinId = searchParams.get('pin') || searchParams.get('comment') || initialPinId;
     if (!urlPinId || initialPinHandled.current) return;
 
-    const targetPin = allPins.find((p) => p._id === urlPinId) || pins.find((p) => p._id === urlPinId);
+    // projectPins holds every page's and device's pins: no extra request
+    const targetPin = projectPins.find((p) => p._id === urlPinId);
     if (targetPin) {
       initialPinHandled.current = true;
       handlePinNavigate(targetPin);
-    } else {
-      getPinsApi(project._id)
-        .then((res) => {
-          const found = res.data.pins?.find((p) => p._id === urlPinId);
-          if (found) {
-            initialPinHandled.current = true;
-            handlePinNavigate(found);
-          }
-        })
-        .catch(() => {});
     }
-  }, [searchParams, initialPinId, allPins, pins, project._id, handlePinNavigate]);
+  }, [searchParams, initialPinId, projectPins, handlePinNavigate]);
 
   const handleDocumentClick = useCallback((clickData) => {
     if (pendingPinData) return;
@@ -673,7 +610,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
             onNavigatePin={handlePinNavigate}
             onStatusChange={handleStatusChange}
             onPinUpdate={handlePinUpdate}
-            onCommentAdded={() => { loadAllPins(); loadPins(); }}
+            onCommentAdded={reloadPins}
             onEvent={onEvent}
             resyncKey={resyncKey}
             members={allMembers}
@@ -972,7 +909,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
           members={allMembers}
           onClose={() => { setPendingPinData(null); if (!isDocumentProject) iframeState.clearScreenshot(); }}
           onPinSaved={handlePinSaved}
-          onPinCreated={() => { loadPins(); loadAllPins(); setPendingPinData(null); }}
+          onPinCreated={() => { reloadPins(); setPendingPinData(null); }}
         />
       )}
 

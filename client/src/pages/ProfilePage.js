@@ -4,8 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 import { updateProfileApi, uploadAvatarApi, deleteAccountApi } from '../services/authService';
 import { uploadUrl } from '../utils/uploadUrl';
 import { toast, toastError } from '../utils/toast';
-import { confirmDialog } from '../utils/confirm';
-import { Avatar, Button, Field, Input, Row, Section } from '../components/kc';
+import Modal from '../components/common/Modal';
+import { Avatar, Banner, Button, Field, Input, Row, Section } from '../components/kc';
 import SettingsLayout from '../components/settings/SettingsLayout';
 
 // Settings → Profile: name, email (read-only), avatar and closing the account.
@@ -23,6 +23,9 @@ export default function ProfilePage() {
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarError, setAvatarError] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
 
   const dirty = name.trim() !== savedName;
 
@@ -61,21 +64,31 @@ export default function ProfilePage() {
     }
   };
 
-  const deleteAccount = async () => {
-    const ok = await confirmDialog({
-      title: 'Delete your account?',
-      message: 'This permanently deletes your account and removes you from this organization\'s projects. Projects you created stay with the team and move to the organization owner. Your comments stay, shown as "Deleted user". This cannot be undone.',
-      confirmLabel: 'Delete my account',
-      danger: true,
-    });
-    if (!ok) return;
+  const openDelete = () => {
+    setDeletePassword('');
+    setDeleteError('');
+    setShowDelete(true);
+  };
+
+  const closeDelete = () => {
+    setShowDelete(false);
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
+  // The password confirms it: a wrong one comes back as a 400 with a message
+  const deleteAccount = async (e) => {
+    e.preventDefault();
+    if (!deletePassword) return;
     setDeleteLoading(true);
+    setDeleteError('');
     try {
-      await deleteAccountApi();
+      await deleteAccountApi(deletePassword);
       logout();
       navigate('/login');
     } catch (err) {
-      toastError(err, 'Could not delete your account.');
+      if (err.response?.status === 400) setDeleteError(err.response.data?.message || 'Password is incorrect');
+      else toastError(err, 'Could not delete your account.');
       setDeleteLoading(false);
     }
   };
@@ -132,10 +145,41 @@ export default function ProfilePage() {
             title="Delete your account"
             description="Removes you from this organization. Projects you created are deleted with their pins and comments."
           >
-            <Button variant="danger-quiet" loading={deleteLoading} onClick={deleteAccount} style={{ flexShrink: 0 }}>Delete account</Button>
+            <Button variant="danger-quiet" onClick={openDelete} style={{ flexShrink: 0 }}>Delete account</Button>
           </Row>
         )}
       </Section>
+
+      <Modal
+        isOpen={showDelete}
+        onClose={deleteLoading ? undefined : closeDelete}
+        title="Delete your account?"
+        size="md"
+      >
+        <form onSubmit={deleteAccount}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <Banner tone="danger" title="This cannot be undone">
+              This permanently deletes your account and removes you from this organization's projects. Projects you created stay with the team and move to the organization owner. Your comments stay, shown as "Deleted user".
+            </Banner>
+            <Field id="delete-account-password" label="Your password" error={deleteError}>
+              <Input
+                id="delete-account-password"
+                type="password"
+                value={deletePassword}
+                onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(''); }}
+                placeholder="Enter your account password"
+                autoComplete="current-password"
+                aria-invalid={deleteError ? 'true' : undefined}
+                autoFocus
+              />
+            </Field>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+              <Button type="button" onClick={closeDelete} disabled={deleteLoading}>Cancel</Button>
+              <Button type="submit" variant="danger" loading={deleteLoading} disabled={!deletePassword}>Delete my account</Button>
+            </div>
+          </div>
+        </form>
+      </Modal>
     </SettingsLayout>
   );
 }

@@ -41,8 +41,46 @@ export function writeCookieConsent(consent) {
     // Storage blocked (private mode, strict settings): the choice still applies
     // for this visit; the banner asks again next time
   }
+  loadGoogleAnalytics(preferences);
   updateAnalyticsConsent(preferences);
   if (!preferences.analytics) clearAnalyticsCookies();
+}
+
+// Google Analytics 4 (REACT_APP_GA_MEASUREMENT_ID; off when empty). gtag.js is
+// not requested at all until the visitor allows analytics: on a saved choice
+// (startAnalytics, from CookieConsentManager) or when the banner grants it.
+// Consent Mode is still set first, so marketing stays denied unless allowed.
+const GA_ID = process.env.REACT_APP_GA_MEASUREMENT_ID || '';
+let gaLoaded = false;
+
+function loadGoogleAnalytics(preferences) {
+  if (gaLoaded || !preferences || !preferences.analytics) return;
+  if (typeof window === 'undefined' || !/^G-[A-Z0-9]+$/.test(GA_ID)) return;
+  gaLoaded = true;
+  const marketing = preferences.marketing ? 'granted' : 'denied';
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function gtag() {
+    // gtag.js expects the arguments object itself
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer.push(arguments);
+  };
+  window.gtag('consent', 'default', {
+    analytics_storage: 'granted',
+    ad_storage: marketing,
+    ad_user_data: marketing,
+    ad_personalization: marketing,
+  });
+  window.gtag('js', new Date());
+  window.gtag('config', GA_ID);
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+  document.head.appendChild(script);
+}
+
+// Starts analytics for a visitor who allowed it on an earlier visit
+export function startAnalytics(consent) {
+  if (consent && consent.preferences) loadGoogleAnalytics(consent.preferences);
 }
 
 // Withdrawing analytics consent removes the Google Analytics cookies already set
@@ -61,7 +99,8 @@ function clearAnalyticsCookies() {
   }
 }
 
-// Google Analytics (public/index.html) runs in Consent Mode: pass the choice on
+// Google Analytics runs in Consent Mode: pass a changed choice on (withdrawing
+// analytics after gtag.js loaded stops storage and hits for the rest of the visit)
 function updateAnalyticsConsent(preferences) {
   if (typeof window.gtag !== 'function') return;
   const marketing = preferences.marketing ? 'granted' : 'denied';

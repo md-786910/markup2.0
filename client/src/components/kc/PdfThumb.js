@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 
+// Served from our own build (same pdfjs-dist version react-pdf uses), never a
+// third-party CDN (the CSP allows workers from 'self' only)
 if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-  try {
-    pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
-  } catch {
-    pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-  }
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 }
 
 export default function PdfThumb({ file }) {

@@ -143,5 +143,7 @@ pinSchema.index({ project: 1, pinNumber: 1 }, { unique: true, sparse: true });
 pinSchema.index({ project: 1, createdAt: -1 });
 pinSchema.index({ assignee: 1, status: 1, dueAt: 1 });
 pinSchema.index({ project: 1, status: 1, position: 1 });
+// getPins without a status filter: board order (position), newest first
+pinSchema.index({ project: 1, position: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Pin', pinSchema);

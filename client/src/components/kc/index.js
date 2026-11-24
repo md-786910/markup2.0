@@ -4,8 +4,11 @@
 // AppLayout puts around the signed-in shell). Rules worth remembering:
 // one `primary` Button per view, status is always a dot plus a word, icons
 // are the outline set below (16 in rows, 18 in the header, 20 in the rail).
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import PdfThumb from './PdfThumb';
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+
+// pdf.js is large: loaded only when a document thumbnail is shown, not with the
+// app shell (it used to put ~1 MB on every page, the login page included)
+const PdfThumb = lazy(() => import('./PdfThumb'));
 
 export function cx(...args) { return args.filter(Boolean).join(' '); }
 
@@ -564,7 +567,7 @@ export function ProjectThumb({ type = 'web', pins = [], imageSrc, fallbackImageS
       {type === 'doc' ? (
         pdfFile ? (
           <>
-            <PdfThumb file={pdfFile} />
+            <Suspense fallback={null}><PdfThumb file={pdfFile} /></Suspense>
             <div className="page">
               <i style={{ width: '60%', height: 6, background: 'var(--slate-400)' }} />
               <i /><i style={{ width: '80%' }} /><i /><i style={{ width: '50%' }} />

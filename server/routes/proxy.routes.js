@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const proxyAuth = require("../middleware/proxyAuth");
 const { proxyPage } = require("../controllers/proxy.controller");
+const { proxyLimiter } = require("../middleware/rateLimiters");
 
 // Reviewed sites run on the API origin: a service worker registered from one
 // would control every later review on this origin (and survive sign-out).
@@ -12,6 +13,6 @@ function refuseServiceWorkers(req, res, next) {
   next();
 }
 
-router.all("/", refuseServiceWorkers, proxyAuth, proxyPage);
+router.all("/", refuseServiceWorkers, proxyAuth, proxyLimiter, proxyPage);
 
 module.exports = router;

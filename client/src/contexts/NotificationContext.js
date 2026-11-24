@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { io } from 'socket.io-client';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { TOKEN_KEY } from '../utils/constants';
+import { acquireSocket, releaseSocket } from '../hooks/useSocket';
 import {
   getNotificationsApi,
   markAsReadApi,
@@ -9,8 +9,6 @@ import {
   deleteNotificationApi,
   clearAllNotificationsApi,
 } from '../services/notificationService';
-
-const SOCKET_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:5000';
 
 export const NotificationContext = createContext(null);
 
@@ -55,28 +53,24 @@ export function NotificationProvider({ children }) {
     const currentToken = token || localStorage.getItem(TOKEN_KEY);
     if (!currentToken || !userId) return;
 
-    const socket = io(SOCKET_URL, {
-      // Current token on every (re)connect (renewed in another tab, etc.)
-      auth: (cb) => cb({ token: localStorage.getItem(TOKEN_KEY) || currentToken }),
-      transports: ['websocket', 'polling'],
-    });
-
-    // The server closes a user's connections when their session changes; come
-    // back with the current token (an ended session is refused on connect)
-    socket.on('disconnect', (reason) => {
-      if (reason === 'io server disconnect' && localStorage.getItem(TOKEN_KEY)) socket.connect();
-    });
+    // The tab's shared connection (hooks/useSocket.js): the open project uses
+    // the same one, so a tab holds a single WebSocket. It reconnects with the
+    // current token after a session change.
+    const entry = acquireSocket();
+    if (!entry) return;
+    const { socket } = entry;
 
     socketRef.current = socket;
 
     // After a reconnect, catch up on notifications sent while disconnected
-    let connectedBefore = false;
-    socket.on('connect', () => {
+    let connectedBefore = socket.connected;
+    const onConnect = () => {
       if (connectedBefore) fetchNotifications();
       connectedBefore = true;
-    });
+    };
+    socket.on('connect', onConnect);
 
-    socket.on('notification:new', (newNotif) => {
+    const onNew = (newNotif) => {
       setNotifications((prev) => {
         // Prevent duplicate
         if (prev.some((n) => n._id === newNotif._id)) return prev;
@@ -85,10 +79,13 @@ export function NotificationProvider({ children }) {
       setUnreadCount((prev) => prev + 1);
       setHasNewNotification(true);
       setTimeout(() => setHasNewNotification(false), 3000);
-    });
+    };
+    socket.on('notification:new', onNew);
 
     return () => {
-      socket.disconnect();
+      socket.off('connect', onConnect);
+      socket.off('notification:new', onNew);
+      releaseSocket(entry);
       socketRef.current = null;
     };
   }, [token, userId, fetchNotifications]);
@@ -151,20 +148,22 @@ export function NotificationProvider({ children }) {
     }
   }, [fetchNotifications]);
 
+  // Same object until something in it changes, so consumers don't re-render
+  // whenever the provider does
+  const value = useMemo(() => ({
+    notifications,
+    unreadCount,
+    loading,
+    hasNewNotification,
+    fetchNotifications,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAll,
+  }), [notifications, unreadCount, loading, hasNewNotification, fetchNotifications, markAsRead, markAllAsRead, deleteNotification, clearAll]);
+
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        loading,
-        hasNewNotification,
-        fetchNotifications,
-        markAsRead,
-        markAllAsRead,
-        deleteNotification,
-        clearAll,
-      }}
-    >
+    <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );

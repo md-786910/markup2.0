@@ -36,6 +36,18 @@ const integrationSchema = new Schema({
   },
 }, { timestamps: true });
 
+// Webhook URLs and the Jira API token are stored encrypted (utils/integrationSecrets).
+// Plaintext values from older rows are encrypted on their next save.
+integrationSchema.pre('save', function () {
+  const { sealConfig, SECRET_FIELDS, isSealed } = require('../utils/integrationSecrets');
+  const config = this.config;
+  if (!config || typeof config !== 'object') return;
+  if (SECRET_FIELDS.some((f) => typeof config[f] === 'string' && config[f] && !isSealed(config[f]))) {
+    this.config = sealConfig(config);
+    this.markModified('config');
+  }
+});
+
 integrationSchema.index({ organization: 1, type: 1 });
 
 module.exports = mongoose.model('Integration', integrationSchema);

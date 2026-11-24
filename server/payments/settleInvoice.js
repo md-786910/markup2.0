@@ -80,15 +80,24 @@ async function settleInvoice(invoiceId, { providerPaymentId, providerCaptureId }
         : addMonthsUTC(new Date(), 1);
       periodStart = addMonthsUTC(periodEnd, -1);
     } else {
-      // Checkout invoice: extend from existing currentPeriodEnd if same plan still active
+      // Checkout invoice: extend from the end of the period already paid for,
+      // if the same plan is still active. The daily job advances
+      // currentPeriodEnd when it issues a renewal, so while that renewal is
+      // unpaid the paid period ends one cycle earlier (this payment covers the
+      // unpaid cycle instead of adding one after it; the renewal is voided below).
       periodStart = new Date();
-      if (
-        org.subscription &&
-        org.subscription.currentPeriodEnd &&
-        org.subscription.currentPeriodEnd > new Date() &&
-        org.plan === invoice.plan
-      ) {
-        periodStart = new Date(org.subscription.currentPeriodEnd);
+      let paidUntil = org.subscription?.currentPeriodEnd ? new Date(org.subscription.currentPeriodEnd) : null;
+      if (paidUntil) {
+        const unpaidRenewal = await Invoice.exists({
+          organization: org._id,
+          _id: { $ne: invoice._id },
+          status: 'pending',
+          billingMonth: { $type: 'string' },
+        });
+        if (unpaidRenewal) paidUntil = addMonthsUTC(paidUntil, -1);
+      }
+      if (paidUntil && paidUntil > new Date() && org.plan === invoice.plan) {
+        periodStart = paidUntil;
       }
       periodEnd = addMonthsUTC(periodStart, 1);
     }

@@ -26,31 +26,9 @@
       rel="stylesheet"
     />
 
-    <!-- Google Analytics 4 with Consent Mode v2: nothing is stored until the
-         visitor allows analytics in the cookie banner (src/utils/cookieConsent.js).
-         GA ID from REACT_APP_GA_MEASUREMENT_ID; not loaded when empty. -->
-    <script>
-      (function () {
-        var id = "%REACT_APP_GA_MEASUREMENT_ID%";
-        if (!/^G-[A-Z0-9]+$/.test(id)) return;
-        window.dataLayer = window.dataLayer || [];
-        window.gtag = function () { window.dataLayer.push(arguments); };
-        var prefs = {};
-        try { prefs = (JSON.parse(localStorage.getItem("kommently.cookie-consent")) || {}).preferences || {}; } catch (e) {}
-        gtag("consent", "default", {
-          analytics_storage: prefs.analytics ? "granted" : "denied",
-          ad_storage: prefs.marketing ? "granted" : "denied",
-          ad_user_data: prefs.marketing ? "granted" : "denied",
-          ad_personalization: prefs.marketing ? "granted" : "denied",
-        });
-        gtag("js", new Date());
-        gtag("config", id);
-        var s = document.createElement("script");
-        s.async = true;
-        s.src = "https://www.googletagmanager.com/gtag/js?id=" + id;
-        document.head.appendChild(s);
-      })();
-    </script>
+    <!-- Google Analytics 4 (REACT_APP_GA_MEASUREMENT_ID) is loaded by
+         src/utils/cookieConsent.js only after the visitor allows analytics in
+         the cookie banner; no inline scripts here (the nginx CSP allows none). -->
   </head>
   <body>
     <noscript>

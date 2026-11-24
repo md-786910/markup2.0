@@ -15,7 +15,10 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  // The saved password is never sent to the browser (only hasPassword): the
+  // field holds a new password, and an empty field keeps the current one
   const [password, setPassword] = useState('');
+  const [removePassword, setRemovePassword] = useState(false);
   const [allowComments, setAllowComments] = useState(true);
   const [captureConsoleErrors, setCaptureConsoleErrors] = useState(true);
   const [guestConsoleCapture, setGuestConsoleCapture] = useState(false);
@@ -24,12 +27,14 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
   const [shareUrl, setShareUrl] = useState('');
 
   const isSharing = project?.shareSettings?.enabled;
+  const hasPassword = !!project?.shareSettings?.hasPassword;
   const savedDeadlineAt = project?.review?.deadlineAt ? toLocalInputValue(project.review.deadlineAt) : '';
   const savedDeadlineMessage = project?.review?.deadlineMessage || '';
 
   useEffect(() => {
     if (project?.shareSettings) {
-      setPassword(project.shareSettings.password || '');
+      setPassword('');
+      setRemovePassword(false);
       setAllowComments(project.shareSettings.allowComments !== false);
       if (project.shareSettings.token && project.shareSettings.enabled) {
         const origin = window.location.origin;
@@ -68,10 +73,10 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
     setLoading(true);
     setError('');
     try {
-      const shareRes = await updateShareApi(project._id, {
-        password: password || null,
-        allowComments,
-      });
+      const shareUpdate = { allowComments };
+      if (password.trim()) shareUpdate.password = password;
+      else if (removePassword) shareUpdate.password = null;
+      const shareRes = await updateShareApi(project._id, shareUpdate);
       const projRes = await updateProjectApi(project._id, {
         settings: {
           captureConsoleErrors,
@@ -187,10 +192,22 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
               <input
                 type="text"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Leave empty for no password"
-                className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                onChange={(e) => { setPassword(e.target.value); if (e.target.value) setRemovePassword(false); }}
+                disabled={removePassword}
+                minLength={6}
+                placeholder={hasPassword && !removePassword ? 'Password set. Type a new one (6+ characters) to change it' : 'At least 6 characters, or leave empty for no password'}
+                className="w-full px-3 py-2 text-body border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none disabled:bg-gray-50"
               />
+              {hasPassword && (
+                <label className="mt-2 flex items-center gap-2 text-body-sm text-gray-600 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={removePassword}
+                    onChange={(e) => { setRemovePassword(e.target.checked); if (e.target.checked) setPassword(''); }}
+                  />
+                  Remove password
+                </label>
+              )}
             </div>
 
             {/* Allow comments toggle */}

@@ -109,6 +109,9 @@ exports.changePassword = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: 'Current password is incorrect.' });
   }
   admin.passwordHash = newPassword;
+  // An earlier reset link must not work after the password was changed
+  admin.resetPasswordToken = undefined;
+  admin.resetPasswordExpires = undefined;
   await startSession(req, res, admin, { message: 'Password changed.' });
 });
 

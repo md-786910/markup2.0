@@ -175,7 +175,7 @@ export default function DashboardPage() {
                   badge={<span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-caption font-medium text-red-700">At risk</span>}
                 />
               ))}
-              {attention.overdueInvoices.map((inv) => (
+              {(attention.overdueInvoices || []).map((inv) => (
                 <AttentionRow
                   key={inv._id}
                   to={`/organizations/${inv.organization?._id}?tab=billing`}

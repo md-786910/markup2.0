@@ -204,7 +204,7 @@ exports.signup = asyncHandler(async (req, res) => {
   let invitationForSignup = null;
   if (invitationToken) {
     invitationForSignup = await Invitation.findOne({
-      token: invitationToken,
+      ...Invitation.tokenFilter(invitationToken),
       email: emailNorm,
       status: "pending",
       expiresAt: { $gt: now },
@@ -527,12 +527,22 @@ exports.changePassword = asyncHandler(async (req, res) => {
 
   user.passwordHash = newPassword;
   user.sessionToken = generateSessionToken(); // Invalidate other sessions
+  // An earlier reset link must not work after the password was changed
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
   await user.save();
 
   // A fresh token keeps this device signed in; every other session ends
   await setCookieAndRespond(res, user, req.organization || null, 200, { message: "Password changed successfully" });
   endUserSockets(req, user._id, 3000);
 });
+
+// Avatars and org logos are bare filenames under uploads/ (null for anything else)
+function storedUploadPath(filename) {
+  return typeof filename === "string" && /^[\w.-]+$/.test(filename) && !filename.startsWith(".")
+    ? `uploads/${filename}`
+    : null;
+}
 
 // Upload avatar
 exports.uploadAvatar = asyncHandler(async (req, res) => {
@@ -541,8 +551,11 @@ exports.uploadAvatar = asyncHandler(async (req, res) => {
   }
 
   const user = req.user;
+  const previousAvatar = user.avatar;
   user.avatar = req.file.filename;
   await user.save({ validateBeforeSave: false });
+  // The replaced picture is no longer referenced: remove its file
+  if (previousAvatar && previousAvatar !== user.avatar) deleteStoredFiles([storedUploadPath(previousAvatar)]);
 
   const org = req.organization || null;
   res.json({ user: userResponse(user, org) });
@@ -560,6 +573,16 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
         message:
           "Organization owner cannot delete their account. Transfer ownership first.",
       });
+  }
+
+  // Confirm with the password (400, not 401: the apps sign out on a 401)
+  const { password } = req.body || {};
+  if (typeof password !== "string" || !password) {
+    return res.status(400).json({ message: "Password is required." });
+  }
+  const userRecord = await User.findById(userId).select("+passwordHash");
+  if (!userRecord || !(await userRecord.comparePassword(password))) {
+    return res.status(400).json({ message: "Password is incorrect" });
   }
 
   // Projects this user created belong to the organization's work (the team's
@@ -584,8 +607,11 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
   await Project.updateMany({ 'memberAccess.user': userId }, { $pull: { memberAccess: { user: userId } } });
   await require('../models/Workspace').updateMany({ 'members.user': userId }, { $pull: { members: { user: userId } } });
 
-  // Delete invitations created for this user's email, and the user's notifications
-  await Invitation.deleteMany({ email: req.user.email });
+  // Delete invitations for this user's email in their own organization (other
+  // organizations' invitations are theirs to manage), and the user's notifications
+  if (req.user.organization) {
+    await Invitation.deleteMany({ email: req.user.email, organization: req.user.organization });
+  }
   await Notification.deleteMany({ recipient: userId });
 
   // The user's comments elsewhere stay for the team's context but no longer
@@ -595,8 +621,9 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
   // Avatars are stored as a bare filename under uploads/
   if (req.user.avatar) deleteStoredFiles([`uploads/${req.user.avatar}`]);
 
-  // Delete the user
+  // Delete the user, and close their open connections (they stop receiving events)
   await User.findByIdAndDelete(userId);
+  endUserSockets(req, userId);
 
   // Clear auth cookie
   res.clearCookie("markup_token", { path: "/" });
@@ -698,6 +725,7 @@ exports.updateOrganization = asyncHandler(async (req, res) => {
   } else {
     // Only owner can update existing org
     if (org.owner.toString() !== req.user._id.toString()) {
+      if (req.file) deleteStoredFiles([storedUploadPath(req.file.filename)]);
       return res
         .status(403)
         .json({ message: "Only the organization owner can update settings" });
@@ -708,7 +736,8 @@ exports.updateOrganization = asyncHandler(async (req, res) => {
   const previousName = org.name;
   let nameChanged = false;
   if (name !== undefined) {
-    if (!name.trim()) {
+    if (typeof name !== "string" || !name.trim()) {
+      if (req.file) deleteStoredFiles([storedUploadPath(req.file.filename)]);
       return res
         .status(400)
         .json({ message: "Organization name cannot be empty" });
@@ -721,12 +750,15 @@ exports.updateOrganization = asyncHandler(async (req, res) => {
   }
 
   let logoChanged = false;
+  const previousLogo = org.logo;
   if (req.file) {
     org.logo = req.file.filename;
     logoChanged = true;
   }
 
   await org.save();
+  // The replaced logo is no longer referenced: remove its file
+  if (logoChanged && previousLogo && previousLogo !== org.logo) deleteStoredFiles([storedUploadPath(previousLogo)]);
 
   // Only emit activity when something actually changed AND this isn't the
   // first-time onboarding create flow (previousName would be undefined there).
@@ -886,6 +918,17 @@ const EXCLUDED_ORG_ACTIONS = [
   'guest.commented', 'guest.pin_created',
 ];
 
+// Activity rows as customers see them: no admin account id or name
+function withoutAdminIdentity(activity) {
+  if (!activity.adminActor && !activity.metadata?.adminName) return activity;
+  const { adminActor, ...rest } = activity;
+  if (rest.metadata) {
+    const { adminName, adminRole, ...metadata } = rest.metadata;
+    rest.metadata = metadata;
+  }
+  return rest;
+}
+
 exports.getOrgActivity = asyncHandler(async (req, res) => {
   const org = req.organization;
   if (!org) {
@@ -918,7 +961,8 @@ exports.getOrgActivity = asyncHandler(async (req, res) => {
   ]);
 
   res.json({
-    activities,
+    // Admin panel actions show as "Admin": which admin did it stays internal
+    activities: activities.map(withoutAdminIdentity),
     pagination: {
       page,
       limit,
@@ -954,7 +998,7 @@ exports.exportOrganization = asyncHandler(async (req, res) => {
     User.find({ organization: org._id }).select("name email role createdAt lastSeen").lean(),
     Comment.find({ pin: { $in: pins.map((p) => p._id) } }).lean(),
     Version.find({ project: { $in: projectIds } }).lean(),
-    Activity.find({ $or: [{ organization: org._id }, { project: { $in: projectIds } }] }).lean(),
+    Activity.find({ $or: [{ organization: org._id }, { project: { $in: projectIds } }], 'metadata.actorRole': { $ne: 'superadmin' } }).lean(),
     Invoice.find({ organization: org._id, status: { $in: ["paid", "refunded"] } })
       .select("invoiceNumber plan amount currency status paidAt periodStart periodEnd refundAmount").lean(),
   ]);
@@ -1026,10 +1070,18 @@ exports.requestOrganizationDeletion = asyncHandler(async (req, res) => {
   }
 
   org.deletionScheduledAt = new Date(Date.now() + ORG_DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000);
-  org.isLocked = true;
-  org.lockedAt = new Date();
-  org.lockedReason = DELETION_LOCK_REASON;
-  if (org.subscription) org.subscription.cancelAtPeriodEnd = true;
+  // An existing lock (payment overdue, trial expired, admin) stays as it is:
+  // a scheduled deletion is read-only on its own (checkOrgNotLocked), and
+  // cancelling the deletion must not lift a lock it didn't set
+  if (!org.isLocked) {
+    org.isLocked = true;
+    org.lockedAt = new Date();
+    org.lockedReason = DELETION_LOCK_REASON;
+  }
+  if (org.subscription) {
+    org.cancelAtPeriodEndBeforeDeletion = !!org.subscription.cancelAtPeriodEnd;
+    org.subscription.cancelAtPeriodEnd = true;
+  }
   await org.save();
 
   logOrgActivity(org._id, req.user._id, "org.deletion_scheduled", { deletionScheduledAt: org.deletionScheduledAt });
@@ -1057,9 +1109,11 @@ exports.cancelOrganizationDeletion = asyncHandler(async (req, res) => {
     org.lockedAt = null;
     org.lockedReason = null;
   }
-  if (org.subscription && org.subscription.cancelAtPeriodEnd) {
-    org.subscription.cancelAtPeriodEnd = false;
+  // Back to the customer's own choice from before the deletion was scheduled
+  if (org.subscription) {
+    org.subscription.cancelAtPeriodEnd = org.cancelAtPeriodEndBeforeDeletion === true;
   }
+  org.cancelAtPeriodEndBeforeDeletion = null;
   await org.save();
 
   logOrgActivity(org._id, req.user._id, "org.deletion_cancelled", {});

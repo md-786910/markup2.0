@@ -15,6 +15,19 @@ const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { reserveStorage, discardUploads } = require('../utils/storage');
 const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
 const { sanitizePinContext } = require('../utils/pinContext');
+const { cleanGuestName, cleanGuestEmail, isValidPageUrl, optionalNumber, percent } = require('../utils/inputValidation');
+
+// Guest name and email from the body, checked: { name, email } or { error }
+function guestIdentity(body) {
+  if (body.guestName == null || body.guestName === '' || body.guestEmail == null || body.guestEmail === '') {
+    return { error: 'Guest name and email are required.' };
+  }
+  const name = cleanGuestName(body.guestName);
+  if (!name) return { error: 'Your name must be 1 to 80 characters.' };
+  const email = cleanGuestEmail(body.guestEmail);
+  if (!email) return { error: 'Enter a valid email address.' };
+  return { name, email };
+}
 const { findShared, findSharedWorkspace, workspaceProjectsQuery, composeWorkspaceToken, isExpired, orgAllowsShareLinks } = require('../utils/sharing');
 
 // Verify a guest-supplied password against either the bcrypt hash (preferred,
@@ -317,27 +330,37 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
     });
   }
 
-  const {
-    guestName, guestEmail, pageUrl, xPercent, yPercent,
-    selector, elementOffsetX, elementOffsetY,
-    documentWidth, documentHeight, deviceMode,
-    viewportXPercent, viewportYPercent,
-  } = req.body;
+  const { pageUrl, selector, deviceMode } = req.body;
 
-  if (!guestName || !guestEmail) {
-    return res.status(400).json({ message: 'Guest name and email are required.' });
-  }
+  const identity = guestIdentity(req.body);
+  if (identity.error) return res.status(400).json({ message: identity.error });
+  const { name: guestName, email: guestEmail } = identity;
 
-  if (xPercent == null || yPercent == null || !pageUrl) {
+  if (req.body.xPercent == null || req.body.yPercent == null || !pageUrl) {
     return res.status(400).json({ message: 'xPercent, yPercent, and pageUrl are required.' });
   }
+  if (!isValidPageUrl(pageUrl)) {
+    return res.status(400).json({ message: 'pageUrl must be a web address (http/https) or a document page.' });
+  }
 
-  // Get next pin number
-  const lastPin = await Pin.findOne({ project: project._id })
-    .sort({ pinNumber: -1 })
-    .select('pinNumber')
-    .lean();
-  const pinNumber = (lastPin?.pinNumber || 0) + 1;
+  // Coordinates: percentages are 0-100, the rest any finite number (or absent)
+  const xPercent = percent(req.body.xPercent);
+  const yPercent = percent(req.body.yPercent);
+  const elementOffsetX = optionalNumber(req.body.elementOffsetX);
+  const elementOffsetY = optionalNumber(req.body.elementOffsetY);
+  const documentWidth = optionalNumber(req.body.documentWidth);
+  const documentHeight = optionalNumber(req.body.documentHeight);
+  const viewportXPercent = optionalNumber(req.body.viewportXPercent);
+  const viewportYPercent = optionalNumber(req.body.viewportYPercent);
+  if ([xPercent, yPercent, elementOffsetX, elementOffsetY, documentWidth, documentHeight, viewportXPercent, viewportYPercent].some(Number.isNaN)) {
+    return res.status(400).json({ message: 'Pin coordinates must be numbers (xPercent and yPercent between 0 and 100).' });
+  }
+  if (selector != null && (typeof selector !== 'string' || selector.length > 2000)) {
+    return res.status(400).json({ message: 'Invalid selector.' });
+  }
+  if (deviceMode != null && typeof deviceMode !== 'string') {
+    return res.status(400).json({ message: 'Invalid device mode.' });
+  }
 
   const context = sanitizePinContext(req.body.context, {
     projectSettings: project.settings,
@@ -345,24 +368,24 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
     userAgent: req.headers['user-agent'],
   });
 
-  const pin = await Pin.create({
-    project: project._id,
+  // Next pin number (safe under concurrent posts)
+  const pin = await require('../utils/pinNumber').createNumberedPin(project._id, {
     pageUrl: normalizePageUrl(pageUrl),
     createdBy: null,
     createdByGuest: { name: guestName, email: guestEmail },
-    xPercent: parseFloat(xPercent),
-    yPercent: parseFloat(yPercent),
+    xPercent,
+    yPercent,
     selector: selector || null,
-    elementOffsetX: elementOffsetX != null ? parseFloat(elementOffsetX) : null,
-    elementOffsetY: elementOffsetY != null ? parseFloat(elementOffsetY) : null,
-    documentWidth: documentWidth != null ? parseFloat(documentWidth) : null,
-    documentHeight: documentHeight != null ? parseFloat(documentHeight) : null,
+    elementOffsetX,
+    elementOffsetY,
+    documentWidth,
+    documentHeight,
     deviceMode: deviceMode || 'desktop',
-    viewportXPercent: viewportXPercent != null ? parseFloat(viewportXPercent) : null,
-    viewportYPercent: viewportYPercent != null ? parseFloat(viewportYPercent) : null,
-    pinNumber,
+    viewportXPercent,
+    viewportYPercent,
     context,
   });
+  const { pinNumber } = pin;
   // New feedback after a sign-off: the round is back in review
   await Project.updateOne({ _id: project._id, projectStatus: 'approved' }, { $set: { projectStatus: 'in_review' } });
 
@@ -382,7 +405,7 @@ exports.createGuestPin = asyncHandler(async (req, res) => {
   // Emit real-time event
   const io = req.app.get('io');
   if (io) {
-    io.to(`project:${project._id}`).emit('pin:created', { pin });
+    require('../utils/realtime').emitPin(io, project._id.toString(), 'pin:created', pin);
   }
 
   metric('pin.created', { source: 'guest' });
@@ -416,13 +439,13 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
     });
   }
 
-  const { guestName, guestEmail } = req.body;
-  const body = sanitizeCommentBody(req.body.body);
-
-  if (!guestName || !guestEmail) {
+  const identity = guestIdentity(req.body);
+  if (identity.error) {
     discardUploads(req);
-    return res.status(400).json({ message: 'Guest name and email are required.' });
+    return res.status(400).json({ message: identity.error });
   }
+  const { name: guestName, email: guestEmail } = identity;
+  const body = sanitizeCommentBody(req.body.body);
 
   if (!body) {
     discardUploads(req);

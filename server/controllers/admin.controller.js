@@ -79,6 +79,24 @@ async function statusFilter(status) {
 
 // ── Dashboard Stats ──────────────────────────────────────────────
 
+// Support-role admins don't see billing data (S-08): invoices, provider ids,
+// deals and billing details are for superadmins.
+const isSupportAdmin = (req) => req.admin?.role === 'support';
+
+function orgWithoutBilling(org) {
+  const obj = org && org.toObject ? org.toObject() : { ...org };
+  delete obj.billingDetails;
+  delete obj.deal;
+  if (obj.subscription && typeof obj.subscription === 'object') {
+    const subscription = { ...obj.subscription };
+    for (const key of Object.keys(subscription)) {
+      if (/Id$/.test(key)) delete subscription[key];
+    }
+    obj.subscription = subscription;
+  }
+  return obj;
+}
+
 exports.getDashboardStats = asyncHandler(async (req, res) => {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * DAY_MS);
@@ -226,6 +244,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     ],
   };
 
+  const hideBilling = isSupportAdmin(req);
   res.json({
     kpis: {
       mrr: payingOrgs.reduce((sum, org) => sum + monthlyRevenue(org, plans), 0),
@@ -240,7 +259,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
       activeUsers,
       totalProjects,
       lockedOrgs: await Organization.countDocuments({ isLocked: true, deletionScheduledAt: null }),
-      unpaidInvoices: unpaid.map((u) => ({ currency: u._id, count: u.count, amount: u.amount })),
+      unpaidInvoices: hideBilling ? [] : unpaid.map((u) => ({ currency: u._id, count: u.count, amount: u.amount })),
       openTickets,
       overdueTickets: overdueTicketCount,
     },
@@ -252,10 +271,11 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
         ...o,
         lastActiveAt: engagement.get(String(o._id))?.lastActiveAt || null,
       })),
-      overdueInvoices,
+      overdueInvoices: hideBilling ? [] : overdueInvoices,
       lockedOrgs,
       overdueTickets,
     },
+    billingHidden: hideBilling,
     activationFunnel,
     recentSignups,
     recentAdminActions,
@@ -454,8 +474,10 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
 
   const lastActiveAt = members.reduce((max, m) => (m.lastSeen && (!max || m.lastSeen > max) ? m.lastSeen : max), null);
 
+  const hideBilling = isSupportAdmin(req);
   res.json({
-    organization: org,
+    organization: hideBilling ? orgWithoutBilling(org) : org,
+    billingHidden: hideBilling,
     status: lifecycleStatus(org, now),
     mrr: monthlyRevenue(org, plans),
     limits,
@@ -493,7 +515,7 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
     })),
     invitations,
     pinStats: pinStats[0] || { total: 0, resolved: 0 },
-    invoices,
+    invoices: hideBilling ? [] : invoices,
     notes,
     activity,
   });

@@ -17,6 +17,8 @@ const ACTION_MESSAGES = {
  * Send a notification to a Slack channel via webhook.
  */
 async function sendSlackNotification(webhookUrl, data) {
+  // Stored encrypted (utils/integrationSecrets); legacy plaintext passes through
+  webhookUrl = require('./integrationSecrets').revealSecret(webhookUrl);
   const messageFn = ACTION_MESSAGES[data.action];
   if (!messageFn) return;
 

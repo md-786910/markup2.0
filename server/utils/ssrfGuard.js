@@ -4,7 +4,14 @@ const net = require('net');
 // Blocks the website proxy from reaching private, loopback, link-local (cloud
 // metadata) and other non-public addresses. Set PROXY_ALLOW_PRIVATE=true to
 // allow them, e.g. when reviewing a site running on localhost in development.
-const ALLOW_PRIVATE = process.env.PROXY_ALLOW_PRIVATE === 'true';
+// Never on a real deployment (production, or an HTTPS API URL): there it would
+// open the proxy to the database, Redis and cloud metadata.
+const { URLS } = require('../config/env');
+const DEPLOYED = process.env.NODE_ENV === 'production' || URLS.api.startsWith('https://');
+const ALLOW_PRIVATE = process.env.PROXY_ALLOW_PRIVATE === 'true' && !DEPLOYED;
+if (process.env.PROXY_ALLOW_PRIVATE === 'true' && DEPLOYED) {
+  console.warn('[ssrf] PROXY_ALLOW_PRIVATE is ignored on a deployed server (NODE_ENV=production or an HTTPS API_URL)');
+}
 
 const blockList = new net.BlockList();
 [
@@ -16,6 +23,8 @@ const blockList = new net.BlockList();
 [
   ['::', 128], ['::1', 128], ['::', 96] /* deprecated IPv4-compatible (::a.b.c.d) */, ['fc00::', 7], ['fe80::', 10], ['ff00::', 8],
   ['64:ff9b::', 96], ['2001:db8::', 32],
+  // 6to4 and discard-only: can embed or reach private IPv4 space
+  ['2002::', 16], ['100::', 64],
 ].forEach(([addr, prefix]) => blockList.addSubnet(addr, prefix, 'ipv6'));
 
 function isPrivateAddress(ip) {

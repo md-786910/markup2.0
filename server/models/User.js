@@ -97,5 +97,7 @@ userSchema.methods.toJSON = function () {
 
 // Member/guest counts and org listings filter by organization
 userSchema.index({ organization: 1, role: 1 });
+// Password reset looks the user up by the hashed token (auth.controller resetPassword)
+userSchema.index({ resetPasswordToken: 1 }, { sparse: true });
 
 module.exports = mongoose.model('User', userSchema);

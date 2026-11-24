@@ -113,6 +113,9 @@ const organizationSchema = new mongoose.Schema({
   trialSupportExtensionDays: { type: Number, default: 0 },
   // Owner requested deletion: the org is locked and purged by the daily job at this time
   deletionScheduledAt: { type: Date, default: null },
+  // Subscription cancel-at-period-end as it was before deletion was scheduled
+  // (scheduling cancels it; cancelling the deletion restores this)
+  cancelAtPeriodEndBeforeDeletion: { type: Boolean, default: null },
   // Bytes of uploaded files counted against the plan's maxStorageMB (utils/storage.js)
   storageUsedBytes: { type: Number, default: 0 },
   // Buyer details printed on tax invoices (editable by the owner)

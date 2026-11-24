@@ -27,9 +27,9 @@ const sentMail = [];
 const sentMailArgs = []; // full arguments, for tests that follow an emailed link
 for (const name of Object.keys(mailer)) {
   if (typeof mailer[name] === 'function') {
-    mailer[name] = async (to, org, arg) => {
+    mailer[name] = async (to, org, arg, ...more) => {
       sentMail.push(`${name}:${org}:${typeof arg === 'number' ? arg : ''}`);
-      sentMailArgs.push({ name, to, args: [org, arg] });
+      sentMailArgs.push({ name, to, args: [org, arg, ...more] });
     };
   }
 }
@@ -237,7 +237,9 @@ function check(name, cond, extra = '') {
     wsInv.status === 201 && byEmail['newclient@e2e.test'] === 'invited' && byEmail['wsinviteea@e2e.test'] === 'added' && byEmail['ownerb@e2e.test'] === 'error', JSON.stringify(wsInv.data));
   check('added org user sees the workspace project', (await call('GET', `/api/projects/${wsProjId}`, { user: inviteeExisting })).status === 200);
   check('members cannot invite to workspaces', (await call('POST', `/api/workspaces/${wsId}/invitations`, { user: memberA, body: { emails: ['x@e2e.test'] } })).status === 403);
-  const wsInvite = await Invitation.findOne({ email: 'newclient@e2e.test', workspace: wsId });
+  // Stored tokens are hashed: the raw token comes from the emailed link
+  const wsInviteMail = [...sentMailArgs].reverse().find((m) => m.name === 'sendInvitationEmail' && m.to === 'newclient@e2e.test');
+  const wsInvite = { token: wsInviteMail ? new URL(wsInviteMail.args[2]).searchParams.get('token') : null };
   const pendingList = await call('GET', `/api/workspaces/${wsId}/invitations`, { user: adminA });
   check('pending workspace invitations are listed without tokens', pendingList.data?.invitations?.length === 1 && !pendingList.data.invitations[0].token);
   const inviteInfo = await call('GET', `/api/invitations/${wsInvite.token}`);
@@ -472,6 +474,18 @@ function check(name, cond, extra = '') {
     check('a declined PayPal renewal stays pending; a declined checkout is marked failed',
       (await Invoice.findById(ppRenewal._id)).status === 'pending' && (await Invoice.findById(ppCheckout._id)).status === 'failed');
     await Invoice.deleteMany({ _id: { $in: [ppRenewal._id, ppCheckout._id] } });
+
+    // a completed capture settles the invoice only for its exact amount and currency
+    const captured = (orderId, value, currency_code = 'USD') => ({ event_type: 'PAYMENT.CAPTURE.COMPLETED', resource: { id: `CAP-${orderId}-${value}`, status: 'COMPLETED', amount: { value, currency_code }, supplementary_data: { related_ids: { order_id: orderId } } } });
+    const ppOrg = await Organization.create({ name: 'PP Amount Co', slug: 'pp-amount-e2e', owner: billOrg.owner, plan: 'trial', trialEndsAt: new Date(Date.now() + 9e8) });
+    const ppAmount = await Invoice.create({ organization: ppOrg._id, plan: 'starter', amount: 1200, currency: 'USD', status: 'pending', provider: 'paypal', paypalOrderId: 'PP-AMOUNT' });
+    await pp.handleWebhookEvent(captured('PP-AMOUNT', '1.00'));
+    await pp.handleWebhookEvent(captured('PP-AMOUNT', '12.00', 'EUR'));
+    const notSettled = (await Invoice.findById(ppAmount._id)).status;
+    await pp.handleWebhookEvent(captured('PP-AMOUNT', '12.00'));
+    check('a PayPal capture for the wrong amount or currency does not settle; the exact amount does',
+      notSettled === 'pending' && (await Invoice.findById(ppAmount._id)).status === 'paid', notSettled);
+    await Invoice.deleteMany({ organization: ppOrg._id }); await Organization.deleteOne({ _id: ppOrg._id });
 
     // a redelivered PayPal refund webhook is recorded once
     const refInv = await Invoice.create({ organization: billOrg._id, plan: 'starter', amount: 1200, currency: 'USD', status: 'paid', provider: 'paypal', paypalCaptureId: 'CAP-REFUND-E2E' });
@@ -827,7 +841,7 @@ function check(name, cond, extra = '') {
   const shown = listInt.data?.integrations?.find((i) => i._id === String(jira._id));
   check('Jira API token is masked in responses', shown && shown.config.apiToken === '••••1234' && !JSON.stringify(listInt.data).includes('supersecrettoken'), shown?.config?.apiToken);
   await call('PATCH', `/api/integrations/${jira._id}`, { user: billOwner, body: { config: { ...shown.config } } });
-  check('saving the form with the masked token keeps the real token', (await IntegrationModel.findById(jira._id)).config.apiToken === 'supersecrettoken1234');
+  check('saving the form with the masked token keeps the real token', r('utils/integrationSecrets').revealSecret((await IntegrationModel.findById(jira._id)).config.apiToken) === 'supersecrettoken1234');
 
   // --- trial reminders + expiry lock (emails captured, not sent)
   const trialMail = () => sentMail.filter((m) => m.startsWith('sendTrial'));
@@ -1498,6 +1512,270 @@ function check(name, cond, extra = '') {
 
     const person = await adminCall('GET', `/api/admin/users/${wOwner._id}`);
     check('the admin person page includes product analytics (or why not)', person.status === 200 && person.data?.posthog && typeof person.data.posthog.available === 'boolean');
+  }
+
+  // --- 24 Nov 2026 audit fixes
+  {
+    const bcrypt = require('bcryptjs');
+    const fOwner = await mkUser('fixowner', 'owner');
+    const fMember = await mkUser('fixmember', 'member');
+    const fGuest = await mkUser('fixguest', 'guest');
+    const fOrg = await Organization.create({ name: 'Fix Co', slug: 'fix-co-e2e', owner: fOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() + 9e8) });
+    for (const u of [fOwner, fMember, fGuest]) { u.organization = fOrg._id; await u.save({ validateBeforeSave: false }); }
+    const fp = await Project.create({
+      name: 'Fix', projectType: 'website', websiteUrl: 'https://example.com', owner: fOwner._id, organization: fOrg._id,
+      members: [fOwner._id, fMember._id, fGuest._id], memberAccess: [{ user: fMember._id, level: 'view' }],
+      shareSettings: { enabled: true, token: 'fix-share-token-secret', passwordHash: await bcrypt.hash('pw', 4), password: 'legacy-plain', allowComments: true },
+    });
+
+    // S-06: share-link secrets only for people who manage the project
+    const leaks = (p) => !!(p?.shareSettings?.token || p?.shareSettings?.passwordHash || p?.shareSettings?.password);
+    const listed = async (u) => (await call('GET', '/api/projects', { user: u })).data?.projects?.find((p) => String(p._id) === String(fp._id));
+    const [lm, lg, lo] = [await listed(fMember), await listed(fGuest), await listed(fOwner)];
+    check('project list: view-level members and org guests get no share token, password or hash',
+      !!lm && !!lg && !leaks(lm) && !leaks(lg) && lm.shareSettings?.hasPassword === true, JSON.stringify(lm?.shareSettings));
+    check('project list: managers get the link token, never the password or its hash',
+      lo?.shareSettings?.token === 'fix-share-token-secret' && !lo.shareSettings.passwordHash && !lo.shareSettings.password, JSON.stringify(lo?.shareSettings));
+    const one = (await call('GET', `/api/projects/${fp._id}`, { user: fMember })).data?.project;
+    check('project detail: no share token or password for non-managers', !!one && !leaks(one), JSON.stringify(one?.shareSettings));
+
+    // S-07: billing reads are for owners and admins
+    const billingCodes = [];
+    for (const u of [fMember, fGuest]) {
+      for (const url of ['/api/billing/invoices', '/api/billing/details', '/api/billing/plan']) billingCodes.push((await call('GET', url, { user: u })).status);
+    }
+    check('members and org guests cannot read invoices, billing details or the subscription', billingCodes.every((c) => c === 403), billingCodes.join(','));
+    check('the owner can still read invoices', (await call('GET', '/api/billing/invoices', { user: fOwner })).status === 200);
+
+    // Q-1: malformed ids are client errors; unknown API routes answer JSON
+    const badIds = [(await call('GET', '/api/projects/not-an-id', { user: fOwner })).status, (await call('GET', '/api/pins/not-an-id/comments', { user: fOwner })).status];
+    check('malformed ids answer 400/404, never 500', badIds.every((c) => c === 400 || c === 404), badIds.join(','));
+    const nf = await call('GET', '/api/no-such-route', { user: fOwner });
+    check('unknown API routes answer 404 in JSON', nf.status === 404 && nf.data?.message === 'Not found');
+
+    // BUG-07: pins posted at the same moment get distinct numbers
+    const concurrent = await Promise.all([1, 2, 3, 4].map((n) => call('POST', `/api/projects/${fp._id}/pins`, { user: fOwner, body: { pageUrl: 'https://example.com/', xPercent: n, yPercent: n } })));
+    const nums = concurrent.map((x) => x.data?.pin?.pinNumber);
+    check('concurrent pins all save, with distinct numbers', concurrent.every((x) => x.status === 201) && new Set(nums).size === 4, `${concurrent.map((x) => x.status)} ${nums}`);
+
+    // RT-1/RT-2: real-time payloads and rooms (a stand-in io records what the controllers do)
+    const { emitPin } = r('utils/realtime');
+    const sent = [];
+    const ops = [];
+    const fakeIo = {
+      to: (room) => ({ emit: (ev, data) => sent.push({ room, ev, data }) }),
+      in: (room) => ({ socketsLeave: (rooms) => ops.push({ op: 'leave', room, rooms }), disconnectSockets: () => ops.push({ op: 'disconnect', room }), fetchSockets: async () => [] }),
+    };
+    emitPin(fakeIo, 'p1', 'pin:created', { _id: 'x', context: { browser: 'B' } });
+    const toTeam = sent.find((s) => s.room === 'project:p1:team');
+    const toGuests = sent.find((s) => s.room === 'project:p1:guests');
+    check('pin events: the team gets technical details, org guests never do',
+      toTeam?.data.pin.context?.browser === 'B' && !!toGuests && !('context' in toGuests.data.pin) && !sent.some((s) => s.room === 'project:p1'));
+    const prevIo = app.get('io');
+    app.set('io', fakeIo);
+    sent.length = 0;
+    const newPin = await call('POST', `/api/projects/${fp._id}/pins`, { user: fOwner, body: { pageUrl: 'https://example.com/', xPercent: 9, yPercent: 9, context: { consoleErrors: [{ level: 'error', message: 'boom' }] } } });
+    check('creating a pin emits to the team and guest rooms separately', newPin.status === 201 && sent.some((s) => s.room === `project:${fp._id}:guests` && s.ev === 'pin:created' && !('context' in s.data.pin)));
+    const removed = await call('DELETE', `/api/projects/${fp._id}/members/${fMember._id}`, { user: fOwner });
+    check('a member removed from a project leaves its real-time rooms',
+      removed.status === 200 && ops.some((o) => o.op === 'leave' && o.room === `user:${fMember._id}` && o.rooms.includes(`project:${fp._id}`)), JSON.stringify(ops));
+    ops.length = 0;
+    await call('PATCH', `/api/workspaces/people/${fGuest._id}/role`, { user: fOwner, body: { role: 'member' } });
+    check('an org role change reconnects that person (rooms are re-checked)', ops.some((o) => o.op === 'disconnect' && o.room === `user:${fGuest._id}`), JSON.stringify(ops));
+    app.set('io', prevIo);
+
+    // B-2: a checkout while a renewal is unpaid pays that cycle, not one more
+    const E1 = new Date(Date.now() + 40 * 864e5); // the daily job already moved the period end here
+    await Organization.updateOne({ _id: fOrg._id }, { $set: { plan: 'pro', trialEndsAt: null, subscription: { status: 'active', provider: 'paypal', currentPeriodEnd: E1 } } });
+    await Invoice.create({ organization: fOrg._id, plan: 'pro', amount: 2900, currency: 'USD', status: 'pending', provider: 'paypal', billingMonth: '2099-05', dueAt: new Date(Date.now() + 9e8) });
+    const co = await Invoice.create({ organization: fOrg._id, plan: 'pro', amount: 2900, currency: 'USD', status: 'pending', provider: 'paypal' });
+    await settleInvoice(co._id, {});
+    const paidOrg = await Organization.findById(fOrg._id);
+    const off = Math.round((new Date(paidOrg.subscription.currentPeriodEnd) - E1) / 864e5);
+    check('a checkout during an unpaid renewal covers that cycle (one payment, one period)', Math.abs(off) <= 1, `${off} days past the renewal end`);
+
+    // B-1: deletion never lifts a lock it didn't set, and keeps the customer's renewal choice
+    await Organization.updateOne({ _id: fOrg._id }, { $set: { isLocked: true, lockedReason: 'Payment overdue', lockedAt: new Date(), 'subscription.cancelAtPeriodEnd': true } });
+    const del = await call('POST', '/api/auth/organization/delete', { user: fOwner, headers: { 'X-Forwarded-For': '10.77.0.1' }, body: { password: 'x'.repeat(60), confirmName: 'Fix Co' } });
+    const mid = await Organization.findById(fOrg._id);
+    await call('POST', '/api/auth/organization/cancel-deletion', { user: fOwner, headers: { 'X-Forwarded-For': '10.77.0.2' } });
+    const after = await Organization.findById(fOrg._id);
+    check('scheduling then cancelling deletion keeps a payment-overdue lock',
+      del.status === 200 && !!mid.deletionScheduledAt && after.isLocked && after.lockedReason === 'Payment overdue' && !after.deletionScheduledAt,
+      `${del.status} ${after.isLocked} ${after.lockedReason}`);
+    check('cancelling deletion keeps a cancellation the customer chose before', after.subscription.cancelAtPeriodEnd === true);
+  }
+
+  // --- Security hardening: guest input, share passwords, URLs, Jira token,
+  // integration secrets at rest, replaced uploads, account deletion, query
+  // tokens, support-role admins, hashed invitation tokens
+  {
+    const fs = require('fs');
+    const Integration = r('models/Integration');
+    const { revealSecret } = r('utils/integrationSecrets');
+    const sOwner = await mkUser('secowner', 'owner');
+    const sOrg = await Organization.create({ name: 'Sec Co', slug: 'sec-co-e2e', owner: sOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() + 9e8) });
+    sOwner.organization = sOrg._id; await sOwner.save({ validateBeforeSave: false });
+    const ip = (n) => ({ 'X-Forwarded-For': `10.91.0.${n}` });
+    const sp = await Project.create({ name: 'Sec site', projectType: 'website', websiteUrl: 'https://example.com', owner: sOwner._id, organization: sOrg._id, members: [sOwner._id],
+      shareSettings: { enabled: true, token: 'sharetokenSecInput', allowComments: true } });
+
+    // S-10/SEC-16: guest name, email and coordinates are checked
+    const gPin = (body, n = 1) => call('POST', '/api/guest/sharetokenSecInput/pins', { headers: ip(n), body: { guestName: 'Gail', guestEmail: 'gail@client.test', pageUrl: 'https://example.com/', xPercent: 5, yPercent: 5, ...body } });
+    const badGuest = [
+      await gPin({ guestName: '' }), await gPin({ guestName: 'x'.repeat(81) }), await gPin({ guestName: { first: 'G' } }),
+      await gPin({ guestEmail: 'not-an-email' }), await gPin({ guestEmail: `${'a'.repeat(250)}@x.io` }), await gPin({ guestEmail: ['g@x.io'] }),
+    ].map((x) => x.status);
+    check('guest pins refuse a missing, long or non-text name and an invalid email', badGuest.every((c) => c === 400), badGuest.join(','));
+    const badCoords = [await gPin({ xPercent: 'abc' }), await gPin({ yPercent: 150 }), await gPin({ xPercent: -1 }), await gPin({ documentWidth: 'wide' }), await gPin({ elementOffsetX: { a: 1 } })].map((x) => x.status);
+    check('guest pins refuse non-numeric or out-of-range coordinates with 400', badCoords.every((c) => c === 400), badCoords.join(','));
+    check('guest pins refuse a non-web pageUrl', (await gPin({ pageUrl: 'javascript:alert(1)' })).status === 400);
+    const okGuestPin = await gPin({ guestName: '  Gail  ', xPercent: '12.5', documentWidth: 1200 });
+    check('a valid guest pin saves with a trimmed name and numeric coordinates', okGuestPin.status === 201 && okGuestPin.data.pin.createdByGuest.name === 'Gail' && okGuestPin.data.pin.xPercent === 12.5, JSON.stringify(okGuestPin.data?.message || ''));
+    const gComment = (body) => call('POST', `/api/guest/sharetokenSecInput/pins/${okGuestPin.data?.pin?._id}/comments`, { headers: ip(2), body: { guestName: 'Gail', guestEmail: 'gail@client.test', body: 'Looks good', ...body } });
+    check('guest comments refuse an invalid email or name', (await gComment({ guestEmail: 'nope' })).status === 400 && (await gComment({ guestName: 'y'.repeat(100) })).status === 400);
+    check('a valid guest comment saves', (await gComment({})).status === 201);
+    const limited = [];
+    for (let i = 0; i < 31; i++) limited.push((await call('POST', '/api/guest/sharetokenSecInput/pins', { headers: ip(3), body: {} })).status);
+    check('guest writes are rate limited per link and visitor', limited.slice(0, 30).every((c) => c === 400) && limited[30] === 429, limited.slice(28).join(','));
+    check('the guest write limit is per visitor', (await call('POST', '/api/guest/sharetokenSecInput/pins', { headers: ip(4), body: {} })).status === 400);
+
+    // Share-link passwords need a minimum length
+    const shareCodes = [
+      (await call('POST', `/api/projects/${sp._id}/share`, { user: sOwner, body: { password: 'abc' } })).status,
+      (await call('PATCH', `/api/projects/${sp._id}/share`, { user: sOwner, body: { password: '12345' } })).status,
+    ];
+    check('short project link passwords are refused', shareCodes.every((c) => c === 400), shareCodes.join(','));
+    check('a 6+ character project link password and clearing it are accepted',
+      (await call('PATCH', `/api/projects/${sp._id}/share`, { user: sOwner, body: { password: 'abcdef' } })).status === 200
+      && (await call('PATCH', `/api/projects/${sp._id}/share`, { user: sOwner, body: { password: '' } })).status === 200);
+    const sWs = await r('utils/workspaces').ensureDefaultWorkspace(sOrg._id);
+    const wsShort = await call('POST', `/api/workspaces/${sWs._id}/share`, { user: sOwner, body: { password: 'abc' } });
+    check('short workspace link passwords are refused', wsShort.status === 400 && /6/.test(wsShort.data?.message || ''), `${wsShort.status} ${wsShort.data?.message}`);
+    check('a workspace link with a long enough password is accepted', (await call('POST', `/api/workspaces/${sWs._id}/share`, { user: sOwner, body: { password: 'longer-pw' } })).status === 200);
+
+    // SEC-24: website and page URLs
+    const badSites = [];
+    for (const websiteUrl of ['javascript:alert(1)', 'ftp://example.com', 'https://', `https://example.com/${'a'.repeat(2050)}`, 'example.com']) {
+      badSites.push((await call('POST', '/api/projects', { user: sOwner, body: { name: `Bad ${badSites.length}`, websiteUrl } })).status);
+    }
+    check('projects refuse non-http(s), host-less or over-long website URLs', badSites.every((c) => c === 400), badSites.join(','));
+    check('a project website URL cannot be changed to a non-web URL', (await call('PATCH', `/api/projects/${sp._id}`, { user: sOwner, body: { websiteUrl: 'data:text/html,hi' } })).status === 400);
+    check('a valid website URL is still accepted', (await call('PATCH', `/api/projects/${sp._id}`, { user: sOwner, body: { websiteUrl: 'https://example.com/new' } })).status === 200);
+    const teamPin = (pageUrl) => call('POST', `/api/projects/${sp._id}/pins`, { user: sOwner, body: { pageUrl, xPercent: 3, yPercent: 3 } });
+    check('team pins refuse a non-web pageUrl', (await teamPin('javascript:alert(1)')).status === 400);
+    check('team pins accept document pages', (await teamPin('doc:file.pdf:page:2')).status === 201);
+
+    // S-09: the stored Jira token is only sent to the site and account it was entered for
+    const sJira = await Integration.create({ organization: sOrg._id, type: 'jira', enabled: true, createdBy: sOwner._id,
+      config: { domain: 'acme.atlassian.net', email: 'j@acme.io', apiToken: 'jiratoken-secret-9876', projectKey: 'ACM' } });
+    const moveDomain = await call('PATCH', `/api/integrations/${sJira._id}`, { user: sOwner, body: { config: { domain: 'evil.example.com', apiToken: '••••9876' } } });
+    const moveEmail = await call('PATCH', `/api/integrations/${sJira._id}`, { user: sOwner, body: { config: { email: 'attacker@evil.example.com' } } });
+    check('changing the Jira site or email requires a new API token', moveDomain.status === 400 && moveDomain.data?.code === 'JIRA_TOKEN_REQUIRED' && moveEmail.status === 400, `${moveDomain.status}/${moveEmail.status}`);
+    check('the Jira integration keeps its site after a refused change', (await Integration.findById(sJira._id)).config.domain === 'acme.atlassian.net');
+    check('Jira project keys are validated', (await call('PATCH', `/api/integrations/${sJira._id}`, { user: sOwner, body: { config: { projectKey: '../../myself' } } })).status === 400
+      && (await call('PATCH', `/api/integrations/${sJira._id}`, { user: sOwner, body: { config: { projectKey: 'WEB_2' } } })).status === 200);
+
+    // SEC-20: integration secrets are encrypted at rest
+    const rawJira = await Integration.collection.findOne({ _id: sJira._id });
+    check('the Jira API token is stored encrypted', /^enc:v1\./.test(rawJira.config.apiToken) && !JSON.stringify(rawJira).includes('jiratoken-secret') && revealSecret(rawJira.config.apiToken) === 'jiratoken-secret-9876');
+    const slackUrl = 'https://hooks.slack.com/services/T000/B000/secretpath';
+    const sSlack = await Integration.create({ organization: sOrg._id, type: 'slack', enabled: true, createdBy: sOwner._id, config: { webhookUrl: slackUrl, notifyOn: ['pin.created'] } });
+    const rawSlack = await Integration.collection.findOne({ _id: sSlack._id });
+    check('webhook URLs are stored encrypted', /^enc:v1\./.test(rawSlack.config.webhookUrl) && !JSON.stringify(rawSlack).includes('secretpath'));
+    const sList = await call('GET', '/api/integrations', { user: sOwner });
+    const shownSlack = sList.data?.integrations?.find((i) => i._id === String(sSlack._id));
+    const shownJira = sList.data?.integrations?.find((i) => i._id === String(sJira._id));
+    check('responses show the webhook URL and only the last 4 token characters', shownSlack?.config.webhookUrl === slackUrl && shownJira?.config.apiToken === '••••9876'
+      && !JSON.stringify(sList.data).includes('enc:v1.') && !JSON.stringify(sList.data).includes('jiratoken-secret'));
+    const legacyId = new mongoose.Types.ObjectId();
+    await Integration.collection.insertOne({ _id: legacyId, organization: sOrg._id, type: 'discord', enabled: true, createdBy: sOwner._id, config: { webhookUrl: 'https://discord.com/api/webhooks/1/legacy' }, createdAt: new Date(), updatedAt: new Date() });
+    const legacyShown = (await call('GET', '/api/integrations', { user: sOwner })).data?.integrations?.find((i) => i._id === String(legacyId));
+    check('plaintext integration rows from before encryption still work', legacyShown?.config.webhookUrl === 'https://discord.com/api/webhooks/1/legacy');
+    const legacyDoc = await Integration.findById(legacyId);
+    legacyDoc.enabled = false; await legacyDoc.save();
+    const legacyRaw = await Integration.collection.findOne({ _id: legacyId });
+    check('a plaintext row is encrypted on its next save', /^enc:v1\./.test(legacyRaw.config.webhookUrl) && revealSecret(legacyRaw.config.webhookUrl) === 'https://discord.com/api/webhooks/1/legacy');
+    const http = require('http'); const hookBodies = [];
+    const hook = http.createServer((q, s2) => { let b = ''; q.on('data', (c) => { b += c; }); q.on('end', () => { hookBodies.push(b); s2.end('ok'); }); }).listen(0);
+    const sealedHook = await Integration.create({ organization: sOrg._id, type: 'slack', enabled: true, createdBy: sOwner._id, config: { webhookUrl: `http://127.0.0.1:${hook.address().port}/hook` } });
+    await r('utils/slackNotifier').sendSlackNotification(sealedHook.config.webhookUrl, { action: 'pin.created', actorName: 'A', projectName: 'P', pinNumber: 1, projectId: 'x' });
+    hook.close();
+    check('notifiers decrypt the stored webhook URL', /^enc:v1\./.test(sealedHook.config.webhookUrl) && hookBodies.length === 1);
+    await Integration.deleteMany({ organization: sOrg._id });
+
+    // Replaced avatars and logos are deleted from disk
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    const upload = async (method, url, field, u) => {
+      const fd = new FormData();
+      fd.append(field, new Blob([png], { type: 'image/png' }), 'a.png');
+      const res = await fetch(base + url, { method, headers: { Authorization: `Bearer ${tok(u)}`, 'X-Forwarded-For': '10.91.1.1' }, body: fd });
+      return res.json().catch(() => ({}));
+    };
+    const uploadsDir = path.join(__dirname, '..', 'uploads');
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 150));
+    const av1 = (await upload('POST', '/api/auth/avatar', 'avatar', sOwner)).user?.avatar;
+    const av2 = (await upload('POST', '/api/auth/avatar', 'avatar', sOwner)).user?.avatar;
+    await settle();
+    check('a replaced avatar file is deleted', !!av1 && !!av2 && av1 !== av2 && !fs.existsSync(path.join(uploadsDir, av1)) && fs.existsSync(path.join(uploadsDir, av2)), `${av1} ${av2}`);
+    const lg1 = (await upload('PATCH', '/api/auth/organization', 'logo', sOwner)).user?.orgLogo;
+    const lg2 = (await upload('PATCH', '/api/auth/organization', 'logo', sOwner)).user?.orgLogo;
+    await settle();
+    check('a replaced organization logo file is deleted', !!lg1 && !!lg2 && lg1 !== lg2 && !fs.existsSync(path.join(uploadsDir, lg1)) && fs.existsSync(path.join(uploadsDir, lg2)), `${lg1} ${lg2}`);
+    for (const f of [av2, lg2]) if (f) fs.unlink(path.join(uploadsDir, f), () => {});
+
+    // B-8: account deletion needs the password and keeps other orgs' invitations
+    const leaver = await mkUser('secleaver', 'member', { organization: sOrg._id });
+    const otherInv = await Invitation.create({ email: leaver.email, project: PA._id, organization: orgA._id, invitedBy: ownerA._id, role: 'member', token: 'secother'.repeat(8) });
+    const ownInv = await Invitation.create({ email: leaver.email, project: sp._id, organization: sOrg._id, invitedBy: sOwner._id, role: 'member', token: 'secown00'.repeat(8) });
+    const noPw = await call('DELETE', '/api/auth/account', { user: leaver, headers: ip(10) });
+    const wrongPw = await call('DELETE', '/api/auth/account', { user: leaver, headers: ip(11), body: { password: 'wrong-password' } });
+    check('account deletion needs the right password (400, never 401)', noPw.status === 400 && wrongPw.status === 400 && wrongPw.data?.message === 'Password is incorrect' && !!(await User.findById(leaver._id)), `${noPw.status}/${wrongPw.status}`);
+    const goodPw = await call('DELETE', '/api/auth/account', { user: leaver, headers: ip(12), body: { password: 'x'.repeat(60) } });
+    check('account deletion with the password works', goodPw.status === 200 && !(await User.findById(leaver._id)));
+    check('account deletion removes only its own organization\'s invitations', !(await Invitation.findById(ownInv._id)) && !!(await Invitation.findById(otherInv._id)));
+    await Invitation.deleteOne({ _id: otherInv._id });
+
+    // S-12: session tokens are not accepted from the query string
+    const queryTok = (await call('GET', `/api/auth/me?token=${tok(sOwner)}`, { headers: ip(13) })).status;
+    const headerTok = (await call('GET', '/api/auth/me', { user: sOwner, headers: ip(14) })).status;
+    check('session tokens in ?token= are ignored', queryTok === 401 && headerTok === 200, `${queryTok}/${headerTok}`);
+
+    // S-08: support-role admins don't get billing data
+    await Organization.updateOne({ _id: sOrg._id }, { $set: { billingDetails: { legalName: 'Sec Co Legal', taxId: 'GST123' }, deal: { price: 10, currency: 'USD' }, 'subscription.razorpaySubscriptionId': 'sub_secret', 'subscription.status': 'active' } });
+    await Invoice.create({ organization: sOrg._id, plan: 'pro', amount: 2900, currency: 'USD', status: 'pending', provider: 'paypal', billingMonth: '2098-01', dueAt: new Date(Date.now() - 864e5) });
+    const supportTok = signAdminToken(await mkAdmin('secsupport', { role: 'support' }));
+    const superTok = signAdminToken(await mkAdmin('secsuper', { role: 'superadmin' }));
+    const supDetail = await call('GET', `/api/admin/organizations/${sOrg._id}`, { token: supportTok, headers: ip(20) });
+    const supJson = JSON.stringify(supDetail.data || {});
+    check('support admins get no invoices, provider ids, deal or billing details', supDetail.status === 200 && supDetail.data.invoices.length === 0
+      && !supJson.includes('sub_secret') && !supJson.includes('Sec Co Legal') && supDetail.data.organization.deal === undefined && supDetail.data.organization.subscription?.status === 'active', `${supDetail.status}`);
+    const superDetail = await call('GET', `/api/admin/organizations/${sOrg._id}`, { token: superTok, headers: ip(21) });
+    check('superadmins still get billing data', superDetail.status === 200 && superDetail.data.invoices.length === 1 && JSON.stringify(superDetail.data).includes('sub_secret') && superDetail.data.organization.billingDetails?.legalName === 'Sec Co Legal');
+    const supStats = await call('GET', '/api/admin/stats', { token: supportTok, headers: ip(22) });
+    const superStats = await call('GET', '/api/admin/stats', { token: superTok, headers: ip(23) });
+    check('support admins get no unpaid totals or overdue invoices on the dashboard', supStats.status === 200 && supStats.data.kpis.unpaidInvoices.length === 0 && supStats.data.attention.overdueInvoices.length === 0
+      && superStats.status === 200 && superStats.data.attention.overdueInvoices.length > 0, `${supStats.status}/${superStats.status}`);
+
+    // L9: invitation tokens are stored hashed; the emailed link has the raw token
+    const invRes = await call('POST', `/api/projects/${sp._id}/members`, { user: sOwner, body: { email: 'hashed-invite@e2e.test', role: 'member' } });
+    const invMail = [...sentMailArgs].reverse().find((m) => m.name === 'sendInvitationEmail' && m.to === 'hashed-invite@e2e.test');
+    const rawInvToken = invMail ? new URL(invMail.args[2]).searchParams.get('token') : null;
+    const storedInv = await Invitation.findOne({ email: 'hashed-invite@e2e.test' });
+    check('new invitation tokens are stored as a SHA-256 hash', invRes.status === 201 && !!rawInvToken && storedInv?.tokenHashed === true
+      && storedInv.token === require('crypto').createHash('sha256').update(rawInvToken).digest('hex'), `${invRes.status}`);
+    check('the emailed raw token opens the invitation; the stored hash does not', (await call('GET', `/api/invitations/${rawInvToken}`)).status === 200
+      && (await call('GET', `/api/invitations/${storedInv?.token}`)).status === 404);
+    const legacyInv = await Invitation.create({ email: 'legacy-invite@e2e.test', project: sp._id, organization: sOrg._id, invitedBy: sOwner._id, role: 'member', token: 'legacy00'.repeat(8) });
+    check('plaintext invitation tokens from before hashing still work', (await call('GET', `/api/invitations/${legacyInv.token}`)).status === 200);
+    const hashedSignup = await call('POST', '/api/auth/signup', { headers: ip(30), body: { name: 'Hashed Invite', email: 'hashed-invite@e2e.test', password: 'Str0ng!Passw0rd', invitationToken: rawInvToken } });
+    check('signup accepts the raw token of a hashed invitation', hashedSignup.status === 201 && String((await User.findOne({ email: 'hashed-invite@e2e.test' }))?.organization) === String(sOrg._id), `${hashedSignup.status} ${hashedSignup.data?.message || ''}`);
+    const resend = await call('POST', `/api/invitations/${legacyInv._id}/resend`, { user: sOwner });
+    const resendMail = [...sentMailArgs].reverse().find((m) => m.name === 'sendInvitationEmail' && m.to === 'legacy-invite@e2e.test');
+    const resentRaw = resendMail ? new URL(resendMail.args[2]).searchParams.get('token') : null;
+    const resent = await Invitation.findById(legacyInv._id);
+    check('resending an invitation stores the new token hashed', resend.status === 200 && resent.tokenHashed === true && resent.token !== resentRaw
+      && (await call('GET', `/api/invitations/${resentRaw}`)).status === 200 && (await call('GET', `/api/invitations/${legacyInv.token}`)).status === 404, `${resend.status}`);
   }
 
   // --- health

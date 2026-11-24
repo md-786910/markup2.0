@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { TOKEN_KEY } from '../utils/constants';
 import { loginApi, signupApi, getMeApi, logoutApi } from '../services/authService';
 import { setSentryUser } from '../monitoring/sentry';
@@ -73,24 +73,28 @@ export function AuthProvider({ children }) {
   const role = user?.role;
   const orgLocked = user?.orgLocked || false;
 
+  // Same object until something in it changes, so every useAuth() consumer
+  // doesn't re-render whenever the provider does
+  const value = useMemo(() => ({
+    user,
+    token,
+    loading,
+    isAuthenticated: !!user,
+    isOwner: role === 'owner',
+    isAdmin: role === 'admin' || role === 'owner',
+    isGuest: role === 'guest',
+    canManage: role === 'owner' || role === 'admin',
+    canCreate: role !== 'guest' && !orgLocked,
+    orgLocked,
+    login,
+    signup,
+    logout,
+    updateUser,
+    replaceToken,
+  }), [user, token, loading, role, orgLocked, login, signup, logout, updateUser, replaceToken]);
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      token,
-      loading,
-      isAuthenticated: !!user,
-      isOwner: role === 'owner',
-      isAdmin: role === 'admin' || role === 'owner',
-      isGuest: role === 'guest',
-      canManage: role === 'owner' || role === 'admin',
-      canCreate: role !== 'guest' && !orgLocked,
-      orgLocked,
-      login,
-      signup,
-      logout,
-      updateUser,
-      replaceToken,
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

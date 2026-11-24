@@ -117,6 +117,16 @@ async function createOrder({ org, plan, planConfig, invoiceMeta = {} }) {
   };
 }
 
+// A capture pays this invoice only if it is for the invoice's exact amount and
+// currency (invoice.amount is in cents)
+function captureMatchesInvoice(capture, invoice) {
+  const amount = capture?.amount || {};
+  const currency = amount.currencyCode || amount.currency_code;
+  const cents = Math.round(Number(amount.value) * 100);
+  return Number.isFinite(cents) && cents === Number(invoice.amount)
+    && String(currency || '').toUpperCase() === String(invoice.currency || '').toUpperCase();
+}
+
 /**
  * Capture a PayPal order server-side. Client only forwards the orderID.
  */
@@ -140,6 +150,15 @@ async function verifyPayment({ invoice, body }) {
   }
   const capture = result?.purchaseUnits?.[0]?.payments?.captures?.[0];
   const captureId = capture?.id;
+  // The order can be COMPLETED while its capture is still PENDING (PayPal
+  // review, eCheck): no plan until the money is captured. The
+  // PAYMENT.CAPTURE.COMPLETED webhook settles the invoice when it is.
+  if (capture?.status !== 'COMPLETED') {
+    throw new PaymentVerificationError('PayPal is still processing this payment. Your plan starts as soon as PayPal completes it.');
+  }
+  if (!captureMatchesInvoice(capture, invoice)) {
+    throw new PaymentVerificationError('The PayPal payment does not match this invoice.');
+  }
 
   return {
     ok: true,
@@ -248,6 +267,10 @@ async function handleWebhookEvent(event) {
       const invoice = await Invoice.findOne({ paypalOrderId: orderId });
       if (!invoice) {
         console.warn(`[paypal] webhook: no invoice for paypal order ${orderId}`);
+        return;
+      }
+      if (!captureMatchesInvoice(capture, invoice)) {
+        console.warn(`[paypal] capture ${captureId} amount does not match invoice ${invoice._id}: not settled`);
         return;
       }
       await settleInvoice(invoice._id, {

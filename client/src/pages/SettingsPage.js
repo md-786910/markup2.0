@@ -23,7 +23,7 @@ export default function SettingsPage() {
   const managesAWorkspace = workspaces.some((w) => w.myLevel === 'manage');
 
   switch (tab) {
-    case 'billing': return <BillingTab />;
+    case 'billing': return isAdmin ? <BillingTab /> : <Navigate to="/settings" replace />;
     case 'workspaces':
       if (isAdmin || managesAWorkspace) return <WorkspacesTab />;
       // Wait for the workspace list before sending a non-manager back

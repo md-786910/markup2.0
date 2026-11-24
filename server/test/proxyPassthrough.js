@@ -27,6 +27,7 @@ const check = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS'
     if (req.url.startsWith('/api/missing')) { res.writeHead(404, { 'Content-Type': 'application/json' }); return res.end('{"error":"not found"}'); }
     if (req.url.startsWith('/api/private')) { res.writeHead(401, { 'Content-Type': 'application/json' }); return res.end('{"error":"login"}'); }
     if (req.url.startsWith('/api/echo')) { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ authorization: req.headers.authorization || null, cookie: req.headers.cookie || '' })); }
+    if (req.url.startsWith('/login')) { res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': 'sess=xyz; Domain=example.com; Path=/app; Secure; HttpOnly' }); return res.end('{}'); }
     if (req.url.startsWith('/gone')) { res.writeHead(404, { 'Content-Type': 'text/html' }); return res.end('<html><head></head><body>Gone</body></html>'); }
     res.writeHead(200, { 'Content-Type': 'text/html' });
     res.end('<html><head><title>Site</title></head><body><button class="nav-link">Buy</button></body></html>');
@@ -62,11 +63,34 @@ const check = (n, c, x = '') => { c ? pass++ : fail++; console.log(`${c ? 'PASS'
 
   // A reviewed site's mirrored token goes back only to that site; our cookies never leave
   const echo = async (cookie) => (await fetch(`${base}/api/proxy?url=${encodeURIComponent(`${siteUrl}/api/echo`)}&projectId=${project._id}&token=${token}`, { headers: { Cookie: cookie } })).json();
-  const own = await echo('__markup_ls_127.0.0.1__authToken=site-own; site_session=abc; markup_csrf=c; markup_token=t');
+  // Site cookies live under the site's prefix in the proxy origin's cookie jar
+  const own = await echo('__markup_ls_127.0.0.1__authToken=site-own; __mkc_127.0.0.1__site_session=abc; markup_csrf=c; markup_token=t');
   check('a mirrored token is forwarded to the site that stored it', own.authorization === 'Bearer site-own', JSON.stringify(own));
   check('our own cookies are never forwarded to the site', own.cookie === 'site_session=abc', own.cookie);
+  const crossSite = await echo('__mkc_other-client.com__session=theirs; legacy_unprefixed=1; __mkc_127.0.0.1__mine=1');
+  check('another site\x27s cookies (and unprefixed ones) are not forwarded', crossSite.cookie === 'mine=1', crossSite.cookie);
+  const login = await proxied(`${siteUrl}/login`);
+  const setCookie = login.headers.get('set-cookie') || '';
+  check('a site\x27s Set-Cookie is stored under its prefix, HttpOnly kept, on Path=/',
+    setCookie.startsWith('__mkc_127.0.0.1__sess=xyz') && /HttpOnly/i.test(setCookie) && /Path=\/(;|$)/.test(setCookie) && !/Domain=/i.test(setCookie) && !/Path=\/app/.test(setCookie), setCookie);
+  check('the page gets the per-site document.cookie wrapper', html.includes('__markupRawCookie') && html.includes('__mkc_127.0.0.1__'));
+  check('the proxy context cookie is HttpOnly', /__markup_proxy_ctx=.*HttpOnly/i.test(page.headers.get('set-cookie') || ''), page.headers.get('set-cookie'));
+  const { siteKey } = r('utils/proxyRewriter');
+  check('customer apps on a shared hosting platform are separate sites', siteKey('a.vercel.app') !== siteKey('b.vercel.app') && siteKey('x.a.netlify.app') === siteKey('a.netlify.app') && siteKey('www.example.co.uk') === 'example.co.uk');
   const other = await echo('__markup_ls_other-client.com__authToken=other-site; __markup_ls_authToken=legacy-unscoped');
   check('another site\'s mirrored token is not forwarded', other.authorization === null, JSON.stringify(other));
+
+  // Share links: the guest proxy opens the project's own site; other sites only
+  // from inside a proxied page (same-origin requests)
+  const shared = await Project.create({ name: 'Shared', projectType: 'website', websiteUrl: `${siteUrl}/`, owner: owner._id, organization: org._id, members: [owner._id], shareSettings: { enabled: true, token: 'guest-proxy-test', allowComments: true } });
+  const offSite = siteUrl.replace('127.0.0.1', 'localhost');
+  const guest = (target, headers = {}, method = 'GET') => fetch(`${base}/api/proxy?url=${encodeURIComponent(target)}&projectId=${shared._id}&guest=true`, { method, headers, redirect: 'manual' });
+  const ownSite = await guest(`${siteUrl}/`, { Accept: 'text/html' });
+  check('guest: the project\x27s own site loads', ownSite.status === 200, `${ownSite.status} ${ownSite.status !== 200 ? await ownSite.text() : ''}`);
+  check('guest: another site opened from outside (link, other site) is refused', (await guest(`${offSite}/`, { Accept: 'text/html', 'Sec-Fetch-Site': 'none' })).status === 403);
+  check('guest: another site from a non-browser client is refused', (await guest(`${offSite}/`, { Accept: 'text/html' })).status === 403);
+  check('guest: a form post to another site from outside is refused', (await guest(`${offSite}/api/echo`, {}, 'POST')).status === 403);
+  check('guest: another site from inside a proxied page still loads', (await guest(`${offSite}/`, { Accept: 'text/html', 'Sec-Fetch-Site': 'same-origin' })).status === 200);
 
   // Captured console errors keep no tokens or query strings
   const { sanitizePinContext } = r('utils/pinContext');

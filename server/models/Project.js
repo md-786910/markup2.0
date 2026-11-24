@@ -122,5 +122,8 @@ projectSchema.index({ owner: 1 });
 projectSchema.index({ members: 1 });
 projectSchema.index({ organization: 1 });
 projectSchema.index({ organization: 1, workspace: 1 });
+// Per-project grants: dashboard visibility ($or in visibleProjectsQuery) and
+// pulling a removed user's grants
+projectSchema.index({ 'memberAccess.user': 1 });
 
 module.exports = mongoose.model('Project', projectSchema);

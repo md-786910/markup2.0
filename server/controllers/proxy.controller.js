@@ -14,6 +14,7 @@ const {
   rewriteJsUrls,
   injectScript,
   siteKey,
+  siteCookiePrefix,
 } = require("../utils/proxyRewriter");
 const asyncHandler = require("../utils/asyncHandler");
 const { isPublicUrl, safeLookup, beforeRedirect } = require("../utils/ssrfGuard");
@@ -383,9 +384,13 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
       // Never let the proxied site set or overwrite our own cookies (session, CSRF, proxy ctx)
       .filter(c => !/^\s*(markup_|__markup_)/i.test(c));
     // Served under /api/proxy on our host: drop Domain/Secure/SameSite and widen
-    // Path so the cookie is sent back with every proxied request
-    const rewritten = setCookies.map(c =>
-      c.replace(/;\s*Domain=[^;]*/gi, '')
+    // Path so the cookie is sent back with every proxied request. Every reviewed
+    // site shares this host, so the name gets the site's prefix: the cookie is
+    // only ever forwarded back to the same site (see the direct fetch below).
+    let prefix = null;
+    try { prefix = siteCookiePrefix(new URL(url).hostname); } catch {}
+    const rewritten = (prefix ? setCookies : []).map(c =>
+      prefix + c.replace(/^\s+/, '').replace(/;\s*Domain=[^;]*/gi, '')
        .replace(/;\s*Secure/gi, '')
        .replace(/;\s*SameSite=[^;]*/gi, '')
        .replace(/;\s*Path=[^;]*/gi, '')
@@ -420,6 +425,8 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
     // A reviewed site must never widen a service worker's scope on the API
     // origin or wipe its storage
     "service-worker-allowed", "clear-site-data",
+    // Keep our no-referrer policy: the proxied URL carries the project proxy token
+    "referrer-policy",
   ]);
   Object.entries(response.headers).forEach(([key, value]) => {
     if (!headersToSkip.has(key.toLowerCase())) {
@@ -458,7 +465,7 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
       const pageOrigin = new URL(url).origin;
       const ctxPayload = { origin: pageOrigin, projectId, token: proxyTokenFor(req, projectId) };
       if (isGuest) ctxPayload.guest = true;
-      res.cookie('__markup_proxy_ctx', JSON.stringify(ctxPayload), { httpOnly: false, sameSite: 'lax', secure: SECURE_COOKIES, maxAge: 24 * 60 * 60 * 1000 });
+      res.cookie('__markup_proxy_ctx', JSON.stringify(ctxPayload), { httpOnly: true, sameSite: 'lax', secure: SECURE_COOKIES, maxAge: 24 * 60 * 60 * 1000 });
     } catch {}
     const html = response.data.toString("utf-8");
     let rewritten = rewriteHtml(html, url, projectId, serverBase, workerBase, isGuest);
@@ -501,6 +508,28 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
   return res.send(response.data);
 }
 
+// Same reviewed site as the project (siteKey keeps platform subdomains apart)
+function onProjectSite(url, project) {
+  try {
+    return !!project.websiteUrl && siteKey(new URL(url).hostname) === siteKey(new URL(project.websiteUrl).hostname);
+  } catch {
+    return false;
+  }
+}
+
+// Guest (share link) proxy requests: the project's own site, or a request the
+// browser marks as coming from a proxied page. Without Sec-Fetch-Site (not a
+// current browser) only asset GETs may leave the site.
+function guestRequestAllowed(req, url, project) {
+  if (onProjectSite(url, project)) return true;
+  const site = String(req.headers['sec-fetch-site'] || '').toLowerCase();
+  if (site === 'same-origin') return true;
+  if (site) return false;
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+  const accept = String(req.headers.accept || '').toLowerCase();
+  return !accept.includes('text/html');
+}
+
 // Try secondary fallback proxies for a blocked/failed domain.
 // Returns a raw axios response object (caller must call processResponse), or null.
 // Skips CF Worker relay since it's already the primary path in proxyPage().
@@ -512,6 +541,9 @@ async function tryFallback(url) {
         method: 'GET', url, responseType: 'arraybuffer', timeout: 30000,
         maxContentLength: PROXY_MAX_BYTES,
         httpsAgent: proxyAgent, httpAgent: proxyAgent,
+        // The outbound proxy resolves DNS itself, so the SSRF lookup can't run:
+        // follow no redirects (a site could bounce us to an internal address)
+        maxRedirects: 0,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -576,6 +608,13 @@ exports.proxyPage = asyncHandler(async (req, res) => {
     // Its own share link, or its workspace's review link
     if (!(await isProjectShared(project))) {
       return res.status(403).json({ message: 'Sharing is not enabled for this project' });
+    }
+    // A share link opens the project's own site. Other sites load only from
+    // inside a proxied page (its links, embeds and forms are same-origin
+    // requests); a request that starts elsewhere (a link in an email, another
+    // site, a script outside the browser) may not use the link as a proxy
+    if (!guestRequestAllowed(req, url, project)) {
+      return res.status(403).json({ message: 'This address is not part of the shared project' });
     }
   }
 
@@ -646,11 +685,15 @@ exports.proxyPage = asyncHandler(async (req, res) => {
       httpsAgent: directHttpsAgent,
     };
 
-    // Forward cookies from client to upstream (never our own: markup_* and __markup_*)
-    const upstreamCookies = Object.entries(req.cookies || {})
-      .filter(([name]) => !name.startsWith('markup_') && !name.startsWith('__markup_'))
-      .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
-      .join('; ');
+    // Forward only this site's own cookies (stored under its prefix, see
+    // processResponse and the page's cookie script); never our own or another
+    // reviewed site's
+    let cookiePrefix = null;
+    try { cookiePrefix = siteCookiePrefix(new URL(url).hostname); } catch {}
+    const upstreamCookies = cookiePrefix ? Object.entries(req.cookies || {})
+      .filter(([name]) => name.startsWith(cookiePrefix) && name.length > cookiePrefix.length)
+      .map(([name, value]) => `${name.slice(cookiePrefix.length)}=${encodeURIComponent(value)}`)
+      .join('; ') : '';
     if (upstreamCookies) {
       axiosConfig.headers['Cookie'] = upstreamCookies;
     }

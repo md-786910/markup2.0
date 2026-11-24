@@ -2,6 +2,37 @@ const Notification = require('../models/Notification');
 const Project = require('../models/Project');
 const { stripHtmlAndMentions } = require('./mentionHelper');
 
+// What `populate('actor', 'name email avatar')`, `populate('project', 'name')` and
+// `populate('pin', 'pinNumber pageUrl')` gave the emitted notifications, built
+// from what the caller already has; only a missing piece is read (one query each).
+async function emitShape({ actor, project, projectId, pin }) {
+  const User = require('../models/User');
+  const Pin = require('../models/Pin');
+  const actorId = actor ? (actor._id || actor) : null;
+  const pinId = pin ? (pin._id || pin) : null;
+  const hasActor = actor && actor._id && actor.name !== undefined;
+  const hasPin = pin && pin._id && pin.pinNumber !== undefined && pin.pageUrl !== undefined;
+  const [actorDoc, projectDoc, pinDoc] = await Promise.all([
+    !actorId ? null : hasActor ? actor : User.findById(actorId).select('name email avatar').lean(),
+    project || Project.findById(projectId).select('name').lean(),
+    !pinId ? null : hasPin ? pin : Pin.findById(pinId).select('pinNumber pageUrl').lean(),
+  ]);
+  return {
+    actor: actorDoc ? { _id: actorDoc._id, name: actorDoc.name, email: actorDoc.email, avatar: actorDoc.avatar } : null,
+    project: projectDoc ? { _id: projectDoc._id, name: projectDoc.name } : null,
+    pin: pinDoc ? { _id: pinDoc._id, pinNumber: pinDoc.pinNumber, pageUrl: pinDoc.pageUrl } : null,
+  };
+}
+
+// A created notification as the client receives it (populated refs)
+function forEmit(notif, shape) {
+  const obj = notif.toObject();
+  if (obj.actor) obj.actor = shape.actor;
+  if (obj.project) obj.project = shape.project;
+  if (obj.pin) obj.pin = shape.pin;
+  return obj;
+}
+
 /**
  * Creates in-app notification for a single recipient and emits real-time Socket.IO event.
  */
@@ -44,10 +75,7 @@ async function createSingleNotification({
       createdAt: new Date(),
     });
 
-    const populated = await Notification.findById(notif._id)
-      .populate('actor', 'name email avatar')
-      .populate('project', 'name')
-      .populate('pin', 'pinNumber pageUrl');
+    const populated = forEmit(notif, await emitShape({ actor, projectId, pin }));
 
     if (io && populated) {
       const recipientRoom = `user:${recipientIdStr}`;
@@ -83,15 +111,12 @@ async function createProjectNotifications({
   try {
     if (!projectId) return [];
 
-    const project = await Project.findById(projectId)
-      .populate('owner', 'name email avatar')
-      .populate('members', 'name email avatar');
+    // Owner, project members and workspace members (loaded once, shared with
+    // the email recipients lookup when both run together: notifier.js)
+    const { loadProjectAudience } = require('./notifier');
+    const { project, users: allMembers } = await loadProjectAudience(projectId);
 
     if (!project) return [];
-
-    // Collect all project members, plus the members of its workspace
-    const { workspaceMemberUsers } = require('./workspaces');
-    const allMembers = [project.owner, ...(project.members || []), ...(await workspaceMemberUsers(project, 'name email avatar'))].filter(Boolean);
     const actorIdStr = actor ? (actor._id || actor).toString() : null;
     const excludeSet = new Set(
       (excludeRecipientIds || []).map((id) => (id._id || id).toString())
@@ -173,15 +198,13 @@ async function createProjectNotifications({
 
     if (notificationsToCreate.length === 0) return [];
 
-    const createdDocs = await Notification.insertMany(notificationsToCreate);
+    const [createdDocs, shape] = await Promise.all([
+      Notification.insertMany(notificationsToCreate),
+      emitShape({ actor, project, projectId, pin }),
+    ]);
 
-    // Populate created notifications for real-time emission
-    const populated = await Notification.find({
-      _id: { $in: createdDocs.map((d) => d._id) },
-    })
-      .populate('actor', 'name email avatar')
-      .populate('project', 'name')
-      .populate('pin', 'pinNumber pageUrl');
+    // Emitted as populated without reading the notifications back
+    const populated = createdDocs.map((d) => forEmit(d, shape));
 
     // Emit real-time notification to each recipient
     if (io) {
