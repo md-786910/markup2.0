@@ -142,7 +142,7 @@ function Shell() {
       { group: 'Go to', label: 'Team', icon: 'team', kbd: 'G T', onClick: () => navigate('/team') },
       ...(canManage ? [{ group: 'Go to', label: 'Integrations', icon: 'link', kbd: 'G I', onClick: () => navigate('/integrations') }] : []),
       { group: 'Go to', label: 'Settings', icon: 'gear', kbd: 'G S', onClick: () => navigate('/settings') },
-      { group: 'Go to', label: 'Plan and billing', icon: 'card', onClick: () => navigate('/settings?tab=billing') },
+      ...(isAdmin ? [{ group: 'Go to', label: 'Plan and billing', icon: 'card', onClick: () => navigate('/settings?tab=billing') }] : []),
       { group: 'Go to', label: 'Profile', icon: 'user', onClick: () => navigate('/profile') },
 
       // Actions
@@ -228,7 +228,7 @@ function Shell() {
     },
     { divider: true },
     { label: 'Profile', icon: 'user', onClick: () => navigate('/profile') },
-    { label: 'Plan and billing', icon: 'card', onClick: () => navigate('/settings?tab=billing') },
+    ...(isAdmin ? [{ label: 'Plan and billing', icon: 'card', onClick: () => navigate('/settings?tab=billing') }] : []),
     {
       label: 'Chat with support',
       icon: 'chat',
@@ -302,7 +302,7 @@ function Shell() {
             </div>
           ))}
         </div>
-        <div className="foot"><TrialBadge /></div>
+        {isAdmin && <div className="foot"><TrialBadge /></div>}
       </aside>
 
       {/* Header + content */}
@@ -332,7 +332,7 @@ function Shell() {
         </header>
 
         <main ref={mainRef} className="kc-main" id="main">
-          {orgLocked ? <div style={{ marginBottom: 16 }}><OrgLockedBanner /></div> : user?.orgPendingInvoice ? <PendingPaymentBanner /> : null}
+          {orgLocked ? <div style={{ marginBottom: 16 }}><OrgLockedBanner /></div> : isAdmin && user?.orgPendingInvoice ? <PendingPaymentBanner /> : null}
           <Outlet />
         </main>
 

@@ -80,6 +80,9 @@ const generateToken = (user) => {
   );
 };
 
+// Subscription and invoice details are for the people who run billing
+const seesBilling = (user) => user.role === "owner" || user.role === "admin";
+
 const userResponse = (user, org, dynamicLimits) => ({
   id: user._id,
   name: user.name,
@@ -97,10 +100,10 @@ const userResponse = (user, org, dynamicLimits) => ({
   orgTrialEndsAt: org ? org.trialEndsAt : null,
   orgTrialDays: org ? org.trialDays : null,
   orgLimits: dynamicLimits || (org ? org.limits : null),
-  orgSubscription: org ? org.subscription : null,
+  orgSubscription: org && seesBilling(user) ? org.subscription : null,
   // Attached by callers via attachPendingInvoice(org) before calling userResponse.
   // null when the org has no pending invoice.
-  orgPendingInvoice: org && org._pendingInvoice ? org._pendingInvoice : null,
+  orgPendingInvoice: org && org._pendingInvoice && seesBilling(user) ? org._pendingInvoice : null,
   mutedProjectEmails: (user.mutedProjectEmails || []).map((id) => id.toString()),
   emailNotificationsEnabled: user.emailNotificationsEnabled !== false,
   // Support channels of the plan (config/plans.js)

@@ -1546,6 +1546,14 @@ function check(name, cond, extra = '') {
     }
     check('members and org guests cannot read invoices, billing details or the subscription', billingCodes.every((c) => c === 403), billingCodes.join(','));
     check('the owner can still read invoices', (await call('GET', '/api/billing/invoices', { user: fOwner })).status === 200);
+    await Organization.updateOne({ _id: fOrg._id }, { $set: { subscription: { status: 'active', provider: 'paypal', paypalSubscriptionId: 'SUB-SECRET' } } });
+    let meIp = 0;
+    const meOf = async (u) => (await call('GET', '/api/auth/me', { user: u, headers: { 'X-Forwarded-For': `10.88.0.${++meIp}` } })).data?.user || {};
+    const [meMember, meGuest, meOwner] = [await meOf(fMember), await meOf(fGuest), await meOf(fOwner)];
+    check('members and org guests get no subscription or invoice details from /auth/me; the owner does',
+      meMember.orgSubscription == null && meMember.orgPendingInvoice == null && meGuest.orgSubscription == null && meGuest.orgPendingInvoice == null
+        && meOwner.orgSubscription?.paypalSubscriptionId === 'SUB-SECRET' && !!meMember.orgPlan, JSON.stringify(meMember.orgSubscription));
+    await Organization.updateOne({ _id: fOrg._id }, { $unset: { subscription: 1 } });
 
     // Q-1: malformed ids are client errors; unknown API routes answer JSON
     const badIds = [(await call('GET', '/api/projects/not-an-id', { user: fOwner })).status, (await call('GET', '/api/pins/not-an-id/comments', { user: fOwner })).status];

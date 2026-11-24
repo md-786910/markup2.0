@@ -2,17 +2,20 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTrialStatus } from '../../hooks/useTrialStatus';
 import { Banner, Button, IconButton } from '../kc';
+import { useAuth } from '../../hooks/useAuth';
 
 // Near the end of the trial (7 days or fewer) the Projects page opens with a
 // banner; the trial card in the context panel shows the countdown otherwise.
 export default function TrialDashboardBanner() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { daysLeft, isTrialActive, urgency } = useTrialStatus();
   const [dismissed, setDismissed] = useState(() => {
     try { return sessionStorage.getItem('trial-banner-dismissed') === 'true'; } catch { return false; }
   });
 
-  if (!isTrialActive || dismissed || urgency === 'normal') return null;
+  // Plans are chosen by owners and admins; members and guests don't see trial/plan prompts
+  if (!isAdmin || !isTrialActive || dismissed || urgency === 'normal') return null;
 
   const dismiss = () => {
     setDismissed(true);

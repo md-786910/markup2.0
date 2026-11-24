@@ -4,6 +4,7 @@ import { loginApi, signupApi, getMeApi, logoutApi } from '../services/authServic
 import { setSentryUser } from '../monitoring/sentry';
 import { identifyUser } from '../monitoring/analytics';
 import { signingOutOnPurpose } from '../utils/returnTo';
+import { setBillingAccess } from '../services/api';
 
 export const AuthContext = createContext(null);
 
@@ -71,6 +72,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const role = user?.role;
+  // Limit toasts link to billing only for people who can open it
+  useEffect(() => { setBillingAccess(role === 'owner' || role === 'admin'); }, [role]);
   const orgLocked = user?.orgLocked || false;
 
   // Same object until something in it changes, so every useAuth() consumer

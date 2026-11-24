@@ -6,7 +6,7 @@ import { Banner, Button } from '../kc';
 // Page-level state at the top of the content (design system Banner)
 export default function OrgLockedBanner() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const isOverdue = user?.orgLockedReason === 'Payment overdue';
   const isDeletion = !!user?.orgDeletionScheduledAt || user?.orgLockedReason === 'Deletion scheduled';
 
@@ -20,6 +20,15 @@ export default function OrgLockedBanner() {
         action={<Button size="sm" onClick={() => navigate('/settings?tab=data')}>Review settings</Button>}
       >
         Everything is currently in read-only mode. You can cancel the deletion in Data &amp; privacy before the grace period ends.
+      </Banner>
+    );
+  }
+
+  // Members and guests: no billing details or actions, just who can fix it
+  if (!isAdmin) {
+    return (
+      <Banner tone="warning" title="Your organization is locked">
+        Everything is read-only for now. Ask your organization owner or an admin to restore access.
       </Banner>
     );
   }

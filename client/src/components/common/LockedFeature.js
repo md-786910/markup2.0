@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 
 // Shown in place of a feature the workspace's plan doesn't include
 export default function LockedFeature({ title, plan, description, className = '' }) {
-  const { isOwner } = useAuth();
+  const { isAdmin } = useAuth();
   return (
     <div className={`flex flex-col items-center justify-center px-6 py-12 text-center ${className}`}>
       <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-blue-600">
@@ -14,8 +14,8 @@ export default function LockedFeature({ title, plan, description, className = ''
       </div>
       <h3 className="text-body-sm font-semibold text-gray-900">{title}</h3>
       <p className="mt-1.5 max-w-xs text-body-sm text-gray-500">{description}</p>
-      <p className="mt-1 text-caption font-medium text-blue-600">Included on the {plan} plan</p>
-      {isOwner ? (
+      {isAdmin && <p className="mt-1 text-caption font-medium text-blue-600">Included on the {plan} plan</p>}
+      {isAdmin ? (
         <Link
           to="/settings?tab=billing"
           className="mt-5 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-label text-white hover:bg-blue-700"
@@ -23,7 +23,7 @@ export default function LockedFeature({ title, plan, description, className = ''
           See plans
         </Link>
       ) : (
-        <p className="mt-5 text-caption text-gray-400">Ask your workspace owner to upgrade.</p>
+        <p className="mt-5 text-caption text-gray-400">Ask your organization owner or an admin about this feature.</p>
       )}
     </div>
   );

@@ -45,12 +45,22 @@ const LIMIT_MESSAGES = {
   FEATURE_NOT_AVAILABLE: ["This feature isn't included in your plan.", "Upgrade plan"],
 };
 
+// Owners and admins get a link to billing; members and guests are told who can help
+let billingAccess = false;
+export function setBillingAccess(value) { billingAccess = !!value; }
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const limit = error.response?.status === 403 && LIMIT_MESSAGES[error.response?.data?.code];
     if (limit) {
-      toast.error(error.response.data.message || limit[0], { action: { label: limit[1], to: BILLING } });
+      if (billingAccess) {
+        toast.error(error.response.data.message || limit[0], { action: { label: limit[1], to: BILLING } });
+      } else {
+        toast.error(error.response?.data?.code === 'ORG_LOCKED'
+          ? 'Your organization is read-only for now. Ask your organization owner or an admin.'
+          : 'This is not available right now. Ask your organization owner or an admin.');
+      }
       error.__notified = true;
     }
 

@@ -8,10 +8,11 @@ import { useAuth } from '../../hooks/useAuth';
 // Free plan: the plan name and the same link. Paid plans: nothing.
 export default function TrialBadge() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { daysLeft, trialDays, progressPercent, isTrialActive } = useTrialStatus();
   const choose = (e) => { e.preventDefault(); navigate('/settings?tab=billing'); };
 
+  if (!isAdmin) return null;
   if (!isTrialActive && user?.orgPlan === 'free') {
     return (
       <div className="kc-trial">
