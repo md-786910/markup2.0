@@ -52,24 +52,15 @@ function useTick(active) {
 }
 
 function StatusLine({ isOnline, lastSeen }) {
-  if (isOnline) {
-    return (
-      <div className="flex items-center gap-1.5 text-caption font-medium text-green-600">
-        <span className="relative flex w-2 h-2">
-          <span className="absolute inline-flex w-full h-full rounded-full bg-green-400 opacity-75 animate-ping" />
-          <span className="relative inline-flex w-2 h-2 rounded-full bg-green-500" />
-        </span>
-        Active now
-      </div>
-    );
-  }
+  // Online is shown by the green dot on the avatar.
+  if (isOnline) return null;
   if (!lastSeen) {
-    return <div className="text-caption text-gray-400">Not active yet</div>;
+    return <div className="text-micro font-normal text-slate-400">Not active yet</div>;
   }
   return (
-    <div className="text-caption text-gray-500" title={formatExactTime(lastSeen)}>
+    <div className="text-micro font-normal text-slate-500" title={formatExactTime(lastSeen)}>
       Last active {formatLastSeen(lastSeen)}
-      <span className="text-gray-400"> · {formatExactTime(lastSeen)}</span>
+      <span className="text-slate-400"> · {formatExactTime(lastSeen)}</span>
     </div>
   );
 }
@@ -79,10 +70,10 @@ function Avatar({ initials, color, isOnline }) {
   const text = color?.text || 'text-white';
   return (
     <div className="relative shrink-0">
-      <div className={`w-8 h-8 rounded-full ${bg} ${text} flex items-center justify-center text-caption font-semibold`}>
+      <div className={`w-8 h-8 rounded-full ${bg} ${text} flex items-center justify-center text-micro font-semibold`}>
         {initials}
       </div>
-      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`} />
+      <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${isOnline ? 'bg-green-500' : 'bg-slate-300'}`} />
     </div>
   );
 }
@@ -108,28 +99,28 @@ export default function MembersPresencePopover({ entries, children }) {
       {children}
       {open && (
         <div className="absolute right-0 top-full z-50 pt-2 animate-scale-in origin-top-right" role="tooltip">
-          <div className="w-80 bg-white rounded-xl border border-gray-200 shadow-xl shadow-gray-900/10">
-            <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-gray-100">
-              <span className="text-body-sm font-semibold text-gray-900">
-                Project members <span className="font-normal text-gray-400">({entries.length})</span>
+          <div className="w-80 bg-white rounded-xl border border-slate-200 shadow-lg">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-slate-100">
+              <span className="text-card-title text-slate-900">
+                Project members <span className="font-normal text-slate-400">({entries.length})</span>
               </span>
-              <span className="flex items-center gap-1.5 text-caption text-gray-500">
-                <span className={`w-1.5 h-1.5 rounded-full ${onlineCount ? 'bg-green-500' : 'bg-gray-300'}`} />
+              <span className="flex items-center gap-1.5 text-ui-label font-normal text-slate-500">
+                <span className={`w-1.5 h-1.5 rounded-full ${onlineCount ? 'bg-green-500' : 'bg-slate-300'}`} />
                 {onlineCount} online
               </span>
             </div>
             <div className="max-h-80 overflow-y-auto py-1.5">
               {sorted.map(({ member, role, isYou, isOnline, lastSeen, color, initials }) => (
-                <div key={member._id} className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50">
+                <div key={member._id} className="flex items-center gap-3 px-4 py-2 hover:bg-slate-50">
                   <Avatar initials={initials} color={color} isOnline={isOnline} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="truncate text-body-sm font-medium text-gray-900">
+                      <span className="truncate text-ui font-medium text-slate-900">
                         {member.name || member.email}
                       </span>
-                      {isYou && <span className="shrink-0 text-caption text-gray-400">(you)</span>}
+                      {isYou && <span className="shrink-0 text-ui-label font-normal text-slate-400">(you)</span>}
                       {role && (
-                        <span className="ml-auto shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-caption font-medium text-gray-600">
+                        <span className="ml-auto shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-micro text-slate-600">
                           {ROLE_LABELS[role] || role}
                         </span>
                       )}
