@@ -1,13 +1,10 @@
-const fs = require('fs');
-const path = require('path');
 const Organization = require('../models/Organization');
 const { getEffectiveLimitsAsync } = require('../config/plans');
+const fileStorage = require('./fileStorage');
 
 // Per-organization storage quota. Usage is a counter on the org
 // (storageUsedBytes): reserved when files are uploaded, released when they are
 // deleted. Files uploaded before quotas existed are not counted.
-
-const UPLOADS_ROOT = path.join(__dirname, '..', 'uploads');
 
 function uploadedFiles(req) {
   if (req.file) return [req.file];
@@ -16,10 +13,10 @@ function uploadedFiles(req) {
   return [];
 }
 
-// Remove multer's files for a request that was rejected
+// Remove multer's files for a request that was rejected (local or Cloudinary)
 function discardUploads(req) {
   for (const f of uploadedFiles(req)) {
-    fs.unlink(f.path, () => {});
+    fileStorage.removeUploadedFile(f).catch(() => {});
   }
 }
 
@@ -74,18 +71,9 @@ async function releaseStorage(orgId, bytes) {
   ], { updatePipeline: true });
 }
 
-/**
- * Delete stored files by their relative path ("uploads/..."), ignoring missing
- * ones and anything outside the uploads folder. Fire-and-forget.
- */
-function deleteStoredFiles(relativePaths) {
-  for (const rel of relativePaths) {
-    if (!rel || typeof rel !== 'string') continue;
-    const abs = path.resolve(path.join(__dirname, '..'), rel);
-    if (!abs.startsWith(UPLOADS_ROOT + path.sep)) continue;
-    fs.unlink(abs, () => {});
-  }
-}
+// Delete stored files by their relative path ("uploads/..."), with whichever
+// provider holds them. Fire-and-forget.
+const { deleteStoredFiles } = fileStorage;
 
 /** Express middleware (after multer) for routes where req.organization is set. */
 async function enforceStorageQuota(req, res, next) {

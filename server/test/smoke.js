@@ -14,6 +14,8 @@ process.env.SENTRY_DSN = '';
 const TEST_REDIS = !!process.env.TEST_REDIS_URL;
 if (TEST_REDIS) process.env.REDIS_URL = process.env.TEST_REDIS_URL;
 else process.env.REDIS_URL = '';
+// Uploads go to the local disk (LOCAL_UPLOAD_DIR), never to a Cloudinary account from .env
+for (const k of ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET']) process.env[k] = '';
 
 const path = require('path');
 const r = (m) => require(path.join(__dirname, '..', m));
@@ -593,7 +595,7 @@ function check(name, cond, extra = '') {
 
   // storage quota (1 MB): oversized upload rejected and its file removed, small one counted
   const fsMod = require('fs'); const pathMod = require('path');
-  const uploadsDir = pathMod.join(__dirname, '..', 'uploads', 'documents');
+  const uploadsDir = pathMod.join(r('utils/fileStorage').LOCAL_DIR, 'documents');
   const filesBefore = new Set(fsMod.readdirSync(uploadsDir));
   const uploadDoc = async (bytes) => {
     const fd = new FormData();
@@ -727,7 +729,7 @@ function check(name, cond, extra = '') {
   const gdProject = await Project.create({ name: 'GDP', projectType: 'website', websiteUrl: 'https://example.com', owner: gdOwner._id, organization: gdOrg._id, members: [gdOwner._id],
     shareSettings: { enabled: true, token: 'gd-share-secret', allowComments: true } });
   const attName = `e2e-${Date.now()}.txt`;
-  const attPath = pathMod.join(__dirname, '..', 'uploads', 'documents', attName);
+  const attPath = pathMod.join(r('utils/fileStorage').LOCAL_DIR, 'documents', attName);
   fsMod.writeFileSync(attPath, 'x'.repeat(5000));
   const gdPin = await Pin.create({ project: gdProject._id, pageUrl: 'https://example.com/', xPercent: 1, yPercent: 1, pinNumber: 1, createdBy: gdOwner._id });
   await Comment.create({ pin: gdPin._id, author: gdOwner._id, body: 'hi', attachments: [{ filename: attName, path: `uploads/documents/${attName}`, size: 5000 }] });
@@ -1156,7 +1158,7 @@ function check(name, cond, extra = '') {
     check('support attachments are capped at 5 MB', (await uploadSupport('image/png', 'big.png', 5.5 * 1024 * 1024)) === 400);
     check('a screenshot can be attached', (await uploadSupport('image/png', 'shot.png')) === 201);
     for (const tk of await SupportTicket.find({ organization: supOrg._id, subject: 'With a file' }).lean()) {
-      for (const m of tk.messages) for (const a of m.attachments || []) require('fs').unlink(require('path').join(__dirname, '..', 'uploads', 'documents', a.filename), () => {});
+      for (const m of tk.messages) for (const a of m.attachments || []) require('fs').unlink(require('path').join(r('utils/fileStorage').LOCAL_DIR, 'documents', a.filename), () => {});
     }
 
     const { getSupportForPlan } = r('config/plans');
@@ -1720,7 +1722,7 @@ function check(name, cond, extra = '') {
       const res = await fetch(base + url, { method, headers: { Authorization: `Bearer ${tok(u)}`, 'X-Forwarded-For': '10.91.1.1' }, body: fd });
       return res.json().catch(() => ({}));
     };
-    const uploadsDir = path.join(__dirname, '..', 'uploads');
+    const uploadsDir = r('utils/fileStorage').LOCAL_DIR;
     const settle = () => new Promise((resolve) => setTimeout(resolve, 150));
     const av1 = (await upload('POST', '/api/auth/avatar', 'avatar', sOwner)).user?.avatar;
     const av2 = (await upload('POST', '/api/auth/avatar', 'avatar', sOwner)).user?.avatar;

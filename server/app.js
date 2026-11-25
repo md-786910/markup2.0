@@ -162,22 +162,9 @@ app.use((req, res, next) => {
   return verifyCsrf(req, res, next);
 });
 
-// Serve uploaded files. Uploads are user-controlled, so never let one render as an
-// active document on our origin: no MIME sniffing, and anything other than an image
-// or PDF is sandboxed and downloaded instead of displayed.
-const INLINE_UPLOAD_EXT = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf"]);
-app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
-  setHeaders: (res, filePath) => {
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    // The app (app.<domain>) shows these from the API host (api.<domain>):
-    // allow the same site, not just the same origin (helmet's default).
-    res.setHeader("Cross-Origin-Resource-Policy", "same-site");
-    if (!INLINE_UPLOAD_EXT.has(path.extname(filePath).toLowerCase())) {
-      res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
-      res.setHeader("Content-Disposition", "attachment");
-    }
-  },
-}));
+// Serve uploaded files: from LOCAL_UPLOAD_DIR, or a redirect to Cloudinary when
+// the file is stored there (headers and rules in utils/fileStorage.js)
+app.use("/uploads", require("./utils/fileStorage").uploadsRouter());
 
 // Screenshot libraries for the review iframe (under /api/ so Nginx forwards to
 // Express): html2canvas, and html2canvas-pro as the fallback for pages it can't

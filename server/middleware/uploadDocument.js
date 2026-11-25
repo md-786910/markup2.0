@@ -1,6 +1,5 @@
 const multer = require('multer');
-const path = require('path');
-const { randomUUID } = require('crypto');
+const { createUploadStorage } = require('../utils/fileStorage');
 
 // Allowed mimetypes -> stored extension. The extension comes from this map, never
 // from the client-supplied filename, so an upload can't be stored as .html/.svg.
@@ -20,12 +19,8 @@ const EXTENSIONS = {
   'text/csv': '.csv',
 };
 
-const storage = multer.diskStorage({
-  destination: path.join(__dirname, '..', 'uploads', 'documents'),
-  filename: (req, file, cb) => {
-    cb(null, `${randomUUID()}${EXTENSIONS[file.mimetype]}`);
-  },
-});
+// Local disk (LOCAL_UPLOAD_DIR/documents) or Cloudinary, see utils/fileStorage.js
+const storage = createUploadStorage({ subdir: 'documents', extensionFor: (mimetype) => EXTENSIONS[mimetype] });
 
 const fileFilter = (req, file, cb) => {
   if (!Object.prototype.hasOwnProperty.call(EXTENSIONS, file.mimetype)) {

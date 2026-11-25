@@ -196,6 +196,21 @@ npx wrangler secret put RELAY_SECRET      # same value as RELAY_SECRET in .env
 
 Put the worker URL in `FALLBACK_RELAY_URL`.
 
+**File storage.** Uploads (screenshots, avatars, logos, documents,
+attachments) are saved on the server's disk by default: the `uploads` Docker
+volume, or `LOCAL_UPLOAD_DIR` when the API runs outside Docker (on Render,
+attach a Persistent Disk, e.g. at `/var/data`, and set
+`LOCAL_UPLOAD_DIR=/var/data/uploads`; without a disk Render deletes files on
+every deploy). To store them in Cloudinary instead, set
+`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET`
+(all three; optional `CLOUDINARY_FOLDER`, default `kommently`) and restart the
+API: the log shows `File storage: Cloudinary`. Nothing else changes: links stay
+`https://api…/uploads/…` and redirect to Cloudinary, files saved on disk
+before the switch are still served from it. In Cloudinary, under Settings →
+Security, turn on **Allow delivery of PDF and ZIP files** (off by default on
+free accounts), or PDF documents won't open. Cloudinary's free plan caps files
+at 10 MB; documents here can be up to 20 MB.
+
 Apply `.env` changes with `docker compose up -d`.
 
 ## 9. Updating
