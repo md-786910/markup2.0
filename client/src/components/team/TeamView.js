@@ -140,7 +140,7 @@ export default function TeamView({
     const who = member.name || member.email;
     const ok = await confirmDialog({
       title: `Remove ${who} from the organization?`,
-      message: 'They lose access to every workspace and project and are signed out. Projects they created move to the organization owner; their pins and comments stay. Their seat is freed.',
+      message: 'Their account is deleted permanently: they are signed out and can no longer sign in. Projects they created move to the organization owner; their pins and comments stay. Their seat is freed. This cannot be undone.',
       confirmLabel: 'Remove from organization',
       danger: true,
     });

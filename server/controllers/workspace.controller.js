@@ -458,21 +458,17 @@ exports.removeOrgMember = asyncHandler(async (req, res) => {
     Workspace.updateMany({ organization: orgId, 'members.user': target._id }, { $pull: { members: { user: target._id } } }),
     require('../models/Pin').updateMany({ project: { $in: projectIds }, assignee: target._id }, { $set: { assignee: null } }),
     require('../models/Notification').deleteMany({ recipient: target._id }),
+    Invitation.deleteMany({ email: target.email, organization: orgId }),
+    // Their comments stay for the team's context, shown as "Deleted user"
+    require('../models/Comment').updateMany({ author: target._id }, { $set: { author: null, authorGuest: { name: 'Deleted user', email: '' } } }),
   ]);
 
-  // Out of the organization, signed out everywhere. Like a new signup, they
-  // get an organization of their own (a signed-in user always has one).
-  const Organization = require('../models/Organization');
-  const { buildSignupPlanFields } = require('./auth.controller');
-  const ownOrg = await Organization.create({
-    name: `${target.name || 'My'}'s Workspace`,
-    owner: target._id,
-    ...(await buildSignupPlanFields()),
-  });
-  target.organization = ownOrg._id;
-  target.role = 'owner';
-  target.sessionToken = crypto.randomBytes(32).toString('hex');
-  await target.save({ validateBeforeSave: false });
+  // The account is deleted permanently (same as deleting your own account):
+  // they can no longer sign in, and are signed out everywhere at once.
+  if (target.avatar && /^[\w.-]+$/.test(target.avatar)) {
+    require('../utils/storage').deleteStoredFiles([`uploads/${target.avatar}`]);
+  }
+  await User.deleteOne({ _id: target._id });
   const io = req.app.get('io');
   if (io) { try { io.in(`user:${target._id}`).disconnectSockets(true); } catch { /* best effort */ } }
 
