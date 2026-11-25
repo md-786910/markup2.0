@@ -754,12 +754,20 @@ exports.updateOrganization = asyncHandler(async (req, res) => {
 
   let logoChanged = false;
   const previousLogo = org.logo;
+  let logoRemoved = false;
   if (req.file) {
     org.logo = req.file.filename;
     logoChanged = true;
+  } else if (String(req.body.removeLogo) === "true" && org.logo) {
+    org.logo = null;
+    logoRemoved = true;
   }
 
   await org.save();
+  if (logoRemoved) {
+    deleteStoredFiles([storedUploadPath(previousLogo)]);
+    logOrgActivity(org._id, req.user._id, 'org.logo_removed', {});
+  }
   // The replaced logo is no longer referenced: remove its file
   if (logoChanged && previousLogo && previousLogo !== org.logo) deleteStoredFiles([storedUploadPath(previousLogo)]);
 

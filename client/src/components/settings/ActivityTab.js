@@ -77,6 +77,7 @@ const ACTION_RENDERERS = {
     <>renamed the workspace to <strong>{a.metadata?.name || 'a new name'}</strong></>
   ),
   'org.logo_updated': () => <>updated the workspace logo</>,
+  'org.logo_removed': () => <>removed the workspace logo</>,
 
   // ── Plan changes ──
   'org.plan_upgraded': (a) => (

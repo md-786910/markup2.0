@@ -50,6 +50,8 @@ const P = {
   info: 'M12 8h.01M11 12h1v5h1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
   warn: 'M12 9v4M12 17h.01M10.3 4.3L2.6 18a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 4.3a2 2 0 00-3.4 0z',
   copy: ['M9 9h11v11H9z', 'M5 15V5h10'],
+  folder: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z',
+  swap: 'M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4',
   clock: 'M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
   upload: 'M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3',
   restore: 'M4 12a8 8 0 108-8 8 8 0 00-5.7 2.4L4 9m0-5v5h5',
@@ -341,7 +343,72 @@ export function useDismiss(ref, open, onClose, triggerRef) {
   }, [ref, open, onClose, triggerRef]);
 }
 
-// items: { label, icon?, tile?, checked?, meta?, tone?: 'danger', divider?, header?, onClick?, disabled? }
+// A menu row that opens a flyout of radio options (hover or click), on the
+// right, or on the left when there is no room. submenu: { items: [{ label,
+// checked?, description?, onClick?, disabled? }], footer? }
+function SubmenuItem({ it, onPick }) {
+  const [open, setOpen] = useState(false);
+  const [side, setSide] = useState('right');
+  const [hovered, setHovered] = useState(null);
+  const ref = useRef(null);
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const show = () => {
+    clearTimeout(timer.current);
+    const rect = ref.current?.getBoundingClientRect();
+    if (rect) setSide(rect.right + 240 > window.innerWidth ? 'left' : 'right');
+    setOpen(true);
+  };
+  const hide = () => { clearTimeout(timer.current); timer.current = setTimeout(() => { setOpen(false); setHovered(null); }, 150); };
+
+  const options = it.submenu?.items || [];
+  const current = hovered ?? options.find((o) => o.checked);
+  const footer = current?.description || it.submenu?.footer;
+
+  return (
+    <div ref={ref} className="kc-sub" onMouseEnter={show} onMouseLeave={hide}>
+      <button
+        type="button"
+        role="menuitem"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={it.disabled}
+        className={cx('mi', open && 'open')}
+        onClick={() => (open ? setOpen(false) : show())}
+        onKeyDown={(e) => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); show(); } }}
+      >
+        {it.icon ? <Icon name={it.icon} size={16} /> : null}
+        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</span>
+        {it.badge ? <span className="kc-sub-badge">{it.badge}</span> : null}
+        <span className="kc-sub-chev"><Icon name="right" size={14} /></span>
+      </button>
+      {open && (
+        <div className={cx('kc-menu kc-sub-pop', side)} role="menu" aria-label={it.label}>
+          {options.map((o, i) => (
+            <button
+              key={i}
+              type="button"
+              role="menuitemradio"
+              aria-checked={!!o.checked}
+              disabled={o.disabled}
+              className={cx('mi', o.checked && 'on')}
+              onMouseEnter={() => setHovered(o)}
+              onFocus={() => setHovered(o)}
+              onClick={() => { onPick?.(); o.onClick?.(); }}
+            >
+              <span className={cx('kc-radio', o.checked && 'on')} aria-hidden="true" />
+              <span>{o.label}</span>
+            </button>
+          ))}
+          {footer ? <><hr /><div className="kc-sub-foot">{footer}</div></> : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// items: { label, icon?, tile?, checked?, meta?, tone?: 'danger', divider?, header?, onClick?, disabled?, badge?, submenu? }
 export function Menu({ items = [], style, className, onPick, label }) {
   return (
     <div className={cx('kc-menu', className)} role="menu" aria-label={label} style={style}>
@@ -349,6 +416,7 @@ export function Menu({ items = [], style, className, onPick, label }) {
         if (it.divider) return <hr key={i} />;
         if (it.header) return <div key={i} className="mh">{it.header}</div>;
         if (it.node) return <React.Fragment key={i}>{it.node}</React.Fragment>;
+        if (it.submenu) return <SubmenuItem key={i} it={it} onPick={onPick} />;
         return (
           <button
             key={i}

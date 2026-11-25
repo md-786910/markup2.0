@@ -28,6 +28,7 @@ export function describeAction(a) {
     case 'billing.payment_succeeded': return 'paid an invoice';
     case 'org.name_updated': return 'renamed the organization';
     case 'org.logo_updated': return 'changed the logo';
+    case 'org.logo_removed': return 'removed the logo';
     case 'org.data_exported': return 'exported the organization data';
     case 'org.deletion_scheduled': return 'scheduled the organization for deletion';
     case 'org.deletion_cancelled': return 'cancelled the deletion';

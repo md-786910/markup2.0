@@ -1952,6 +1952,99 @@ a.kc-card {
   color: var(--danger-600);
 }
 
+/* Menu row with a flyout (e.g. Change role ▸ Admin / Member / Guest) */
+.kc-menu .kc-sub {
+  position: relative;
+}
+
+.kc-menu .mi.open {
+  background: var(--slate-100);
+  color: var(--text);
+}
+
+.kc-menu .kc-sub-badge {
+  margin-left: auto;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 18px;
+  color: var(--slate-600);
+  background: var(--surface);
+}
+
+.kc-menu .kc-sub-chev {
+  display: inline-flex;
+  margin-left: auto;
+  color: var(--slate-400);
+}
+
+.kc-menu .kc-sub-badge + .kc-sub-chev {
+  margin-left: 2px;
+}
+
+.kc-sub-pop {
+  position: absolute;
+  top: -6px;
+  min-width: 220px;
+  z-index: 101;
+}
+
+.kc-sub-pop.right {
+  left: calc(100% + 10px);
+}
+
+.kc-sub-pop.left {
+  right: calc(100% + 10px);
+}
+
+/* hover bridge across the gap, so the flyout stays open */
+.kc-sub-pop::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+}
+
+.kc-sub-pop.right::before {
+  left: -12px;
+}
+
+.kc-sub-pop.left::before {
+  right: -12px;
+}
+
+.kc-sub-pop .mi {
+  padding: 9px 10px;
+}
+
+.kc-radio {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1.5px solid var(--slate-400);
+  background: var(--surface);
+}
+
+.kc-radio.on {
+  border: 5px solid var(--slate-900);
+}
+
+.kc-sub-pop .mi.on {
+  background: var(--slate-100);
+  font-weight: 600;
+}
+
+.kc-sub-foot {
+  padding: 4px 10px 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--slate-500);
+}
+
 .kc-menu .mi .meta {
   margin-left: auto;
   color: var(--slate-500);

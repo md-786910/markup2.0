@@ -28,6 +28,7 @@ export const inviteToWorkspaceApi = (workspaceId, emails, role = 'member', level
   api.post(`/workspaces/${workspaceId}/invitations`, { emails, role, level });
 
 export const getWorkspaceInvitationsApi = (workspaceId) => api.get(`/workspaces/${workspaceId}/invitations`);
+export const getOrgInvitationsApi = () => api.get('/workspaces/invitations');
 
 export const updateOrgRoleApi = (userId, role) => api.patch(`/workspaces/people/${userId}/role`, { role });
 export const removeOrgMemberApi = (userId) => api.delete(`/workspaces/people/${userId}`);

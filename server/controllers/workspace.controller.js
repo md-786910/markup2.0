@@ -361,6 +361,35 @@ exports.getWorkspaceInvitations = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/workspaces/invitations (owner/admin): every pending invitation of
+ * the organization in one request (to active projects and to workspaces), for
+ * the Team page. Same shape as the per-project/workspace lists plus `target`.
+ */
+exports.getOrgInvitations = asyncHandler(async (req, res) => {
+  const organization = req.user.organization;
+  await Invitation.deleteMany({ organization, status: 'pending', expiresAt: { $lte: new Date() } });
+  const rows = await Invitation.find({ organization, status: 'pending' })
+    .select('-token')
+    .populate('invitedBy', 'name email')
+    .populate('project', 'name status organization')
+    .populate('workspace', 'name organization')
+    .sort({ createdAt: -1 })
+    .lean();
+  const org = String(organization);
+  const invitations = [];
+  for (const inv of rows) {
+    if (inv.project) {
+      if (inv.project.status !== 'active' || String(inv.project.organization) !== org) continue;
+      invitations.push({ ...inv, project: inv.project._id, target: inv.project.name, targetType: 'project' });
+    } else if (inv.workspace) {
+      if (String(inv.workspace.organization) !== org) continue;
+      invitations.push({ ...inv, workspace: inv.workspace._id, target: inv.workspace.name, targetType: 'workspace' });
+    }
+  }
+  res.json({ invitations });
+});
+
+/**
  * PATCH /api/workspaces/people/:userId/role  { role: admin|member|guest }
  * Organization role (Team page). Access to workspaces and projects is set on
  * each of them separately.

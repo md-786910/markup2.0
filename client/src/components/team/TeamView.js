@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getProjectInvitationsApi, cancelInvitationApi, resendInvitationApi } from '../../services/invitationService';
-import { getOrgPeopleApi, getWorkspaceInvitationsApi, updateOrgRoleApi, removeOrgMemberApi } from '../../services/workspaceService';
+import { cancelInvitationApi, resendInvitationApi } from '../../services/invitationService';
+import { getOrgPeopleApi, getOrgInvitationsApi, updateOrgRoleApi, removeOrgMemberApi } from '../../services/workspaceService';
 import { useAuth } from '../../hooks/useAuth';
 import TransferOwnershipDialog from './TransferOwnershipDialog';
 import { toast, toastError } from '../../utils/toast';
@@ -96,23 +96,18 @@ export default function TeamView({
   const nonGuests = useMemo(() => people.filter((p) => (p.role || 'member') !== 'guest'), [people]);
   const guests = useMemo(() => people.filter((p) => p.role === 'guest'), [people]);
 
-  // Pending invitations: to projects here and to whole workspaces
+  // Pending invitations (to projects and whole workspaces): one request for
+  // the organization, loaded once (and again after invite/resend), not per
+  // project/workspace on every list change.
   const loadInvitations = useCallback(async () => {
     if (!isAdmin) return;
     try {
-      const [byProject, byWorkspace] = await Promise.all([
-        Promise.all(activeProjects.map((p) => getProjectInvitationsApi(p._id)
-          .then((r) => r.data.invitations.map((inv) => ({ ...inv, target: p.name, targetType: 'project' })))
-          .catch(() => []))),
-        Promise.all((workspaces || []).map((w) => getWorkspaceInvitationsApi(w._id)
-          .then((r) => r.data.invitations.map((inv) => ({ ...inv, target: w.name, targetType: 'workspace' })))
-          .catch(() => []))),
-      ]);
-      setInvitations([...byProject.flat(), ...byWorkspace.flat()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-    } finally {
+      const { data } = await getOrgInvitationsApi();
+      setInvitations(data.invitations || []);
+    } catch { /* keep the current list */ } finally {
       setInvitationsLoaded(true);
     }
-  }, [activeProjects, workspaces, isAdmin]);
+  }, [isAdmin]);
   useEffect(() => { if (ready) loadInvitations(); }, [loadInvitations, ready]);
 
   // Counts for the context panel
@@ -237,30 +232,31 @@ export default function TeamView({
 
         const items = [];
         if (editable) {
-          items.push({ header: 'Role' });
-          ROLES.forEach((r) => {
-            items.push({
-              label: r.label,
-              checked: role === r.value,
-              disabled: saving,
-              onClick: () => { if (role !== r.value) changeRole(m, r.value); },
-            });
+          items.push({
+            label: 'Change role',
+            icon: 'shield',
+            badge: ROLE_LABEL[role] || 'Member',
+            disabled: saving,
+            submenu: {
+              items: ROLES.map((r) => ({
+                label: r.label,
+                description: r.description,
+                checked: role === r.value,
+                disabled: saving,
+                onClick: () => { if (role !== r.value) changeRole(m, r.value); },
+              })),
+            },
           });
-          if (list.length > 0) {
-            items.push({ divider: true });
-            items.push({ label: 'Manage project access', icon: 'user', onClick: () => navigate(`/project/${list[0]._id}/members`) });
-            items.push({ label: 'Remove from a project', icon: 'trash', tone: 'danger', onClick: () => setRemoving(m) });
-          }
-          // Owner and admins; the owner can't be removed (not `editable`)
           items.push({ divider: true });
-          if (isOwner && (role === 'admin' || role === 'member')) {
-            items.push({ label: 'Transfer ownership', icon: 'user', onClick: () => setTransferring(m) });
+          if (list.length > 0) {
+            items.push({ label: 'Manage project access', icon: 'folder', onClick: () => navigate(`/project/${list[0]._id}/members`) });
           }
-          items.push({ label: 'Remove from organization', icon: 'trash', tone: 'danger', onClick: () => removeFromOrg(m) });
+          if (isOwner && (role === 'admin' || role === 'member')) {
+            items.push({ label: 'Transfer ownership', icon: 'swap', onClick: () => setTransferring(m) });
+          }
         }
 
         if (m.email) {
-          if (items.length > 0) items.push({ divider: true });
           items.push({
             label: 'Copy email',
             icon: 'link',
@@ -269,6 +265,15 @@ export default function TeamView({
               toast.success('Email copied to clipboard.');
             },
           });
+        }
+
+        // Danger actions last; the owner can't be removed (not `editable`)
+        if (editable) {
+          items.push({ divider: true });
+          if (list.length > 0) {
+            items.push({ label: 'Remove from a project', icon: 'trash', tone: 'danger', onClick: () => setRemoving(m) });
+          }
+          items.push({ label: 'Remove from organization', icon: 'trash', tone: 'danger', onClick: () => removeFromOrg(m) });
         }
 
         if (isSelf) {

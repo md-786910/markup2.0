@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { updateOrganizationApi } from '../../services/authService';
 import { uploadUrl } from '../../utils/uploadUrl';
 import { toast } from '../../utils/toast';
+import { confirmDialog } from '../../utils/confirm';
 import { Button, Field, Input, Row, Section, Select } from '../kc';
 import { useWorkspaces } from '../../contexts/WorkspaceContext';
 import SettingsLayout from './SettingsLayout';
@@ -19,6 +20,7 @@ export default function GeneralTab() {
   const [nameError, setNameError] = useState('');
   const [logoLoading, setLogoLoading] = useState(false);
   const [logoError, setLogoError] = useState('');
+  const [logoRemoving, setLogoRemoving] = useState(false);
   const fileRef = useRef(null);
 
   const dirty = name.trim() !== savedName;
@@ -61,7 +63,30 @@ export default function GeneralTab() {
     }
   };
 
-  const initial = (savedName || user?.name || '?')[0].toUpperCase();
+  const removeLogo = async () => {
+    const ok = await confirmDialog({
+      title: 'Delete organization icon?',
+      message: 'The icon is removed from the app, emails and review links, and its first letter is shown instead. You can upload a new icon at any time.',
+      confirmLabel: 'Delete icon',
+      danger: true,
+    });
+    if (!ok) return;
+    setLogoRemoving(true);
+    setLogoError('');
+    try {
+      const formData = new FormData();
+      formData.append('removeLogo', 'true');
+      const res = await updateOrganizationApi(formData);
+      updateUser(res.data.user);
+      toast.success('Organization icon deleted.');
+    } catch (err) {
+      setLogoError(err.response?.data?.message || 'Could not delete the icon.');
+    } finally {
+      setLogoRemoving(false);
+    }
+  };
+
+  const initial =(savedName || user?.name || '?')[0].toUpperCase();
 
   return (
     <SettingsLayout title="General" subtitle="Your organization's name and icon.">
@@ -106,9 +131,14 @@ export default function GeneralTab() {
                 )}
                 {isOwner && (
                   <>
-                    <Button icon="upload" loading={logoLoading} onClick={() => fileRef.current?.click()}>
+                    <Button icon="upload" loading={logoLoading} disabled={logoRemoving} onClick={() => fileRef.current?.click()}>
                       {user?.orgLogo ? 'Change icon' : 'Upload icon'}
                     </Button>
+                    {user?.orgLogo && (
+                      <Button icon="trash" variant="danger-quiet" loading={logoRemoving} disabled={logoLoading} onClick={removeLogo}>
+                        Delete
+                      </Button>
+                    )}
                     <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={uploadLogo} className="hidden" />
                   </>
                 )}

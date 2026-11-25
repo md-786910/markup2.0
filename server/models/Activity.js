@@ -43,7 +43,7 @@ const activitySchema = new Schema({
       // kept so older activity entries stay valid
       'review.approved', 'review.changes_requested', 'review.deadline_set',
       // Org-scoped events
-      'org.name_updated', 'org.logo_updated',
+      'org.name_updated', 'org.logo_updated', 'org.logo_removed',
       'org.plan_upgraded', 'org.plan_downgraded',
       'org.locked', 'org.unlocked',
       'org.subscription_canceled', 'org.subscription_resumed',

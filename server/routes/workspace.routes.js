@@ -16,6 +16,7 @@ const {
   getOrgPeople,
   inviteToWorkspace,
   getWorkspaceInvitations,
+  getOrgInvitations,
   updateOrgRole,
   removeOrgMember,
   transferOwnership,
@@ -25,6 +26,7 @@ router.use(auth);
 
 router.get('/', getWorkspaces);
 router.get('/people', getOrgPeople);
+router.get('/invitations', authorize('owner', 'admin'), getOrgInvitations);
 router.patch('/people/:userId/role', authorize('owner', 'admin'), updateOrgRole);
 router.delete('/people/:userId', authorize('owner', 'admin'), removeOrgMember);
 router.post('/people/:userId/transfer-ownership', authorize('owner'), require('../middleware/rateLimiters').authLimiter, transferOwnership);
