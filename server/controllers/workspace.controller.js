@@ -41,10 +41,18 @@ exports.getWorkspaces = asyncHandler(async (req, res) => {
   const isOrgAdmin = req.user.role === 'owner' || req.user.role === 'admin';
   const match = isOrgAdmin ? { organization: orgId } : await visibleProjectsQuery(req.user);
   const counts = await Project.aggregate([
-    { $match: { ...match, status: { $ne: 'archived' } } },
-    { $group: { _id: { $ifNull: ['$workspace', defaultWs._id] }, count: { $sum: 1 } } },
+    { $match: match },
+    {
+      $group: {
+        _id: { $ifNull: ['$workspace', defaultWs._id] },
+        count: { $sum: { $cond: [{ $ne: ['$status', 'archived'] }, 1, 0] } },
+        total: { $sum: 1 },
+      },
+    },
   ]);
   const byId = new Map(counts.map((c) => [c._id.toString(), c.count]));
+  // Workspaces with any project this user can see (archived ones included)
+  const hasProjects = new Set(counts.filter((c) => c.total > 0).map((c) => c._id.toString()));
 
   const uid = req.user._id.toString();
   const list = workspaces
@@ -62,11 +70,15 @@ exports.getWorkspaces = asyncHandler(async (req, res) => {
           : undefined,
         members: canManage ? (w.members || []) : undefined,
       };
-    })
-    // Members only see workspaces they belong to or have projects in
-    .filter((w) => isOrgAdmin || w.isDefault || w.isMember || w.projectCount > 0);
-
-  res.json({ workspaces: list });
+    });
+  // Members and guests only see workspaces they belong to or have projects in
+  // (the default one included: it isn't shown to them when it's empty for them).
+  // With nothing visible they still get the default one, so the app has a
+  // workspace to show (an empty one).
+  const visible = isOrgAdmin
+    ? list
+    : list.filter((w) => w.isMember || hasProjects.has(w._id.toString()));
+  res.json({ workspaces: visible.length ? visible : list.filter((w) => w.isDefault) });
 });
 
 /**

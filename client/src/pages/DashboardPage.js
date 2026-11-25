@@ -123,6 +123,22 @@ export default function DashboardPage() {
     [workspace, defaultWorkspaceId],
   );
   const workspaceProjects = useMemo(() => projects.filter(inWorkspace), [projects, inWorkspace]);
+
+  // A project in a workspace the switcher doesn't list yet (e.g. just added to
+  // a project in another workspace): reload the workspace list once
+  const workspacesRef = useRef(workspaces);
+  workspacesRef.current = workspaces;
+  useEffect(() => {
+    const list = workspacesRef.current;
+    if (!list.length) return;
+    const ids = new Set(list.map((w) => String(w._id)));
+    const hasDefault = list.some((w) => w.isDefault);
+    const missing = projects.some((p) => {
+      const wid = p.workspace?._id || p.workspace;
+      return wid ? !ids.has(String(wid)) : !hasDefault;
+    });
+    if (missing) refreshWorkspaces().catch(() => {});
+  }, [projects, refreshWorkspaces]);
   const activeProjects = useMemo(() => workspaceProjects.filter((p) => p.status === 'active'), [workspaceProjects]);
   const archivedProjects = useMemo(() => workspaceProjects.filter((p) => p.status === 'archived'), [workspaceProjects]);
 

@@ -82,7 +82,7 @@ export function WorkspaceProvider({ children }) {
   }, [refresh, select, currentId]);
 
   const current = useMemo(
-    () => workspaces.find((w) => w._id === currentId) || workspaces.find((w) => w.isDefault) || null,
+    () => workspaces.find((w) => w._id === currentId) || workspaces.find((w) => w.isDefault) || workspaces[0] || null,
     [workspaces, currentId],
   );
 
