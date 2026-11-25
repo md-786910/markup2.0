@@ -191,6 +191,9 @@ app.use(
   express.static(path.join(__dirname, "node_modules", "html2canvas", "dist"), { maxAge: "7d" }),
 );
 
+// Live sync: tells the organization's open tabs what changed (utils/liveSync.js)
+app.use("/api", require("./utils/liveSync").middleware);
+
 // Routes — auth gets the credential-burst tier, admin gets its own tier.
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/projects", projectRoutes);

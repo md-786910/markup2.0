@@ -13,6 +13,7 @@ import InvoicesTab from "./InvoicesTab";
 import PlanPickerModal from "./PlanPickerModal";
 import UpgradeModal from "./UpgradeModal";
 import DowngradeModal from "./DowngradeModal";
+import { useLiveSync } from '../../hooks/useLiveSync';
 
 function UsageRow({ label, used, max }) {
   const unlimited = max >= 999;
@@ -83,6 +84,9 @@ export default function BillingTab() {
       })
       .catch(() => {});
   }, [loadPlan]);
+
+  // Live: plan, subscription or invoices changed (payment, another admin, our team)
+  useLiveSync(['org'], () => { loadPlan().catch(() => {}); });
 
   const handleUpgradeComplete = useCallback((userData) => {
     updateUser(userData);

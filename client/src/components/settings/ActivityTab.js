@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { getOrgActivityApi } from '../../services/authService';
 import { Avatar, Banner, Button, EmptyState, FilterPills, Input, PillMenu, Section } from '../kc';
 import SettingsLayout, { Muted } from './SettingsLayout';
+import { useLiveSync } from '../../hooks/useLiveSync';
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -233,6 +234,17 @@ export default function ActivityTab() {
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, []);
+
+  // Live: new organization activity (quiet, back to the first page)
+  useLiveSync(['projects', 'pins', 'versions', 'workspaces', 'team', 'org', 'integrations'], () => {
+    getOrgActivityApi(1, 30)
+      .then((res) => {
+        setActivities(res.data?.activities || []);
+        setPages(res.data?.pagination?.pages || 1);
+        setPage(1);
+      })
+      .catch(() => {});
+  }, { delay: 1000 });
 
   const handleLoadMore = async () => {
     if (loadingMore || page >= pages) return;

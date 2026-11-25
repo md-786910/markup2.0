@@ -100,6 +100,10 @@ connectDB()
       if (socket.user?._id) {
         socket.join(`user:${socket.user._id.toString()}`);
       }
+      // Organization room: live-sync signals (utils/liveSync.js), no data
+      if (socket.user?.organization) {
+        socket.join(`org:${socket.user.organization.toString()}`);
+      }
 
       // The JWT is checked when the socket opens: close it when the token
       // expires, so a connection never outlives its session
@@ -179,6 +183,7 @@ connectDB()
 
     // Make io accessible to controllers via req.app.get('io')
     app.set("io", io);
+    require("./utils/liveSync").setIo(io);
 
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

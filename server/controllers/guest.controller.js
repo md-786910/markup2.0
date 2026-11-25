@@ -94,6 +94,7 @@ async function loadSharedProject(req, res, { write = false } = {}) {
   }
   const { project, share, scope } = found;
   req.share = share;
+  res.locals.liveSync = { orgId: project.organization, projectId: project._id };
 
   if (hasPassword(share) && !hasValidGuestAccessToken(req, scope, share)) {
     res.status(401).json({ message: 'This review requires a password.', requiresPassword: true });

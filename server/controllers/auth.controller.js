@@ -380,6 +380,7 @@ exports.signup = asyncHandler(async (req, res) => {
   }
 
   metric('user.signup', { kind: acceptedProjectId || acceptedWorkspaceId ? 'invited' : (isFirstUser ? 'new_org' : 'joined') });
+  if (org) res.locals.liveSync = { orgId: org._id };
   await setCookieAndRespond(res, user, org, 201, {
     isNewOrg: isFirstUser,
     invitedProjectId: acceptedProjectId ? acceptedProjectId.toString() : undefined,

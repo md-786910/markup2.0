@@ -22,6 +22,7 @@ import {
   uploadPinScreenshotApi,
 } from "../../services/pinService";
 import { useSocket } from "../../hooks/useSocket";
+import { useLiveSync } from "../../hooks/useLiveSync";
 import { toastError } from '../../utils/toast';
 import { getClientEnvironment } from "../../utils/clientEnv";
 import BrandMark from "../common/BrandMark";
@@ -92,6 +93,9 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const showCommentsOnPhone = () => { if (window.innerWidth < 768) setMobilePane('comments'); };
   const iframeState = useIframeMessages();
   const { onEvent, onlineUsers, lastSeenMap, resyncKey } = useSocket(project._id);
+  // Live: a version created elsewhere tags the open pins: re-fetch them
+  const [versionKey, setVersionKey] = useState(0);
+  useLiveSync(['versions'], () => setVersionKey((k) => k + 1), { projectId: project._id });
   const initialPinHandled = useRef(false);
 
   const isDocumentProject = project.projectType === 'document';
@@ -181,7 +185,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
         toastError(err, 'Could not load comments.');
       });
     return () => controller.abort();
-  }, [project._id, resyncKey]);
+  }, [project._id, resyncKey, versionKey]);
 
   // Handle clicks from iframe — store click data for pending pin (don't create yet)
   useEffect(() => {

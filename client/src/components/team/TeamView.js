@@ -9,6 +9,7 @@ import { confirmDialog } from '../../utils/confirm';
 import { useWorkspaces } from '../../contexts/WorkspaceContext';
 import { Avatar, Badge, Button, DataTable, EmptyState, Icon, Input, RowMenu } from '../kc';
 import InviteDialog from './InviteDialog';
+import { useLiveSync } from '../../hooks/useLiveSync';
 import RemoveFromProjectDialog from './RemoveFromProjectDialog';
 import { ROLES, ROLE_LABEL, formatDate, formatLastActive, idOf, isExpired } from './teamUtils';
 
@@ -109,6 +110,13 @@ export default function TeamView({
     }
   }, [isAdmin]);
   useEffect(() => { if (ready) loadInvitations(); }, [loadInvitations, ready]);
+
+  // Live: people, roles, invitations and project access changed elsewhere
+  useLiveSync(['team', 'projects', 'workspaces'], () => {
+    loadPeople();
+    loadInvitations();
+    onProjectsChanged();
+  });
 
   // Counts for the context panel
   const onCountsRef = useRef(onCounts);

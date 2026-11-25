@@ -5,6 +5,7 @@ import { setSentryUser } from '../monitoring/sentry';
 import { identifyUser } from '../monitoring/analytics';
 import { signingOutOnPurpose } from '../utils/returnTo';
 import { setBillingAccess } from '../services/api';
+import { useLiveSync } from '../hooks/useLiveSync';
 
 export const AuthContext = createContext(null);
 
@@ -34,6 +35,12 @@ export function AuthProvider({ children }) {
       setLoading(false);
     }
   }, [token]);
+
+  // Live: role, organization (name, icon, plan, lock) and access changes made
+  // by someone else show up without a reload
+  useLiveSync(['org', 'team'], () => {
+    getMeApi().then((res) => setUser((prev) => (prev ? res.data.user : prev))).catch(() => {});
+  }, { enabled: userId || false });
 
   const login = useCallback(async (email, password) => {
     const res = await loginApi(email, password);

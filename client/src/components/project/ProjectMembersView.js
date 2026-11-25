@@ -24,6 +24,7 @@ import {
 } from '../kc';
 import { SelectMenu } from '../ui';
 import ProjectPicker from './ProjectPicker';
+import { useLiveSync } from '../../hooks/useLiveSync';
 
 const LEVEL_LABEL = {
   manage: 'Can manage',
@@ -89,6 +90,13 @@ export default function ProjectMembersView({
   useEffect(() => {
     loadProject();
   }, [loadProject]);
+
+  // Live: members, levels or access changed elsewhere (quiet re-fetch)
+  useLiveSync(['project', 'team', 'workspaces'], () => {
+    getProjectApi(projectId)
+      .then((res) => { setProject(res.data.project); setMyAccess(res.data.access || null); })
+      .catch(() => {});
+  }, { projectId, enabled: !!projectId });
 
   const members = useMemo(() => project?.members || [], [project]);
   const ownerId = useMemo(() => String(project?.owner?._id || project?.owner || ''), [project]);

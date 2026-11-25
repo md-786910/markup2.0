@@ -13,6 +13,7 @@ import { confirmDialog } from '../utils/confirm';
 import { REVIEW_VIEWS, statusInfo } from '../utils/projectConstants';
 import { Button, Field, Input, PageHeader, Select } from '../components/kc';
 import { useWorkspaces } from '../contexts/WorkspaceContext';
+import { useLiveSync } from '../hooks/useLiveSync';
 import { useShell } from '../contexts/ShellContext';
 
 const DEFAULT_DATE_RANGE = { preset: null, start: '', end: '' };
@@ -115,6 +116,8 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => { loadProjects(); }, [loadProjects]);
+  // Live: projects added/changed/moved/deleted by others, pin & comment counts
+  useLiveSync(['projects', 'pins', 'workspaces'], loadProjects);
 
   // Projects of the selected workspace (no workspace = the default one)
   const defaultWorkspaceId = workspaces.find((w) => w.isDefault)?._id;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLiveSync } from '../../hooks/useLiveSync';
 import { getVersionsApi, createVersionApi, deleteVersionApi } from '../../services/projectService';
 import { toastError } from '../../utils/toast';
 import { confirmDialog } from '../../utils/confirm';
@@ -37,6 +38,9 @@ export default function VersionSidebar({ projectId, selectedVersionId, onVersion
   useEffect(() => {
     loadVersions();
   }, [loadVersions]);
+
+  // Live: versions created/edited/deleted by others
+  useLiveSync(['versions'], loadVersions, { projectId });
 
   const handleCreate = async () => {
     if (creating) return;

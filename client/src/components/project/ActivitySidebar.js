@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useLiveSync } from '../../hooks/useLiveSync';
 import { getActivityApi } from '../../services/projectService';
 import { toastError } from '../../utils/toast';
 import { Icon, IconButton } from '../kc';
@@ -113,6 +114,17 @@ export default function ActivitySidebar({ projectId }) {
     setPage(1);
     fetchActivities(1);
   }, [fetchActivities]);
+
+  // Live: new activity on this project (quiet: no spinner, back to page 1)
+  useLiveSync(['pins', 'project', 'versions'], () => {
+    getActivityApi(projectId, 1)
+      .then((res) => {
+        setActivities(res.data.activities);
+        setHasMore(res.data.pagination.page < res.data.pagination.pages);
+        setPage(1);
+      })
+      .catch(() => {});
+  }, { projectId });
 
   const loadMore = () => {
     if (loadingMore || !hasMore) return;

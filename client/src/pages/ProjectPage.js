@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import ProjectView from '../components/project/ProjectView';
 import { getProjectApi } from '../services/projectService';
+import { useLiveSync } from '../hooks/useLiveSync';
+import { toast } from '../utils/toast';
 
 export default function ProjectPage() {
   const { projectId } = useParams();
@@ -35,6 +37,23 @@ export default function ProjectPage() {
       });
     return () => controller.abort();
   }, [projectId, navigate]);
+
+  // Live: the project's details, members or access changed elsewhere. Re-fetch
+  // quietly; if access was taken away, go back to the dashboard.
+  useLiveSync(['project', 'workspaces', 'team'], () => {
+    getProjectApi(projectId)
+      .then((res) => {
+        setProject((prev) => (prev ? { ...res.data.project, access: res.data.access, workspaceMembers: res.data.workspaceMembers || [] } : prev));
+        if (res.data.proxyToken) setProxyToken((prev) => prev || res.data.proxyToken);
+      })
+      .catch((err) => {
+        const status = err.response?.status;
+        if (status === 403 || status === 404) {
+          toast.info('You no longer have access to this project.');
+          navigate('/dashboard');
+        }
+      });
+  }, { projectId, enabled: !!project });
 
   if (loading) {
     return (

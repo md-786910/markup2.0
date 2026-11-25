@@ -155,6 +155,8 @@ async function settleInvoice(invoiceId, { providerPaymentId, providerCaptureId }
     }
 
     sendReceipt(invoice, org, owner?.email);
+    // Open tabs of the organization pick up the new plan (payment webhooks have no request user)
+    require('../utils/liveSync').publish(org._id, ['org']);
     if (!isRenewal && !wasPaying) {
       require('../utils/adminAlerts')
         .alertNewPaidCustomer({ organization: org, amount: invoice.amount, currency: invoice.currency, provider: invoice.provider })

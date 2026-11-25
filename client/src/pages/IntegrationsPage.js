@@ -24,6 +24,7 @@ import {
   Select,
   Tile,
 } from "../components/kc";
+import { useLiveSync } from '../hooks/useLiveSync';
 
 // Integrations area: one provider per page, chosen by ?provider= (the shell's
 // context panel links to slack, jira, discord and teams). The form edits the
@@ -331,6 +332,11 @@ export default function IntegrationsPage() {
       .catch((err) => toastError(err, "Could not load integrations."))
       .finally(() => setLoading(false));
   }, [included, canManage]);
+
+  // Live: connections added/changed/removed by another manager
+  useLiveSync(['integrations'], () => {
+    getIntegrationsApi().then((res) => setIntegrations(res.data.integrations)).catch(() => {});
+  }, { enabled: included && canManage });
 
   const ofType = useMemo(
     () => integrations.filter((i) => i.type === provider.type),

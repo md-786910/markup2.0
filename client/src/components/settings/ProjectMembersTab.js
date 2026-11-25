@@ -4,6 +4,7 @@ import { getProjectsApi } from '../../services/projectService';
 import { useWorkspaces } from '../../contexts/WorkspaceContext';
 import { EmptyState, PageHeader } from '../kc';
 import ProjectMembersView from '../project/ProjectMembersView';
+import { useLiveSync } from '../../hooks/useLiveSync';
 
 export default function ProjectMembersTab() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -17,6 +18,11 @@ export default function ProjectMembersTab() {
       .catch(() => setProjects([]))
       .finally(() => setLoading(false));
   }, []);
+
+  // Live: projects added/removed or access changed
+  useLiveSync(['projects', 'workspaces', 'team'], () => {
+    getProjectsApi().then((res) => setProjects(res.data?.projects || [])).catch(() => {});
+  });
 
   const requestedProjectId = searchParams.get('project');
 

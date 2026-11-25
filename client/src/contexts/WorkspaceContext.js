@@ -6,6 +6,7 @@ import {
   renameWorkspaceApi,
   deleteWorkspaceApi,
 } from '../services/workspaceService';
+import { useLiveSync } from '../hooks/useLiveSync';
 
 // Workspaces group projects inside the organization. The selected one is
 // remembered per organization in this browser.
@@ -56,6 +57,9 @@ export function WorkspaceProvider({ children }) {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [orgId, refresh]);
+
+  // Live: workspaces created/renamed/deleted, access granted elsewhere
+  useLiveSync(['workspaces', 'team'], () => { refresh().catch(() => {}); }, { enabled: orgId || false });
 
   const select = useCallback((id) => {
     setCurrentId(id);
