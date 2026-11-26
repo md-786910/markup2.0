@@ -18,13 +18,15 @@ function activeDeal(org, now = new Date()) {
 // Only orgs on a paid plan with an active subscription bring in money: a deal
 // left on a free, cancelled or unpaid org is not revenue.
 function monthlyRevenue(org, plans, now = new Date()) {
-  if (!PAID_PLANS.includes(org.plan) || org.subscription?.status !== 'active') return 0;
+  if (!PAID_PLANS.includes(org.plan) || org.isLocked || org.deletionScheduledAt) return 0;
   const deal = activeDeal(org, now);
   if (deal) {
+    if (org.plan === 'free' || org.subscription?.status === 'canceled') return 0;
     const price = Number(deal.price) || 0;
     return deal.currency === 'INR' ? Math.round(price / USD_INR_RATE) : price;
   }
-  return PRICED_PLANS.includes(org.plan) ? Number(plans[org.plan]?.price) || 0 : 0;
+  if (!PRICED_PLANS.includes(org.plan) || org.subscription?.status !== 'active') return 0;
+  return Number(plans[org.plan]?.price) || 0;
 }
 
 // One lifecycle status per org, most important first
@@ -36,6 +38,7 @@ function lifecycleStatus(org, now = Date.now()) {
   }
   if (org.subscription?.cancelAtPeriodEnd) return 'cancelling';
   if (org.plan === 'free') return 'free';
+  if (org.plan === 'enterprise' && (activeDeal(org, new Date(now)) || org.subscription?.status === 'active')) return 'paying';
   // A paid plan whose renewal failed (past_due / halted) is not paying
   if (org.subscription?.status !== 'active') return 'past_due';
   return 'paying';

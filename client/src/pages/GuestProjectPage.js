@@ -20,14 +20,13 @@ import { normalizePageUrl } from '../utils/pageUrl';
 import useEscape from '../hooks/useEscape';
 import BrandMark from '../components/common/BrandMark';
 import { Logo, Icon, Badge } from '../components/kc';
+import { getAvatarColor, AVATAR_COLORS } from '../utils/avatarColors';
 
 const DocumentViewer = React.lazy(() => import('../components/project/DocumentViewer'));
 const API_BASE = process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api';
 const docPageUrl = (doc, page) => (doc ? `doc:${doc.filename}:page:${page}` : null);
 
 const UPLOADS_BASE_URL = (process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
-
-import { getAvatarColor, AVATAR_COLORS } from '../utils/avatarColors';
 
 function getInitials(name) {
   if (!name) return '??';

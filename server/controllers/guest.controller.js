@@ -94,6 +94,7 @@ async function loadSharedProject(req, res, { write = false } = {}) {
   }
   const { project, share, scope } = found;
   req.share = share;
+  if (!res.locals) res.locals = {};
   res.locals.liveSync = { orgId: project.organization, projectId: project._id };
 
   if (hasPassword(share) && !hasValidGuestAccessToken(req, scope, share)) {

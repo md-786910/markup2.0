@@ -71,8 +71,8 @@ async function statusFilter(status) {
     case 'trial_ending': return { ...live, plan: 'trial', trialEndsAt: { $lte: inSevenDays } };
     case 'cancelling': return { ...live, plan: { $ne: 'trial' }, 'subscription.cancelAtPeriodEnd': true };
     case 'free': return { ...live, plan: 'free', 'subscription.cancelAtPeriodEnd': { $ne: true } };
-    case 'past_due': return { ...live, plan: { $in: [...PRICED_PLANS, 'enterprise'] }, 'subscription.status': { $ne: 'active' }, 'subscription.cancelAtPeriodEnd': { $ne: true } };
-    case 'paying': return { ...live, plan: { $in: [...PRICED_PLANS, 'enterprise'] }, 'subscription.status': 'active', 'subscription.cancelAtPeriodEnd': { $ne: true } };
+    case 'past_due': return { ...live, plan: { $in: [...PRICED_PLANS, 'enterprise'] }, 'subscription.status': { $ne: 'active' }, 'deal.price': null, 'subscription.cancelAtPeriodEnd': { $ne: true } };
+    case 'paying': return { ...live, plan: { $in: [...PRICED_PLANS, 'enterprise'] }, $or: [{ 'subscription.status': 'active' }, { 'deal.price': { $ne: null } }], 'subscription.cancelAtPeriodEnd': { $ne: true } };
     case 'unpaid': return { _id: { $in: await Invoice.distinct('organization', { status: 'pending' }) } };
     default: return {};
   }
@@ -130,8 +130,15 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     Organization.countDocuments(),
     Organization.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
     Organization.aggregate([{ $group: { _id: '$plan', count: { $sum: 1 } } }]),
-    Organization.find({ plan: { $in: PAID_PLANS }, 'subscription.status': 'active', deletionScheduledAt: null })
-      .select('plan subscription deal').lean(),
+    Organization.find({
+      deletionScheduledAt: null,
+      isLocked: { $ne: true },
+      plan: { $in: PAID_PLANS },
+      $or: [
+        { 'subscription.status': 'active' },
+        { 'deal.price': { $ne: null } },
+      ],
+    }).select('plan subscription deal').lean(),
     User.distinct('organization', { lastSeen: { $gte: sevenDaysAgo }, organization: { $ne: null } }),
     Invoice.aggregate([
       { $match: { status: 'pending' } },
@@ -1121,7 +1128,7 @@ exports.updateTrialSettings = asyncHandler(async (req, res) => {
     }
   }
 
-  logAdminAction(null, req.admin, 'admin.trial_settings_updated', {
+  await logAdminAction(null, req.admin, 'admin.trial_settings_updated', {
     defaultDays: days,
     syncActiveTrials: !!syncActiveTrials,
     affectedCount,
@@ -1311,11 +1318,15 @@ exports.getRevenue = asyncHandler(async (req, res) => {
   const plans = await getPlansWithOverrides();
 
   // 1. Paying organizations & current MRR: a paid plan with an active
-  // subscription (the same rule as the Paying status and monthlyRevenue)
+  // subscription or active deal (the same rule as the Paying status and monthlyRevenue)
   const payingOrgs = await Organization.find({
     deletionScheduledAt: null,
+    isLocked: { $ne: true },
     plan: { $in: PAID_PLANS },
-    'subscription.status': 'active',
+    $or: [
+      { 'subscription.status': 'active' },
+      { 'deal.price': { $ne: null } },
+    ],
   }).select('name plan subscription deal').lean();
 
   const mrrByPlan = {

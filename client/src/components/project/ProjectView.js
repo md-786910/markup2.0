@@ -29,11 +29,10 @@ import BrandMark from "../common/BrandMark";
 import TaskBoard from "./TaskBoard";
 import ReviewRail from "./ReviewRail";
 import { Logo, Icon, Badge, Button } from "../kc";
+import { getAvatarColor, AVATAR_COLORS } from "../../utils/avatarColors";
 
 // PDF viewer (react-pdf + pdf.js) is only downloaded for document projects
 const DocumentViewer = React.lazy(() => import("./DocumentViewer"));
-
-import { getAvatarColor, AVATAR_COLORS } from "../../utils/avatarColors";
 
 function getInitials(name) {
   if (!name) return '??';

@@ -6,6 +6,7 @@ import SidebarTabs from './SidebarTabs';
 import renderCommentBody from '../../utils/renderCommentBody';
 import { formatTimestamp, formatFullTimestamp } from '../../utils/formatTimestamp';
 import { Icon, IconButton } from '../kc';
+import { getAvatarColor, AVATAR_COLORS } from '../../utils/avatarColors';
 
 function timeAgo(date) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -76,9 +77,6 @@ function markCommentsRead(pinId, userId) {
   map[pinId] = Date.now();
   localStorage.setItem(`markup_read_comments_${userId}`, JSON.stringify(map));
 }
-
-
-import { getAvatarColor, AVATAR_COLORS } from '../../utils/avatarColors';
 
 function getInitials(name) {
   if (!name) return '?';

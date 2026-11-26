@@ -48,6 +48,7 @@ async function run() {
   try {
     // Clean up test data
     await PaymentSettings.deleteMany({ key: 'default' });
+    await Activity.deleteMany({ action: 'admin.trial_settings_updated' });
     await Organization.deleteMany({ slug: /^trial-test-/ });
     await User.deleteMany({ email: /^trial-admin-.*@test\.com$/ });
 
@@ -159,6 +160,7 @@ async function run() {
   } finally {
     // Clean up
     await PaymentSettings.deleteMany({ key: 'default' });
+    await Activity.deleteMany({ action: 'admin.trial_settings_updated' });
     await Organization.deleteMany({ slug: /^trial-test-/ });
     await User.deleteMany({ email: /^trial-admin-.*@test\.com$/ });
     await mongoose.disconnect();

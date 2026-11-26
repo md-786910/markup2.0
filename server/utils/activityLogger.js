@@ -95,7 +95,7 @@ function logOrgActivity(organizationId, actorId, action, metadata = {}) {
 // Something an admin panel user did, for the action log. organizationId is
 // null for changes to the admin team itself.
 function logAdminAction(organizationId, admin, action, metadata = {}) {
-  Activity.create({
+  return Activity.create({
     organization: organizationId || null,
     project: null,
     actor: null,

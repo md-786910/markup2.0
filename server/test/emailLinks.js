@@ -50,7 +50,8 @@ function verifyMail(mail, externalOk = []) {
       const okTab = u.pathname !== '/settings' || SETTINGS_TABS.includes(u.searchParams.get('tab'));
       check(`"${mail.subject.slice(0, 48)}" → app ${u.pathname}${u.search.slice(0, 12)}`, okRoute && okTab, okRoute ? '' : 'no such page');
     } else if (link.startsWith(ADMIN_URL + '/')) {
-      check(`"${mail.subject.slice(0, 48)}" → admin ${u.pathname}`, ADMIN_ROUTES.some((re) => re.test(u.pathname)), 'no such admin page');
+      const okAdminRoute = ADMIN_ROUTES.some((re) => re.test(u.pathname));
+      check(`"${mail.subject.slice(0, 48)}" → admin ${u.pathname}`, okAdminRoute, okAdminRoute ? '' : 'no such admin page');
     } else if (link.startsWith(API_URL + '/')) {
       check(`"${mail.subject.slice(0, 48)}" → api ${u.pathname}`, u.pathname === '/api/email/unsubscribe');
     } else {
