@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PROJECT_STATUSES, statusInfo } from '../../utils/projectConstants';
 import { useAuth } from '../../hooks/useAuth';
@@ -25,7 +25,9 @@ function thumbPins(project) {
 // One reviewable website or document (design system ProjectCard): wireframe
 // thumbnail with pins, name, status badge, open and resolved counts, people
 // and last update. The whole card is the link; the ⋯ menu sits on top.
-export default function ProjectCard({ project, isAdmin, userId, onEdit, onArchive, onConfirmDelete, onStatusChange }) {
+// Memoized: the dashboard re-renders on scroll, search and live refreshes; a
+// card re-renders only when its own project (or a handler) changes
+export default memo(function ProjectCard({ project, isAdmin, userId, onEdit, onArchive, onConfirmDelete, onStatusChange }) {
   const { user, updateUser } = useAuth();
   const [emailToggling, setEmailToggling] = useState(false);
 
@@ -107,7 +109,9 @@ export default function ProjectCard({ project, isAdmin, userId, onEdit, onArchiv
           pins={thumbPins(project)}
           imageSrc={thumbSrc}
           fallbackImageSrc={fallbackThumbSrc}
-          pdfFile={pdfFileUrl}
+          // The stored first-page thumbnail when there is one; the PDF itself
+          // only for documents that don't have it yet
+          pdfFile={thumbSrc ? null : pdfFileUrl}
         />
         <div className="kc-cb">
           <div className="kc-ct1">
@@ -129,4 +133,4 @@ export default function ProjectCard({ project, isAdmin, userId, onEdit, onArchiv
       </div>
     </div>
   );
-}
+});

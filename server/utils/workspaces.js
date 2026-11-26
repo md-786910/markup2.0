@@ -5,6 +5,10 @@ const DEFAULT_WORKSPACE_NAME = 'General';
 // The org's default workspace, created on first use (upsert, so concurrent
 // requests can't create two)
 async function ensureDefaultWorkspace(orgId) {
+  // Read first: it exists for every org after its first use, and this runs on
+  // every project list request (an upsert is a write each time)
+  const existing = await Workspace.findOne({ organization: orgId, isDefault: true });
+  if (existing) return existing;
   try {
     return await Workspace.findOneAndUpdate(
       { organization: orgId, isDefault: true },

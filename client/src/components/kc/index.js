@@ -635,7 +635,11 @@ export function ProjectThumb({ type = 'web', pins = [], imageSrc, fallbackImageS
       {type === 'doc' ? (
         pdfFile ? (
           <>
-            <Suspense fallback={null}><PdfThumb file={pdfFile} /></Suspense>
+            {/* Documents without a stored thumbnail yet: the PDF is fetched
+                only once the card is near the screen */}
+            <NearViewport>
+              <Suspense fallback={null}><PdfThumb file={pdfFile} /></Suspense>
+            </NearViewport>
             <div className="page">
               <i style={{ width: '60%', height: 6, background: 'var(--slate-400)' }} />
               <i /><i style={{ width: '80%' }} /><i /><i style={{ width: '50%' }} />
@@ -648,6 +652,7 @@ export function ProjectThumb({ type = 'web', pins = [], imageSrc, fallbackImageS
             src={currentSrc}
             alt=""
             loading="lazy"
+            decoding="async"
             onError={handleImgError}
           />
         ) : (
@@ -664,6 +669,7 @@ export function ProjectThumb({ type = 'web', pins = [], imageSrc, fallbackImageS
             src={currentSrc}
             alt=""
             loading="lazy"
+            decoding="async"
             onError={handleImgError}
           />
         ) : (
@@ -683,6 +689,21 @@ export function ProjectThumb({ type = 'web', pins = [], imageSrc, fallbackImageS
     </div>
   );
 }
+// Renders its children once this spot comes within 200px of the viewport
+function NearViewport({ children }) {
+  const ref = useRef(null);
+  const [near, setNear] = useState(() => typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    if (near || !ref.current) return undefined;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { setNear(true); io.disconnect(); }
+    }, { rootMargin: '200px' });
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, [near]);
+  return near ? children : <span ref={ref} aria-hidden="true" style={{ position: 'absolute', inset: 0 }} />;
+}
+
 function ThumbPins({ pins }) {
   return pins.map((q, i) => (
     <em key={i} className={cx('pinm', q[3] && 'ok')} style={{ left: `${q[0]}%`, top: `${q[1]}%` }}>

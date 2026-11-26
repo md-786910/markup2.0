@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from 'react';
 import { Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import ProjectList from '../components/dashboard/ProjectList';
@@ -48,6 +48,17 @@ function isInDateRange(project, dateRange) {
 }
 
 const TYPE_TITLES = { website: 'Websites', document: 'Documents' };
+
+// A refreshed list keeps the previous object of every project that didn't
+// change, so the memoized cards of those projects don't re-render
+function keepUnchanged(prev, next) {
+  if (!prev.length) return next;
+  const before = new Map(prev.map((p) => [p._id, p]));
+  return next.map((p) => {
+    const old = before.get(p._id);
+    return old && JSON.stringify(old) === JSON.stringify(p) ? old : p;
+  });
+}
 
 // Projects area: every reviewable website and document in the current
 // workspace as a grid of project cards; Archive (?tab=archived) as a table.
@@ -104,20 +115,36 @@ export default function DashboardPage() {
     setParam('create', null);
   }, [searchParams, setParam, canCreateHere]);
 
+  // One request serves every view, type, owner, date and search filter (they
+  // filter this list in memory, so switching filters costs no request). A new
+  // load cancels the one still running, so an older answer never replaces a
+  // newer one.
+  const loadAbort = useRef(null);
   const loadProjects = useCallback(() => {
+    loadAbort.current?.abort();
+    const controller = new AbortController();
+    loadAbort.current = controller;
     if (!initialLoadDone.current) setLoading(true);
-    getProjectsApi()
+    getProjectsApi(controller.signal)
       .then((res) => {
-        setProjects(res.data.projects);
+        setProjects((prev) => keepUnchanged(prev, res.data.projects));
         initialLoadDone.current = true;
       })
       .catch((err) => toastError(err, 'Could not load your projects.'))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (loadAbort.current !== controller) return;
+        loadAbort.current = null;
+        setLoading(false);
+      });
   }, []);
 
-  useEffect(() => { loadProjects(); }, [loadProjects]);
-  // Live: projects added/changed/moved/deleted by others, pin & comment counts
-  useLiveSync(['projects', 'pins', 'workspaces'], loadProjects);
+  useEffect(() => {
+    loadProjects();
+    return () => loadAbort.current?.abort();
+  }, [loadProjects]);
+  // Live: projects added/changed/moved/deleted by others, pin & comment counts.
+  // Deferred while the tab is hidden (projects open in a new tab).
+  useLiveSync(['projects', 'pins', 'workspaces'], loadProjects, { pauseWhenHidden: true });
 
   // Projects of the selected workspace (no workspace = the default one)
   const defaultWorkspaceId = workspaces.find((w) => w.isDefault)?._id;
@@ -160,6 +187,8 @@ export default function DashboardPage() {
     });
   }, [loading, activeProjects, archivedProjects, setCounts]);
 
+  // Typing stays responsive: the grid filters with the deferred search text
+  const deferredSearch = useDeferredValue(filters.search);
   const filteredProjects = useMemo(() => {
     let result = tab === 'archived' ? archivedProjects : activeProjects;
     result = result.filter((p) => isInDateRange(p, filters.dateRange));
@@ -173,25 +202,26 @@ export default function DashboardPage() {
         return !isOwner && (p.members || []).some((m) => m._id === user?.id);
       });
     }
-    const q = filters.search.trim().toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
     if (q) result = result.filter((p) => p.name.toLowerCase().includes(q));
     return result;
-  }, [tab, view, type, activeProjects, archivedProjects, filters, user?.id]);
+  }, [tab, view, type, activeProjects, archivedProjects, filters.dateRange, filters.ownership, deferredSearch, user?.id]);
 
   const extraFilterCount = [type, filters.ownership, filters.dateRange?.preset].filter(Boolean).length + (filters.search.trim() ? 1 : 0);
 
-  const replaceProject = (updated) => setProjects((prev) => prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)));
+  // Stable handlers: the cards are memoized and re-render only when their project changes
+  const replaceProject = useCallback((updated) => setProjects((prev) => prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p))), []);
 
-  const handleStatusChange = async (project, projectStatus) => {
+  const handleStatusChange = useCallback(async (project, projectStatus) => {
     try {
       const res = await updateProjectApi(project._id, { projectStatus });
       replaceProject(res.data.project);
     } catch (err) {
       toastError(err, 'Could not update the status.');
     }
-  };
+  }, [replaceProject]);
 
-  const handleArchiveToggle = async (project) => {
+  const handleArchiveToggle = useCallback(async (project) => {
     try {
       const restoring = project.status !== 'active';
       const res = await updateProjectApi(project._id, { status: restoring ? 'active' : 'archived' });
@@ -201,9 +231,9 @@ export default function DashboardPage() {
     } catch (err) {
       toastError(err, 'Could not update the project.');
     }
-  };
+  }, [replaceProject, refreshWorkspaces]);
 
-  const handleConfirmDelete = async (project) => {
+  const handleConfirmDelete = useCallback(async (project) => {
     const ok = await confirmDialog({
       title: `Delete ${project.name}?`,
       message: 'This deletes the project with all its pins and comments. This cannot be undone.',
@@ -219,7 +249,7 @@ export default function DashboardPage() {
     } catch (err) {
       toastError(err, 'Could not delete the project.');
     }
-  };
+  }, [refreshWorkspaces]);
 
   const handleEdit = async (project, data) => {
     const res = await updateProjectApi(project._id, data);

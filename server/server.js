@@ -199,6 +199,10 @@ connectDB()
       require("./utils/websiteThumbnail").backfillWebsiteThumbnails().catch((err) =>
         console.error("[thumbnails] backfill failed:", err),
       );
+      // Document projects get a small WebP card thumbnail (PDF page 1 / image)
+      require("./utils/documentThumbnail").backfillDocumentThumbnails().catch((err) =>
+        console.error("[thumbnails] document backfill failed:", err),
+      );
     }
     // Client approvals were removed: their plan switch is now hasDeadlines
     require("./utils/migrateDeadlineFlag").migrateDeadlineFlag().catch((err) =>

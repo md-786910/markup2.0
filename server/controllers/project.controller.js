@@ -20,6 +20,7 @@ const { seatLimitError } = require('../middleware/orgLimits');
 const { deleteProjectCascade } = require('../utils/cascade');
 const { refundUploads, deleteStoredFiles } = require('../utils/storage');
 const { mshotsUrl, isMshotsUrl, isStoredThumbnail, storeWebsiteThumbnail } = require('../utils/websiteThumbnail');
+const { storeDocumentThumbnail, canThumbnail } = require('../utils/documentThumbnail');
 const { URLS } = require('../config/env');
 const mongoose = require('mongoose');
 const Workspace = require('../models/Workspace');
@@ -110,6 +111,7 @@ exports.createProject = asyncHandler(async (req, res) => {
   }
 
   const workspace = await resolveWorkspace(orgId, req.body.workspace);
+  let firstFileSource = null;
   const projectData = {
     name,
     projectType,
@@ -135,6 +137,14 @@ exports.createProject = asyncHandler(async (req, res) => {
         thumbnail = `uploads/documents/${file.filename}`;
       }
 
+      // The first file's bytes make the card thumbnail after the response
+      // (with Cloudinary, req.file.path is a temp copy gone once it is sent)
+      if (i === 0 && canThumbnail(file)) {
+        try {
+          firstFileSource = { buffer: await fs.promises.readFile(file.path), mimetype: file.mimetype };
+        } catch { /* the thumbnail is optional */ }
+      }
+
       if (file.mimetype === 'application/pdf') {
         // pdf-parse v2: a PDFParse instance per document (v1's pdfParse(buffer)
         // function no longer exists, which made every PDF count as 1 page)
@@ -142,7 +152,9 @@ exports.createProject = asyncHandler(async (req, res) => {
         try {
           const { PDFParse } = require('pdf-parse');
           // Async read: a large PDF no longer blocks the event loop
-          parser = new PDFParse({ data: await fs.promises.readFile(file.path) });
+          // (a copy: pdf.js may detach the buffer, and the thumbnail reuses it)
+          const data = i === 0 && firstFileSource ? new Uint8Array(firstFileSource.buffer) : await fs.promises.readFile(file.path);
+          parser = new PDFParse({ data });
           const info = await parser.getInfo();
           pageCount = info.total || 1;
         } catch (err) {
@@ -177,6 +189,8 @@ exports.createProject = asyncHandler(async (req, res) => {
   metric('project.created', { type: projectType });
   // Saves the website screenshot with the file storage provider (background)
   if (project.projectType === 'website') storeWebsiteThumbnail(project._id);
+  // Small WebP of the first page/image for the dashboard card (background)
+  else if (firstFileSource) storeDocumentThumbnail(project._id, firstFileSource);
   res.status(201).json({
     project: { ...project.toObject(), proxyToken: project.projectType === 'website' ? signProxyToken(req.user, project._id) : undefined },
   });
@@ -199,9 +213,15 @@ exports.getProjects = asyncHandler(async (req, res) => {
       : req.query.workspace;
   }
 
+  // Plain objects (lean): the list is read-only. Only the first document is
+  // sent (cards show it; the project page loads the full project), and no
+  // per-project proxy token: only the project page frames the site and gets
+  // its own from GET /projects/:id.
   const projects = await Project.find(query)
+    .select({ documents: { $slice: 1 }, __v: 0 })
     .populate('owner', 'name email lastSeen')
-    .populate('members', 'name email role lastSeen avatar');
+    .populate('members', 'name email role lastSeen avatar')
+    .lean();
 
   // Per-project open/resolved pin and comment counts for the dashboard cards,
   // computed in MongoDB: one grouped pass over the pins (only project, status
@@ -239,17 +259,19 @@ exports.getProjects = asyncHandler(async (req, res) => {
     st._id.toString(),
     { resolved: st.resolved, total: st.total, comments: commentsByProject.get(st._id.toString()) || 0 },
   ]));
-  const projectsWithCounts = projects.map((project, i) => ({
-    ...project.toObject(),
-    // toObject() skips the schema's toJSON transform: strip the share secrets here
-    shareSettings: shareSettingsFor(project.shareSettings, levels[i]),
-    access: levels[i],
-    workspace: project.workspace || defaultWs._id,
-    commentCount: statsByProject.get(project._id.toString())?.comments || 0,
-    openPinCount: (statsByProject.get(project._id.toString())?.total || 0) - (statsByProject.get(project._id.toString())?.resolved || 0),
-    resolvedPinCount: statsByProject.get(project._id.toString())?.resolved || 0,
-    proxyToken: project.projectType === 'website' ? signProxyToken(req.user, project._id) : undefined,
-  }));
+  const projectsWithCounts = projects.map((project, i) => {
+    const stats = statsByProject.get(project._id.toString());
+    return {
+      ...project,
+      // Lean documents skip the schema's toJSON transform: strip the share secrets here
+      shareSettings: shareSettingsFor(project.shareSettings, levels[i]),
+      access: levels[i],
+      workspace: project.workspace || defaultWs._id,
+      commentCount: stats?.comments || 0,
+      openPinCount: (stats?.total || 0) - (stats?.resolved || 0),
+      resolvedPinCount: stats?.resolved || 0,
+    };
+  });
 
   res.json({ projects: projectsWithCounts });
 });

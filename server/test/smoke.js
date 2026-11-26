@@ -98,7 +98,7 @@ function check(name, cond, extra = '') {
   check('getProject returns a proxy token', !!proxyToken);
   check('proxy token rejected by the API', (await call('GET', '/api/projects', { token: proxyToken })).status === 401);
   const list = await call('GET', '/api/projects', { user: ownerA });
-  check('project list includes proxy tokens', list.status === 200 && list.data.projects.every((p) => p.proxyToken));
+  check('project list issues no proxy tokens (only GET /projects/:id does)', list.status === 200 && list.data.projects.length > 0 && list.data.projects.every((p) => !p.proxyToken));
   {
     const evilUrl = `https://example.com/?q=</script><script>window.__pwn=1</script>&x='y'${String.fromCharCode(0x2028)}`;
     const injected = r('utils/proxyRewriter').injectScript('<html><head></head><body></body></html>', evilUrl, String(PA._id), 'https://api.e2e', '', false);

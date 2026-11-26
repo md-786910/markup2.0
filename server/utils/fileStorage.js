@@ -255,6 +255,11 @@ function uploadsRouter() {
   const router = express.Router();
   router.use(express.static(LOCAL_DIR, {
     dotfiles: 'ignore',
+    // Names are random and never reused, so a stored file never changes: the
+    // browser keeps it instead of revalidating every thumbnail on each
+    // dashboard visit (same lifetime as the Cloudinary redirect below)
+    maxAge: '1d',
+    immutable: true,
     setHeaders: (res, filePath) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       // The app (app.<domain>) shows these from the API host (api.<domain>):
@@ -279,8 +284,20 @@ function uploadsRouter() {
   return router;
 }
 
+/** Local path of a stored file (it may not exist on this disk), or null. */
+function localFile(parsed) {
+  return parsed ? localPathFor(parsed) : null;
+}
+
+/** Cloudinary URL of a stored file when Cloudinary is on, else null. */
+function remoteUrl(parsed) {
+  return parsed && cloudinary ? cloudinaryUrl(parsed) : null;
+}
+
 module.exports = {
   PROVIDER,
+  localFile,
+  remoteUrl,
   LOCAL_DIR,
   createUploadStorage,
   saveBuffer,

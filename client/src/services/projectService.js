@@ -1,8 +1,8 @@
 import api from './api';
 import { track } from '../monitoring/analytics';
 
-export const getProjectsApi = () =>
-  api.get('/projects');
+export const getProjectsApi = (signal) =>
+  api.get('/projects', { signal });
 
 export const createProjectApi = (name, websiteUrl, workspace) =>
   api.post('/projects', { name, websiteUrl, projectType: 'website', workspace })
