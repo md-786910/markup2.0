@@ -208,6 +208,10 @@ connectDB()
     require("./utils/migrateDeadlineFlag").migrateDeadlineFlag().catch((err) =>
       console.error("[migrate] hasApprovals -> hasDeadlines failed:", err),
     );
+    // Workspace review links were retired: turn off the ones still on
+    require("./utils/retireWorkspaceLinks").retireWorkspaceLinks().catch((err) =>
+      console.error("[migrate] retiring workspace review links failed:", err),
+    );
 
     // Background jobs: email batches (Redis only) and daily billing/trials
     startEmailWorker();

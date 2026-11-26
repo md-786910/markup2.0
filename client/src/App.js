@@ -23,7 +23,6 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
 const GuestProjectPage = lazy(() => import('./pages/GuestProjectPage'));
-const GuestWorkspacePage = lazy(() => import('./pages/GuestWorkspacePage'));
 const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage'));
 
 function PageLoader() {
@@ -47,7 +46,6 @@ function App() {
               <Route path="/onboarding" element={<OnboardingPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-              <Route path="/review/w/:workspaceToken" element={<GuestWorkspacePage />} />
               <Route path="/review/:shareToken" element={<GuestProjectPage />} />
               <Route element={<PrivateRoute />}>
                 {/* Routes in the Layout C shell (rail, context panel, header) */}

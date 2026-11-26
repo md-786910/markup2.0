@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import PasswordInput from '../components/common/PasswordInput';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import {
   getGuestProjectApi,
   getGuestPinsApi,
@@ -88,7 +88,6 @@ export default function GuestProjectPage() {
   // Phones show one pane at a time (bottom tab bar)
   const [mobilePane, setMobilePane] = useState('page');
   // Set when this project was opened from a workspace review link
-  const [workspaceToken, setWorkspaceToken] = useState(null);
   const [draft, setDraft] = useState(null);
   const [draftBody, setDraftBody] = useState('');
   const [postingPin, setPostingPin] = useState(false);
@@ -117,7 +116,6 @@ export default function GuestProjectPage() {
       setError('');
       const res = await getGuestProjectApi(shareToken, pwd);
       setProject(res.data.project);
-      setWorkspaceToken(res.data.workspaceToken || null);
       setRequiresPassword(false);
     } catch (err) {
       if (err.response?.data?.requiresPassword) {
@@ -432,14 +430,7 @@ export default function GuestProjectPage() {
       <header className="bg-white border-b border-slate-200 px-4 h-14 flex items-center justify-between relative shrink-0">
         {/* Left: Brand + Project + URL */}
         <div className="flex items-center gap-3 min-w-0 z-10">
-          {workspaceToken ? (
-            <Link to={`/review/w/${workspaceToken}`} className="flex items-center gap-1.5 text-slate-500 hover:text-slate-900 shrink-0" title="All projects">
-              <Logo size={28} />
-              <Icon name="arrow" size={15} className="rotate-180 text-slate-400 hover:text-slate-700" />
-            </Link>
-          ) : (
-            <Logo size={28} />
-          )}
+          <Logo size={28} />
           <div className="w-px h-5 bg-slate-200 shrink-0" />
           <h2 className="font-semibold text-slate-900 truncate text-[14px]">{project.name}</h2>
           {project.projectType === 'website' && project.websiteUrl && (

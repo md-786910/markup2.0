@@ -221,23 +221,15 @@ function check(name, cond, extra = '') {
     && (await call('PATCH', `/api/workspaces/people/${guestUser._id}/role`, { user: memberA, body: { role: 'admin' } })).status === 403);
   await r('utils/cascade').deleteProjectCascade(await Project.findById(mgrProject.data.project._id));
 
-  // one review link for the whole workspace
-  const wsShare = await call('POST', `/api/workspaces/${wsId}/share`, { user: adminA, body: {} });
-  const wsTok = wsShare.data?.shareSettings?.token;
-  const portal = await call('GET', `/api/guest/workspace/${wsTok}`);
-  const entry = portal.data?.projects?.[0];
-  check('workspace link lists its projects', wsShare.status === 200 && portal.status === 200 && portal.data.projects.length === 1 && entry._id === wsProjId, JSON.stringify(portal.data));
-  check('project opens through the workspace link', (await call('GET', `/api/guest/${entry.shareToken}`)).status === 200 && (await call('GET', `/api/guest/${entry.shareToken}/pins`)).status === 200);
-  check('workspace link does not reach projects of other workspaces', (await call('GET', `/api/guest/${wsTok}.${PA._id}`)).status === 404);
-  check('guest proxy accepts projects shared through their workspace', await r('utils/sharing').isProjectShared(await Project.findById(wsProjId)));
-  await call('PATCH', `/api/workspaces/${wsId}/share`, { user: adminA, body: { password: 's3cret' } });
-  const locked = await call('GET', `/api/guest/workspace/${wsTok}`);
-  const unlocked = await call('GET', `/api/guest/workspace/${wsTok}?password=s3cret`);
-  const wgh = { 'X-Guest-Access': unlocked.data?.guestAccessToken };
-  check('workspace link password protects every project', locked.status === 401 && (await call('GET', `/api/guest/${entry.shareToken}/pins`)).status === 401
-    && unlocked.status === 200 && (await call('GET', `/api/guest/${entry.shareToken}/pins`, { headers: wgh })).status === 200);
-  await call('DELETE', `/api/workspaces/${wsId}/share`, { user: adminA });
-  check('turned-off workspace link stops working', (await call('GET', `/api/guest/workspace/${wsTok}`)).status === 404 && (await call('GET', `/api/guest/${entry.shareToken}`)).status === 404);
+  // workspace review links were retired: no routes, old links refused, stored ones turned off
+  check('workspace review links can no longer be created', (await call('POST', `/api/workspaces/${wsId}/share`, { user: adminA, body: {} })).status === 404);
+  const WorkspaceModel = r('models/Workspace');
+  await WorkspaceModel.updateOne({ _id: wsId }, { $set: { shareSettings: { enabled: true, token: 'feedface0123456789abcdef', allowComments: true } } });
+  check('an old workspace review link no longer opens', (await call('GET', '/api/guest/workspace/feedface0123456789abcdef')).status === 404
+    && (await call('GET', `/api/guest/feedface0123456789abcdef.${wsProjId}`)).status === 404);
+  check('the guest proxy ignores workspace links', !(await r('utils/sharing').isProjectShared(await Project.findById(wsProjId))));
+  await r('utils/retireWorkspaceLinks').retireWorkspaceLinks();
+  check('stored workspace links are turned off at startup', (await WorkspaceModel.findById(wsId).lean()).shareSettings.enabled === false);
 
   // invite people to a workspace
   const inviteeExisting = await mkUser('wsInviteeA', 'member', { organization: orgA._id });
@@ -1537,11 +1529,8 @@ function check(name, cond, extra = '') {
     const wOwner = await mkUser('wsdecisionowner', 'owner');
     const wOrg = await Organization.create({ name: 'WS Decision Co', slug: 'ws-decision-e2e', owner: wOwner._id, plan: 'trial', trialEndsAt: new Date(Date.now() + 9e8) });
     wOwner.organization = wOrg._id; await wOwner.save({ validateBeforeSave: false });
-    const ws = await Workspace.create({ name: 'Client A', organization: wOrg._id, shareSettings: { enabled: true, token: 'abcdef0123456789abcdef01', allowComments: true } });
-    const wp = await Project.create({ name: 'Client A site', projectType: 'website', websiteUrl: 'https://example.com', owner: wOwner._id, organization: wOrg._id, members: [wOwner._id], workspace: ws._id });
-    const wsPage = await call('GET', '/api/guest/workspace/abcdef0123456789abcdef01');
-    const card = wsPage.data?.projects?.find((p) => String(p._id) === String(wp._id));
-    check('the workspace review page lists the project without a decision', !!card && card.lastDecision === undefined, JSON.stringify(card || {}).slice(0, 120));
+    const ws = await Workspace.create({ name: 'Client A', organization: wOrg._id });
+    await Project.create({ name: 'Client A site', projectType: 'website', websiteUrl: 'https://example.com', owner: wOwner._id, organization: wOrg._id, members: [wOwner._id], workspace: ws._id });
 
     const person = await adminCall('GET', `/api/admin/users/${wOwner._id}`);
     check('the admin person page includes product analytics (or why not)', person.status === 200 && person.data?.posthog && typeof person.data.posthog.available === 'boolean');
@@ -1690,10 +1679,20 @@ function check(name, cond, extra = '') {
     check('a 6+ character project link password and clearing it are accepted',
       (await call('PATCH', `/api/projects/${sp._id}/share`, { user: sOwner, body: { password: 'abcdef' } })).status === 200
       && (await call('PATCH', `/api/projects/${sp._id}/share`, { user: sOwner, body: { password: '' } })).status === 200);
-    const sWs = await r('utils/workspaces').ensureDefaultWorkspace(sOrg._id);
-    const wsShort = await call('POST', `/api/workspaces/${sWs._id}/share`, { user: sOwner, body: { password: 'abc' } });
-    check('short workspace link passwords are refused', wsShort.status === 400 && /6/.test(wsShort.data?.message || ''), `${wsShort.status} ${wsShort.data?.message}`);
-    check('a workspace link with a long enough password is accepted', (await call('POST', `/api/workspaces/${sWs._id}/share`, { user: sOwner, body: { password: 'longer-pw' } })).status === 200);
+    // Review link end date and turning a link off (H4)
+    const badEnd = await call('PATCH', `/api/projects/${sp._id}/share`, { user: sOwner, body: { expiresAt: 'not-a-date' } });
+    const pastEnd = await call('PATCH', `/api/projects/${sp._id}/share`, { user: sOwner, body: { expiresAt: new Date(Date.now() - 6e4).toISOString() } });
+    check('an invalid or past link end date is refused with 400', badEnd.status === 400 && pastEnd.status === 400, `${badEnd.status} ${pastEnd.status}`);
+    const futureEnd = await call('PATCH', `/api/projects/${sp._id}/share`, { user: sOwner, body: { expiresAt: new Date(Date.now() + 864e5).toISOString() } });
+    check('a future link end date is saved', futureEnd.status === 200 && !!futureEnd.data?.shareSettings?.expiresAt);
+    const spTok = (await Project.findById(sp._id).lean()).shareSettings.token;
+    await Project.updateOne({ _id: sp._id }, { $set: { status: 'archived' } });
+    check("an archived project's review link stops working", (await call('GET', `/api/guest/${spTok}`)).status === 404
+      && !(await r('utils/sharing').isProjectShared(await Project.findById(sp._id))));
+    await Project.updateOne({ _id: sp._id }, { $set: { status: 'active' } });
+    check('the review link works again after restoring', (await call('GET', `/api/guest/${spTok}`)).status === 200);
+    await call('DELETE', `/api/projects/${sp._id}/share`, { user: sOwner });
+    check('a turned-off review link stops working', (await call('GET', `/api/guest/${spTok}`)).status === 404);
 
     // SEC-24: website and page URLs
     const badSites = [];

@@ -1,16 +1,10 @@
-const mongoose = require('mongoose');
 const Project = require('../models/Project');
-const Workspace = require('../models/Workspace');
 
-// Review tokens are either a project's own share token, or
-// "<workspace share token>.<project id>" for a project reached through a
-// workspace review link. Both resolve to the project plus the share settings
-// that govern it (password, expiry, comments).
-const WS_SEPARATOR = '.';
-
-function composeWorkspaceToken(workspaceToken, projectId) {
-  return `${workspaceToken}${WS_SEPARATOR}${projectId}`;
-}
+// A review token is a project's own share token. It resolves to the project
+// plus the share settings that govern it (password, expiry, comments).
+// Workspace review links ("<workspace token>.<project id>") were retired:
+// those tokens are simply not found (utils/retireWorkspaceLinks.js turned
+// the stored links off).
 
 function isExpired(share) {
   return !!(share.expiresAt && new Date(share.expiresAt) < new Date());
@@ -37,69 +31,32 @@ async function orgAllowsShareLinks(orgId) {
   return ok;
 }
 
-// Projects reachable through a workspace link (archived ones are hidden)
-function workspaceProjectsQuery(workspace) {
-  return {
-    organization: workspace.organization,
-    workspace: workspace.isDefault ? { $in: [workspace._id, null] } : workspace._id,
-    status: { $ne: 'archived' },
-  };
-}
-
-async function findSharedWorkspace(token) {
-  if (typeof token !== 'string' || !/^[a-f0-9]{16,64}$/i.test(token)) return null;
-  return Workspace.findOne({ 'shareSettings.token': token, 'shareSettings.enabled': true });
-}
-
 /**
  * Returns { project, share, scope } or { status, message } when not found/expired.
- * scope is { projectId } or { workspaceId } (what a guest access token is bound to).
+ * scope is { projectId } (what a guest access token is bound to).
  */
 async function findShared(token, select) {
   const raw = String(token || '');
-  const sep = raw.indexOf(WS_SEPARATOR);
-  if (sep > 0) {
-    const workspace = await findSharedWorkspace(raw.slice(0, sep));
-    const projectId = raw.slice(sep + 1);
-    if (!workspace || !mongoose.isValidObjectId(projectId)) return { status: 404, message: 'Review link not found.' };
-    if (isExpired(workspace.shareSettings)) return { status: 410, message: 'This review link has expired.' };
-    let query = Project.findOne({ _id: projectId, ...workspaceProjectsQuery(workspace) });
-    if (select) query = query.select(`${select} organization`);
-    const project = await query;
-    if (!project) return { status: 404, message: 'Review link not found.' };
-    if (!(await orgAllowsShareLinks(workspace.organization))) return PLAN_UNAVAILABLE;
-    return { project, share: workspace.shareSettings, scope: { workspaceId: workspace._id.toString() } };
-  }
+  // Project tokens are plain (hex); a workspace token has a '.' and is refused
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(raw)) return { status: 404, message: 'Review link not found.' };
 
   let query = Project.findOne({ 'shareSettings.token': raw, 'shareSettings.enabled': true });
-  if (select) query = query.select(`${select} organization`);
+  if (select) query = query.select(`${select} organization status`);
   const project = await query;
   if (!project) return { status: 404, message: 'Review link not found.' };
+  // An archived project is closed for review, through its own link too
+  if (project.status === 'archived') return { status: 404, message: 'Review link not found.' };
   if (isExpired(project.shareSettings)) return { status: 410, message: 'This review link has expired.' };
   if (!(await orgAllowsShareLinks(project.organization))) return PLAN_UNAVAILABLE;
   return { project, share: project.shareSettings, scope: { projectId: project._id.toString() } };
 }
 
-// For guest proxy requests: is the project reviewable through its own link or
-// its workspace's link right now? Cached briefly (asset requests are many).
-const proxyShareCache = new Map();
-const PROXY_SHARE_TTL = 60 * 1000;
-
+// For guest proxy requests: is the project reviewable through its own link
+// right now?
 async function isProjectShared(project) {
-  if (!(await orgAllowsShareLinks(project.organization))) return false;
-  if (project.shareSettings?.enabled && !isExpired(project.shareSettings)) return true;
   if (project.status === 'archived') return false;
-  const key = project._id.toString();
-  const hit = proxyShareCache.get(key);
-  if (hit && Date.now() - hit.at < PROXY_SHARE_TTL) return hit.ok;
-  const query = project.workspace
-    ? { _id: project.workspace }
-    : { organization: project.organization, isDefault: true };
-  const workspace = await Workspace.findOne({ ...query, 'shareSettings.enabled': true }).select('shareSettings');
-  const ok = !!workspace && !isExpired(workspace.shareSettings);
-  if (proxyShareCache.size > 5000) proxyShareCache.clear();
-  proxyShareCache.set(key, { ok, at: Date.now() });
-  return ok;
+  if (!project.shareSettings?.enabled || isExpired(project.shareSettings)) return false;
+  return orgAllowsShareLinks(project.organization);
 }
 
-module.exports = { findShared, findSharedWorkspace, workspaceProjectsQuery, composeWorkspaceToken, isExpired, isProjectShared, orgAllowsShareLinks, clearSharePlanCache: () => planCache.clear() };
+module.exports = { findShared, isExpired, isProjectShared, orgAllowsShareLinks, clearSharePlanCache: () => planCache.clear() };

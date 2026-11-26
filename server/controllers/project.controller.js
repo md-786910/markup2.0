@@ -70,6 +70,15 @@ function sanitizeShareSettings(shareSettings) {
 // Share settings for someone with `level` on the project: the link token opens
 // the guest review (and guest posting), so only people who manage the project
 // get it
+// A review link's end date: empty (no end) or a valid date in the future
+function shareExpiryError(expiresAt) {
+  if (expiresAt === undefined || expiresAt === null || expiresAt === '') return null;
+  const d = new Date(expiresAt);
+  if (Number.isNaN(d.getTime())) return 'The end date is not a valid date.';
+  if (d <= new Date()) return 'Choose an end date in the future.';
+  return null;
+}
+
 function shareSettingsFor(shareSettings, level) {
   const obj = sanitizeShareSettings(shareSettings);
   if (obj && level !== 'manage') delete obj.token;
@@ -793,6 +802,8 @@ exports.enableShare = asyncHandler(async (req, res) => {
   const { password, allowComments = true, expiresAt } = req.body;
   const passwordError = sharePasswordError(password);
   if (passwordError) return res.status(400).json({ message: passwordError });
+  const expiryError = shareExpiryError(expiresAt);
+  if (expiryError) return res.status(400).json({ message: expiryError });
 
   if (!project.shareSettings?.token) {
     project.shareSettings = {
@@ -805,6 +816,10 @@ exports.enableShare = asyncHandler(async (req, res) => {
     };
   } else {
     project.shareSettings.enabled = true;
+    // Turned on again after it ran out: an old end date would make it dead at once
+    if (expiresAt === undefined && project.shareSettings.expiresAt && new Date(project.shareSettings.expiresAt) <= new Date()) {
+      project.shareSettings.expiresAt = null;
+    }
     if (password !== undefined) {
       project.shareSettings.password = null;
       project.shareSettings.passwordHash = await hashSharePassword(password);
@@ -840,6 +855,8 @@ exports.updateShare = asyncHandler(async (req, res) => {
   const { password, allowComments, expiresAt } = req.body;
   const passwordError = sharePasswordError(password);
   if (passwordError) return res.status(400).json({ message: passwordError });
+  const expiryError = shareExpiryError(expiresAt);
+  if (expiryError) return res.status(400).json({ message: expiryError });
 
   if (!project.shareSettings?.token) {
     return res.status(400).json({ message: 'Sharing is not enabled for this project.' });

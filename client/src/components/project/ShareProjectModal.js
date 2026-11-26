@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { enableShareApi, updateShareApi, updateProjectApi, updateReviewSettingsApi } from '../../services/projectService';
+import { enableShareApi, updateShareApi, disableShareApi, updateProjectApi, updateReviewSettingsApi } from '../../services/projectService';
+import { confirmDialog } from '../../utils/confirm';
+import { toast } from '../../utils/toast';
 import useEscape from '../../hooks/useEscape';
 import { DatePicker } from '../ui';
 
@@ -25,18 +27,22 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
   const [guestConsoleCapture, setGuestConsoleCapture] = useState(false);
   const [deadlineAt, setDeadlineAt] = useState('');
   const [deadlineMessage, setDeadlineMessage] = useState('');
+  // When the review link stops working (empty = no end date)
+  const [expiresAt, setExpiresAt] = useState('');
   const [shareUrl, setShareUrl] = useState('');
 
   const isSharing = project?.shareSettings?.enabled;
   const hasPassword = !!project?.shareSettings?.hasPassword;
   const savedDeadlineAt = project?.review?.deadlineAt ? toLocalInputValue(project.review.deadlineAt) : '';
   const savedDeadlineMessage = project?.review?.deadlineMessage || '';
+  const savedExpiresAt = project?.shareSettings?.expiresAt ? toLocalInputValue(project.shareSettings.expiresAt) : '';
 
   useEffect(() => {
     if (project?.shareSettings) {
       setPassword('');
       setRemovePassword(false);
       setAllowComments(project.shareSettings.allowComments !== false);
+      setExpiresAt(project.shareSettings.expiresAt ? toLocalInputValue(project.shareSettings.expiresAt) : '');
       if (project.shareSettings.token && project.shareSettings.enabled) {
         const origin = window.location.origin;
         setShareUrl(`${origin}/review/${project.shareSettings.token}`);
@@ -68,6 +74,31 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
     }
   };
 
+  // Turns the link off: guests with it can no longer open the project.
+  // Turning it on again brings back the same link.
+  const handleDisable = async () => {
+    const ok = await confirmDialog({
+      title: 'Turn off the review link?',
+      message: 'Anyone with the link can no longer open this project or leave feedback. Turning it on again brings back the same link.',
+      confirmLabel: 'Turn off link',
+      danger: true,
+    });
+    if (!ok) return;
+    setLoading(true);
+    setError('');
+    try {
+      await disableShareApi(project._id);
+      onProjectUpdate({ ...project, shareSettings: { ...project.shareSettings, enabled: false } });
+      setShareUrl('');
+      toast.success('Review link turned off.');
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not turn off the link');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   const handleUpdate = async () => {
@@ -75,6 +106,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
     setError('');
     try {
       const shareUpdate = { allowComments };
+      if (expiresAt !== savedExpiresAt) shareUpdate.expiresAt = expiresAt ? new Date(expiresAt).toISOString() : null;
       if (password.trim()) shareUpdate.password = password;
       else if (removePassword) shareUpdate.password = null;
       const shareRes = await updateShareApi(project._id, shareUpdate);
@@ -211,6 +243,19 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
               )}
             </div>
 
+            {/* End date */}
+            <div className="space-y-1.5">
+              <label className="text-label text-gray-700 block">Link ends (optional)</label>
+              <p className="text-caption text-gray-400">After this time the link stops working</p>
+              <DatePicker
+                withTime
+                value={expiresAt}
+                onChange={setExpiresAt}
+                placeholder="No end date"
+                ariaLabel="Review link end date"
+              />
+            </div>
+
             {/* Allow comments toggle */}
             <label className="flex items-center justify-between cursor-pointer">
               <div>
@@ -300,8 +345,15 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
 
           {/* Actions */}
           {isSharing && (
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <>
+                <button
+                  onClick={handleDisable}
+                  disabled={loading}
+                  className="px-4 py-2.5 text-label text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                >
+                  Turn off link
+                </button>
                 <button
                   onClick={onClose}
                   disabled={loading}
@@ -314,7 +366,7 @@ export default function ShareProjectModal({ isOpen, onClose, project, onProjectU
                   disabled={loading}
                   className="flex-1 px-4 py-2.5 text-label text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
-                  {loading ? 'Saving...' : 'Save Settings'}
+                  {loading ? 'Saving...' : 'Save settings'}
                 </button>
               </>
             </div>

@@ -7,12 +7,10 @@ const {
   getGuestComments,
   createGuestPin,
   createGuestComment,
-  getGuestWorkspace,
   requireGuestCommentAccess,
 } = require('../controllers/guest.controller');
 
 // All guest routes are public — no auth middleware
-router.get('/workspace/:workspaceToken', guestPasswordLimiter, getGuestWorkspace);
 router.get('/:shareToken', guestPasswordLimiter, getGuestProject);
 router.get('/:shareToken/pins', getGuestPins);
 router.get('/:shareToken/pins/:pinId/comments', getGuestComments);

@@ -703,17 +703,47 @@ function injectScript(html, pageUrl, projectId, serverBase, workerBase, isGuest)
   // --- Mirror localStorage auth tokens to cookies for server-side proxy access ---
   // When the proxied app stores JWT tokens in localStorage, we mirror them to cookies
   // so the catch-all redirect and proxy can forward them to the upstream server.
+  // Every reviewed site runs on this one origin and so shares one storage: a
+  // key is only mirrored for the site that wrote it (recorded in
+  // __markup_ls_owners__), never for another reviewed site that reads it.
   var _lsSetItem = Storage.prototype.setItem;
+  var _lsRemoveItem = Storage.prototype.removeItem;
+  var __markupOwnersKey = '__markup_ls_owners__';
+  var __markupIsAuthKey = function(key) {
+    return typeof key === 'string' && key !== __markupOwnersKey && /token|auth|session|jwt|access/i.test(key) && !/^markup_/i.test(key);
+  };
+  var __markupReadOwners = function(store) {
+    try { return JSON.parse(store.getItem(__markupOwnersKey) || '{}') || {}; } catch(e) { return {}; }
+  };
+  var __markupWriteOwners = function(store, owners) {
+    try { _lsSetItem.call(store, __markupOwnersKey, JSON.stringify(owners)); } catch(e) {}
+  };
   Storage.prototype.setItem = function(key, value) {
     _lsSetItem.apply(this, arguments);
-    if (/token|auth|session|jwt|access/i.test(key) && !/^markup_/i.test(key) && typeof value === 'string' && value.length < 4096) {
+    if (__markupIsAuthKey(key) && typeof value === 'string' && value.length < 4096) {
+      var owners = __markupReadOwners(this);
+      owners[key] = __markupLsPrefix;
+      __markupWriteOwners(this, owners);
       try { __markupSetRawCookie(__markupLsPrefix + encodeURIComponent(key) + '=' + encodeURIComponent(value) + '; path=/; max-age=86400; samesite=lax'); } catch(e) {}
     }
   };
+  // Signing out of the site (removing its token) removes the mirrored copy too
+  Storage.prototype.removeItem = function(key) {
+    _lsRemoveItem.apply(this, arguments);
+    if (__markupIsAuthKey(key)) {
+      var owners = __markupReadOwners(this);
+      if (owners[key] === __markupLsPrefix) {
+        delete owners[key];
+        __markupWriteOwners(this, owners);
+        try { __markupSetRawCookie(__markupLsPrefix + encodeURIComponent(key) + '=; path=/; max-age=0; samesite=lax'); } catch(e) {}
+      }
+    }
+  };
   try {
+    var lsOwners = __markupReadOwners(localStorage);
     for (var i = 0; i < localStorage.length; i++) {
       var lsKey = localStorage.key(i);
-      if (/token|auth|session|jwt|access/i.test(lsKey) && !/^markup_/i.test(lsKey)) {
+      if (__markupIsAuthKey(lsKey) && lsOwners[lsKey] === __markupLsPrefix) {
         var lsVal = localStorage.getItem(lsKey);
         if (lsVal && lsVal.length < 4096) {
           __markupSetRawCookie(__markupLsPrefix + encodeURIComponent(lsKey) + '=' + encodeURIComponent(lsVal) + '; path=/; max-age=86400; samesite=lax');

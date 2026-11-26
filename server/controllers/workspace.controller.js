@@ -3,7 +3,6 @@ const Workspace = require('../models/Workspace');
 const Project = require('../models/Project');
 const asyncHandler = require('../utils/asyncHandler');
 const { logOrgActivity } = require('../utils/activityLogger');
-const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { URLS } = require('../config/env');
@@ -200,73 +199,6 @@ exports.setWorkspaceMembers = asyncHandler(async (req, res) => {
   logOrgActivity(req.user.organization, req.user._id, 'workspace.members_updated', { name: workspace.name, count: users.length });
   const levels = new Map(workspace.members.map((m) => [m.user.toString(), m.level]));
   res.json({ members: users.map((u) => ({ ...u.toObject(), level: levels.get(u._id.toString()) })) });
-});
-
-const shareResponse = (workspace) => ({
-  shareSettings: {
-    enabled: workspace.shareSettings.enabled,
-    token: workspace.shareSettings.token,
-    allowComments: workspace.shareSettings.allowComments,
-    expiresAt: workspace.shareSettings.expiresAt,
-    hasPassword: !!workspace.shareSettings.passwordHash,
-  },
-  shareUrl: `${URLS.app}/review/w/${workspace.shareSettings.token}`,
-});
-
-async function applyShareInput(workspace, { password, allowComments, expiresAt }) {
-  // A non-empty link password needs a minimum length ('' / null removes it).
-  // Thrown before anything is saved; the error handler answers 400.
-  const { MIN_SHARE_PASSWORD_LENGTH } = require('../utils/inputValidation');
-  if (password !== undefined && password !== null && password !== ''
-    && (typeof password !== 'string' || password.length < MIN_SHARE_PASSWORD_LENGTH || password.length > 200)) {
-    throw Object.assign(new Error(`The link password must be ${MIN_SHARE_PASSWORD_LENGTH} to 200 characters.`), { status: 400 });
-  }
-  if (password !== undefined) workspace.shareSettings.passwordHash = password ? await bcrypt.hash(String(password), 10) : null;
-  if (allowComments !== undefined) workspace.shareSettings.allowComments = !!allowComments;
-  if (expiresAt !== undefined) workspace.shareSettings.expiresAt = expiresAt || null;
-}
-
-/**
- * POST /api/workspaces/:workspaceId/share  { password?, allowComments?, expiresAt? }
- * One review link for every project in the workspace.
- */
-exports.enableWorkspaceShare = asyncHandler(async (req, res) => {
-  const workspace = await loadOrgWorkspace(req, res);
-  if (!workspace) return;
-  if (!workspace.shareSettings?.token) {
-    workspace.shareSettings = { enabled: true, token: crypto.randomBytes(16).toString('hex'), allowComments: true };
-  }
-  workspace.shareSettings.enabled = true;
-  await applyShareInput(workspace, req.body || {});
-  await workspace.save();
-  logOrgActivity(req.user.organization, req.user._id, 'workspace.share_enabled', { name: workspace.name });
-  res.json(shareResponse(workspace));
-});
-
-/**
- * PATCH /api/workspaces/:workspaceId/share
- */
-exports.updateWorkspaceShare = asyncHandler(async (req, res) => {
-  const workspace = await loadOrgWorkspace(req, res);
-  if (!workspace) return;
-  if (!workspace.shareSettings?.token) {
-    return res.status(400).json({ message: 'Sharing is not enabled for this workspace.' });
-  }
-  await applyShareInput(workspace, req.body || {});
-  await workspace.save();
-  res.json(shareResponse(workspace));
-});
-
-/**
- * DELETE /api/workspaces/:workspaceId/share
- */
-exports.disableWorkspaceShare = asyncHandler(async (req, res) => {
-  const workspace = await loadOrgWorkspace(req, res);
-  if (!workspace) return;
-  if (workspace.shareSettings) workspace.shareSettings.enabled = false;
-  await workspace.save();
-  logOrgActivity(req.user.organization, req.user._id, 'workspace.share_disabled', { name: workspace.name });
-  res.json({ message: 'Sharing disabled' });
 });
 
 /**

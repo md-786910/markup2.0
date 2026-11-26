@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { authorize } = require('../middleware/roles');
-const { checkOrgNotLocked, checkWorkspaceLimit, checkShareLinksAllowed } = require('../middleware/orgLimits');
+const { checkOrgNotLocked, checkWorkspaceLimit } = require('../middleware/orgLimits');
 const { workspaceAccess } = require('../middleware/workspaceAccess');
 const {
   getWorkspaces,
@@ -10,9 +10,6 @@ const {
   deleteWorkspace,
   getWorkspaceMembers,
   setWorkspaceMembers,
-  enableWorkspaceShare,
-  updateWorkspaceShare,
-  disableWorkspaceShare,
   getOrgPeople,
   inviteToWorkspace,
   getWorkspaceInvitations,
@@ -38,8 +35,5 @@ router.get('/:workspaceId/members', workspaceAccess('manage'), getWorkspaceMembe
 router.put('/:workspaceId/members', workspaceAccess('manage'), checkOrgNotLocked, setWorkspaceMembers);
 router.get('/:workspaceId/invitations', workspaceAccess('manage'), getWorkspaceInvitations);
 router.post('/:workspaceId/invitations', workspaceAccess('manage'), checkOrgNotLocked, inviteToWorkspace);
-router.post('/:workspaceId/share', workspaceAccess('manage'), checkOrgNotLocked, checkShareLinksAllowed, enableWorkspaceShare);
-router.patch('/:workspaceId/share', workspaceAccess('manage'), checkOrgNotLocked, checkShareLinksAllowed, updateWorkspaceShare);
-router.delete('/:workspaceId/share', workspaceAccess('manage'), disableWorkspaceShare);
 
 module.exports = router;

@@ -11,6 +11,8 @@ const { metric } = require('../instrument');
 const { captureServerEvent } = require('../utils/posthogCapture');
 
 const { createProjectNotifications } = require('../utils/notificationHelper');
+const { emailProjectMembers, notifyIntegrations } = require('../utils/notifier');
+const { stripHtmlAndMentions } = require('../utils/mentionHelper');
 const { sanitizeCommentBody } = require('../utils/sanitizeComment');
 const { reserveStorage, discardUploads } = require('../utils/storage');
 const { normalizePageUrl, pageUrlFilter } = require('../utils/pageUrl');
@@ -28,7 +30,7 @@ function guestIdentity(body) {
   if (!email) return { error: 'Enter a valid email address.' };
   return { name, email };
 }
-const { findShared, findSharedWorkspace, workspaceProjectsQuery, composeWorkspaceToken, isExpired, orgAllowsShareLinks } = require('../utils/sharing');
+const { findShared } = require('../utils/sharing');
 
 // Verify a guest-supplied password against either the bcrypt hash (preferred,
 // new projects + migrated ones) or the legacy plaintext field (pre-migration
@@ -73,7 +75,7 @@ function hasValidGuestAccessToken(req, scope, share) {
   if (!token) return false;
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-    const sameScope = scope.workspaceId ? decoded.workspaceId === scope.workspaceId : decoded.projectId === scope.projectId;
+    const sameScope = decoded.projectId === scope.projectId;
     return decoded.purpose === GUEST_TOKEN_PURPOSE && sameScope && decoded.pwf === passwordFingerprint(share);
   } catch {
     return false;
@@ -85,7 +87,7 @@ const hasPassword = (share) => !!(share.passwordHash || share.password);
 // Loads the shared project and enforces enabled + expiry + password on every
 // guest endpoint (and, for writes, that the owning org isn't locked). Sends the
 // error response and returns null when access is denied.
-// The governing share settings (project's or workspace's) are set on req.share.
+// The project's share settings are set on req.share.
 async function loadSharedProject(req, res, { write = false } = {}) {
   const found = await findShared(req.params.shareToken);
   if (!found.project) {
@@ -154,13 +156,12 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
   captureServerEvent('guest_review_opened', {
     distinctId: `guest-review:${project._id}`,
     organizationId: project.organization,
-    properties: { projectId: String(project._id), via: scope.workspaceId ? 'workspace' : 'project' },
+    properties: { projectId: String(project._id), via: 'project' },
   });
 
   // Return limited project data
   res.json({
     guestAccessToken: hasSharePassword ? signGuestAccessToken(scope, share) : undefined,
-    workspaceToken: scope.workspaceId ? shareToken.split('.')[0] : undefined,
     project: {
       _id: project._id,
       name: project.name,
@@ -171,62 +172,6 @@ exports.getGuestProject = asyncHandler(async (req, res) => {
       allowComments: share.allowComments,
       review: project.review?.toObject ? project.review.toObject() : project.review || {},
     },
-  });
-});
-
-/**
- * GET /api/guest/workspace/:workspaceToken[?password=]
- * Public: the projects behind a workspace review link. Each project opens on
- * the normal review page with the token "<workspaceToken>.<projectId>".
- */
-exports.getGuestWorkspace = asyncHandler(async (req, res) => {
-  const { workspaceToken } = req.params;
-  const workspace = await findSharedWorkspace(workspaceToken);
-  if (!workspace) return res.status(404).json({ message: 'Review link not found or has been disabled.' });
-  const share = workspace.shareSettings;
-  if (isExpired(share)) return res.status(410).json({ message: 'This review link has expired.' });
-  if (!(await orgAllowsShareLinks(workspace.organization))) {
-    return res.status(403).json({ message: 'Review links are not available on the current plan of this organization.' });
-  }
-
-  const scope = { workspaceId: workspace._id.toString() };
-  if (hasPassword(share) && !hasValidGuestAccessToken(req, scope, share)) {
-    const { password } = req.query;
-    if (!password) return res.status(401).json({ message: 'This review requires a password.', requiresPassword: true });
-    if (!(await verifySharePassword(password, share))) {
-      return res.status(401).json({ message: 'Incorrect password. Please try again.', requiresPassword: true, invalidPassword: true });
-    }
-  }
-
-  const [org, projects] = await Promise.all([
-    Organization.findById(workspace.organization).select('name logo'),
-    Project.find(workspaceProjectsQuery(workspace))
-      .select('name projectType websiteUrl documents updatedAt')
-      .sort({ updatedAt: -1 })
-      .lean(),
-  ]);
-  const counts = await Pin.aggregate([
-    { $match: { project: { $in: projects.map((p) => p._id) }, status: { $in: ['open', 'in_progress', 'in_review', 'pending'] } } },
-    { $group: { _id: '$project', open: { $sum: 1 } } },
-  ]);
-  const openBy = new Map(counts.map((c) => [c._id.toString(), c.open]));
-
-
-  res.json({
-    guestAccessToken: hasPassword(share) ? signGuestAccessToken(scope, share) : undefined,
-    workspace: { name: workspace.name, allowComments: share.allowComments },
-    organization: { name: org?.name || '', logo: org?.logo || null },
-    projects: projects.map((p) => ({
-      _id: p._id,
-      name: p.name,
-      projectType: p.projectType,
-      websiteUrl: p.websiteUrl,
-      documentCount: (p.documents || []).length,
-      cover: p.documents?.[0] ? { path: p.documents[0].path, mimetype: p.documents[0].mimetype, name: p.documents[0].originalName, pages: p.documents[0].pageCount || 1 } : null,
-      updatedAt: p.updatedAt,
-      openPinCount: openBy.get(p._id.toString()) || 0,
-      shareToken: composeWorkspaceToken(workspaceToken, p._id),
-    })),
   });
 });
 
@@ -499,6 +444,35 @@ exports.createGuestComment = asyncHandler(async (req, res) => {
   if (io) {
     io.to(`project:${project._id}`).emit('comment:created', { comment, pinId });
   }
+
+  // Email the team and post to the connected integrations, as for members.
+  // A guest adds a pin and then its first comment, so the first comment is
+  // announced as the new pin (one combined message, like createComment).
+  const projectId = project._id.toString();
+  Comment.countDocuments({ pin: pin._id, _id: { $ne: comment._id } }).then(async (prior) => {
+    const proj = await Project.findById(projectId).select('name organization').lean();
+    if (!proj) return;
+    const plain = stripHtmlAndMentions(body);
+    notifyIntegrations(projectId, proj.organization, {
+      action: prior === 0 ? 'pin.created' : 'comment.created',
+      actorName: guestName,
+      projectName: proj.name,
+      pinNumber: pin.pinNumber,
+      pinId: pin._id.toString(),
+      projectId,
+      pageUrl: pin.pageUrl,
+      comment: plain.substring(0, 200),
+      context: pin.context,
+    });
+    await emailProjectMembers('comment', {
+      projectId,
+      actorUserId: null,
+      actorName: guestName,
+      projectName: proj.name,
+      pin,
+      comment,
+    });
+  }).catch((err) => req.log?.warn({ err }, 'guest comment notifications failed'));
 
   metric('comment.created', { source: 'guest' });
   res.status(201).json({ comment });

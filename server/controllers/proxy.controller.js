@@ -451,9 +451,11 @@ async function processResponse(req, res, response, url, projectId, serverBase, w
   if (response.status >= 200 && response.status < 600) res.status(response.status);
 
   // Guest mode is sticky: query param on the initial iframe load, then cookie
-  // on every subsequent sub-resource request. Either source flips this on.
+  // on every subsequent sub-resource request. The cookie only counts for a
+  // request without a signed-in user (proxyAuth sets req.user from a member's
+  // token), so a member's own page never turns into a guest page.
   let isGuest = req.query.guest === 'true';
-  if (!isGuest && req.cookies && req.cookies.__markup_proxy_ctx) {
+  if (!isGuest && !req.user && req.cookies && req.cookies.__markup_proxy_ctx) {
     try {
       const ctx = JSON.parse(req.cookies.__markup_proxy_ctx);
       if (ctx.guest === true) isGuest = true;

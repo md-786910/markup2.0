@@ -6,10 +6,9 @@ const guestApi = axios.create({
 
 // Issued after a successful share-password check; required by the server on
 // every other guest call for password-protected reviews. Kept per link for the
-// browser session, so one password covers every project of a workspace link
-// ("<workspaceToken>.<projectId>" shares the workspace token's key).
+// browser session.
 let guestAccessToken = null;
-const linkKey = (shareToken) => `kommently.guest.${String(shareToken).split('.')[0]}`;
+const linkKey = (shareToken) => `kommently.guest.${String(shareToken)}`;
 const readToken = (shareToken) => {
   try { return sessionStorage.getItem(linkKey(shareToken)); } catch { return null; }
 };
@@ -34,14 +33,6 @@ export const getGuestProjectApi = (shareToken, password) => {
   });
 };
 
-export const getGuestWorkspaceApi = (workspaceToken, password) => {
-  if (!password) guestAccessToken = readToken(workspaceToken);
-  return guestApi.get(`/guest/workspace/${workspaceToken}`, { params: { password } }).then((res) => {
-    guestAccessToken = res.data.guestAccessToken || null;
-    storeToken(workspaceToken, guestAccessToken);
-    return res;
-  });
-};
 
 export const getGuestPinsApi = (shareToken, pageUrl, deviceMode) =>
   guestApi.get(`/guest/${shareToken}/pins`, { params: { pageUrl, deviceMode } });

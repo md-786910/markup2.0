@@ -27,10 +27,15 @@ module.exports = async (req, res, next) => {
   }
   // Sub-resource fast path: cookie present means the HTML load was already
   // authenticated. Skip the DB round-trip.
+  // A request that brings its own token (the member's iframe src) is checked
+  // on that token: a guest cookie left by an earlier review link must not
+  // turn a member's own project into a guest view or lock them out of it.
+  const explicitToken = !!((req.query && req.query.token)
+    || (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')));
   if (req.cookies && req.cookies.__markup_proxy_ctx) {
     try {
       const ctx = JSON.parse(req.cookies.__markup_proxy_ctx);
-      if (ctx.guest === true) {
+      if (ctx.guest === true && !explicitToken) {
         req.user = null;
         return next();
       }
