@@ -123,8 +123,40 @@ const ASSET_RETRY_STATUSES = new Set([403, 429, 503]);
 // Network errors the relay can't fix (the site doesn't exist, or we refused it)
 const NO_RELAY_ERRORS = new Set(['ENOTFOUND', 'ECONNREFUSED', 'EBLOCKEDADDRESS', 'ERR_FR_REDIRECTION_FAILURE', 'ERR_FR_TOO_MANY_REDIRECTS']);
 
+// The relay worker itself is unreachable (e.g. not deployed at
+// FALLBACK_RELAY_URL): Cloudflare then answers with its own error (error
+// 1042 "No Workers script was found", 1101, ...), which must never be shown
+// as the reviewed site. While the relay is down, nothing is sent through it.
+const RELAY_DOWN_TTL = 10 * 60 * 1000;
+let relayDownUntil = 0;
+let relayDownLogged = 0;
+
+function relayIsDown() {
+  return Date.now() < relayDownUntil;
+}
+
+function isRelayPlatformError(resp) {
+  if (!resp || resp.status < 400) return false;
+  let text = '';
+  try { text = Buffer.from(resp.data || '').subarray(0, 4096).toString('utf8'); } catch { return false; }
+  return /"cloudflare_error"\s*:\s*true/.test(text)
+    || /error code:\s*1\d{3}/i.test(text)
+    || /cf-error-details|workers_dev_script_not_found/i.test(text);
+}
+
+function markRelayDown(url) {
+  relayDownUntil = Date.now() + RELAY_DOWN_TTL;
+  const domain = getDomain(url);
+  if (domain) relayFirstDomains.delete(domain);
+  if (Date.now() - relayDownLogged > RELAY_DOWN_TTL) {
+    relayDownLogged = Date.now();
+    console.error('[proxy] The Cloudflare relay answered with a Cloudflare error (worker missing or failing). Check FALLBACK_RELAY_URL and deploy cloudflare-relay. Loading sites directly for the next 10 minutes.');
+  }
+}
+
 // Fetch through the Cloudflare relay. ok: usable response; blocked: relay got a bot wall.
 async function fetchViaRelay(url, isPageRequest) {
+  if (relayIsDown()) return { ok: false, blocked: false };
   try {
     const resp = await axios({
       method: 'GET',
@@ -136,6 +168,10 @@ async function fetchViaRelay(url, isPageRequest) {
       httpAgent: relayHttpAgent,
       httpsAgent: relayHttpsAgent,
     });
+    if (isRelayPlatformError(resp)) {
+      markRelayDown(url);
+      return { ok: false, blocked: false };
+    }
     if (resp.status === 429 || resp.status >= 500) {
       // Relay quota exhausted / origin rate-limits the edge IPs / relay error
       if (resp.status === 429) markRelayBypass(url, 'relay got 429');
@@ -180,6 +216,13 @@ function getCachedProject(projectId) {
   }
   return entry.project;
 }
+
+// Drop a project from the cache when its review link or status changes, so
+// guests see the change at once (called by the project controller)
+function forgetProject(projectId) {
+  if (projectId) projectCache.delete(String(projectId));
+}
+exports.forgetProject = forgetProject;
 
 // --- Rewrite cache for CSS/JS (avoids re-fetching + re-rewriting identical resources) ---
 const rewriteCache = new Map();
@@ -607,8 +650,19 @@ exports.proxyPage = asyncHandler(async (req, res) => {
   // forged guest cookie can't skip this check.
   const isGuestRequest = req.query.guest === 'true' || !req.user;
   if (isGuestRequest) {
-    // Its own share link, or its workspace's review link
-    if (!(await isProjectShared(project))) {
+    // Its own review link. The cached copy can be up to a minute old (and is
+    // per worker process), so check the database before refusing: a link
+    // that was just created or turned back on works at once.
+    let shared = await isProjectShared(project);
+    if (!shared && getCachedProject(projectId)) {
+      const fresh = await Project.findById(projectId);
+      if (fresh) {
+        project = fresh;
+        projectCache.set(projectId, { project, timestamp: Date.now() });
+        shared = await isProjectShared(project);
+      }
+    }
+    if (!shared) {
       return res.status(403).json({ message: 'Sharing is not enabled for this project' });
     }
     // A share link opens the project's own site. Other sites load only from
@@ -624,7 +678,8 @@ exports.proxyPage = asyncHandler(async (req, res) => {
   res.removeHeader('X-Frame-Options');
 
   const serverBase = `${req.protocol}://${req.get('host')}`;
-  const workerBase = FALLBACK_RELAY_URL || null; // CF Worker for sub-resources (null = all through Express)
+  // CF Worker for sub-resources (null = all through Express, also while the relay is down)
+  const workerBase = (FALLBACK_RELAY_URL && !relayIsDown()) ? FALLBACK_RELAY_URL : null;
 
   // Early exit: if this domain recently failed completely, skip the request
   const cachedFailure = getFailedDomain(url);

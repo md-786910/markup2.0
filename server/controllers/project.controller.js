@@ -70,6 +70,12 @@ function sanitizeShareSettings(shareSettings) {
 // Share settings for someone with `level` on the project: the link token opens
 // the guest review (and guest posting), so only people who manage the project
 // get it
+// The proxy caches projects for a minute: forget this one after a change to
+// its review link, status or address, so guests see the change at once
+function forgetProxyProject(projectId) {
+  try { require('./proxy.controller').forgetProject(projectId); } catch { /* proxy not loaded */ }
+}
+
 // A review link's end date: empty (no end) or a valid date in the future
 function shareExpiryError(expiresAt) {
   if (expiresAt === undefined || expiresAt === null || expiresAt === '') return null;
@@ -381,6 +387,7 @@ exports.updateProject = asyncHandler(async (req, res) => {
     }
   }
   await project.save();
+  forgetProxyProject(project._id);
   if (replacedThumbnail) deleteStoredFiles([replacedThumbnail]);
   if (isMshotsUrl(project.thumbnail)) storeWebsiteThumbnail(project._id);
   if (req.movedFromMembers?.length) require('../utils/realtime').reconnectUsers(req.app.get('io'), req.movedFromMembers);
@@ -418,6 +425,7 @@ exports.deleteProject = asyncHandler(async (req, res) => {
   // Pins, comments, versions, activity, notifications, invitations, project
   // integrations and every uploaded file go with the project
   await deleteProjectCascade(project);
+  forgetProxyProject(project._id);
 
   res.json({ message: 'Project deleted' });
 });
@@ -799,7 +807,8 @@ exports.enableShare = asyncHandler(async (req, res) => {
     return res.status(403).json({ message: 'Only the project owner or admin can manage sharing' });
   }
 
-  const { password, allowComments = true, expiresAt } = req.body;
+  // Review links are view-only unless a request asks otherwise
+  const { password, allowComments = false, expiresAt } = req.body;
   const passwordError = sharePasswordError(password);
   if (passwordError) return res.status(400).json({ message: passwordError });
   const expiryError = shareExpiryError(expiresAt);
@@ -829,6 +838,7 @@ exports.enableShare = asyncHandler(async (req, res) => {
   }
 
   await project.save();
+  forgetProxyProject(project._id);
 
   // Activity log
   logActivity(project._id, req.user._id, 'share.enabled');
@@ -870,6 +880,7 @@ exports.updateShare = asyncHandler(async (req, res) => {
   if (expiresAt !== undefined) project.shareSettings.expiresAt = expiresAt || null;
 
   await project.save();
+  forgetProxyProject(project._id);
 
   const clientOrigin = URLS.app;
   res.json({
@@ -894,6 +905,7 @@ exports.disableShare = asyncHandler(async (req, res) => {
     project.shareSettings.enabled = false;
   }
   await project.save();
+  forgetProxyProject(project._id);
 
   // Activity log
   logActivity(project._id, req.user._id, 'share.disabled');

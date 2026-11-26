@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import PasswordInput from '../components/common/PasswordInput';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import {
   getGuestProjectApi,
   getGuestPinsApi,
@@ -18,13 +18,40 @@ import IframeContainer from '../components/project/IframeContainer';
 import { useIframeMessages, isReviewFrameMessage } from '../hooks/useIframeMessages';
 import { normalizePageUrl } from '../utils/pageUrl';
 import useEscape from '../hooks/useEscape';
-import BrandMark from '../components/common/BrandMark';
-import { Logo, Icon, Badge } from '../components/kc';
-import { getAvatarColor, AVATAR_COLORS } from '../utils/avatarColors';
+import { Logo, Icon } from '../components/kc';
+import { getAvatarColor } from '../utils/avatarColors';
 
 const DocumentViewer = React.lazy(() => import('../components/project/DocumentViewer'));
 const API_BASE = process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api';
 const docPageUrl = (doc, page) => (doc ? `doc:${doc.filename}:page:${page}` : null);
+const DEVICE_WIDTHS = { desktop: 1440, tablet: 768, mobile: 375 };
+const DEVICES = [['desktop', 'monitor', 'Desktop (1440px)'], ['tablet', 'tablet', 'Tablet (768px)'], ['mobile', 'phone', 'Mobile (375px)']];
+const STATUS_META = {
+  open: { label: 'Open', color: 'var(--status-open)' },
+  in_progress: { label: 'In progress', color: 'var(--status-progress)' },
+  in_review: { label: 'In review', color: 'var(--status-review)' },
+  resolved: { label: 'Resolved', color: 'var(--status-resolved)' },
+};
+
+// Pins are grouped by page in the list, like the team's project view
+function pagePath(url) {
+  if (url && url.startsWith('doc:')) return url;
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname === '/' ? '/' : parsed.pathname;
+  } catch {
+    return url || '/';
+  }
+}
+function groupLabel(url) {
+  if (url && url.startsWith('doc:')) return `Page ${url.split(':')[3] || '1'}`;
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname + (parsed.pathname === '/' ? '' : parsed.pathname);
+  } catch {
+    return url || 'Page';
+  }
+}
 
 const UPLOADS_BASE_URL = (process.env.REACT_APP_BASE_URL || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
 
@@ -85,6 +112,14 @@ export default function GuestProjectPage() {
   const [detailView, setDetailView] = useState(false);
   // Comment mode: clicks on the page start a new pin (draft) instead of navigating
   const [commentMode, setCommentMode] = useState(false);
+  // Device size the site is shown at; pins are filtered to it
+  const [deviceMode, setDeviceMode] = useState('desktop');
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
+  // Opening a pin: go to its page ({ url, at }) and scroll to it ({ id, at })
+  const [navigateTo, setNavigateTo] = useState(null);
+  const [focusPin, setFocusPin] = useState(null);
+  // ?pin=<id> in the address opens that pin, so a pin can be linked to
+  const [searchParams, setSearchParams] = useSearchParams();
   // Phones show one pane at a time (bottom tab bar)
   const [mobilePane, setMobilePane] = useState('page');
   // Set when this project was opened from a workspace review link
@@ -196,11 +231,57 @@ export default function GuestProjectPage() {
   };
 
   const handlePinClick = useCallback((pin) => {
+    if (!pin) return;
     setDraft(null);
     setSelectedPin(pin);
     setDetailView(true);
     setMobilePane('comments');
-  }, []);
+    setSearchParams((prev) => {
+      if (prev.get('pin') === pin._id) return prev;
+      const next = new URLSearchParams(prev);
+      next.set('pin', pin._id);
+      return next;
+    }, { replace: true });
+
+    if (project?.projectType === 'document') {
+      // pageUrl "doc:<file>:page:<n>": open that file and page
+      const m = /^doc:(.+):page:(\d+)$/.exec(pin.pageUrl || '');
+      if (m) {
+        const idx = (project.documents || []).findIndex((d) => d.filename === m[1]);
+        if (idx >= 0) setCurrentDocIndex(idx);
+        setCurrentDocPage(Number(m[2]) || 1);
+      }
+    } else {
+      // Show the pin at the device size it was left on, on its own page
+      if (pin.deviceMode) setDeviceMode(pin.deviceMode);
+      const here = normalizePageUrl(iframeState.currentPageUrl || project?.websiteUrl);
+      if (pin.pageUrl && normalizePageUrl(pin.pageUrl) !== here) {
+        setNavigateTo({ url: pin.pageUrl, at: Date.now() });
+      }
+    }
+    setFocusPin({ id: pin._id, at: Date.now() });
+  }, [project, iframeState.currentPageUrl, setSearchParams]);
+
+  // Closing a pin drops ?pin= from the address
+  const clearPinParam = useCallback(() => {
+    setSearchParams((prev) => {
+      if (!prev.get('pin')) return prev;
+      const next = new URLSearchParams(prev);
+      next.delete('pin');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Open the pin named in ?pin= once the pins are loaded
+  const openedFromLink = useRef(false);
+  useEffect(() => {
+    if (openedFromLink.current || !pins.length) return;
+    const id = searchParams.get('pin');
+    if (!id) return;
+    const pin = pins.find((p) => p._id === id);
+    openedFromLink.current = true;
+    if (pin) handlePinClick(pin);
+  }, [pins, searchParams, handlePinClick]);
 
   // Pins drawn on the page: the current page (and desktop size) only
   const isDocument = project?.projectType === 'document';
@@ -212,8 +293,29 @@ export default function GuestProjectPage() {
       return pins.filter((p) => p.pageUrl === key);
     }
     const here = normalizePageUrl(iframeState.currentPageUrl || project.websiteUrl);
-    return pins.filter((p) => normalizePageUrl(p.pageUrl) === here && (p.deviceMode || 'desktop') === 'desktop');
-  }, [pins, project, isDocument, currentDoc, currentDocPage, iframeState.currentPageUrl]);
+    return pins.filter((p) => normalizePageUrl(p.pageUrl) === here && (p.deviceMode || 'desktop') === deviceMode);
+  }, [pins, project, isDocument, currentDoc, currentDocPage, iframeState.currentPageUrl, deviceMode]);
+
+  // Pins of the list, grouped by page
+  const groupedPins = useMemo(() => {
+    const groups = new Map();
+    for (const pin of filteredPins) {
+      const key = pagePath(pin.pageUrl);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(pin);
+    }
+    return [...groups.entries()];
+  }, [filteredPins]);
+  const toggleGroup = (key) => setCollapsedGroups((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  const devicePinCounts = useMemo(() => {
+    const counts = { desktop: 0, tablet: 0, mobile: 0 };
+    for (const p of pins) if (p.status !== 'resolved') counts[p.deviceMode || 'desktop'] = (counts[p.deviceMode || 'desktop'] || 0) + 1;
+    return counts;
+  }, [pins]);
 
   // Clicking a pin marker inside the page opens its thread
   useEffect(() => {
@@ -242,13 +344,13 @@ export default function GuestProjectPage() {
       setDraft({
         ...lastClick,
         pageUrl: iframeState.currentPageUrl || lastClick.pageUrl,
-        deviceMode: 'desktop',
+        deviceMode,
         context: combinedContext,
       });
       setDraftBody('');
     }
     clearLastClick();
-  }, [lastClick, clearLastClick, commentMode, draft, iframeState.currentPageUrl, isFeedbackClosed]);
+  }, [lastClick, clearLastClick, commentMode, draft, iframeState.currentPageUrl, isFeedbackClosed, deviceMode]);
 
   const handleDocumentClick = useCallback((clickData) => {
     if (!draft && !isFeedbackClosed) {
@@ -301,6 +403,7 @@ export default function GuestProjectPage() {
 
   const handleBackToList = () => {
     setDetailView(false);
+    clearPinParam();
     setTimeout(() => setSelectedPin(null), 300);
   };
 
@@ -381,6 +484,9 @@ export default function GuestProjectPage() {
 
   const guestColor = getAvatarColor(guestEmail || guestName);
   const hasIdentity = guestName && guestEmail;
+  // Review links are view-only: clients look at the site and read the
+  // feedback, but don't add pins or comments (no Comment mode, no composer)
+  const commentsAllowed = false;
 
   // Guest identity modal
   const identityModal = showIdentityForm && (
@@ -426,76 +532,19 @@ export default function GuestProjectPage() {
 
   return (
     <div className="kc flex flex-col h-screen h-dvh bg-slate-50">
-      {/* ─── Toolbar ─── */}
-      <header className="bg-white border-b border-slate-200 px-4 h-14 flex items-center justify-between relative shrink-0">
-        {/* Left: Brand + Project + URL */}
-        <div className="flex items-center gap-3 min-w-0 z-10">
-          <Logo size={28} />
-          <div className="w-px h-5 bg-slate-200 shrink-0" />
-          <h2 className="font-semibold text-slate-900 truncate text-[14px]">{project.name}</h2>
-          {project.projectType === 'website' && project.websiteUrl && (
-            <a
-              href={project.websiteUrl?.startsWith('http://') || project.websiteUrl?.startsWith('https://') ? project.websiteUrl : `https://${project.websiteUrl}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden lg:flex items-center gap-1.5 text-[12px] text-slate-600 bg-slate-100/70 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-400 pl-2.5 pr-3 py-1.5 rounded-lg truncate max-w-md border border-slate-200/80 transition-all cursor-pointer group"
-              title={`Open ${project.websiteUrl} in new tab`}
-            >
-              <Icon name="globe" size={14} className="text-slate-400 group-hover:text-blue-600 shrink-0 transition-colors" />
-              <span className="truncate">{project.websiteUrl}</span>
-              <svg className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 group-hover:text-blue-600 transition-all shrink-0 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-            </a>
-          )}
-        </div>
-
-        {/* Right: Guest badge + identity */}
-        <div className="flex items-center gap-3 z-10 shrink-0">
-          {project.allowComments && (
-            <div className="kr-mode-seg" role="group" aria-label="Mode">
-              <div
-                className={`kr-mode-indicator ${commentMode ? 'is-comment' : 'is-view'}`}
-                aria-hidden="true"
-              />
-              <button
-                type="button"
-                onClick={() => { setCommentMode(false); setDraft(null); }}
-                className={`kr-mode-btn view-btn ${!commentMode ? 'active' : ''}`}
-                title="View mode"
-              >
-                <Icon name="eye" size={14} />
-                <span>View</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCommentMode(true)}
-                className={`kr-mode-btn comment-btn ${commentMode ? 'active active-comment' : ''}`}
-                title="Comment mode"
-              >
-                <Icon name="chat" size={14} />
-                <span>Comment</span>
-              </button>
-            </div>
-          )}
-          <Badge tone="review">Guest Review</Badge>
-          {hasIdentity && (
-            <>
-              <div className="hidden md:block w-px h-5 bg-slate-200" />
-              <div className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full ${getAvatarColor(guestName).bg} ${getAvatarColor(guestName).text} flex items-center justify-center text-[11px] font-semibold border-2 border-white`}>
-                  {getInitials(guestName)}
-                </div>
-                <span className="hidden md:inline text-[13px] font-medium text-slate-700">{guestName}</span>
-              </div>
-            </>
-          )}
-        </div>
-      </header>
-
       <div className="flex flex-1 overflow-hidden">
         {/* ─── Sidebar ─── */}
         <div className={`${mobilePane === 'comments' ? 'flex' : 'hidden'} md:flex w-full md:w-80 bg-white border-r border-slate-200 flex-col h-full overflow-hidden relative shrink-0`}>
+          {/* Brand + the one tab clients have (the team also sees Activity and Versions) */}
+          <div className="flex items-stretch gap-4 px-4 h-14 border-b border-slate-200 shrink-0">
+            <div className="flex items-center">
+              <Logo size={26} />
+            </div>
+            <h2 className="flex items-center gap-1.5 -mb-px border-b-2 border-slate-900 px-1 text-ui font-medium text-slate-900">
+              Feedback
+              <span className="text-caption text-slate-500 tabular-nums">{openCount}</span>
+            </h2>
+          </div>
           {/* Detail view — slides in from right */}
           <div
             className="absolute inset-0 z-10 bg-white transition-transform duration-300 ease-in-out"
@@ -608,7 +657,7 @@ export default function GuestProjectPage() {
                 </div>
 
                 {/* Comment input */}
-                {project.allowComments && (
+                {commentsAllowed && (
                   <div className="px-4 py-3 border-t border-gray-100 shrink-0">
                     {!identityConfirmed ? (
                       /* Inline identity prompt */
@@ -697,50 +746,34 @@ export default function GuestProjectPage() {
             )}
           </div>
 
-          {/* Pin list view */}
-          <div className="flex flex-col h-full">
-            {/* Filter tabs */}
-            <div className="px-4 pt-3 pb-2 border-b border-gray-100 shrink-0">
-              <div className="flex items-center gap-4">
-                {TABS.map((t) => {
-                  const count = t.key === 'open' ? openCount : resolvedCount;
-                  const isActive = filterStatus === t.key;
-                  return (
-                    <button
-                      key={t.key}
-                      onClick={() => setFilterStatus(t.key)}
-                      className={`text-label pb-1 transition-all ${
-                        isActive
-                          ? ' text-gray-900 border-b-2 border-gray-800'
-                          : 'font-medium text-gray-400 hover:text-gray-600 border-b-2 border-transparent'
-                      }`}
-                    >
-                      {count} {t.label}
-                    </button>
-                  );
-                })}
-              </div>
+          {/* Pin list view (same look as the team's project view) */}
+          <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="kr-sub shrink-0">
+              {TABS.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  className={`st ${filterStatus === t.key ? 'on' : ''}`}
+                  aria-pressed={filterStatus === t.key}
+                  onClick={() => setFilterStatus(t.key)}
+                >
+                  {t.key === 'open' ? openCount : resolvedCount} {t.label}
+                </button>
+              ))}
             </div>
 
-            {/* Scrollable pin list */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="kr-list">
               {filteredPins.length === 0 && (
                 <div className="text-center py-16 px-6">
                   <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                    </svg>
+                    <Icon name="chat" size={24} className="text-slate-500" />
                   </div>
-                  <p className="text-body-sm font-medium text-gray-400">
-                    {filterStatus === 'resolved'
-                      ? 'No resolved feedback'
-                      : filterStatus === 'open'
-                      ? 'No active feedback'
-                      : 'No feedback yet'}
+                  <p className="text-body-sm font-medium text-slate-500">
+                    {filterStatus === 'resolved' ? 'No resolved feedback' : 'No open feedback'}
                   </p>
                   {filterStatus === 'open' && pins.length === 0 && (
                     <p className="text-caption text-gray-500 mt-1">
-                      {project.allowComments
+                      {commentsAllowed && !isFeedbackClosed
                         ? <>Switch to <span className="font-semibold text-blue-600">Comment</span> and click anywhere on the page.</>
                         : 'Feedback will appear here.'}
                     </p>
@@ -748,61 +781,67 @@ export default function GuestProjectPage() {
                 </div>
               )}
 
-              {filteredPins.map((pin) => {
-                const authorName = pin.createdBy?.name || pin.createdByGuest?.name || 'Guest';
-                const isSelected = selectedPin?._id === pin._id;
+              {groupedPins.map(([key, groupPins]) => {
+                const collapsed = collapsedGroups.has(key);
                 return (
-                  <div key={pin._id}>
+                  <div key={key}>
                     <div
-                      onClick={() => handlePinClick(pin)}
-                      className={`cursor-pointer transition-colors ${
-                        isSelected ? 'bg-gray-50' : 'bg-white hover:bg-gray-50'
-                      }`}
+                      onClick={() => toggleGroup(key)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleGroup(key); } }}
+                      className={`kr-gh ${collapsed ? 'closed' : ''}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={!collapsed}
                     >
-                      <div className="px-4 pt-4 pb-3">
-                        {/* Top row: pin badge */}
-                        <div className="flex items-start justify-between mb-2">
-                          <span className={`w-8 h-8 rounded-full flex items-center justify-center text-body-sm font-semibold text-white shrink-0 ${
-                            pin.status === 'resolved' ? 'bg-emerald-500' : 'bg-blue-600'
-                          }`}>
-                            {pin.pinNumber}
-                          </span>
-                          {/* Comment count */}
-                          <div className="flex items-center gap-1 text-gray-400">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                            </svg>
-                            <span className="text-caption">{pin.commentsCount || 0}</span>
-                          </div>
-                        </div>
-
-                        {/* Author */}
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-body-sm font-semibold text-gray-900">{authorName}</span>
-                          {!pin.createdBy && pin.createdByGuest && (
-                            <span className="text-caption text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">(guest)</span>
-                          )}
-                        </div>
-
-                        {/* Time */}
-                        <p className="text-caption text-gray-400 mb-1.5">{timeAgo(pin.createdAt)}</p>
-
-                        {/* Comment preview */}
-                        {pin.firstComment ? (
-                          <div className="text-body-sm text-gray-700 line-clamp-2">{renderCommentBody(pin.firstComment.body)}</div>
-                        ) : (
-                          <p className="text-caption text-gray-300 italic">No comments</p>
-                        )}
-
-                        {/* Reply count */}
-                        {pin.commentsCount > 1 && (
-                          <p className="text-caption text-gray-400 mt-1">
-                            {pin.commentsCount - 1} {pin.commentsCount - 1 === 1 ? 'reply' : 'replies'}
-                          </p>
-                        )}
-                      </div>
+                      <span title={key}>{groupLabel(groupPins[0]?.pageUrl || key)}</span>
+                      <span className="ct">
+                        {groupPins.length}
+                        <Icon name="down" size={13} />
+                      </span>
                     </div>
-                    <div className="border-b border-gray-100 mx-4" />
+                    {!collapsed && groupPins.map((pin) => {
+                      const st = STATUS_META[pin.status] || STATUS_META.open;
+                      const resolved = pin.status === 'resolved';
+                      const replies = (pin.commentsCount || 0) - 1;
+                      const fromClient = !pin.createdBy && pin.createdByGuest;
+                      return (
+                        <div
+                          key={pin._id}
+                          onClick={() => handlePinClick(pin)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) handlePinClick(pin); }}
+                          role="button"
+                          tabIndex={0}
+                          aria-current={selectedPin?._id === pin._id ? 'true' : undefined}
+                          className={`kr-item ${selectedPin?._id === pin._id ? 'on' : ''}`}
+                        >
+                          <span className="pin">
+                            <span className={`kr-pin sm ${resolved ? 'ok' : ''}`}>
+                              {resolved ? <Icon name="check" size={11} stroke={3} /> : pin.pinNumber}
+                            </span>
+                          </span>
+                          <span className="hd">
+                            <span className="who">{pin.createdBy?.name || pin.createdByGuest?.name || 'Guest'}</span>
+                            {fromClient && <span className="when">Client</span>}
+                            <span className="when">{timeAgo(pin.createdAt)}</span>
+                          </span>
+                          <span className="txt">
+                            {pin.firstComment ? renderCommentBody(pin.firstComment.body) : <span className="text-slate-500 italic">No comments</span>}
+                          </span>
+                          <span className="meta">
+                            <span className="kr-dot"><i style={{ background: st.color }} />{st.label}</span>
+                            {pin.deviceMode && pin.deviceMode !== 'desktop' && (
+                              <span className="kr-dot">{pin.deviceMode === 'mobile' ? 'Mobile' : 'Tablet'}</span>
+                            )}
+                            {replies > 0 && (
+                              <span className="rp">
+                                <Icon name="chat" size={12} />
+                                {replies} {replies === 1 ? 'reply' : 'replies'}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -811,7 +850,90 @@ export default function GuestProjectPage() {
         </div>
 
         {/* ─── Main content area ─── */}
-        <div className={`${mobilePane === 'page' ? 'block' : 'hidden'} md:block flex-1 min-w-0 relative bg-gray-50 flex flex-col`}>
+        <div className={`${mobilePane === 'page' ? 'flex' : 'hidden'} md:flex kr-main flex-1 min-w-0 relative bg-gray-50 flex-col`}>
+          <header className="kr-top relative shrink-0">
+            <div className="grp">
+              <span className="md:hidden"><Logo size={24} /></span>
+              <span className="name truncate max-w-[240px]" title={project.name}>{project.name}</span>
+              {project.projectType === 'website' && project.websiteUrl && (
+                <a
+                  href={project.websiteUrl.startsWith('http://') || project.websiteUrl.startsWith('https://') ? project.websiteUrl : `https://${project.websiteUrl}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="kr-url kr-url-link hidden xl:inline-flex items-center gap-1.5 group cursor-pointer"
+                  title={`Open ${project.websiteUrl} in a new tab`}
+                >
+                  <Icon name="globe" size={14} className="text-slate-500 group-hover:text-blue-600 transition-colors" />
+                  <span className="truncate max-w-[220px]">{iframeState.currentPageUrl || project.websiteUrl}</span>
+                </a>
+              )}
+              {isDocument && currentDoc && (
+                <span className="kr-url hidden xl:inline-flex" title={currentDoc.originalName}>
+                  <Icon name="doc" size={14} />
+                  <span className="truncate">{`${currentDoc.originalName}, page ${currentDocPage}`}</span>
+                </span>
+              )}
+            </div>
+
+            <span className="sp" style={{ flex: 1 }} />
+
+            {!isDocument && (
+              <div className="hidden md:inline-flex">
+                <div className="kr-device-seg" role="group" aria-label="Device size">
+                  {DEVICES.map(([mode, icon, title]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => { setDeviceMode(mode); setDraft(null); }}
+                      className={`kr-device-btn ${deviceMode === mode ? 'active' : ''}`}
+                      title={title}
+                      aria-label={title}
+                      aria-pressed={deviceMode === mode}
+                    >
+                      <Icon name={icon} size={15} />
+                      {devicePinCounts[mode] > 0 && deviceMode !== mode && <span className="dot" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <span className="sp" style={{ flex: 1 }} />
+
+            <div className="flex shrink-0 items-center gap-2 md:gap-3">
+              {commentsAllowed && !isFeedbackClosed && (
+                <div className="kr-mode-seg" role="group" aria-label="Review mode">
+                  <div className={`kr-mode-indicator ${commentMode ? 'is-comment' : 'is-view'}`} aria-hidden="true" />
+                  <button
+                    type="button"
+                    onClick={() => { setCommentMode(false); setDraft(null); }}
+                    aria-pressed={!commentMode}
+                    className={`kr-mode-btn view-btn ${!commentMode ? 'active' : ''}`}
+                  >
+                    <Icon name="eye" size={14} />
+                    <span>View</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCommentMode(true)}
+                    aria-pressed={commentMode}
+                    className={`kr-mode-btn comment-btn ${commentMode ? 'active active-comment' : ''}`}
+                  >
+                    <Icon name="chat" size={14} />
+                    <span>Comment</span>
+                  </button>
+                </div>
+              )}
+              {hasIdentity && (
+                <div className="hidden md:flex items-center gap-2" title={`Commenting as ${guestName}`}>
+                  <div className={`w-7 h-7 rounded-full ${getAvatarColor(guestName).bg} ${getAvatarColor(guestName).text} flex items-center justify-center text-caption font-semibold border-2 border-white`}>
+                    {getInitials(guestName)}
+                  </div>
+                  <span className="text-ui font-medium text-slate-700 max-w-[140px] truncate">{guestName}</span>
+                </div>
+              )}
+            </div>
+          </header>
           {isFeedbackClosed && (
             <div className="bg-amber-50/95 border-b border-amber-200 px-4 py-2.5 text-caption text-amber-900 flex items-center justify-between z-20 shrink-0">
               <div className="flex items-center gap-2">
@@ -835,7 +957,7 @@ export default function GuestProjectPage() {
                   currentPage={currentDocPage}
                   onPageChange={setCurrentDocPage}
                   onDocIndexChange={(i) => { setCurrentDocIndex(i); setCurrentDocPage(1); }}
-                  hidePins={!commentMode}
+                  hidePins={false}
                   pinMode={commentMode}
                   pins={pagePins}
                   selectedPinId={selectedPin?._id}
@@ -849,10 +971,13 @@ export default function GuestProjectPage() {
               <IframeContainer
                 proxyUrl={`${API_BASE}/proxy?url=${encodeURIComponent(project.websiteUrl)}&projectId=${project._id}&guest=true`}
                 targetUrl={project.websiteUrl}
-                hidePins={!commentMode}
+                hidePins={false}
                 pinMode={commentMode}
                 pins={pagePins}
                 selectedPinId={selectedPin?._id}
+                navigateTo={navigateTo}
+                focusPin={focusPin}
+                viewportWidth={DEVICE_WIDTHS[deviceMode]}
                 loading={iframeLoading && !iframeState.ready}
                 onLoad={() => setTimeout(() => setIframeLoading(false), 500)}
               />

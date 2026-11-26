@@ -4,7 +4,7 @@ import { PROXY_TARGET_ORIGIN } from '../../hooks/useIframeMessages';
 const DESKTOP_WIDTH = 1440;
 const SLOW_LOAD_MS = 20000;
 
-export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, selectedPinId, focusPin, loading, hidePins, onLoad, viewportWidth = DESKTOP_WIDTH }) {
+export default function IframeContainer({ proxyUrl, targetUrl, navigateTo, pinMode, pins, selectedPinId, focusPin, loading, hidePins, onLoad, viewportWidth = DESKTOP_WIDTH }) {
   const isDesktop = viewportWidth >= DESKTOP_WIDTH;
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
@@ -70,6 +70,18 @@ export default function IframeContainer({ proxyUrl, targetUrl, pinMode, pins, se
       // This shouldn't happen since iframe is same-origin (proxy), but just in case
     }
   }, [targetUrl]);
+
+  // Go to a page now ({ url, at }): unlike targetUrl, this also works when the
+  // page shown was reached by clicking around inside the site
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !navigateTo?.url) return;
+    try {
+      iframe.contentWindow.postMessage({ type: 'MARKUP_NAVIGATE', url: navigateTo.url }, PROXY_TARGET_ORIGIN);
+    } catch {
+      // iframe not ready yet
+    }
+  }, [navigateTo]);
 
   // Send pin mode state to iframe
   useEffect(() => {

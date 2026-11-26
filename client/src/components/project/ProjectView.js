@@ -61,6 +61,11 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
   const [focusPin, setFocusPin] = useState(null);
   const [selectedPin, setSelectedPin] = useState(null);
   const [pinMode, setPinMode] = useState(false);
+  // pinMode shows the pins; only people who can comment also get the comment
+  // cursor and clicks that start a new pin. Picking a pin from the list turns
+  // pinMode on for everyone (to show it), so view-only users and guests must
+  // not get click capture from it.
+  const capturingClicks = pinMode && canComment;
   const [showInvite, setShowInvite] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [pendingPinData, setPendingPinData] = useState(null);
@@ -188,7 +193,12 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
 
   // Handle clicks from iframe — store click data for pending pin (don't create yet)
   useEffect(() => {
-    if (iframeState.lastClick && pinMode && !pendingPinData) {
+    // Someone who can't comment never starts a pin: drop their clicks
+    if (iframeState.lastClick && !canComment) {
+      iframeState.clearLastClick();
+      return;
+    }
+    if (iframeState.lastClick && capturingClicks && !pendingPinData) {
       const { clickId, xPercent, yPercent, viewportXPercent, viewportYPercent, selector, elementOffsetX, elementOffsetY, documentWidth, documentHeight, context: iframeContext } = iframeState.lastClick;
       const env = getClientEnvironment();
       const combinedContext = {
@@ -213,7 +223,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
       });
       iframeState.clearLastClick();
     }
-  }, [iframeState.lastClick, iframeState.clearLastClick, pinMode, pendingPinData, currentPageUrl, deviceMode]);
+  }, [iframeState.lastClick, iframeState.clearLastClick, capturingClicks, canComment, pendingPinData, currentPageUrl, deviceMode]);
 
   useEffect(() => { pendingPinRef.current = pendingPinData; }, [pendingPinData]);
 
@@ -803,7 +813,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               onPageChange={setCurrentDocPage}
               onDocIndexChange={setCurrentDocIndex}
               hidePins={!pinMode}
-              pinMode={pinMode}
+              pinMode={capturingClicks}
               pins={shownPins}
               selectedPinId={selectedPin?._id}
               onDocumentClick={handleDocumentClick}
@@ -818,7 +828,7 @@ export default function ProjectView({ project, proxyToken, onProjectUpdate, init
               proxyUrl={proxyUrl}
               targetUrl={targetUrl}
               hidePins={!pinMode}
-              pinMode={pinMode}
+              pinMode={capturingClicks}
               pins={shownPins}
               selectedPinId={selectedPin?._id}
               focusPin={focusPin}
