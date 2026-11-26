@@ -2,7 +2,6 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
-const axios = require('axios');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Pin = require('../models/Pin');
@@ -19,7 +18,8 @@ const { createProjectNotifications, createSingleNotification } = require('../uti
 const { signProxyToken } = require('../utils/proxyToken');
 const { seatLimitError } = require('../middleware/orgLimits');
 const { deleteProjectCascade } = require('../utils/cascade');
-const { refundUploads } = require('../utils/storage');
+const { refundUploads, deleteStoredFiles } = require('../utils/storage');
+const { mshotsUrl, isMshotsUrl, isStoredThumbnail, storeWebsiteThumbnail } = require('../utils/websiteThumbnail');
 const { URLS } = require('../config/env');
 const mongoose = require('mongoose');
 const Workspace = require('../models/Workspace');
@@ -121,14 +121,8 @@ exports.createProject = asyncHandler(async (req, res) => {
 
   if (projectType === 'website') {
     projectData.websiteUrl = websiteUrl;
-    const cleanUrl = websiteUrl.startsWith('http://') || websiteUrl.startsWith('https://')
-      ? websiteUrl
-      : `https://${websiteUrl}`;
-    const mshotUrl = `https://s0.wp.com/mshots/v1/${encodeURIComponent(cleanUrl)}?w=900`;
-    projectData.thumbnail = mshotUrl;
-
-    // Trigger background screenshot generation immediately so WordPress mshots warms its cache
-    axios.get(mshotUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000 }).catch(() => {});
+    // Shown at once; storeWebsiteThumbnail (below) replaces it with a stored copy
+    projectData.thumbnail = mshotsUrl(websiteUrl);
   } else {
     // Build documents array from uploaded files
     const documents = [];
@@ -181,6 +175,8 @@ exports.createProject = asyncHandler(async (req, res) => {
   logActivity(project._id, req.user._id, 'project.created', { projectName: name });
 
   metric('project.created', { type: projectType });
+  // Saves the website screenshot with the file storage provider (background)
+  if (project.projectType === 'website') storeWebsiteThumbnail(project._id);
   res.status(201).json({
     project: { ...project.toObject(), proxyToken: project.projectType === 'website' ? signProxyToken(req.user, project._id) : undefined },
   });
@@ -314,7 +310,15 @@ exports.updateProject = asyncHandler(async (req, res) => {
   const oldStatus = project.status;
 
   if (name) project.name = name;
-  if (websiteUrl) project.websiteUrl = websiteUrl;
+  // A new address gets a new thumbnail (the stored one of the old address is deleted after the save)
+  let replacedThumbnail = null;
+  if (websiteUrl && websiteUrl !== project.websiteUrl) {
+    project.websiteUrl = websiteUrl;
+    if (project.projectType === 'website') {
+      if (isStoredThumbnail(project.thumbnail)) replacedThumbnail = project.thumbnail;
+      project.thumbnail = mshotsUrl(websiteUrl);
+    }
+  }
   if (status && ['active', 'archived'].includes(status)) project.status = status;
   if (projectStatus && ['not_started', 'in_progress', 'in_review', 'changes_requested', 'approved', 'completed'].includes(projectStatus)) project.projectStatus = projectStatus;
   if (workspace) {
@@ -346,6 +350,8 @@ exports.updateProject = asyncHandler(async (req, res) => {
     }
   }
   await project.save();
+  if (replacedThumbnail) deleteStoredFiles([replacedThumbnail]);
+  if (isMshotsUrl(project.thumbnail)) storeWebsiteThumbnail(project._id);
   if (req.movedFromMembers?.length) require('../utils/realtime').reconnectUsers(req.app.get('io'), req.movedFromMembers);
 
   // Activity log for status changes

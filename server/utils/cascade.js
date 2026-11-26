@@ -65,6 +65,10 @@ async function deleteProjectCascade(project) {
 
   const docs = project.documents || [];
   deleteStoredFiles(docs.map((d) => d.path));
+  // Website thumbnail saved by utils/websiteThumbnail.js (not counted in storage)
+  if (typeof project.thumbnail === 'string' && project.thumbnail.startsWith('uploads/thumbnails/')) {
+    deleteStoredFiles([project.thumbnail]);
+  }
   bytes += docs.reduce((sum, d) => sum + (d.size || 0), 0);
 
   await Promise.all([

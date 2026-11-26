@@ -193,6 +193,13 @@ connectDB()
     require("./utils/migrateAdmins").migrateLegacyAdmins().catch((err) =>
       console.error("[admins] moving legacy admin accounts failed:", err),
     );
+    // Website thumbnails still pointing at mshots are saved with the file storage
+    // provider (one worker in cluster mode)
+    if (!process.env.CLUSTER_WORKERS || require("cluster").worker?.id === 1) {
+      require("./utils/websiteThumbnail").backfillWebsiteThumbnails().catch((err) =>
+        console.error("[thumbnails] backfill failed:", err),
+      );
+    }
     // Client approvals were removed: their plan switch is now hasDeadlines
     require("./utils/migrateDeadlineFlag").migrateDeadlineFlag().catch((err) =>
       console.error("[migrate] hasApprovals -> hasDeadlines failed:", err),

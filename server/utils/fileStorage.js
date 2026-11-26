@@ -42,11 +42,13 @@ if (PROVIDER === 'cloudinary') {
   });
 }
 
-// Subfolders used by the upload middlewares ('' = uploads/, 'documents' = uploads/documents/)
-const SUBDIRS = ['', 'documents'];
+// Subfolders: '' = uploads/ (screenshots, avatars, logos), 'documents' =
+// uploads/documents/ (documents, attachments), 'thumbnails' = uploads/thumbnails/
+// (website project thumbnails, saved by utils/websiteThumbnail.js)
+const SUBDIRS = ['', 'documents', 'thumbnails'];
 const IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
 // A stored key: optional known subfolder + generated name (uuid + extension)
-const KEY_RE = /^(?:(documents)\/)?([A-Za-z0-9][\w-]*)(\.[a-z0-9]{1,5})$/;
+const KEY_RE = /^(?:(documents|thumbnails)\/)?([A-Za-z0-9][\w-]*)(\.[a-z0-9]{1,5})$/;
 
 let announced = false;
 function announce() {
@@ -192,6 +194,31 @@ function createUploadStorage({ subdir = '', extensionFor }) {
   };
 }
 
+/**
+ * Store a file the server produced itself (not a multer upload) with the active
+ * provider. Resolves with its stored path ("uploads/<subdir>/<uuid><ext>").
+ */
+async function saveBuffer(buffer, { subdir = '', ext, mimetype }) {
+  if (!SUBDIRS.includes(subdir)) throw new Error(`Unknown upload folder: ${subdir}`);
+  announce();
+  const filename = `${randomUUID()}${ext}`;
+  const relPath = ['uploads', subdir, filename].filter(Boolean).join('/');
+  if (PROVIDER === 'local') {
+    await fs.promises.writeFile(path.join(LOCAL_DIR, subdir, filename), buffer);
+    return relPath;
+  }
+  const t = cloudinaryTarget(parseStoredPath(relPath));
+  await cloudinary.uploader.upload(`data:${mimetype || 'application/octet-stream'};base64,${buffer.toString('base64')}`, {
+    public_id: t.publicId,
+    resource_type: t.resourceType,
+    type: 'upload',
+    overwrite: false,
+    unique_filename: false,
+    use_filename: false,
+  });
+  return relPath;
+}
+
 /** Delete a file multer stored during this request (a refused upload). */
 async function removeUploadedFile(file) {
   if (!file) return;
@@ -256,6 +283,7 @@ module.exports = {
   PROVIDER,
   LOCAL_DIR,
   createUploadStorage,
+  saveBuffer,
   removeUploadedFile,
   deleteStoredFiles,
   uploadsRouter,

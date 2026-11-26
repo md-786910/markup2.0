@@ -115,6 +115,20 @@ async function main() {
     check('document upload succeeds', docs.status === 200 && docs.body.paths.length === 2, JSON.stringify(docs.body));
     const [pdfPath, docImgPath] = docs.body.paths || [];
 
+    // Files the server makes itself (website thumbnails)
+    const thumb = await fileStorage.saveBuffer(PNG, { subdir: 'thumbnails', ext: '.png', mimetype: 'image/png' });
+    check('saveBuffer returns an uploads/thumbnails path', /^uploads\/thumbnails\/[0-9a-f-]{36}\.png$/.test(thumb), thumb);
+    if (MODE === 'local') {
+      check('saveBuffer writes to LOCAL_UPLOAD_DIR/thumbnails', fs.existsSync(path.join(tmpDir, thumb.replace('uploads/', ''))));
+      const rt = await get(thumb);
+      check('GET /uploads serves a saved thumbnail', rt.status === 200);
+    } else {
+      const tname = thumb.replace('uploads/thumbnails/', '').replace('.png', '');
+      check('saveBuffer uploads to Cloudinary as an image', calls.upload.some((c) => c.opts.public_id === `testfolder/thumbnails/${tname}` && c.opts.resource_type === 'image' && /^data:image\/png;base64,/.test(c.file)));
+      const rt = await get(thumb);
+      check('GET /uploads redirects a saved thumbnail', rt.status === 302 && (rt.headers.get('location') || '').endsWith(`/image/upload/v1/testfolder/thumbnails/${tname}.png`));
+    }
+
     if (MODE === 'local') {
       const onDisk = path.join(tmpDir, img.body.path.replace('uploads/', ''));
       check('image is written to LOCAL_UPLOAD_DIR', fs.existsSync(onDisk));
@@ -150,7 +164,7 @@ async function main() {
       check('deleteStoredFiles never touches files outside the uploads folder', fs.existsSync(outside));
       fs.unlinkSync(outside);
     } else {
-      check('nothing is written to LOCAL_UPLOAD_DIR', fs.readdirSync(tmpDir).filter((f) => f !== 'documents').length === 0
+      check('nothing is written to LOCAL_UPLOAD_DIR', fs.readdirSync(tmpDir).filter((f) => !['documents', 'thumbnails'].includes(f)).length === 0
         && fs.readdirSync(path.join(tmpDir, 'documents')).length === 0);
       const name = img.body.path.replace('uploads/', '').replace('.png', '');
       const up = calls.upload.find((c) => c.opts.public_id === `testfolder/${name}`);

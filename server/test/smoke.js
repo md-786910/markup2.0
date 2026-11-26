@@ -36,6 +36,11 @@ for (const name of Object.keys(mailer)) {
   }
 }
 
+// Website thumbnails are captured from mshots in the background: record instead
+// of fetching (must run before the project controller is loaded)
+const thumbnailCaptures = [];
+r('utils/websiteThumbnail').storeWebsiteThumbnail = async (id) => { thumbnailCaptures.push(String(id)); };
+
 let pass = 0, fail = 0;
 function check(name, cond, extra = '') {
   if (cond) pass++; else fail++;
@@ -164,6 +169,9 @@ function check(name, cond, extra = '') {
   check('duplicate workspace names are refused', (await call('POST', '/api/workspaces', { user: ownerA, body: { name: 'client x' } })).status === 400);
   const wsId = wsClient.data.workspace._id;
   const pInWs = await call('POST', '/api/projects', { user: ownerA, body: { name: 'In workspace', websiteUrl: 'https://example.net', workspace: wsId } });
+  check('a new website project shows the mshots thumbnail and its capture is stored in the background',
+    pInWs.status === 201 && /^https:\/\/s0\.wp\.com\/mshots\/v1\//.test(pInWs.data.project?.thumbnail || '')
+    && thumbnailCaptures.includes(String(pInWs.data.project?._id)), pInWs.data.project?.thumbnail);
   check('project is created in the chosen workspace', pInWs.status === 201 && String(pInWs.data.project.workspace) === wsId);
   const filtered = await call('GET', `/api/projects?workspace=${wsId}`, { user: ownerA });
   const filteredDefault = await call('GET', `/api/projects?workspace=${defaultWsA._id}`, { user: ownerA });
