@@ -560,64 +560,14 @@ export function PageHeader({ title, subtitle, actions }) {
 export function ProjectThumb({ type = 'web', pins = [], imageSrc, fallbackImageSrc, pdfFile }) {
   const [imgError, setImgError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState(imageSrc);
-  const [isReady, setIsReady] = useState(() => type !== 'web' || !imageSrc?.includes('wp.com/mshots'));
 
+  // No polling here: an mshots link is shown as a plain <img> (allowed by the
+  // app's img-src; fetch() to it is blocked by connect-src). The server stores
+  // the finished screenshot (utils/websiteThumbnail.js) and a live-sync update
+  // swaps the card to the stored file.
   useEffect(() => {
     setCurrentSrc(imageSrc);
     setImgError(false);
-    setIsReady(type !== 'web' || !imageSrc?.includes('wp.com/mshots'));
-  }, [imageSrc, type]);
-
-  // Real-time automatic screenshot resolution for WordPress mshots
-  useEffect(() => {
-    if (type !== 'web' || !imageSrc || !imageSrc.includes('wp.com/mshots')) {
-      return;
-    }
-
-    let timer = null;
-    let cancelled = false;
-    let attempts = 0;
-    let createdUrl = null;
-    const maxAttempts = 10;
-
-    const poll = async () => {
-      attempts++;
-      try {
-        const res = await fetch(imageSrc, { cache: 'reload' });
-        if (cancelled) return;
-        const contentType = res.headers.get('content-type') || '';
-        const blob = await res.blob();
-        if (cancelled) return;
-
-        // When WordPress completes capturing, it returns image/jpeg (size > 20KB)
-        const isFinished = contentType.includes('jpeg') || contentType.includes('png') || blob.size > 20000;
-
-        if (isFinished) {
-          if (createdUrl) URL.revokeObjectURL(createdUrl);
-          createdUrl = URL.createObjectURL(blob);
-          setCurrentSrc(createdUrl);
-          setIsReady(true);
-          return;
-        }
-      } catch (err) {
-        // Ignore network hiccups while polling
-      }
-
-      if (!cancelled && attempts < maxAttempts) {
-        timer = setTimeout(poll, 2000);
-      } else if (!cancelled) {
-        setCurrentSrc(imageSrc);
-        setIsReady(true);
-      }
-    };
-
-    poll();
-
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-      if (createdUrl) URL.revokeObjectURL(createdUrl);
-    };
   }, [imageSrc, type]);
 
   const handleImgError = () => {
@@ -628,7 +578,7 @@ export function ProjectThumb({ type = 'web', pins = [], imageSrc, fallbackImageS
     }
   };
 
-  const showImage = Boolean(currentSrc) && !imgError && isReady;
+  const showImage = Boolean(currentSrc) && !imgError;
 
   return (
     <div className={`kc-thumb ${type === 'doc' ? 'doc' : 'web'}`}>
