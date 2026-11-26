@@ -8,6 +8,7 @@ import FilterDropdown from '../components/common/FilterDropdown';
 import { Avatar, Button, PageHeader } from '../components/common/ui';
 import { PlanBadge, StatusBadge, STATUS_OPTIONS, HealthBadge, HEALTH_OPTIONS } from '../components/common/StatusBadge';
 import { formatDate, formatUsd, timeAgo } from '../utils/formatters';
+import useAuth from '../hooks/useAuth';
 import { PLAN_LABELS } from '../config/plans';
 import { toastError } from '../utils/toast';
 
@@ -22,6 +23,9 @@ const SORT_OPTIONS = [
 
 export default function OrganizationsPage() {
   const navigate = useNavigate();
+  // Support agents don't see billing (the API leaves revenue out for them)
+  const { user } = useAuth();
+  const showBilling = user?.role !== 'support';
   const [params, setParams] = useSearchParams();
   const search = params.get('search') || '';
   const plan = params.get('plan');
@@ -131,10 +135,10 @@ export default function OrganizationsPage() {
       ),
     },
     { key: 'projects', label: 'Projects', align: 'right', render: (row) => row.projectCount },
-    { key: 'mrr', label: 'MRR', align: 'right', render: (row) => (row.mrr ? formatUsd(row.mrr) : <span className="text-gray-400">—</span>) },
+    showBilling && { key: 'mrr', label: 'MRR', align: 'right', render: (row) => (row.mrr ? formatUsd(row.mrr) : <span className="text-gray-400">—</span>) },
     { key: 'lastActive', label: 'Last active', render: (row) => <span className="whitespace-nowrap">{timeAgo(row.lastActiveAt)}</span> },
     { key: 'createdAt', label: 'Created', render: (row) => <span className="whitespace-nowrap text-gray-500">{formatDate(row.createdAt)}</span> },
-  ];
+  ].filter(Boolean);
 
   return (
     <div className="animate-fade-in">
@@ -166,7 +170,7 @@ export default function OrganizationsPage() {
             value={status}
             onChange={(v) => setParam('status', v)}
             placeholder="Any status"
-            options={[...STATUS_OPTIONS, { value: 'unpaid', label: 'Unpaid invoice' }]}
+            options={showBilling ? [...STATUS_OPTIONS, { value: 'unpaid', label: 'Unpaid invoice' }] : STATUS_OPTIONS}
           />
           <FilterDropdown
             value={health}

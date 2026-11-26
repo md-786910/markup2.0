@@ -8,6 +8,7 @@ import FilterDropdown from '../components/common/FilterDropdown';
 import { Avatar, PageHeader, Tabs } from '../components/common/ui';
 import { PlanBadge } from '../components/common/StatusBadge';
 import { timeAgo } from '../utils/formatters';
+import { toastError } from '../utils/toast';
 import { PriorityPill, TicketStatusPill, dueLabel } from '../components/support/supportBadges';
 
 const PAGE_SIZE = 25;
@@ -25,6 +26,7 @@ export default function SupportInboxPage() {
   const [data, setData] = useState({ tickets: [], total: 0, totalPages: 1 });
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const setParam = (key, value) => {
     setParams((prev) => {
@@ -44,8 +46,12 @@ export default function SupportInboxPage() {
     if (overdue) q.overdue = overdue;
     if (search) q.search = search;
     getSupportTicketsApi(q)
-      .then(({ data: d }) => { if (!cancelled) setData(d); })
-      .catch(() => {})
+      .then(({ data: d }) => { if (!cancelled) { setData(d); setLoadFailed(false); } })
+      .catch((err) => {
+        if (cancelled) return;
+        toastError(err, 'Could not load the support requests.');
+        setLoadFailed(true);
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     getSupportStatsApi().then(({ data: s }) => { if (!cancelled) setStats(s); }).catch(() => {});
     return () => { cancelled = true; };
@@ -126,7 +132,7 @@ export default function SupportInboxPage() {
           data={data.tickets}
           loading={loading}
           onRowClick={(row) => navigate(`/support/${row._id}`)}
-          emptyMessage={hasFilters ? 'No requests match these filters' : view === 'open' ? 'No open requests. Nice.' : 'No requests here'}
+          emptyMessage={loadFailed ? 'Could not load the requests. Reload the page to try again.' : hasFilters ? 'No requests match these filters' : view === 'open' ? 'No open requests. Nice.' : 'No requests here'}
         />
         <Pagination page={page} totalPages={data.totalPages} total={data.total} pageSize={PAGE_SIZE} onPageChange={(p) => setParam('page', p > 1 ? String(p) : null)} />
       </div>
@@ -135,7 +141,7 @@ export default function SupportInboxPage() {
           {stats.overdue} {stats.overdue === 1 ? 'request is' : 'requests are'} past the first-reply target. <button type="button" onClick={() => setParam('overdue', '1')} className="font-medium underline">Show them</button>
         </p>
       )}
-      <p className="mt-3 text-caption text-gray-400">First-reply targets come from each plan: Starter 48 h, Pro and trial 24 h, Enterprise 8 h.</p>
+      <p className="mt-3 text-caption text-gray-500">First-reply targets come from each organization's plan (Plans & pricing) or its custom support terms.</p>
     </div>
   );
 }

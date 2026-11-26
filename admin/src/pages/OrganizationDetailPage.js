@@ -17,7 +17,7 @@ import DataTable from '../components/common/DataTable';
 import Modal from '../components/common/Modal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import StatCard from '../components/common/StatCard';
-import { Avatar, Button, Card, DefinitionList, Field, PageHeader, Tabs, UsageBar, inputClass } from '../components/common/ui';
+import { Avatar, Button, Card, DefinitionList, Field, Tabs, UsageBar, inputClass } from '../components/common/ui';
 import { InvoiceStatusBadge, PlanBadge, Pill, RoleBadge, StatusBadge, HealthBadge } from '../components/common/StatusBadge';
 import { formatDate, formatDateTime, formatLocation, formatMoney, formatUsd, relativeDays, timeAgo } from '../utils/formatters';
 import { PLAN_LABELS } from '../config/plans';
@@ -38,6 +38,7 @@ const FEATURE_FIELDS = [
   ['hasIntegrations', 'Integrations'],
   ['hasActivityLogs', 'Activity log'],
   ['hasVersionHistory', 'Version history'],
+  ['hasDeadlines', 'Feedback deadlines'],
 ];
 const PRIORITY_LABELS = { normal: 'Normal', high: 'High', urgent: 'Urgent' };
 
@@ -92,30 +93,34 @@ function ChangePlanDialog({ org, onClose, onDone }) {
 }
 
 const TRIAL_EXTEND_PRESETS = [3, 7, 14, 30, 60];
+// Support agents can add at most this many days to one trial, in total
+const AGENT_TRIAL_DAYS = 14;
 
-function ExtendTrialDialog({ org, onClose, onDone }) {
+function ExtendTrialDialog({ org, isAgent, onClose, onDone }) {
   const isFreePlan = org.plan === 'free';
   const hasActiveTrial = org.plan === 'trial' && org.trialEndsAt && new Date(org.trialEndsAt) > new Date();
+  const maxDays = isAgent ? Math.max(0, AGENT_TRIAL_DAYS - (org.trialSupportExtensionDays || 0)) : 365;
+  const presets = TRIAL_EXTEND_PRESETS.filter((p) => p <= maxDays);
   const [selectedPreset, setSelectedPreset] = useState(null);
   const [customDays, setCustomDays] = useState('');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
 
   const effectiveDays = selectedPreset === 'custom' ? Number(customDays) : (selectedPreset || 0);
-  const isValidDays = Number.isInteger(effectiveDays) && effectiveDays >= 1 && effectiveDays <= 365;
+  const isValidDays = Number.isInteger(effectiveDays) && effectiveDays >= 1 && effectiveDays <= maxDays;
 
   const from = hasActiveTrial ? new Date(org.trialEndsAt) : new Date();
   const until = new Date(from.getTime() + (isValidDays ? effectiveDays : 0) * 86400000);
 
   const save = async () => {
     if (!isValidDays) {
-      toast.error('Please select or enter the number of extra days between 1 and 365.');
+      toast.error(`Choose between 1 and ${maxDays} days.`);
       return;
     }
     setSaving(true);
     try {
       await extendTrialApi(org._id, effectiveDays, reason.trim() || undefined);
-      toast.success(isFreePlan ? `Free trial granted for ${effectiveDays} days.` : `Trial extended by ${effectiveDays} days.`);
+      toast.success(isFreePlan ? `Trial started for ${effectiveDays} days.` : `Trial extended by ${effectiveDays} days.`);
       onDone();
     } catch (err) {
       toastError(err, 'Could not extend the trial.');
@@ -123,36 +128,41 @@ function ExtendTrialDialog({ org, onClose, onDone }) {
     }
   };
 
-  const title = isFreePlan ? 'Grant free trial' : 'Extend trial';
+  const title = isFreePlan ? 'Start a trial' : 'Extend trial';
 
   return (
     <Modal isOpen onClose={onClose} title={title} maxWidth="max-w-md">
       <div className="space-y-4">
-        {/* Current Trial Info Banner */}
-        <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3.5 text-caption text-gray-700">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-500 font-medium">Workspace:</span>
-            <span className="font-semibold text-gray-900">{org.name}</span>
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3.5 text-body-sm text-gray-700">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-gray-500">Organization</span>
+            <span className="truncate font-medium text-gray-900">{org.name}</span>
           </div>
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-200/70">
-            <span className="text-gray-500 font-medium">Current Status:</span>
-            <span className="font-semibold text-blue-700">
+          <div className="mt-2 flex items-center justify-between gap-3 border-t border-gray-200 pt-2">
+            <span className="text-gray-500">Now</span>
+            <span className="text-right font-medium text-gray-900">
               {hasActiveTrial
-                ? `Trial ends on ${formatDate(org.trialEndsAt)} (${relativeDays(org.trialEndsAt)})`
+                ? `Trial ends ${formatDate(org.trialEndsAt)} (${relativeDays(org.trialEndsAt)})`
                 : isFreePlan
-                  ? 'Free plan (No active trial)'
-                  : 'Trial expired'}
+                  ? 'Free plan, no trial'
+                  : 'Trial ended'}
             </span>
           </div>
         </div>
 
-        {/* Extra days selector */}
+        {isAgent && (
+          <p className="text-body-sm text-gray-500">
+            {maxDays > 0
+              ? `Support agents can add up to ${AGENT_TRIAL_DAYS} days to a trial in total. ${maxDays} ${maxDays === 1 ? 'day is' : 'days are'} left for this one.`
+              : `The ${AGENT_TRIAL_DAYS} days support agents can add to this trial are used up. Ask a superadmin for more.`}
+          </p>
+        )}
+
+        {maxDays > 0 && (
         <div>
-          <label className="block text-overline text-gray-600 mb-2">
-            Add Extra Days (Extend By)
-          </label>
+          <span className="mb-2 block text-label text-gray-700">Add days</span>
           <div className="grid grid-cols-6 gap-1.5">
-            {TRIAL_EXTEND_PRESETS.map((p) => (
+            {presets.map((p) => (
               <button
                 key={p}
                 type="button"
@@ -179,13 +189,14 @@ function ExtendTrialDialog({ org, onClose, onDone }) {
             </button>
           </div>
         </div>
+        )}
 
         {selectedPreset === 'custom' && (
-          <Field label="Custom Days to Add" hint="Enter the number of extra days to extend (1 to 365).">
+          <Field label="Days to add" hint={`1 to ${maxDays} days.`}>
             <input
               type="number"
               min="1"
-              max="365"
+              max={maxDays}
               value={customDays}
               onChange={(e) => setCustomDays(e.target.value)}
               className={inputClass}
@@ -197,26 +208,24 @@ function ExtendTrialDialog({ org, onClose, onDone }) {
 
         {/* Calculation Result */}
         {isValidDays ? (
-          <div className="rounded-xl bg-emerald-50/80 border border-emerald-200 p-3.5 text-caption text-emerald-950">
-            <div className="flex items-center justify-between font-semibold">
-              <span className="text-emerald-800">Additional Extension:</span>
-              <span className="text-emerald-700 font-semibold">+{effectiveDays} extra days</span>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-body-sm text-emerald-900">
+            <div className="flex items-center justify-between gap-3">
+              <span>Days added</span>
+              <span className="font-medium">+{effectiveDays} {effectiveDays === 1 ? 'day' : 'days'}</span>
             </div>
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-emerald-200/60">
-              <span className="text-emerald-800 font-medium">New Trial Expiration:</span>
-              <span className="font-semibold text-emerald-900">
-                {formatDate(until)} ({relativeDays(until)})
-              </span>
+            <div className="mt-2 flex items-center justify-between gap-3 border-t border-emerald-200 pt-2">
+              <span>New end date</span>
+              <span className="font-medium">{formatDate(until)} ({relativeDays(until)})</span>
             </div>
-            <p className="mt-1 text-caption text-emerald-700">Reminder emails and access are automatically updated.</p>
+            <p className="mt-1.5 text-caption text-emerald-700">Trial reminder emails restart for the new date, and a trial lock is lifted.</p>
           </div>
-        ) : (
-          <div className="rounded-xl bg-gray-50 border border-gray-200/70 p-3 text-caption text-gray-500 text-center">
-            Select an extension preset (+3d, +7d, +14d, +30d) or enter custom days to add.
-          </div>
-        )}
+        ) : maxDays > 0 ? (
+          <p className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-center text-caption text-gray-500">
+            Pick how many days to add.
+          </p>
+        ) : null}
 
-        <Field label="Reason (Optional)" hint="Logged in the audit history for administrative transparency.">
+        <Field label="Reason (optional)" hint="Saved in the action log.">
           <input
             type="text"
             value={reason}
@@ -228,8 +237,8 @@ function ExtendTrialDialog({ org, onClose, onDone }) {
 
         <div className="mt-6 flex justify-end gap-2 pt-2">
           <Button variant="ghost" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={saving || !selectedPreset || !isValidDays}>
-            {saving ? 'Saving…' : (isFreePlan ? 'Grant trial' : 'Extend trial')}
+          <Button variant="primary" onClick={save} disabled={saving || !selectedPreset || !isValidDays || maxDays === 0}>
+            {saving ? 'Saving…' : (isFreePlan ? 'Start trial' : 'Extend trial')}
           </Button>
         </div>
       </div>
@@ -277,7 +286,7 @@ function LimitsDialog({ org, limits, planSupport, onClose, onDone }) {
               type="number"
               min="0"
               value={form[key]}
-              placeholder={limits?.[key] >= 999 ? 'Unlimited' : String(limits?.[key] ?? '')}
+              placeholder={key !== 'maxStorageMB' && limits?.[key] >= 999 ? 'Unlimited' : String(limits?.[key] ?? '')}
               onChange={(e) => setForm({ ...form, [key]: e.target.value })}
               className={inputClass}
             />
@@ -367,34 +376,32 @@ function CustomDealDialog({ org, onClose, onDone }) {
   const [until, setUntil] = useState(deal.until ? new Date(deal.until).toISOString().slice(0, 10) : '');
   const [saving, setSaving] = useState(false);
 
-  const save = async () => {
+  const save = async (clear = false) => {
     setSaving(true);
+    const removing = clear || price === '';
     try {
-      await setOrganizationDealApi(org._id, {
-        price: price === '' ? null : Number(price),
-        currency,
-        note: note.trim() || null,
-        until: until || null,
-      });
-      toast.success(price === '' ? 'Custom deal cleared.' : 'Custom deal saved.');
+      await setOrganizationDealApi(org._id, removing
+        ? { price: null }
+        : { price: Number(price), currency, note: note.trim() || null, until: until || null });
+      toast.success(removing ? 'Custom deal removed.' : 'Custom deal saved.');
       onDone();
     } catch (err) {
-      toastError(err, 'Could not save custom deal.');
+      toastError(err, 'Could not save the custom deal.');
       setSaving(false);
     }
   };
 
   return (
-    <Modal isOpen onClose={onClose} title={`Custom Deal: ${org.name}`} size="md">
+    <Modal isOpen onClose={onClose} title={`Custom deal for ${org.name}`} size="md">
       <p className="mb-4 text-body-sm text-gray-500">
-        Set a negotiated monthly price for this organization. This overrides the plan list price for MRR and future renewal invoices.
+        A negotiated monthly price for this organization. It replaces the plan's list price on new and renewal invoices and in revenue.
       </p>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Custom Monthly Price" hint="Leave blank to remove custom deal">
+          <Field label="Monthly price" hint="Above 0. Leave empty to remove the deal.">
             <input
               type="number"
-              min="0"
+              min="0.01"
               step="any"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
@@ -413,7 +420,7 @@ function CustomDealDialog({ org, onClose, onDone }) {
             </select>
           </Field>
         </div>
-        <Field label="Valid Until" hint="Optional expiry date. Indefinite if empty.">
+        <Field label="Valid until" hint="Optional. Leave empty for no end date.">
           <input
             type="date"
             value={until}
@@ -421,7 +428,7 @@ function CustomDealDialog({ org, onClose, onDone }) {
             className={inputClass}
           />
         </Field>
-        <Field label="Agreement / Deal Notes" hint="Internal notes on terms, discounts or agreement terms">
+        <Field label="Notes" hint="Internal: terms, discount, who agreed to it.">
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -436,15 +443,17 @@ function CustomDealDialog({ org, onClose, onDone }) {
         {deal.price != null ? (
           <Button
             variant="danger-soft"
-            onClick={() => { setPrice(''); }}
+            onClick={async () => {
+              if (await confirmDialog({ title: 'Remove the custom deal?', message: 'New and renewal invoices go back to the plan list price.', confirmLabel: 'Remove deal', danger: true })) save(true);
+            }}
             disabled={saving}
           >
-            Clear deal
+            Remove deal
           </Button>
         ) : <div />}
         <div className="flex gap-2">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={save} disabled={saving}>
+          <Button variant="primary" onClick={() => save()} disabled={saving}>
             {saving ? 'Saving…' : 'Save deal'}
           </Button>
         </div>
@@ -470,7 +479,7 @@ function OverviewTab({ data, onOpenNotes }) {
             <UsageBar label="Workspaces" used={usage.workspaces} limit={limits.maxWorkspaces} />
             <UsageBar label="Members" used={usage.members} limit={limits.maxMembers} />
             <UsageBar label="Guests" used={usage.guests} limit={limits.maxGuests} />
-            <UsageBar label="Storage" used={usage.storageMB} limit={limits.maxStorageMB} unit=" MB" />
+            <UsageBar label="Storage" used={usage.storageMB} limit={limits.maxStorageMB} unit=" MB" unlimitedAt={Infinity} />
           </div>
           <div className="mt-5 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
             {FEATURE_FIELDS.map(([key, label]) => (
@@ -481,11 +490,11 @@ function OverviewTab({ data, onOpenNotes }) {
           </div>
         </Card>
 
-        <Card title="Customer Health & Engagement" description="7-signal scoring and in-app usage activity">
+        <Card title="Health and engagement" description="Health score from 7 signals, and how the team uses the app">
           <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <span className="text-overline text-gray-500">Overall Health Score</span>
+                <span className="text-caption text-gray-500">Health score</span>
                 <div className="mt-1 flex items-baseline gap-2">
                   <span className="text-h3 font-semibold text-gray-900">{data.health?.score != null ? data.health.score : 50}/100</span>
                   <HealthBadge health={data.health} />
@@ -497,7 +506,7 @@ function OverviewTab({ data, onOpenNotes }) {
             </div>
             {data.health?.reasons?.length > 0 && (
               <div className="mt-3 border-t border-gray-200 pt-2">
-                <span className="text-caption font-medium text-gray-500">Risk signals & deductions:</span>
+                <span className="text-caption font-medium text-gray-500">What lowers the score</span>
                 <ul className="mt-1 list-disc pl-5 text-caption text-red-600 space-y-0.5">
                   {data.health.reasons.map((r, i) => (
                     <li key={i}>{r}</li>
@@ -527,8 +536,8 @@ function OverviewTab({ data, onOpenNotes }) {
 
         {data.posthog && (
           <Card
-            title="Product Analytics (PostHog)"
-            description="30-day user session duration and telemetry"
+            title="Product analytics"
+            description="Sessions and time in the app over the last 30 days, from PostHog"
           >
             {data.posthog.available ? (
               <div className="space-y-4">
@@ -553,7 +562,7 @@ function OverviewTab({ data, onOpenNotes }) {
 
                 {data.posthog.topEvents?.length > 0 && (
                   <div>
-                    <p className="text-overline text-gray-500">Top In-App Interactions</p>
+                    <p className="text-caption font-medium text-gray-500">Most used actions</p>
                     <div className="mt-2 divide-y divide-gray-100 rounded-lg border border-gray-100">
                       {data.posthog.topEvents.map((evt, idx) => (
                         <div key={idx} className="flex items-center justify-between px-3 py-2 text-caption">
@@ -573,7 +582,7 @@ function OverviewTab({ data, onOpenNotes }) {
                     : 'PostHog did not answer. Try again in a few minutes.'}
                 </p>
                 {data.posthog.reason === 'unconfigured' && (
-                  <p className="mt-1 text-caption text-gray-400">Set POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID on the server to see sessions, time in app and top pages.</p>
+                  <p className="mt-1 text-caption text-gray-400">Set POSTHOG_PERSONAL_API_KEY and POSTHOG_PROJECT_ID on the server to see sessions, time in the app and the most used actions.</p>
                 )}
               </div>
             )}
@@ -590,7 +599,7 @@ function OverviewTab({ data, onOpenNotes }) {
               org.plan === 'trial' && ['Trial ends', `${formatDate(org.trialEndsAt)} (${relativeDays(org.trialEndsAt)})`],
               sub.currentPeriodEnd && [sub.cancelAtPeriodEnd ? 'Ends on' : 'Renews on', formatDate(sub.currentPeriodEnd)],
               sub.provider && ['Paid with', sub.provider === 'razorpay' ? 'Razorpay' : sub.provider === 'paypal' ? 'PayPal' : sub.provider],
-              ['Monthly revenue', data.mrr ? formatUsd(data.mrr) : '—'],
+              !data.billingHidden && ['Monthly revenue', data.mrr ? formatUsd(data.mrr) : '—'],
               ['Support', `${describeSupport(data.support)}${['supportTickets', 'supportChat', 'supportPriority', 'supportReplyHours'].some((k) => org.limitOverrides?.[k] != null) ? ' (custom)' : ''}`],
               org.billingDetails?.legalName && ['Billed to', org.billingDetails.legalName],
               org.billingDetails?.taxId && ['GSTIN / VAT', org.billingDetails.taxId],
@@ -735,9 +744,12 @@ function BillingTab({ data, onRefund, onOpenDeal, busy }) {
       key: 'actions',
       label: '',
       align: 'right',
-      render: (row) => row.status === 'paid' ? (
-        <Button size="sm" variant="danger-soft" disabled={busy} onClick={(e) => { e.stopPropagation(); onRefund(row); }}>Refund</Button>
-      ) : null,
+      render: (row) => {
+        if (row.status !== 'paid') return null;
+        // Partly refunded in the provider's dashboard: the rest is refunded there too
+        if (row.refundAmount > 0) return <span className="whitespace-nowrap text-caption text-gray-500">{formatMoney(row.refundAmount, row.currency)} refunded</span>;
+        return <Button size="sm" variant="danger-soft" disabled={busy} onClick={(e) => { e.stopPropagation(); onRefund(row); }}>Refund</Button>;
+      },
     },
   ];
   return (
@@ -747,15 +759,15 @@ function BillingTab({ data, onRefund, onOpenDeal, busy }) {
         <StatCard label="Monthly revenue" value={data.mrr ? formatUsd(data.mrr) : '—'} hint={org.deal?.price != null ? 'Custom deal active' : "At the plan's list price"} />
         <StatCard
           label="Paid to date"
-          value={Object.entries(data.invoices.filter((i) => i.status === 'paid').reduce((acc, i) => ({ ...acc, [i.currency]: (acc[i.currency] || 0) + i.amount }), {}))
+          value={Object.entries(data.invoices.filter((i) => i.status === 'paid').reduce((acc, i) => ({ ...acc, [i.currency]: (acc[i.currency] || 0) + i.amount - (i.refundAmount || 0) }), {}))
             .map(([cur, amt]) => formatMoney(amt, cur)).join(' + ') || '—'}
           hint={`${data.invoices.filter((i) => i.status === 'paid').length} paid invoices`}
         />
       </div>
 
       <Card
-        title="Custom deal & pricing"
-        description="Negotiated pricing and billing terms for this organization"
+        title="Custom deal"
+        description="A negotiated monthly price for this organization"
         actions={
           <Button size="sm" onClick={onOpenDeal}>
             {org.deal?.price != null ? 'Edit deal' : 'Add custom deal'}
@@ -770,7 +782,7 @@ function BillingTab({ data, onRefund, onOpenDeal, busy }) {
               </span>
               <span className="text-gray-500">/ month</span>
               {org.deal.until && (
-                <span className="ml-2 rounded-full bg-purple-50 px-2.5 py-0.5 text-caption font-medium text-purple-700">
+                <span className="ml-2 rounded-full bg-blue-50 px-2.5 py-0.5 text-caption font-medium text-blue-700">
                   Valid until {formatDate(org.deal.until)} ({relativeDays(org.deal.until)})
                 </span>
               )}
@@ -783,7 +795,7 @@ function BillingTab({ data, onRefund, onOpenDeal, busy }) {
           </div>
         ) : (
           <p className="text-body-sm text-gray-500">
-            No custom deal active. Standard list price applies to billing and revenue calculations.
+            No custom deal. Invoices and revenue use the plan's list price.
           </p>
         )}
       </Card>
@@ -944,12 +956,22 @@ export default function OrganizationDetailPage() {
   const [dialog, setDialog] = useState(null); // plan | trial | limits | lock
   const [busy, setBusy] = useState(false);
 
+  const [notFound, setNotFound] = useState(false);
+
+  // A failed refresh (e.g. after an action) keeps the page and shows a toast;
+  // only a 404 or a failed first load replaces it
   const fetchData = useCallback(async () => {
     try {
       const res = await getOrganizationDetailApi(id);
       setData(res.data);
-    } catch {
-      setData(null);
+      setNotFound(false);
+    } catch (err) {
+      if (err.response?.status === 404) {
+        setData(null);
+        setNotFound(true);
+      } else {
+        toastError(err, 'Could not load the organization.');
+      }
     }
     setLoading(false);
   }, [id]);
@@ -992,18 +1014,33 @@ export default function OrganizationDetailPage() {
   };
 
   if (loading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
-  if (!data) return <p className="py-10 text-center text-gray-500">Organization not found.</p>;
+  if (!data) {
+    return (
+      <div className="py-16 text-center">
+        <p className="text-body-sm text-gray-500">{notFound ? 'This organization does not exist or was deleted.' : 'Could not load the organization.'}</p>
+        <div className="mt-4 flex justify-center gap-4">
+          <Link to="/organizations" className="text-label text-blue-600 hover:text-blue-700">All organizations</Link>
+          {!notFound && <button type="button" onClick={() => { setLoading(true); fetchData(); }} className="text-label text-blue-600 hover:text-blue-700">Try again</button>}
+        </div>
+      </div>
+    );
+  }
 
   const { organization: org, engagement } = data;
+  // Support agents (billingHidden): no billing, plan, limit or lock changes,
+  // and they can only add a few days to a running trial (enforced by the API)
+  const isAgent = !!data.billingHidden;
+  const trialRunning = org.plan === 'trial' && org.trialEndsAt && new Date(org.trialEndsAt) > new Date();
+  const canExtendTrial = isAgent ? trialRunning : org.plan === 'trial' || org.plan === 'free';
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'people', label: 'People', count: data.members.length },
     { id: 'projects', label: 'Projects', count: data.projects.length },
-    { id: 'billing', label: 'Billing', count: data.invoices.length },
+    !isAgent && { id: 'billing', label: 'Billing', count: data.invoices.length },
     { id: 'support', label: 'Support' },
     { id: 'activity', label: 'Activity' },
     { id: 'notes', label: 'Notes', count: data.notes.length || null },
-  ];
+  ].filter(Boolean);
 
   return (
     <div className="animate-fade-in">
@@ -1031,16 +1068,20 @@ export default function OrganizationDetailPage() {
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {/* <Button onClick={() => setDialog('plan')}>Change plan</Button> */}
-            {(org.plan === 'trial' || org.plan === 'free') && (
+            {canExtendTrial && (
               <Button onClick={() => setDialog('trial')}>
-                {org.plan === 'trial' ? 'Extend trial' : 'Extend free trial'}
+                {org.plan === 'trial' ? 'Extend trial' : 'Start a trial'}
               </Button>
             )}
-            <Button onClick={() => setDialog('limits')}>Custom limits</Button>
-            {org.isLocked
-              ? <Button variant="secondary" onClick={handleUnlock} disabled={busy}>Unlock</Button>
-              : <Button variant="danger-soft" onClick={() => setDialog('lock')}>Lock</Button>}
+            {!isAgent && (
+              <>
+                <Button onClick={() => setDialog('plan')}>Change plan</Button>
+                <Button onClick={() => setDialog('limits')}>Custom limits</Button>
+                {org.isLocked
+                  ? <Button variant="secondary" onClick={handleUnlock} disabled={busy}>Unlock</Button>
+                  : <Button variant="danger-soft" onClick={() => setDialog('lock')}>Lock</Button>}
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1052,7 +1093,11 @@ export default function OrganizationDetailPage() {
       )}
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Monthly revenue" value={data.mrr ? formatUsd(data.mrr) : '—'} hint={org.plan === 'trial' ? `Trial ends ${relativeDays(org.trialEndsAt)}` : undefined} tone={data.status === 'trial_ending' ? 'warn' : 'default'} />
+        {isAgent ? (
+          <StatCard label="Plan" value={PLAN_LABELS[org.plan] || org.plan} hint={org.plan === 'trial' ? `Trial ends ${relativeDays(org.trialEndsAt)}` : undefined} tone={data.status === 'trial_ending' ? 'warn' : 'default'} />
+        ) : (
+          <StatCard label="Monthly revenue" value={data.mrr ? formatUsd(data.mrr) : '—'} hint={org.plan === 'trial' ? `Trial ends ${relativeDays(org.trialEndsAt)}` : undefined} tone={data.status === 'trial_ending' ? 'warn' : 'default'} />
+        )}
         <StatCard label="Last active" value={timeAgo(engagement.lastActiveAt)} hint={`${engagement.activeMembers7d} of ${data.members.length} members active this week`} />
         <StatCard label="Pins, last 30 days" value={engagement.pins30d} hint={`${engagement.comments30d} comments`} />
         <StatCard label="Projects" value={data.usage.projects} hint={`${data.usage.workspaces} ${data.usage.workspaces === 1 ? 'workspace' : 'workspaces'}`} />
@@ -1063,14 +1108,14 @@ export default function OrganizationDetailPage() {
       {tab === 'overview' && <OverviewTab data={data} onOpenNotes={() => setTab('notes')} />}
       {tab === 'people' && <PeopleTab data={data} />}
       {tab === 'projects' && <ProjectsTab data={data} />}
-      {tab === 'billing' && <BillingTab data={data} onRefund={handleRefund} onOpenDeal={() => setDialog('deal')} busy={busy} />}
+      {tab === 'billing' && !isAgent && <BillingTab data={data} onRefund={handleRefund} onOpenDeal={() => setDialog('deal')} busy={busy} />}
       {tab === 'activity' && <ActivityTab data={data} />}
       {tab === 'support' && <SupportTab orgId={org._id} />}
       {tab === 'notes' && <NotesTab data={data} onChange={fetchData} />}
 
       {dialog === 'deal' && <CustomDealDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
       {dialog === 'plan' && <ChangePlanDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
-      {dialog === 'trial' && <ExtendTrialDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
+      {dialog === 'trial' && <ExtendTrialDialog org={org} isAgent={isAgent} onClose={() => setDialog(null)} onDone={closeAndReload} />}
       {dialog === 'limits' && <LimitsDialog org={org} limits={data.limits} planSupport={data.planSupport} onClose={() => setDialog(null)} onDone={closeAndReload} />}
       {dialog === 'lock' && <LockDialog org={org} onClose={() => setDialog(null)} onDone={closeAndReload} />}
     </div>

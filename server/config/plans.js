@@ -233,6 +233,8 @@ async function getPlansWithOverrides() {
       // explicit features override or derive automatically from limits and support
       if (Array.isArray(override.features)) {
         merged.features = override.features;
+        // Bullets written by an admin: they don't follow limit changes
+        merged.featuresCustom = true;
       } else {
         merged.features = derivePlanFeatures(merged, override.extraFeatures);
       }

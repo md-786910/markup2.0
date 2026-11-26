@@ -7,6 +7,9 @@ export const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // The server couldn't be reached (network, deploy, 5xx): the session is
+  // kept and the app offers a retry instead of signing the admin out
+  const [connectionError, setConnectionError] = useState(false);
 
   const fetchUser = useCallback(async () => {
     const token = localStorage.getItem(TOKEN_KEY);
@@ -17,12 +20,24 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await getMeApi();
       setUser(data.admin);
-    } catch {
-      localStorage.removeItem(TOKEN_KEY);
-      setUser(null);
+      setConnectionError(false);
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 401 || status === 403) {
+        // 401: session ended (the API layer clears the token too)
+        if (status === 401) localStorage.removeItem(TOKEN_KEY);
+        setUser(null);
+      } else {
+        setConnectionError(true);
+      }
     }
     setLoading(false);
   }, []);
+
+  const retry = useCallback(() => {
+    setLoading(true);
+    fetchUser();
+  }, [fetchUser]);
 
   useEffect(() => { fetchUser(); }, [fetchUser]);
 
@@ -59,6 +74,8 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={{
       user,
       loading,
+      connectionError,
+      retry,
       isAuthenticated: !!user,
       login,
       completeTwoFactor,

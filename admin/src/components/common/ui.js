@@ -139,9 +139,11 @@ export function DefinitionList({ items }) {
   );
 }
 
-// Usage against a limit; limit >= 999 means unlimited
-export function UsageBar({ label, used, limit, unit = '' }) {
-  const unlimited = limit == null || limit >= 999;
+// Usage against a limit. Count limits of 999 or more mean unlimited
+// (config/plans.js); pass unlimitedAt={Infinity} for limits such as storage,
+// where large numbers are real limits.
+export function UsageBar({ label, used, limit, unit = '', unlimitedAt = 999 }) {
+  const unlimited = limit == null || limit >= unlimitedAt;
   const pct = unlimited ? Math.min(100, used ? 8 : 0) : Math.min(100, Math.round((used / Math.max(limit, 1)) * 100));
   const tone = !unlimited && pct >= 100 ? 'bg-red-500' : !unlimited && pct >= 80 ? 'bg-amber-500' : 'bg-blue-600';
   return (
@@ -157,5 +159,27 @@ export function UsageBar({ label, used, limit, unit = '' }) {
         <div className={`h-full rounded-full ${tone}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
+  );
+}
+
+// On/off switch with a label and an optional hint
+export function Toggle({ checked, onChange, label, hint, disabled = false }) {
+  return (
+    <label className={`flex items-start justify-between gap-4 ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+      <span className="min-w-0">
+        <span className="block text-body-sm font-medium text-gray-900">{label}</span>
+        {hint && <span className="mt-0.5 block text-caption text-gray-500">{hint}</span>}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={!!checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${checked ? 'bg-blue-600' : 'bg-gray-300'}`}
+      >
+        <span className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+      </button>
+    </label>
   );
 }

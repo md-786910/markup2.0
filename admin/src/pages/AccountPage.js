@@ -193,9 +193,11 @@ function TwoFactorCard({ user, setupRequested }) {
   const [status, setStatus] = useState(null);
   const [dialog, setDialog] = useState(null);
   const [newCodes, setNewCodes] = useState(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(() => {
-    getTwoFactorApi().then(({ data }) => setStatus(data)).catch(() => {});
+    setLoadFailed(false);
+    getTwoFactorApi().then(({ data }) => setStatus(data)).catch(() => setLoadFailed(true));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -208,7 +210,20 @@ function TwoFactorCard({ user, setupRequested }) {
     }
   }, [status, setupRequested, autoOpened]);
 
-  if (!status) return <Card title="Two-step sign-in"><p className="text-body-sm text-gray-500">Loading…</p></Card>;
+  if (!status) {
+    return (
+      <Card title="Two-step sign-in">
+        {loadFailed ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-body-sm text-gray-500">Could not load your two-step sign-in settings.</p>
+            <Button size="sm" onClick={load}>Try again</Button>
+          </div>
+        ) : (
+          <p className="text-body-sm text-gray-500">Loading…</p>
+        )}
+      </Card>
+    );
+  }
 
   const disable = async (password, code) => {
     try {

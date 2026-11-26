@@ -14,8 +14,8 @@ const AdminUser = require('../models/AdminUser');
 const SupportTicket = require('../models/SupportTicket');
 const PaymentSettings = require('../models/PaymentSettings');
 const asyncHandler = require('../utils/asyncHandler');
-const { DEFAULT_TRIAL_DAYS, PLANS, getPlansWithOverrides, clearPlanCache, clearTrialCache, getDefaultTrialDaysAsync, getLimitsForPlanAsync, getEffectiveLimitsAsync, getSupportForOrg, getSupportForPlan } = require('../config/plans');
-const { PRICED_PLANS, monthlyRevenue, lifecycleStatus } = require('../utils/orgStatus');
+const { DEFAULT_TRIAL_DAYS, PLANS, getPlansWithOverrides, clearPlanCache, clearTrialCache, getDefaultTrialDaysAsync, getLimitsForPlanAsync, getEffectiveLimitsAsync, getSupportForOrg, getSupportForPlan, USD_INR_RATE } = require('../config/plans');
+const { PRICED_PLANS, PAID_PLANS, activeDeal, monthlyRevenue, lifecycleStatus } = require('../utils/orgStatus');
 const {
   getProvider,
   getProviderStatus,
@@ -71,6 +71,7 @@ async function statusFilter(status) {
     case 'trial_ending': return { ...live, plan: 'trial', trialEndsAt: { $lte: inSevenDays } };
     case 'cancelling': return { ...live, plan: { $ne: 'trial' }, 'subscription.cancelAtPeriodEnd': true };
     case 'free': return { ...live, plan: 'free', 'subscription.cancelAtPeriodEnd': { $ne: true } };
+    case 'past_due': return { ...live, plan: { $in: [...PRICED_PLANS, 'enterprise'] }, 'subscription.status': { $ne: 'active' }, 'subscription.cancelAtPeriodEnd': { $ne: true } };
     case 'paying': return { ...live, plan: { $in: [...PRICED_PLANS, 'enterprise'] }, 'subscription.status': 'active', 'subscription.cancelAtPeriodEnd': { $ne: true } };
     case 'unpaid': return { _id: { $in: await Invoice.distinct('organization', { status: 'pending' }) } };
     default: return {};
@@ -129,8 +130,8 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     Organization.countDocuments(),
     Organization.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
     Organization.aggregate([{ $group: { _id: '$plan', count: { $sum: 1 } } }]),
-    Organization.find({ plan: { $in: [...PRICED_PLANS, 'enterprise'] }, 'subscription.status': 'active' })
-      .select('plan subscription').lean(),
+    Organization.find({ plan: { $in: PAID_PLANS }, 'subscription.status': 'active', deletionScheduledAt: null })
+      .select('plan subscription deal').lean(),
     User.distinct('organization', { lastSeen: { $gte: sevenDaysAgo }, organization: { $ne: null } }),
     Invoice.aggregate([
       { $match: { status: 'pending' } },
@@ -247,7 +248,7 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
   const hideBilling = isSupportAdmin(req);
   res.json({
     kpis: {
-      mrr: payingOrgs.reduce((sum, org) => sum + monthlyRevenue(org, plans), 0),
+      mrr: hideBilling ? null : payingOrgs.reduce((sum, org) => sum + monthlyRevenue(org, plans), 0),
       payingOrgs: payingOrgs.length,
       // Trials still running: expired trials stay on plan 'trial' but are locked
       activeTrials: await Organization.countDocuments({ plan: 'trial', isLocked: { $ne: true }, deletionScheduledAt: null, $or: [{ trialEndsAt: null }, { trialEndsAt: { $gt: now } }] }),
@@ -278,7 +279,8 @@ exports.getDashboardStats = asyncHandler(async (req, res) => {
     billingHidden: hideBilling,
     activationFunnel,
     recentSignups,
-    recentAdminActions,
+    // The action log is superadmin-only
+    recentAdminActions: hideBilling ? [] : recentAdminActions,
   });
 });
 
@@ -298,8 +300,10 @@ exports.getOrganizations = asyncHandler(async (req, res) => {
   const { plan, status, health, search, sort, format } = req.query;
   const csv = format === 'csv';
   const { page, limit } = parsePaging(req.query);
+  const hideBilling = isSupportAdmin(req);
 
-  const filter = { ...(await statusFilter(status)) };
+  // Support agents don't see billing, so no filtering by unpaid invoices either
+  const filter = { ...(await statusFilter(hideBilling && status === 'unpaid' ? undefined : status)) };
   if (plan) filter.plan = String(plan);
   if (health && ['healthy', 'watch', 'at_risk'].includes(health)) {
     filter['health.band'] = health;
@@ -340,7 +344,7 @@ exports.getOrganizations = asyncHandler(async (req, res) => {
     const rows = [];
     for (let skip = 0; ; skip += BATCH) {
       const batch = await findOrgs(skip, BATCH);
-      rows.push(...(await describeOrgs(batch, plans)));
+      rows.push(...(await describeOrgs(batch, plans, hideBilling)));
       if (batch.length < BATCH) break;
     }
     return sendOrganizationsCsv(res, rows);
@@ -350,7 +354,7 @@ exports.getOrganizations = asyncHandler(async (req, res) => {
     findOrgs((page - 1) * limit, limit),
     Organization.countDocuments(filter),
   ]);
-  const data = await describeOrgs(orgs, plans);
+  const data = await describeOrgs(orgs, plans, hideBilling);
 
   res.json({
     organizations: data,
@@ -361,7 +365,7 @@ exports.getOrganizations = asyncHandler(async (req, res) => {
 });
 
 // Rows of the customer list: engagement, project counts, unpaid invoices
-async function describeOrgs(orgs, plans) {
+async function describeOrgs(orgs, plans, hideBilling = false) {
   const orgIds = orgs.map((o) => o._id);
   const [engagement, projectCounts, unpaidOrgIds] = await Promise.all([
     engagementByOrg(orgIds),
@@ -387,14 +391,14 @@ async function describeOrgs(orgs, plans) {
       status: lifecycleStatus(org, now),
       isLocked: org.isLocked,
       trialEndsAt: org.trialEndsAt,
-      subscription: org.subscription,
+      subscription: hideBilling ? orgWithoutBilling({ subscription: org.subscription }).subscription : org.subscription,
       createdAt: org.createdAt,
       memberCount: e?.members || 0,
       activeMembers7d: e?.active7d || 0,
       lastActiveAt: e?.lastActiveAt || null,
       projectCount: projectMap.get(String(org._id)) || 0,
-      mrr: monthlyRevenue(org, plans),
-      hasUnpaidInvoice: unpaidSet.has(String(org._id)),
+      mrr: hideBilling ? null : monthlyRevenue(org, plans),
+      hasUnpaidInvoice: hideBilling ? false : unpaidSet.has(String(org._id)),
       health: org.health || { score: 50, band: 'watch', reasons: [] },
     };
   });
@@ -479,7 +483,7 @@ exports.getOrganizationDetail = asyncHandler(async (req, res) => {
     organization: hideBilling ? orgWithoutBilling(org) : org,
     billingHidden: hideBilling,
     status: lifecycleStatus(org, now),
-    mrr: monthlyRevenue(org, plans),
+    mrr: hideBilling ? null : monthlyRevenue(org, plans),
     limits,
     // Support the org has (custom overrides applied) and what its plan gives
     support: getSupportForOrg(org),
@@ -803,10 +807,13 @@ exports.getPlanUsageImpact = asyncHandler(async (req, res) => {
   const { planId } = req.params;
   if (!PLANS[planId]) return res.status(404).json({ message: 'Plan not found' });
 
-  const orgs = await Organization.find({ plan: planId, deletionScheduledAt: null }).select('_id name storageUsedBytes').lean();
+  // Trials run on the Pro plan's limits, so a Pro change affects them too
+  const plansAffected = planId === 'pro' ? ['pro', 'trial'] : [planId];
+  const orgs = await Organization.find({ plan: { $in: plansAffected }, deletionScheduledAt: null })
+    .select('_id name storageUsedBytes limitOverrides').lean();
   const totalOrgs = orgs.length;
   if (totalOrgs === 0) {
-    return res.json({ totalOrgs: 0, impacts: {} });
+    return res.json({ totalOrgs: 0, impacts: {}, details: [], hasImpact: false, affectedCount: 0 });
   }
 
   const orgIds = orgs.map((o) => o._id);
@@ -815,9 +822,10 @@ exports.getPlanUsageImpact = asyncHandler(async (req, res) => {
       { $match: { organization: { $in: orgIds }, status: 'active' } },
       { $group: { _id: '$organization', count: { $sum: 1 } } },
     ]),
+    // Seats: members and guests are limited separately
     User.aggregate([
       { $match: { organization: { $in: orgIds } } },
-      { $group: { _id: '$organization', count: { $sum: 1 } } },
+      { $group: { _id: '$organization', members: { $sum: { $cond: [{ $eq: ['$role', 'guest'] }, 0, 1] } }, guests: { $sum: { $cond: [{ $eq: ['$role', 'guest'] }, 1, 0] } } } },
     ]),
     Workspace.aggregate([
       { $match: { organization: { $in: orgIds } } },
@@ -826,47 +834,41 @@ exports.getPlanUsageImpact = asyncHandler(async (req, res) => {
   ]);
 
   const pMap = new Map(projectCounts.map((p) => [String(p._id), p.count]));
-  const mMap = new Map(memberCounts.map((m) => [String(m._id), m.count]));
+  const mMap = new Map(memberCounts.map((m) => [String(m._id), m]));
   const wMap = new Map(workspaceCounts.map((w) => [String(w._id), w.count]));
 
-  const impacts = {};
-  const query = Object.keys(req.query || {}).length ? req.query : (req.body || {});
-
-  if (query.maxProjects != null) {
-    const limit = Number(query.maxProjects);
-    impacts.maxProjects = orgs.filter((o) => (pMap.get(String(o._id)) || 0) > limit).length;
-  }
-  if (query.maxWorkspaces != null) {
-    const limit = Number(query.maxWorkspaces);
-    impacts.maxWorkspaces = orgs.filter((o) => (wMap.get(String(o._id)) || 0) > limit).length;
-  }
-  if (query.maxMembers != null) {
-    const limit = Number(query.maxMembers);
-    impacts.maxMembers = orgs.filter((o) => (mMap.get(String(o._id)) || 0) > limit).length;
-  }
-  if (query.maxStorageMB != null) {
-    const limitBytes = Number(query.maxStorageMB) * 1048576;
-    impacts.maxStorageMB = orgs.filter((o) => (o.storageUsedBytes || 0) > limitBytes).length;
-  }
-
-  const affectedCount = Object.values(impacts).reduce((a, b) => Math.max(a, b), 0);
-  const hasImpact = affectedCount > 0;
-
-  // Which organizations go over which new limit (for the warning; first 20)
   const usageOf = {
     maxProjects: (o) => pMap.get(String(o._id)) || 0,
     maxWorkspaces: (o) => wMap.get(String(o._id)) || 0,
-    maxMembers: (o) => mMap.get(String(o._id)) || 0,
+    maxMembers: (o) => mMap.get(String(o._id))?.members || 0,
+    maxGuests: (o) => mMap.get(String(o._id))?.guests || 0,
     maxStorageMB: (o) => Math.round((o.storageUsedBytes || 0) / 1048576),
   };
+
+  const query = Object.keys(req.query || {}).length ? req.query : (req.body || {});
+  const impacts = {};
   const details = [];
-  for (const limitKey of Object.keys(impacts)) {
+  const affected = new Set();
+  for (const limitKey of Object.keys(usageOf)) {
+    if (query[limitKey] == null || query[limitKey] === '') continue;
     const proposedLimit = Number(query[limitKey]);
+    if (!Number.isFinite(proposedLimit)) continue;
+    let count = 0;
     for (const o of orgs) {
+      // An org with its own custom limit for this key keeps it
+      if (o.limitOverrides?.[limitKey] != null) continue;
       const currentUsage = usageOf[limitKey](o);
-      if (currentUsage > proposedLimit) details.push({ orgName: o.name, limitKey, currentUsage, proposedLimit });
+      if (currentUsage > proposedLimit) {
+        count++;
+        affected.add(String(o._id));
+        details.push({ orgName: o.name, limitKey, currentUsage, proposedLimit });
+      }
     }
+    impacts[limitKey] = count;
   }
+
+  const affectedCount = affected.size;
+  const hasImpact = affectedCount > 0;
 
   res.json({ totalOrgs, impacts, details: details.slice(0, 20), hasImpact, affectedCount });
 });
@@ -875,7 +877,8 @@ exports.getPlanUsageImpact = asyncHandler(async (req, res) => {
 
 exports.getPaymentSettings = asyncHandler(async (req, res) => {
   const status = await getProviderStatus();
-  res.json(status);
+  // usdInrRate: what Razorpay prices are converted at when a plan has no INR price
+  res.json({ ...status, usdInrRate: USD_INR_RATE });
 });
 
 exports.updatePaymentSettings = asyncHandler(async (req, res) => {
@@ -928,7 +931,8 @@ exports.updatePaymentSettings = asyncHandler(async (req, res) => {
 
   clearPaymentSettingsCache();
   const status = await getProviderStatus();
-  res.json(status);
+  // usdInrRate: what Razorpay prices are converted at when a plan has no INR price
+  res.json({ ...status, usdInrRate: USD_INR_RATE });
 });
 
 // ── Billing administration ─────────────────────────────────────
@@ -1058,9 +1062,11 @@ exports.extendTrial = asyncHandler(async (req, res) => {
  */
 exports.getTrialSettings = asyncHandler(async (req, res) => {
   const settings = await PaymentSettings.getSingleton();
+  // Running trials: the ones a sync can change
   const activeTrialOrgsCount = await Organization.countDocuments({
     plan: 'trial',
     isLocked: false,
+    trialEndsAt: { $gt: new Date() },
   });
   res.json({
     defaultDays: settings?.trial?.defaultDays || DEFAULT_TRIAL_DAYS,
@@ -1127,8 +1133,8 @@ exports.updateTrialSettings = asyncHandler(async (req, res) => {
     updatedAt: settings.trial.updatedAt,
     affectedCount,
     message: syncActiveTrials
-      ? `Global trial set to ${days} days and synced across ${affectedCount} active trial workspaces.`
-      : `Global trial set to ${days} days for new signups.`,
+      ? `Trials are now ${days} days. ${affectedCount} running ${affectedCount === 1 ? 'trial was' : 'trials were'} extended.`
+      : `New signups now get a ${days}-day trial.`,
   });
 });
 
@@ -1147,7 +1153,7 @@ exports.setOrganizationLimits = asyncHandler(async (req, res) => {
     if (!Number.isInteger(n) || n < 0) return res.status(400).json({ message: `${key} must be a whole number` });
     overrides[key] = n;
   }
-  for (const key of ['hasIntegrations', 'hasActivityLogs', 'hasVersionHistory', 'supportTickets', 'supportChat']) {
+  for (const key of ['hasIntegrations', 'hasActivityLogs', 'hasVersionHistory', 'hasDeadlines', 'supportTickets', 'supportChat']) {
     if (typeof b[key] === 'boolean') overrides[key] = b[key];
   }
   if (b.supportPriority) {
@@ -1206,6 +1212,9 @@ exports.refundInvoice = asyncHandler(async (req, res) => {
   const invoice = await Invoice.findById(req.params.id);
   if (!invoice) return res.status(404).json({ message: 'Invoice not found' });
   if (invoice.status !== 'paid') return res.status(400).json({ message: 'Only paid invoices can be refunded' });
+  // A partial refund made in the provider's dashboard: refunding the full
+  // amount again would be rejected (or over-refund), so the rest is done there
+  if (invoice.refundAmount > 0) return res.status(400).json({ message: 'This invoice was already partly refunded. Refund the rest in the payment provider dashboard.' });
 
   const provider = getProvider(invoice.provider);
   if (!provider || typeof provider.refundPayment !== 'function') {
@@ -1301,13 +1310,12 @@ exports.getRevenue = asyncHandler(async (req, res) => {
 
   const plans = await getPlansWithOverrides();
 
-  // 1. Paying organizations & current MRR breakdown
+  // 1. Paying organizations & current MRR: a paid plan with an active
+  // subscription (the same rule as the Paying status and monthlyRevenue)
   const payingOrgs = await Organization.find({
     deletionScheduledAt: null,
-    $or: [
-      { plan: { $in: ['starter', 'pro', 'enterprise'] }, 'subscription.status': 'active' },
-      { 'deal.price': { $ne: null } },
-    ],
+    plan: { $in: PAID_PLANS },
+    'subscription.status': 'active',
   }).select('name plan subscription deal').lean();
 
   const mrrByPlan = {
@@ -1317,49 +1325,46 @@ exports.getRevenue = asyncHandler(async (req, res) => {
     custom: { usd: 0, inr: 0, count: 0 },
   };
 
+  // USD and INR are kept apart: INR is what Razorpay customers pay
   let totalUsdMrr = 0;
   let totalInrMrr = 0;
 
   for (const org of payingOrgs) {
-    const dealActive = org.deal && org.deal.price != null && (!org.deal.until || new Date(org.deal.until) > now);
-    if (dealActive) {
-      if (org.deal.currency === 'INR') {
-        totalInrMrr += Number(org.deal.price);
-        mrrByPlan.custom.inr += Number(org.deal.price);
-      } else {
-        totalUsdMrr += Number(org.deal.price);
-        mrrByPlan.custom.usd += Number(org.deal.price);
-      }
-      mrrByPlan.custom.count++;
-    } else if (org.subscription?.status === 'active' && ['starter', 'pro'].includes(org.plan)) {
+    const deal = activeDeal(org, now);
+    let bucket = mrrByPlan[org.plan];
+    let usd = 0;
+    let inr = 0;
+    if (deal) {
+      bucket = mrrByPlan.custom;
+      if (deal.currency === 'INR') inr = Number(deal.price) || 0;
+      else usd = Number(deal.price) || 0;
+    } else if (PRICED_PLANS.includes(org.plan)) {
       const planConfig = plans[org.plan];
       const usdPrice = Number(planConfig?.price) || 0;
-      const inrPrice = Number(planConfig?.priceInr) || Math.round(usdPrice * 84);
-
       if (org.subscription?.provider === 'razorpay') {
-        totalInrMrr += inrPrice;
-        mrrByPlan[org.plan].inr += inrPrice;
+        inr = planConfig?.priceInr != null ? Number(planConfig.priceInr) : Math.round(usdPrice * USD_INR_RATE);
       } else {
-        totalUsdMrr += usdPrice;
-        mrrByPlan[org.plan].usd += usdPrice;
+        usd = usdPrice;
       }
-      mrrByPlan[org.plan].count++;
     }
+    bucket.usd += usd;
+    bucket.inr += inr;
+    bucket.count++;
+    totalUsdMrr += usd;
+    totalInrMrr += inr;
   }
 
-  // 2. New MRR this month & Churned MRR this month
-  const [newOrgsMonth, churnedOrgsMonth, ninetyDaysTrials, ninetyDaysConverted] = await Promise.all([
-    Organization.find({
-      plan: { $in: ['starter', 'pro', 'enterprise'] },
-      'subscription.status': 'active',
-      createdAt: { $gte: startOfMonth },
-    }).select('plan subscription deal').lean(),
-    Organization.find({
-      $or: [
-        { 'subscription.cancelAtPeriodEnd': true, 'subscription.currentPeriodEnd': { $gte: startOfMonth } },
-        { 'subscription.status': 'canceled', updatedAt: { $gte: startOfMonth } },
-      ],
-    }).select('plan subscription deal').lean(),
+  // 2. New and churned MRR this calendar month (UTC), in USD.
+  // New: organizations whose first payment ever was this month (trial
+  // conversions included). Churned: paid subscriptions that ended this month.
+  const [firstPayments, churnedOrgsMonth, ninetyDaysTrials, ninetyDaysConverted] = await Promise.all([
+    Invoice.aggregate([
+      { $match: { status: { $in: ['paid', 'refunded'] }, paidAt: { $ne: null } } },
+      { $group: { _id: '$organization', first: { $min: '$paidAt' } } },
+      { $match: { first: { $gte: startOfMonth } } },
+    ]),
+    Organization.find({ 'subscription.endedAt': { $gte: startOfMonth } })
+      .select('subscription').lean(),
     Organization.countDocuments({
       createdAt: { $gte: ninetyDaysAgo, $lte: new Date(now.getTime() - 14 * dayMs) },
     }),
@@ -1368,14 +1373,19 @@ exports.getRevenue = asyncHandler(async (req, res) => {
       plan: { $in: ['starter', 'pro', 'enterprise'] },
     }),
   ]);
+  const newOrgsMonth = firstPayments.length
+    ? await Organization.find({ _id: { $in: firstPayments.map((r) => r._id) } }).select('plan subscription deal').lean()
+    : [];
 
   const newMrr30d = {
-    usd: newOrgsMonth.reduce((acc, o) => acc + (o.deal?.price || plans[o.plan]?.price || 0), 0),
+    usd: newOrgsMonth.reduce((acc, o) => acc + monthlyRevenue(o, plans, now), 0),
     count: newOrgsMonth.length,
   };
 
   const churnedMrr30d = {
-    usd: churnedOrgsMonth.reduce((acc, o) => acc + (o.deal?.price || plans[o.plan]?.price || 0), 0),
+    usd: churnedOrgsMonth.reduce((acc, o) => acc + (o.subscription?.endedMrr != null
+      ? o.subscription.endedMrr
+      : Number(plans[o.subscription?.endedPlan]?.price) || 0), 0),
     count: churnedOrgsMonth.length,
   };
 

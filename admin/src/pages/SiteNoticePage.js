@@ -21,8 +21,11 @@ const toLocalInput = (date) => {
 export default function SiteNoticePage() {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    setLoadFailed(false);
     getSiteNoticeApi()
       .then(({ data }) => {
         const n = data.notice || {};
@@ -37,9 +40,20 @@ export default function SiteNoticePage() {
           expiresAt: toLocalInput(n.expiresAt),
         });
       })
-      .catch((err) => toastError(err, 'Could not load the notice.'));
-  }, []);
+      .catch((err) => {
+        toastError(err, 'Could not load the notice.');
+        setLoadFailed(true);
+      });
+  }, [attempt]);
 
+  if (!form && loadFailed) {
+    return (
+      <div className="py-16 text-center">
+        <p className="text-body-sm text-gray-500">Could not load the site notice.</p>
+        <Button className="mt-4" onClick={() => setAttempt((n) => n + 1)}>Try again</Button>
+      </div>
+    );
+  }
   if (!form) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
 
@@ -51,7 +65,13 @@ export default function SiteNoticePage() {
         startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null,
         expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
       });
-      toast.success(form.enabled ? 'The notice is saved and shown in the app.' : 'Saved. The notice is off.');
+      const now = Date.now();
+      const ended = form.expiresAt && new Date(form.expiresAt).getTime() <= now;
+      const later = form.startsAt && new Date(form.startsAt).getTime() > now;
+      toast.success(!form.enabled ? 'Saved. The notice is off.'
+        : ended ? 'Saved, but the "Show until" time has passed, so the notice is not shown.'
+          : later ? `Saved. The notice shows from ${new Date(form.startsAt).toLocaleString()}.`
+            : 'Saved. The notice is shown in the app now.');
     } catch (err) {
       toastError(err, 'Could not save the notice.');
     }

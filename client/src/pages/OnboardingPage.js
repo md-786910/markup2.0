@@ -49,6 +49,9 @@ export default function OnboardingPage() {
   const navigate = useNavigate();
   const logoRef = useRef(null);
   const avatarRef = useRef(null);
+  // The account (and organization) exist once signup succeeded: a retry after
+  // a later step failed (logo, photo) continues instead of signing up again
+  const signedUpRef = useRef(false);
 
   const [step, setStep] = useState(0);
   useEffect(() => { track('onboarding_step', { step: STEPS[step]?.id }); }, [step]);
@@ -250,7 +253,13 @@ export default function OnboardingPage() {
   const runSetup = async () => {
     try {
       setStages((s) => ({ ...s, account: 'active' }));
-      await signup(name, email, password);
+      // The organization is created with the account (one request), so a
+      // failure in between can't leave an account without an organization.
+      // The call below still sets the logo (and the name, unchanged).
+      if (!signedUpRef.current) {
+        await signup(name, email, password, undefined, orgName.trim());
+        signedUpRef.current = true;
+      }
       await wait(400); // small minimum so the checklist doesn't pop
       setStages((s) => ({ ...s, account: 'done', workspace: 'active' }));
 

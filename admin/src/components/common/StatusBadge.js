@@ -30,6 +30,7 @@ export function PlanBadge({ plan }) {
 // Lifecycle status computed by the API (lifecycleStatus in admin.controller.js)
 const STATUS = {
   paying: ['green', 'Paying'],
+  past_due: ['red', 'Payment due'],
   trial: ['blue', 'In trial'],
   trial_ending: ['amber', 'Trial ending'],
   free: ['gray', 'Free'],

@@ -13,6 +13,7 @@ const PROGRESS = {
   not_started: 'Not started',
   in_progress: 'In progress',
   in_review: 'In review',
+  changes_requested: 'Changes requested',
   approved: 'Approved',
   completed: 'Completed',
 };

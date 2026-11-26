@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 import AuthShell, { AuthError, PasswordInput, SubmitButton, authInputClass } from '../components/auth/AuthShell';
 
 const message = (err, fallback) => err.response?.data?.message || err.message || fallback;
 
 export default function LoginPage() {
-  const { login, completeTwoFactor } = useAuth();
+  const { login, completeTwoFactor, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,6 +50,9 @@ export default function LoginPage() {
     }
     setLoading(false);
   };
+
+  // Already signed in (e.g. /login opened from a bookmark)
+  if (!authLoading && isAuthenticated && !loading) return <Navigate to="/dashboard" replace />;
 
   if (challenge) {
     return (

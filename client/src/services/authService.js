@@ -12,8 +12,9 @@ export const sendOtpApi = (email) =>
 export const verifyOtpApi = (email, otp) =>
   api.post('/auth/verify-otp', { email, otp });
 
-export const signupApi = (name, email, password, invitationToken) =>
-  api.post('/auth/signup', { name, email, password, invitationToken });
+// orgName (onboarding): the new organization is created in the same request
+export const signupApi = (name, email, password, invitationToken, orgName) =>
+  api.post('/auth/signup', { name, email, password, invitationToken, orgName });
 
 export const getMeApi = () =>
   api.get('/auth/me');

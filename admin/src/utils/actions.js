@@ -18,6 +18,11 @@ export function describeAction(a) {
       const keys = Object.keys(m.overrides || {});
       return keys.length ? `set custom limits (${keys.length})` : 'cleared custom limits';
     }
+    case 'org.deal_updated': {
+      const d = m.after;
+      if (!d || d.price == null) return 'removed the custom deal';
+      return `set a custom deal of ${formatMoney(d.price * 100, d.currency || 'USD')}/month${d.until ? ` until ${formatDate(d.until)}` : ''}`;
+    }
     case 'org.locked': return `locked the organization${m.reason ? `: ${m.reason}` : ''}`;
     case 'org.unlocked': return 'unlocked the organization';
     case 'org.invoice_refunded': return `refunded ${formatMoney(m.amount, m.currency)}`;

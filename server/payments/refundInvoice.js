@@ -1,6 +1,7 @@
 const Invoice = require('../models/Invoice');
 const Organization = require('../models/Organization');
-const { getLimitsForPlanAsync } = require('../config/plans');
+const { getLimitsForPlanAsync, getPlansWithOverrides } = require('../config/plans');
+const { markSubscriptionEnded } = require('../utils/orgStatus');
 
 /**
  * Record a refund on an invoice. Used by provider webhooks (refund made in the
@@ -29,6 +30,7 @@ async function applyRefund(invoice, refundedTotal) {
     const org = await Organization.findById(invoice.organization);
     const coversCurrentPeriod = invoice.periodEnd && new Date(invoice.periodEnd) > new Date();
     if (org && org.plan === invoice.plan && coversCurrentPeriod) {
+      markSubscriptionEnded(org, await getPlansWithOverrides());
       org.plan = 'free';
       org.limits = await getLimitsForPlanAsync('free');
       if (!org.subscription) org.subscription = {};

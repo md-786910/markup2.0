@@ -200,7 +200,7 @@ exports.signup = asyncHandler(async (req, res) => {
 
   const existing = await User.findOne({ email: emailNorm });
   if (existing) {
-    return res.status(400).json({ message: "Email already registered" });
+    return res.status(400).json({ message: "This email already has a Kommently account. Log in instead." });
   }
 
   const now = new Date();
@@ -379,10 +379,32 @@ exports.signup = asyncHandler(async (req, res) => {
     }
   }
 
-  metric('user.signup', { kind: acceptedProjectId || acceptedWorkspaceId ? 'invited' : (isFirstUser ? 'new_org' : 'joined') });
+  // Onboarding (new organization) sends its name: the organization is created
+  // in this same request. Before, the app created it with a second request,
+  // and a failure or a closed tab in between left an account without an
+  // organization that blocked the email for good. If creating it fails, the
+  // new account is removed again so the email stays free.
+  let createdOrg = false;
+  const orgName = typeof req.body.orgName === "string" ? req.body.orgName.trim().slice(0, 120) : "";
+  if (!org && !user.organization && orgName) {
+    try {
+      const planFields = await buildSignupPlanFields();
+      org = await Organization.create({ name: orgName, owner: user._id, ...planFields });
+      user.organization = org._id;
+      user.role = "owner";
+      await user.save({ validateBeforeSave: false });
+      createdOrg = true;
+    } catch (err) {
+      if (org) await Organization.deleteOne({ _id: org._id }).catch(() => {});
+      await User.deleteOne({ _id: user._id }).catch(() => {});
+      throw err;
+    }
+  }
+
+  metric('user.signup', { kind: acceptedProjectId || acceptedWorkspaceId ? 'invited' : (isFirstUser || createdOrg ? 'new_org' : 'joined') });
   if (org) res.locals.liveSync = { orgId: org._id };
   await setCookieAndRespond(res, user, org, 201, {
-    isNewOrg: isFirstUser,
+    isNewOrg: isFirstUser || createdOrg,
     invitedProjectId: acceptedProjectId ? acceptedProjectId.toString() : undefined,
     invitedWorkspaceId: acceptedWorkspaceId ? acceptedWorkspaceId.toString() : undefined,
   });
@@ -427,9 +449,20 @@ async function startSession(req, res, user) {
   user.lastLoginLocation = getLocationFromIp(clientIp);
   await user.save({ validateBeforeSave: false });
 
-  const org = user.organization
+  let org = user.organization
     ? await Organization.findById(user.organization)
     : null;
+  // An account left without an organization by an unfinished sign-up (the
+  // organization used to be created by a second request) gets its own one
+  // now, as onboarding would have done; it can be renamed in Settings
+  if (!user.organization) {
+    const planFields = await buildSignupPlanFields();
+    org = await Organization.create({ name: `${user.name}'s Workspace`, owner: user._id, ...planFields });
+    user.organization = org._id;
+    user.role = "owner";
+    await user.save({ validateBeforeSave: false });
+    req.log?.info({ userId: String(user._id) }, "Created the missing organization of an unfinished sign-up");
+  }
   await setCookieAndRespond(res, user, org);
   // Sessions on other devices end with this sign-in
   endUserSockets(req, user._id, 3000);
@@ -809,7 +842,7 @@ exports.validateEmail = asyncHandler(async (req, res) => {
   if (existing) {
     return res
       .status(400)
-      .json({ valid: false, message: "Email already registered" });
+      .json({ valid: false, message: "This email already has a Kommently account. Log in instead." });
   }
 
   res.json({ valid: true });
@@ -835,7 +868,7 @@ exports.sendOtp = asyncHandler(async (req, res) => {
 
   const existing = await User.findOne({ email: emailNorm });
   if (existing) {
-    return res.status(400).json({ message: "Email already registered" });
+    return res.status(400).json({ message: "This email already has a Kommently account. Log in instead." });
   }
 
   const now = Date.now();

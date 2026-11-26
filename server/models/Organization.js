@@ -83,6 +83,12 @@ const organizationSchema = new mongoose.Schema({
     paypalSubscriptionId: { type: String, default: null },
     // Owner cancelled: keeps the paid plan until currentPeriodEnd, then moves to free
     cancelAtPeriodEnd: { type: Boolean, default: false },
+    // When a paid subscription ended (period over after a cancel, or a full
+    // refund), the plan it was on and its monthly revenue in USD then: the
+    // admin Revenue page counts churn from these
+    endedAt: { type: Date, default: null },
+    endedPlan: { type: String, default: null },
+    endedMrr: { type: Number, default: null },
   },
   // Custom pricing and terms set by a superadmin (Phase 6)
   deal: {

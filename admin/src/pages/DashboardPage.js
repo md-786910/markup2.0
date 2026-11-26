@@ -14,11 +14,12 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 // The last six calendar months, filled with zero where nobody signed up
 function lastSixMonths(rows) {
   const byMonth = Object.fromEntries((rows || []).map((r) => [r._id, r.count]));
+  // UTC months, like the server's grouping
   const now = new Date();
   return Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    return { key, label: MONTHS[d.getMonth()], count: byMonth[key] || 0 };
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + i, 1));
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    return { key, label: MONTHS[d.getUTCMonth()], count: byMonth[key] || 0 };
   });
 }
 
@@ -71,15 +72,18 @@ function PlanMix({ breakdown, total }) {
 }
 
 function AttentionRow({ to, title, detail, badge }) {
-  return (
-    <Link to={to} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-gray-50">
+  const body = (
+    <>
       <span className="min-w-0">
         <span className="block truncate text-body-sm font-medium text-gray-900">{title}</span>
         <span className="block truncate text-caption text-gray-500">{detail}</span>
       </span>
       {badge}
-    </Link>
+    </>
   );
+  // No link when the organization was deleted (its invoices are kept)
+  if (!to) return <div className="flex items-center justify-between gap-3 px-5 py-3">{body}</div>;
+  return <Link to={to} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-gray-50">{body}</Link>;
 }
 
 export default function DashboardPage() {
@@ -101,6 +105,8 @@ export default function DashboardPage() {
   const unpaidCount = unpaid.reduce((n, u) => n + u.count, 0);
   const overdueTickets = attention.overdueTickets || [];
   const atRisk = attention.atRiskOrgs || [];
+  // Support agents don't see billing (the server leaves those numbers out)
+  const showBilling = !data.billingHidden;
   const attentionCount = (attention.trialsEnding?.length || 0) + (attention.overdueInvoices?.length || 0) + (attention.lockedOrgs?.length || 0) + overdueTickets.length + atRisk.length;
 
   return (
@@ -111,7 +117,11 @@ export default function DashboardPage() {
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Monthly revenue" value={formatUsd(kpis.mrr)} hint={`${kpis.payingOrgs} paying ${kpis.payingOrgs === 1 ? 'organization' : 'organizations'}`} to="/organizations?status=paying" />
+        {showBilling ? (
+          <StatCard label="Monthly revenue" value={formatUsd(kpis.mrr)} hint={`${kpis.payingOrgs} paying ${kpis.payingOrgs === 1 ? 'organization' : 'organizations'}`} to="/organizations?status=paying" />
+        ) : (
+          <StatCard label="Paying organizations" value={kpis.payingOrgs} hint={`of ${kpis.totalOrgs} organizations`} to="/organizations?status=paying" />
+        )}
         <StatCard
           label="Active trials"
           value={kpis.activeTrials}
@@ -125,13 +135,23 @@ export default function DashboardPage() {
           hint={`of ${kpis.totalOrgs} · used the app in the last 7 days`}
           to="/organizations"
         />
-        <StatCard
-          label="Unpaid invoices"
-          value={unpaidCount}
-          hint={unpaidCount ? unpaid.map((u) => formatMoney(u.amount, u.currency)).join(' + ') : 'All invoices are paid'}
-          tone={unpaidCount ? 'bad' : 'good'}
-          to="/organizations?status=unpaid"
-        />
+        {showBilling ? (
+          <StatCard
+            label="Unpaid invoices"
+            value={unpaidCount}
+            hint={unpaidCount ? unpaid.map((u) => formatMoney(u.amount, u.currency)).join(' + ') : 'All invoices are paid'}
+            tone={unpaidCount ? 'bad' : 'good'}
+            to="/organizations?status=unpaid"
+          />
+        ) : (
+          <StatCard
+            label="Locked organizations"
+            value={kpis.lockedOrgs ?? 0}
+            hint={kpis.lockedOrgs ? 'Members can only read' : 'None locked'}
+            tone={kpis.lockedOrgs ? 'bad' : 'default'}
+            to="/organizations?status=locked"
+          />
+        )}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -156,10 +176,10 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className={`mt-6 grid gap-6 ${showBilling ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
         <Card
           title="Needs attention"
-          description={attentionCount ? 'Late replies, overdue invoices, trials ending soon and locked accounts' : undefined}
+          description={attentionCount ? (showBilling ? 'Late replies, overdue invoices, trials ending soon and locked accounts' : 'Late replies, trials ending soon and locked accounts') : undefined}
           padded={false}
         >
           {attentionCount === 0 ? (
@@ -178,8 +198,8 @@ export default function DashboardPage() {
               {(attention.overdueInvoices || []).map((inv) => (
                 <AttentionRow
                   key={inv._id}
-                  to={`/organizations/${inv.organization?._id}?tab=billing`}
-                  title={inv.organization?.name || 'Organization'}
+                  to={inv.organization?._id ? `/organizations/${inv.organization._id}?tab=billing` : null}
+                  title={inv.organization?.name || 'Deleted organization'}
                   detail={`Invoice ${formatMoney(inv.amount, inv.currency)} was due ${relativeDays(inv.dueAt)}`}
                   badge={<span className="shrink-0 text-caption font-medium text-red-600">Overdue</span>}
                 />
@@ -237,6 +257,7 @@ export default function DashboardPage() {
           )}
         </Card>
 
+        {showBilling && (
         <Card title="Admin actions" padded={false} actions={<Link to="/audit" className="text-body-sm font-medium text-blue-600 hover:text-blue-700">View log</Link>}>
           {data.recentAdminActions.length === 0 ? (
             <p className="px-5 py-8 text-center text-body-sm text-gray-500">Plan changes, trial extensions, locks and refunds show up here.</p>
@@ -256,6 +277,7 @@ export default function DashboardPage() {
             </div>
           )}
         </Card>
+        )}
       </div>
 
       {data.activationFunnel && data.activationFunnel.steps && (

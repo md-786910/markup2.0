@@ -49,8 +49,8 @@ export function AuthProvider({ children }) {
     setUser(res.data.user);
   }, []);
 
-  const signup = useCallback(async (name, email, password, invitationToken) => {
-    const res = await signupApi(name, email, password, invitationToken);
+  const signup = useCallback(async (name, email, password, invitationToken, orgName) => {
+    const res = await signupApi(name, email, password, invitationToken, orgName);
     localStorage.setItem(TOKEN_KEY, res.data.token);
     setToken(res.data.token);
     setUser(res.data.user);

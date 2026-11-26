@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { PageHeader, Button, Card } from '../components/common/ui';
 import StatCard from '../components/common/StatCard';
 import DataTable from '../components/common/DataTable';
@@ -21,9 +21,20 @@ export default function RevenuePage() {
   const [invoices, setInvoices] = useState([]);
   const [invoiceTotal, setInvoiceTotal] = useState(0);
   const [invoicePages, setInvoicePages] = useState(1);
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [currencyFilter, setCurrencyFilter] = useState('');
+  // Filters live in the URL, like the other admin lists
+  const [params, setParams] = useSearchParams();
+  const page = Math.max(1, parseInt(params.get('page'), 10) || 1);
+  const statusFilter = params.get('status') || '';
+  const currencyFilter = params.get('currency') || '';
+  const setFilters = (next) => {
+    const merged = { status: statusFilter, currency: currencyFilter, page: String(page), ...next };
+    const clean = {};
+    for (const [k, v] of Object.entries(merged)) if (v && !(k === 'page' && v === '1')) clean[k] = v;
+    setParams(clean, { replace: true });
+  };
+  const setPage = (p) => setFilters({ page: String(p) });
+  const setStatusFilter = (v) => setFilters({ status: v, page: '1' });
+  const setCurrencyFilter = (v) => setFilters({ currency: v, page: '1' });
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -34,9 +45,9 @@ export default function RevenuePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const fetchInvoices = (p = page) => {
+  const fetchInvoices = useCallback(() => {
     setInvoicesLoading(true);
-    const q = { page: p, limit: PAGE_SIZE };
+    const q = { page, limit: PAGE_SIZE };
     if (statusFilter) q.status = statusFilter;
     if (currencyFilter) q.currency = currencyFilter;
 
@@ -48,11 +59,11 @@ export default function RevenuePage() {
       })
       .catch((err) => toastError(err, 'Could not load invoices.'))
       .finally(() => setInvoicesLoading(false));
-  };
+  }, [page, statusFilter, currencyFilter]);
 
   useEffect(() => {
-    fetchInvoices(page);
-  }, [page, statusFilter, currencyFilter]);
+    fetchInvoices();
+  }, [fetchInvoices]);
 
   const handleExportInvoices = async () => {
     setExporting(true);
@@ -68,7 +79,7 @@ export default function RevenuePage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      toastError(err, 'Could not export invoices CSV.');
+      toastError(err, 'Could not export the invoices.');
     } finally {
       setExporting(false);
     }
@@ -104,12 +115,16 @@ export default function RevenuePage() {
       label: 'Organization',
       render: (row) => (
         <div>
-          <Link
-            to={`/organizations/${row.organization?._id}`}
-            className="font-medium text-gray-900 hover:text-blue-600"
-          >
-            {row.organization?.name || '—'}
-          </Link>
+          {row.organization?._id ? (
+            <Link
+              to={`/organizations/${row.organization._id}`}
+              className="font-medium text-gray-900 hover:text-blue-600"
+            >
+              {row.organization.name}
+            </Link>
+          ) : (
+            <span className="font-medium text-gray-500">Deleted organization</span>
+          )}
           {row.buyer?.name && (
             <p className="text-caption text-gray-500">{row.buyer.name}</p>
           )}
@@ -139,7 +154,7 @@ export default function RevenuePage() {
     },
     {
       key: 'paidAt',
-      label: 'Paid / Due',
+      label: 'Paid / due',
       render: (row) => (
         <span className="text-caption text-gray-500">
           {row.paidAt ? formatDate(row.paidAt) : row.dueAt ? relativeDays(row.dueAt) : '—'}
@@ -151,14 +166,14 @@ export default function RevenuePage() {
   return (
     <div className="animate-fade-in space-y-6">
       <PageHeader
-        title="Revenue & Subscriptions"
-        description="Monthly recurring revenue, upcoming renewals, unpaid invoices, and accounting exports"
+        title="Revenue"
+        description="Monthly recurring revenue, upcoming renewals, unpaid invoices and accounting exports"
         actions={
           <Button onClick={handleExportInvoices} disabled={exporting}>
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
-            {exporting ? 'Exporting…' : 'Export Invoices CSV'}
+            {exporting ? 'Exporting…' : 'Export invoices (CSV)'}
           </Button>
         }
       />
@@ -166,25 +181,25 @@ export default function RevenuePage() {
       {/* Primary KPI Grid */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
-          label="USD Monthly Revenue"
+          label="Monthly revenue (USD)"
           value={formatUsd(kpis.totalUsdMrr || 0)}
           hint={`${kpis.payingOrgsCount || 0} paying accounts`}
         />
         <StatCard
-          label="INR Monthly Revenue"
+          label="Monthly revenue (INR)"
           value={`₹${(kpis.totalInrMrr || 0).toLocaleString()}`}
           hint="Razorpay domestic subscriptions"
         />
         <StatCard
-          label="New MRR (30 days)"
+          label="New MRR this month"
           value={formatUsd(kpis.newMrr30d?.usd || 0)}
-          hint={`${kpis.newMrr30d?.count || 0} conversions / upgrades`}
+          hint={`${kpis.newMrr30d?.count || 0} first-time ${kpis.newMrr30d?.count === 1 ? 'payment' : 'payments'}`}
           tone="default"
         />
         <StatCard
-          label="Churned MRR (30 days)"
+          label="Churned MRR this month"
           value={formatUsd(kpis.churnedMrr30d?.usd || 0)}
-          hint={`${kpis.churnedMrr30d?.count || 0} cancellations`}
+          hint={`${kpis.churnedMrr30d?.count || 0} ended ${kpis.churnedMrr30d?.count === 1 ? 'subscription' : 'subscriptions'}`}
           tone={kpis.churnedMrr30d?.usd > 0 ? 'warn' : 'default'}
         />
       </div>
@@ -192,7 +207,7 @@ export default function RevenuePage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Upcoming Renewals */}
         <Card
-          title="Upcoming Renewals (Next 14 Days)"
+          title="Renewals in the next 14 days"
           description="Subscriptions approaching their monthly anniversary"
           padded={false}
         >
@@ -228,7 +243,7 @@ export default function RevenuePage() {
 
         {/* Unpaid & Overdue Invoices */}
         <Card
-          title="Unpaid & Failed Invoices"
+          title="Unpaid and failed invoices"
           description="Invoices awaiting collection or grace period enforcement"
           padded={false}
         >
@@ -239,11 +254,11 @@ export default function RevenuePage() {
               {unpaid.map((inv) => (
                 <Link
                   key={inv._id}
-                  to={`/organizations/${inv.organization?._id}?tab=billing`}
+                  to={inv.organization?._id ? `/organizations/${inv.organization._id}?tab=billing` : '/revenue'}
                   className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-gray-50"
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-gray-900">{inv.organization?.name || 'Organization'}</p>
+                    <p className="truncate font-medium text-gray-900">{inv.organization?.name || 'Deleted organization'}</p>
                     <p className="truncate text-caption text-gray-500">
                       Due {inv.dueAt ? relativeDays(inv.dueAt) : 'soon'} · {inv.provider || 'Gateway'}
                     </p>
@@ -262,15 +277,18 @@ export default function RevenuePage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent Transactions & Refunds */}
         <Card
-          title="Recent Transactions & Refunds"
+          title="Recent payments and refunds"
           description="Latest payments processed and refunded"
           padded={false}
         >
+          {refunds.length === 0 && payments.length === 0 ? (
+            <p className="px-5 py-8 text-center text-body-sm text-gray-500">No payments or refunds yet.</p>
+          ) : (
           <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
             {refunds.map((inv) => (
               <div key={inv._id} className="flex items-center justify-between px-5 py-3 text-caption">
                 <div>
-                  <span className="font-medium text-gray-900">{inv.organization?.name || 'Organization'}</span>
+                  <span className="font-medium text-gray-900">{inv.organization?.name || 'Deleted organization'}</span>
                   <p className="text-gray-400">Refunded {timeAgo(inv.refundedAt || inv.updatedAt)}</p>
                 </div>
                 <div className="text-right">
@@ -282,7 +300,7 @@ export default function RevenuePage() {
             {payments.slice(0, 10).map((inv) => (
               <div key={inv._id} className="flex items-center justify-between px-5 py-3 text-caption">
                 <div>
-                  <span className="font-medium text-gray-900">{inv.organization?.name || 'Organization'}</span>
+                  <span className="font-medium text-gray-900">{inv.organization?.name || 'Deleted organization'}</span>
                   <p className="text-gray-400">Paid {timeAgo(inv.paidAt || inv.createdAt)}</p>
                 </div>
                 <div className="text-right">
@@ -292,11 +310,12 @@ export default function RevenuePage() {
               </div>
             ))}
           </div>
+          )}
         </Card>
 
         {/* Scheduled Cancellations */}
         <Card
-          title="Scheduled Cancellations"
+          title="Scheduled cancellations"
           description="Organizations downgrading at end of active period"
           padded={false}
         >
@@ -328,13 +347,13 @@ export default function RevenuePage() {
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-4">
           <div>
-            <h3 className="text-body font-medium text-gray-900">All Tax Invoices</h3>
+            <h2 className="text-body font-semibold text-gray-900">All invoices</h2>
             <p className="text-caption text-gray-500">{invoiceTotal} invoice records</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <FilterDropdown
               value={statusFilter}
-              onChange={(v) => { setStatusFilter(v); setPage(1); }}
+              onChange={setStatusFilter}
               placeholder="All statuses"
               options={[
                 { value: 'paid', label: 'Paid' },
@@ -346,7 +365,7 @@ export default function RevenuePage() {
             />
             <FilterDropdown
               value={currencyFilter}
-              onChange={(v) => { setCurrencyFilter(v); setPage(1); }}
+              onChange={setCurrencyFilter}
               placeholder="All currencies"
               options={[
                 { value: 'USD', label: 'USD ($)' },
@@ -357,7 +376,7 @@ export default function RevenuePage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { setStatusFilter(''); setCurrencyFilter(''); setPage(1); }}
+                onClick={() => setParams({}, { replace: true })}
               >
                 Clear
               </Button>

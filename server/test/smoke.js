@@ -836,6 +836,29 @@ function check(name, cond, extra = '') {
     const okRes = await call('POST', '/api/auth/verify-otp', { headers: { 'X-Forwarded-For': '10.67.0.51' }, body: { email: 'otp-ok@e2e.test', otp: '654321' } });
     check('a correct email code still verifies', okRes.status === 200 && okRes.data?.verified === true && !!(await EV.findOne({ email: 'otp-ok@e2e.test' })).verifiedAt);
     await EV.deleteMany({ email: { $in: ['otp-race@e2e.test', 'otp-ok@e2e.test'] } });
+
+    // Onboarding creates the organization in the signup request itself
+    await EV.create({ email: 'neworg@e2e.test', otpHash: EV.hashOtp('111111'), expiresAt: new Date(Date.now() + 6e5), verifiedAt: new Date() });
+    const newOrgRes = await call('POST', '/api/auth/signup', { headers: { 'X-Forwarded-For': '10.67.0.60' }, body: { name: 'New Org', email: 'neworg@e2e.test', password: 'Str0ng!Passw0rd', orgName: '  Fresh Co  ' } });
+    const newOrgUser = await User.findOne({ email: 'neworg@e2e.test' });
+    const newOrg = newOrgUser?.organization && await Organization.findById(newOrgUser.organization);
+    check('signup with an organization name creates the organization in the same request',
+      newOrgRes.status === 201 && newOrgRes.data?.isNewOrg === true && newOrgUser?.role === 'owner' && newOrg?.name === 'Fresh Co' && String(newOrg.owner) === String(newOrgUser._id),
+      `${newOrgRes.status} ${newOrgUser?.role} ${newOrg?.name}`);
+    const dupRes = await call('POST', '/api/auth/validate-email', { headers: { 'X-Forwarded-For': '10.67.0.61' }, body: { email: 'neworg@e2e.test' } });
+    check('a registered email is told to log in instead', dupRes.status === 400 && /Log in instead/.test(dupRes.data?.message || ''), dupRes.data?.message);
+
+    // An account left without an organization gets one when it signs in
+    const stuck = await User.create({ name: 'Stuck', email: 'stuck@e2e.test', passwordHash: 'Str0ng!Passw0rd', role: 'member', sessionToken: 'stuck-s' });
+    const stuckLogin = await call('POST', '/api/auth/login', { headers: { 'X-Forwarded-For': '10.67.0.62' }, body: { email: 'stuck@e2e.test', password: 'Str0ng!Passw0rd' } });
+    const stuckAfter = await User.findById(stuck._id);
+    const stuckOrg = stuckAfter?.organization && await Organization.findById(stuckAfter.organization);
+    check('signing in to an account without an organization creates its organization',
+      stuckLogin.status === 200 && stuckAfter?.role === 'owner' && String(stuckOrg?.owner) === String(stuck._id) && !!stuckLogin.data?.user,
+      `${stuckLogin.status} ${stuckAfter?.role} ${stuckOrg?.name}`);
+    await EV.deleteMany({ email: 'neworg@e2e.test' });
+    await Organization.deleteMany({ _id: { $in: [newOrg?._id, stuckOrg?._id].filter(Boolean) } });
+    await User.deleteMany({ _id: { $in: [newOrgUser?._id, stuck._id].filter(Boolean) } });
   }
   check('Bearer-authenticated profile change still works', (await call('PATCH', '/api/auth/profile', { user: memberA, body: { name: 'Member A' } })).status === 200);
   const resetStatuses = [];

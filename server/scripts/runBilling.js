@@ -31,6 +31,7 @@ const User = require('../models/User');
 const PlanConfig = require('../models/PlanConfig');
 const { getActiveProvider } = require('../payments');
 const { getPlansWithOverrides, getLimitsForPlanAsync } = require('../config/plans');
+const { markSubscriptionEnded } = require('../utils/orgStatus');
 const { URLS } = require('../config/env');
 const {
   sendInvoiceCreatedEmail,
@@ -357,8 +358,10 @@ async function phaseCancellations() {
     'subscription.cancelAtPeriodEnd': true,
     'subscription.currentPeriodEnd': { $lte: new Date() },
   });
+  const plans = orgs.length ? await getPlansWithOverrides() : null;
   for (const org of orgs) {
     const previousPlan = org.plan;
+    markSubscriptionEnded(org, plans);
     org.plan = 'free';
     org.limits = await getLimitsForPlanAsync('free');
     org.subscription.status = 'canceled';

@@ -92,7 +92,7 @@ exports.getStats = asyncHandler(async (req, res) => {
 // GET /admin/support/tickets/:ticketId: thread (with internal notes) + customer context
 exports.getTicket = asyncHandler(async (req, res) => {
   const ticket = await SupportTicket.findById(req.params.ticketId)
-    .populate('organization', 'name plan trialEndsAt isLocked lockedReason subscription deletionScheduledAt createdAt')
+    .populate('organization', 'name plan trialEndsAt isLocked lockedReason subscription deal deletionScheduledAt createdAt')
     .populate('requester', 'name email role lastSeen createdAt')
     .populate('assignee', 'name email')
     .populate('context.project', 'name projectType websiteUrl')
@@ -120,7 +120,8 @@ exports.getTicket = asyncHandler(async (req, res) => {
     customer: {
       members: members.length, activeProjects: projectIds.length, openPins, lastActiveAt, otherTickets, recentActivity,
       status: ticket.organization ? lifecycleStatus(ticket.organization) : null,
-      mrr: ticket.organization ? monthlyRevenue(ticket.organization, plans) : 0,
+      // Revenue is superadmin-only (support agents don't see billing)
+      mrr: req.admin?.role === 'support' ? null : (ticket.organization ? monthlyRevenue(ticket.organization, plans) : 0),
     },
     admins,
   });

@@ -40,6 +40,7 @@ export default function SupportTicketPage() {
   const { ticketId } = useParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [body, setBody] = useState('');
   const [internal, setInternal] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -49,8 +50,15 @@ export default function SupportTicketPage() {
     try {
       const { data: d } = await getSupportTicketApi(ticketId);
       setData(d);
-    } catch {
-      setData(null);
+      setNotFound(false);
+    } catch (err) {
+      // Keep the page on a failed refresh; only a 404 means it's gone
+      if (err.response?.status === 404) {
+        setData(null);
+        setNotFound(true);
+      } else {
+        toastError(err, 'Could not load the request.');
+      }
     }
     setLoading(false);
   }, [ticketId]);
@@ -82,7 +90,17 @@ export default function SupportTicketPage() {
   };
 
   if (loading) return <div className="flex justify-center py-20"><LoadingSpinner /></div>;
-  if (!data) return <p className="py-10 text-center text-gray-500">Request not found.</p>;
+  if (!data) {
+    return (
+      <div className="py-16 text-center">
+        <p className="text-body-sm text-gray-500">{notFound ? 'This request does not exist.' : 'Could not load the request.'}</p>
+        <div className="mt-4 flex justify-center gap-4">
+          <Link to="/support" className="text-label text-blue-600 hover:text-blue-700">All requests</Link>
+          {!notFound && <button type="button" onClick={() => { setLoading(true); load(); }} className="text-label text-blue-600 hover:text-blue-700">Try again</button>}
+        </div>
+      </div>
+    );
+  }
 
   const { ticket: t, customer, admins } = data;
   const org = t.organization;
@@ -154,6 +172,10 @@ export default function SupportTicketPage() {
                 <span className="mb-1.5 block text-gray-500">Assignee</span>
                 <select value={t.assignee?._id || ''} onChange={(e) => update({ assignee: e.target.value || null })} className={inputClass}>
                   <option value="">Unassigned</option>
+                  {/* An assignee whose account was turned off stays visible */}
+                  {t.assignee?._id && !admins.some((a) => a._id === t.assignee._id) && (
+                    <option value={t.assignee._id} disabled>{t.assignee.name || 'Former admin'} (turned off)</option>
+                  )}
                   {admins.map((a) => <option key={a._id} value={a._id}>{a.name}</option>)}
                 </select>
               </label>
@@ -194,7 +216,7 @@ export default function SupportTicketPage() {
                 ['Email', t.requester?.email],
                 ['Role', t.requester?.role],
                 customer.status && ['Status', <StatusBadge status={customer.status} trialEndsAt={org?.trialEndsAt} />],
-                ['Monthly revenue', customer.mrr ? formatUsd(customer.mrr) : '—'],
+                customer.mrr !== null && ['Monthly revenue', customer.mrr ? formatUsd(customer.mrr) : '—'],
                 ['Last active', timeAgo(customer.lastActiveAt)],
                 ['Members', customer.members],
                 ['Open pins', customer.openPins],
