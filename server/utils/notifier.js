@@ -118,6 +118,7 @@ async function emailProjectMembers(type, { projectId, actorUserId, actorName, pr
         actorName,
         link,
         pinNumber: pin.pinNumber || null,
+        at: new Date().toISOString(),
       };
 
       if (type === 'pin') {
@@ -165,6 +166,7 @@ async function emailMentionedUsers({ mentionedUserIds, actorUserId, actorName, p
         commentBody: comment.body,
         pinNumber: pin?.pinNumber || null,
         link,
+        at: new Date().toISOString(),
       });
     }
   } catch (err) {

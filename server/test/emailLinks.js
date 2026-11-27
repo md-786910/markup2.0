@@ -25,7 +25,7 @@ const jwt = require('jsonwebtoken');
 
 // Client routes (client/src/App.js) and the query params each page reads
 const CLIENT_ROUTES = [/^\/review\/[^/]+$/, /^\/reset-password\/[^/]+$/, /^\/signup$/, /^\/project\/[a-f0-9]{24}$/, /^\/settings$/, /^\/dashboard$/, /^\/login$/, /^\/?$/];
-const SETTINGS_TABS = ['workspace', 'billing', 'invoices', 'activity'];
+const SETTINGS_TABS = ['workspace', 'billing', 'invoices', 'activity', 'notifications'];
 // Admin panel routes (admin/src/App.js) linked from team emails
 const ADMIN_ROUTES = [/^\/support\/[a-f0-9]{24}$/, /^\/organizations\/[a-f0-9]{24}$/];
 let pass = 0, fail = 0;

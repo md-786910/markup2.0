@@ -5,6 +5,11 @@
  * into an email-safe HTML document (tables + inline styles, works in Gmail,
  * Outlook, Apple Mail) AND a matching plain-text part.
  *
+ * Look: a white card whose top is a brand-blue header (white logo, a pill with
+ * the project or email type, the title or a big count), the content below,
+ * a full-width dark button, an optional "Too many emails?" card, then the
+ * footer.
+ *
  * Text passed to blocks is escaped automatically. Wrap words in **double
  * asterisks** to bold them (e.g. `**${actor}** commented`).
  */
@@ -18,13 +23,14 @@ const BRAND = {
   primaryDark: '#0031d1',
   primarySoft: '#eef3ff',
   primaryTint: '#dbe5ff',
+  onPrimaryMuted: '#c7d4ff',
   ink: '#0f172a',
   body: '#334155',
   muted: '#64748b',
   subtle: '#94a3b8',
   border: '#e2e8f0',
   divider: '#f1f5f9',
-  canvas: '#f8fafc',
+  canvas: '#f1f5f9',
   surface: '#ffffff',
   font: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
   mono: "'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace",
@@ -47,9 +53,9 @@ function esc(value) {
     .replace(/'/g, '&#39;');
 }
 
-// Escape, then turn **x** into bold ink text.
-function rich(value) {
-  return esc(value).replace(/\*\*(.+?)\*\*/g, `<strong style="color:${BRAND.ink};font-weight:600;">$1</strong>`);
+// Escape, then turn **x** into bold text (ink by default).
+function rich(value, boldColor = BRAND.ink) {
+  return esc(value).replace(/\*\*(.+?)\*\*/g, `<strong style="color:${boldColor};font-weight:600;">$1</strong>`);
 }
 
 function plain(value) {
@@ -66,6 +72,49 @@ function clientOrigin() {
   return URLS.app;
 }
 
+// Pastel avatar colours, picked from the name so a person keeps their colour
+const AVATARS = [
+  { bg: '#fde8dc', fg: '#9a3412' },
+  { bg: '#dcf5e8', fg: '#166534' },
+  { bg: '#e0e8ff', fg: '#1e3a8a' },
+  { bg: '#fef3c7', fg: '#92400e' },
+  { bg: '#fde2e7', fg: '#9f1239' },
+  { bg: '#e2e8f0', fg: '#334155' },
+];
+
+function avatarCell(name, size = 36) {
+  let h = 0;
+  for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const c = AVATARS[h % AVATARS.length];
+  return `<td width="${size}" valign="top" style="width:${size}px;"><div style="width:${size}px;height:${size}px;border-radius:${size / 2}px;background:${c.bg};color:${c.fg};text-align:center;font-size:13px;font-weight:600;line-height:${size}px;">${esc(initials(name))}</div></td>`;
+}
+
+// Accounts have no time zone setting, so emails use one zone for everyone:
+// EMAIL_TIME_ZONE (an IANA name such as Asia/Kolkata), default UTC.
+function emailTimeZone() {
+  return process.env.EMAIL_TIME_ZONE || 'UTC';
+}
+
+function formatTime(date) {
+  try {
+    return new Date(date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: emailTimeZone() });
+  } catch {
+    return '';
+  }
+}
+
+// "26 Nov, 6:00 PM" (+ " UTC" when no zone is configured)
+function formatDayTime(date) {
+  const zone = emailTimeZone();
+  try {
+    const d = new Date(date);
+    const day = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: zone });
+    return `${day}, ${formatTime(d)}${zone === 'UTC' ? ' UTC' : ''}`;
+  } catch {
+    return '';
+  }
+}
+
 // ── Blocks ──────────────────────────────────────────────────────────────────
 
 const blocks = {
@@ -77,22 +126,24 @@ const blocks = {
     };
   },
 
-  quote({ author, meta, html, text }) {
-    const metaHtml = meta
-      ? `<span style="color:${BRAND.subtle};font-size:12px;font-weight:400;">&nbsp;&middot;&nbsp;${esc(meta)}</span>`
-      : '';
+  // One message: avatar, a header line ("**Name** commented on **#19**", or
+  // the name and meta), then the message itself.
+  quote({ author, meta, line, html, text }) {
+    const head = line
+      ? rich(line)
+      : `<strong style="color:${BRAND.ink};font-weight:600;">${esc(author)}</strong>${meta ? `<span style="color:${BRAND.subtle};">&nbsp;&middot;&nbsp;${esc(meta)}</span>` : ''}`;
     return {
       html: `
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 24px;background:${BRAND.canvas};border:1px solid ${BRAND.border};border-radius:12px;">
-          <tr><td style="padding:16px 18px;">
-            <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-              <td width="28" valign="middle" style="width:28px;height:28px;background:${BRAND.primaryTint};border-radius:14px;text-align:center;font-size:11px;font-weight:700;color:${BRAND.primary};line-height:28px;">${esc(initials(author))}</td>
-              <td valign="middle" style="padding-left:10px;font-size:13px;font-weight:600;color:${BRAND.ink};">${esc(author)}${metaHtml}</td>
-            </tr></table>
-            <div style="margin-top:10px;font-size:14px;line-height:22px;color:${BRAND.body};word-break:break-word;">${html}</div>
-          </td></tr>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border-bottom:1px solid ${BRAND.divider};">
+          <tr>
+            ${avatarCell(author)}
+            <td valign="top" style="padding:0 0 18px 12px;">
+              <div style="font-size:14px;line-height:20px;color:${BRAND.muted};">${head}</div>
+              <div style="margin-top:4px;font-size:14px;line-height:22px;color:${BRAND.body};word-break:break-word;">${html}</div>
+            </td>
+          </tr>
         </table>`,
-      text: `${author}${meta ? ` · ${meta}` : ''}:\n"${text}"`,
+      text: `${line ? plain(line) : `${author}${meta ? ` · ${meta}` : ''}`}:\n"${text}"`,
     };
   },
 
@@ -101,7 +152,7 @@ const blocks = {
     const rowsHtml = visible.map(([label, value, opts = {}], i) => {
       const border = i < visible.length - 1 ? `border-bottom:1px solid ${BRAND.divider};` : '';
       const color = opts.tone ? TONES[opts.tone].fg : BRAND.ink;
-      const weight = opts.strong ? 700 : 500;
+      const weight = opts.strong ? 600 : 500;
       return `<tr>
         <td style="padding:11px 0;${border}font-size:13px;color:${BRAND.muted};">${esc(label)}</td>
         <td align="right" style="padding:11px 0;${border}font-size:14px;font-weight:${weight};color:${color};">${esc(value)}</td>
@@ -131,16 +182,17 @@ const blocks = {
     };
   },
 
+  // Full-width dark button (red for danger)
   button({ label, url, tone = 'brand', fallback }) {
-    const bg = tone === 'danger' ? TONES.danger.fg : BRAND.primary;
+    const bg = tone === 'danger' ? TONES.danger.fg : BRAND.ink;
     const fallbackHtml = fallback
       ? `<p style="margin:0 0 16px;font-size:12px;line-height:18px;color:${BRAND.subtle};">Button not working? Paste this link into your browser:<br><a href="${esc(url)}" style="color:${BRAND.primary};word-break:break-all;text-decoration:underline;">${esc(url)}</a></p>`
       : '';
     return {
       html: `
-        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;">
           <tr><td align="center" bgcolor="${bg}" style="background:${bg};border-radius:10px;">
-            <a href="${esc(url)}" target="_blank" style="display:inline-block;padding:13px 26px;font-size:14px;font-weight:600;line-height:20px;color:#ffffff;text-decoration:none;border-radius:10px;">${esc(label)}&nbsp;&rarr;</a>
+            <a href="${esc(url)}" target="_blank" style="display:block;padding:14px 24px;font-size:15px;font-weight:600;line-height:20px;color:#ffffff;text-decoration:none;border-radius:10px;">${esc(label)}&nbsp;&rarr;</a>
           </td></tr>
         </table>${fallbackHtml}`,
       text: `${label}: ${url}`,
@@ -152,35 +204,34 @@ const blocks = {
     return {
       html: `
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 24px;">
-          <tr><td style="padding:12px 16px;background:${t.bg};border:1px solid ${t.border};border-radius:10px;font-size:13px;line-height:20px;color:${t.fg};">${rich(text).replace(new RegExp(`color:${BRAND.ink}`, 'g'), `color:${t.fg}`)}</td></tr>
+          <tr><td style="padding:12px 16px;background:${t.bg};border:1px solid ${t.border};border-radius:10px;font-size:13px;line-height:20px;color:${t.fg};">${rich(text, t.fg)}</td></tr>
         </table>`,
       text: plain(text),
     };
   },
 
-  digest({ sections }) {
-    const html = sections.map((section) => {
-      const t = TONES[section.tone || 'brand'];
-      const items = section.items.map((item, i) => {
-        const border = i < section.items.length - 1 ? `border-bottom:1px solid ${BRAND.divider};` : '';
-        const preview = item.preview
-          ? `<div style="margin-top:3px;font-size:13px;line-height:19px;color:${BRAND.muted};">&ldquo;${esc(item.preview)}&rdquo;</div>`
-          : '';
-        return `<tr>
-          <td width="14" valign="top" style="padding:15px 0 12px;${border}"><div style="width:8px;height:8px;border-radius:4px;background:${t.fg};"></div></td>
-          <td valign="top" style="padding:10px 12px 10px 0;${border}font-size:14px;line-height:21px;color:${BRAND.body};">${rich(item.text)}${preview}</td>
-          <td valign="top" align="right" style="padding:10px 0;${border}white-space:nowrap;"><a href="${esc(item.url)}" style="font-size:13px;font-weight:600;color:${BRAND.primary};text-decoration:none;">View</a></td>
-        </tr>`;
-      }).join('');
-      return `
-        <div style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.subtle};">${esc(section.label)} &nbsp;<span style="color:${t.fg};">${section.items.length}</span></div>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px;">${items}</table>`;
+  // Activity list: avatar, "**Name** commented on **#19**", a one-line
+  // preview, the time and a chevron; each row links to its pin.
+  digest({ items }) {
+    const rows = items.map((item, i) => {
+      const border = i < items.length - 1 ? `border-bottom:1px solid ${BRAND.divider};` : '';
+      const preview = item.preview
+        ? `<div style="margin-top:2px;font-size:14px;line-height:20px;color:${BRAND.body};">${esc(item.preview)}</div>`
+        : '';
+      return `<tr><td style="padding:16px 0;${border}">
+        <a href="${esc(item.url)}" style="display:block;color:inherit;text-decoration:none;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+            ${avatarCell(item.actor)}
+            <td valign="top" style="padding:0 12px;font-size:14px;line-height:20px;color:${BRAND.muted};">${rich(item.text)}${preview}</td>
+            <td valign="top" align="right" width="64" style="width:64px;white-space:nowrap;font-size:12px;line-height:18px;color:${BRAND.subtle};">${item.at ? esc(formatTime(item.at)) : ''}<div style="margin-top:4px;font-size:20px;line-height:20px;color:${BRAND.subtle};">&rsaquo;</div></td>
+          </tr></table>
+        </a>
+      </td></tr>`;
     }).join('');
-    const text = sections.map((section) =>
-      `${section.label.toUpperCase()} (${section.items.length})\n` +
-      section.items.map((item) => `- ${plain(item.text)}${item.preview ? ` — "${item.preview}"` : ''}\n  ${item.url}`).join('\n')
-    ).join('\n\n');
-    return { html, text };
+    return {
+      html: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:-16px 0 16px;">${rows}</table>`,
+      text: items.map((item) => `- ${plain(item.text)}${item.preview ? ` — "${item.preview}"` : ''}\n  ${item.url}`).join('\n'),
+    };
   },
 
   note({ text }) {
@@ -193,6 +244,8 @@ const blocks = {
 
 // ── Document ────────────────────────────────────────────────────────────────
 
+// White "K" tile + white wordmark, for the blue header. EMAIL_LOGO_URL must
+// then be a logo that reads on blue (e.g. the white logo PNG).
 function logoHtml() {
   const logoUrl = process.env.EMAIL_LOGO_URL;
   if (logoUrl) {
@@ -200,34 +253,67 @@ function logoHtml() {
   }
   return `
     <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-      <td width="30" height="30" align="center" valign="middle" bgcolor="${BRAND.primary}" style="width:30px;height:30px;background:${BRAND.primary};border-radius:8px;font-size:16px;font-weight:800;color:#ffffff;line-height:30px;">K</td>
-      <td style="padding-left:10px;font-size:18px;font-weight:700;letter-spacing:-0.01em;color:${BRAND.ink};">${BRAND.name}</td>
+      <td width="28" height="28" align="center" valign="middle" bgcolor="#ffffff" style="width:28px;height:28px;background:#ffffff;border-radius:7px;font-size:15px;font-weight:700;color:${BRAND.primary};line-height:28px;">K</td>
+      <td style="padding-left:10px;font-size:17px;font-weight:600;letter-spacing:-0.02em;color:#ffffff;">${BRAND.name}</td>
     </tr></table>`;
 }
 
 /**
  * @param {Object} opts
  * @param {string} opts.preheader   inbox preview line
- * @param {string} [opts.eyebrow]   small pill above the title
- * @param {string} [opts.tone]      eyebrow tone: brand|success|warning|danger|neutral
+ * @param {string} [opts.badge]     pill at the top right of the header (e.g. the project name)
+ * @param {string} [opts.eyebrow]   shown in the pill when there is no badge
  * @param {string} opts.title       main heading (plain text)
+ * @param {string} [opts.subtitle]  line under the title (supports **bold**)
+ * @param {Object} [opts.hero]      { number, label, sub }: big count instead of the title
  * @param {Array}  opts.blocks      [{ type, ...props }]
+ * @param {Object} [opts.prefs]     { title, links: [{ label, url }] }: "Too many emails?" card
  * @param {string} [opts.reason]    "why am I getting this" footer line (supports **bold**)
  * @param {Object} [opts.manage]    { label, url } footer link
  * @returns {{ html: string, text: string }}
  */
-function renderEmail({ preheader, eyebrow, tone = 'brand', title, blocks: list, reason, manage }) {
+function renderEmail({ preheader, badge, eyebrow, title, subtitle, hero, blocks: list, prefs, reason, manage }) {
   const rendered = list.filter(Boolean).map((b) => blocks[b.type](b));
-  const t = TONES[tone];
   const year = new Date().getFullYear();
+  const pill = badge || eyebrow;
+  const prefLinks = (prefs && prefs.links) || [];
 
-  const eyebrowHtml = eyebrow
-    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 14px;"><tr><td style="padding:4px 10px;background:${t.bg};border-radius:999px;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${t.fg};">${esc(eyebrow)}</td></tr></table>`
+  const pillHtml = pill
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" align="right"><tr><td style="padding:4px 10px;border:1px solid #ffffff;border-radius:999px;font-size:11px;font-weight:600;line-height:14px;text-transform:uppercase;color:#ffffff;white-space:nowrap;">${esc(pill)}</td></tr></table>`
+    : '';
+
+  const headingHtml = hero
+    ? `<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+          <td valign="middle" class="k-hero-num" style="padding-right:14px;font-size:56px;line-height:56px;font-weight:700;letter-spacing:-0.03em;color:#ffffff;">${esc(hero.number)}</td>
+          <td valign="middle">
+            <div style="font-size:20px;line-height:26px;font-weight:600;color:#ffffff;">${esc(hero.label)}</div>
+            ${hero.sub ? `<div style="font-size:13px;line-height:18px;color:${BRAND.onPrimaryMuted};">${esc(hero.sub)}</div>` : ''}
+          </td>
+        </tr></table>`
+    : `<h1 class="k-title" style="margin:0;font-size:24px;line-height:31px;font-weight:600;letter-spacing:-0.015em;color:#ffffff;">${esc(title)}</h1>
+        ${subtitle ? `<p style="margin:6px 0 0;font-size:14px;line-height:20px;color:${BRAND.onPrimaryMuted};">${rich(subtitle, '#ffffff')}</p>` : ''}`;
+
+  const prefsHtml = prefLinks.length
+    ? `<tr><td style="padding-top:16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${BRAND.surface}" style="background:${BRAND.surface};border:1px solid ${BRAND.border};border-radius:16px;">
+          <tr><td class="k-prefs" style="padding:20px 24px 14px;font-family:${BRAND.font};">
+            <div style="margin:0 0 12px;font-size:13px;font-weight:600;color:${BRAND.ink};">${esc(prefs.title || 'Too many emails?')}</div>
+            ${prefLinks.map((l) => `<a href="${esc(l.url)}" style="display:inline-block;margin:0 6px 6px 0;padding:8px 14px;border:1px solid ${BRAND.border};border-radius:999px;font-size:13px;line-height:18px;color:${BRAND.ink};text-decoration:none;">${esc(l.label)}</a>`).join('')}
+          </td></tr>
+        </table>
+      </td></tr>`
     : '';
 
   const manageHtml = manage
     ? ` <a href="${esc(manage.url)}" style="color:${BRAND.muted};text-decoration:underline;">${esc(manage.label)}</a>`
     : '';
+
+  // mailer.send() puts the unsubscribe link at <!--k-unsubscribe--> in notification emails
+  const reasonHtml = reason
+    ? `<p style="margin:0 0 8px;font-size:12px;line-height:18px;color:${BRAND.muted};">${rich(reason)}${manageHtml}<!--k-unsubscribe--></p>`
+    : '<!--k-unsubscribe-->';
+
+  const heading = hero ? `${hero.number} ${hero.label}` : title;
 
   const html = `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
@@ -237,14 +323,17 @@ function renderEmail({ preheader, eyebrow, tone = 'brand', title, blocks: list, 
 <meta name="x-apple-disable-message-reformatting">
 <meta name="color-scheme" content="light">
 <meta name="supported-color-schemes" content="light">
-<title>${esc(title)}</title>
+<title>${esc(heading)}</title>
 <style>
   body { margin:0; padding:0; }
   a { color:${BRAND.primary}; }
   @media only screen and (max-width:600px) {
-    .k-card { padding:28px 22px !important; }
-    .k-outer { padding:20px 12px !important; }
+    .k-outer { padding:16px 10px !important; }
+    .k-head { padding:22px 20px 26px !important; }
+    .k-body { padding:20px 20px 24px !important; }
+    .k-prefs { padding:18px 20px 12px !important; }
     .k-title { font-size:21px !important; line-height:28px !important; }
+    .k-hero-num { font-size:46px !important; line-height:46px !important; }
   }
 </style>
 </head>
@@ -253,18 +342,24 @@ function renderEmail({ preheader, eyebrow, tone = 'brand', title, blocks: list, 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${BRAND.canvas}" style="background:${BRAND.canvas};">
   <tr><td align="center" class="k-outer" style="padding:36px 16px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-      <tr><td style="padding:0 4px 22px;">
-        <a href="${esc(clientOrigin())}" style="text-decoration:none;">${logoHtml()}</a>
+      <tr><td>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${BRAND.surface}" style="background:${BRAND.surface};border:1px solid ${BRAND.border};border-radius:16px;border-collapse:separate;">
+          <tr><td class="k-head" bgcolor="${BRAND.primary}" style="background:${BRAND.primary};border-radius:15px 15px 0 0;padding:26px 32px 30px;font-family:${BRAND.font};">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;"><tr>
+              <td valign="middle"><a href="${esc(clientOrigin())}" style="text-decoration:none;">${logoHtml()}</a></td>
+              <td valign="middle" align="right">${pillHtml}</td>
+            </tr></table>
+            ${headingHtml}
+          </td></tr>
+          <tr><td class="k-body" style="padding:28px 32px 28px;font-family:${BRAND.font};">
+            ${rendered.map((r) => r.html).join('\n')}
+          </td></tr>
+        </table>
       </td></tr>
-      <tr><td class="k-card" bgcolor="${BRAND.surface}" style="background:${BRAND.surface};border:1px solid ${BRAND.border};border-radius:16px;padding:36px 40px;font-family:${BRAND.font};">
-        ${eyebrowHtml}
-        <h1 class="k-title" style="margin:0 0 14px;font-size:23px;line-height:31px;font-weight:700;letter-spacing:-0.015em;color:${BRAND.ink};">${esc(title)}</h1>
-        ${rendered.map((r) => r.html).join('\n')}
-      </td></tr>
-      <tr><td style="padding:24px 8px 0;font-family:${BRAND.font};">
-        ${reason ? `<p style="margin:0 0 8px;font-size:12px;line-height:18px;color:${BRAND.muted};">${rich(reason)}${manageHtml}</p>` : ''}
-        <!--k-unsubscribe-->
-        <p style="margin:0;font-size:12px;line-height:18px;color:${BRAND.subtle};">&copy; ${year} ${BRAND.name} &middot; ${BRAND.tagline}</p>
+      ${prefsHtml}
+      <tr><td style="padding:22px 8px 0;font-family:${BRAND.font};">
+        ${reasonHtml}
+        <p style="margin:0;font-size:12px;line-height:18px;color:${BRAND.muted};">&copy; ${year} ${BRAND.name} &middot; ${BRAND.tagline}</p>
         ${postalAddress() ? `<p style="margin:4px 0 0;font-size:12px;line-height:18px;color:${BRAND.subtle};">${esc(postalAddress())}</p>` : ''}
       </td></tr>
     </table>
@@ -273,11 +368,14 @@ function renderEmail({ preheader, eyebrow, tone = 'brand', title, blocks: list, 
 </body>
 </html>`;
 
+  const textHeading = hero && hero.sub ? `${heading} (${hero.sub})` : heading;
   const text = [
-    title,
-    '='.repeat(Math.min(title.length, 60)),
+    textHeading,
+    '='.repeat(Math.min(textHeading.length, 60)),
+    subtitle ? plain(subtitle) : null,
     '',
     rendered.map((r) => r.text).join('\n\n'),
+    prefLinks.length ? `\n${prefs.title || 'Too many emails?'}\n${prefLinks.map((l) => `${l.label}: ${l.url}`).join('\n')}` : null,
     '',
     '---',
     reason ? plain(reason) + (manage ? ` ${manage.label}: ${manage.url}` : '') : null,
@@ -293,4 +391,4 @@ function postalAddress() {
   return process.env.COMPANY_POSTAL_ADDRESS || '';
 }
 
-module.exports = { renderEmail, BRAND, TONES, esc, clientOrigin };
+module.exports = { renderEmail, BRAND, TONES, esc, clientOrigin, formatDayTime };

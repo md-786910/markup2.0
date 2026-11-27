@@ -26,11 +26,18 @@ const samples = {
   digest: t.digest({
     projectName: 'AM Pioneer Website',
     events: [
-      { type: 'mention', actorName: 'Sohail Amir', commentBody, pinNumber: 175, link },
-      { type: 'comment', actorName: 'Frederik Nußbaumer', commentBody: '<p>Please link the following page to the button: am-pioneers.com/desktop-metal-studio/</p>', pinNumber: 177, link },
-      { type: 'comment', actorName: 'Frederik Nußbaumer', commentBody: '<p>Please change to X160Pro</p>', pinNumber: 178, link },
-      { type: 'pin', actorName: 'Frederik Nußbaumer', pinPageUrl: 'https://am-pioneers.com/bmf/', pinNumber: 179, link },
-      { type: 'status', actorName: 'Ashif Reza', pinStatus: 'resolved', pinNumber: 170, link },
+      { type: 'mention', actorName: 'Sohail Amir', commentBody, pinNumber: 175, link, at: '2026-11-26T18:00:00Z' },
+      { type: 'comment', actorName: 'Frederik Nußbaumer', commentBody: '<p>Please link the following page to the button: am-pioneers.com/desktop-metal-studio/</p>', pinNumber: 177, link, at: '2026-11-26T18:01:00Z' },
+      { type: 'comment', actorName: 'Frederik Nußbaumer', commentBody: '<p>Please change to X160Pro</p>', pinNumber: 178, link, at: '2026-11-26T18:02:00Z' },
+      { type: 'pin', actorName: 'Frederik Nußbaumer', pinPageUrl: 'https://am-pioneers.com/bmf/', pinNumber: 179, link, at: '2026-11-26T18:03:00Z' },
+      { type: 'status', actorName: 'Ashif Reza', pinStatus: 'resolved', pinNumber: 170, link, at: '2026-11-26T18:04:00Z' },
+    ],
+  }),
+  'digest-comments': t.digest({
+    projectName: 'AM Pioneers',
+    events: [
+      { type: 'comment', actorName: 'Riya Kapoor', commentBody: "<p>Can we make the primary button larger on mobile? It's hard to tap.</p>", pinNumber: 19, link, at: '2026-11-26T18:00:00Z' },
+      { type: 'comment', actorName: 'Daniel Ortiz', commentBody: '<p>Agreed – and the headline wraps awkwardly at 375px.</p>', pinNumber: 19, link, at: '2026-11-26T18:03:00Z' },
     ],
   }),
   'password-reset': t.passwordReset({ resetUrl: `${APP}/reset-password/9c1f0a3e7d2b4c58a6e1` }),

@@ -3,7 +3,7 @@
  * { subject, html, text } — no sending, so templates can be previewed with
  * `node scripts/previewEmails.js`.
  */
-const { renderEmail, clientOrigin, esc } = require('./layout');
+const { renderEmail, clientOrigin, esc, formatDayTime } = require('./layout');
 const { formatCommentForEmail, stripHtmlAndMentions } = require('../mentionHelper');
 
 // ── Formatting helpers ──────────────────────────────────────────────────────
@@ -47,9 +47,15 @@ function truncate(text, max) {
 const dashboardUrl = () => `${clientOrigin()}/dashboard`;
 const billingUrl = () => `${clientOrigin()}/settings?tab=billing`;
 
+const notificationsUrl = () => `${clientOrigin()}/settings?tab=notifications`;
+
+// Project activity emails: project name in the header pill, the "Too many
+// emails?" card (Settings → Notifications mutes one project) and the footer.
 const projectFooter = (projectName) => ({
+  badge: projectName,
+  prefs: { title: 'Too many emails?', links: [{ label: `Mute ${projectName}`, url: notificationsUrl() }] },
   reason: `You're receiving this because you're a member of **${projectName}**.`,
-  manage: { label: 'Manage email notifications', url: dashboardUrl() },
+  manage: { label: 'Manage notifications', url: notificationsUrl() },
 });
 
 // ── Collaboration ───────────────────────────────────────────────────────────
@@ -78,10 +84,9 @@ function newPin({ actorName, projectName, pageUrl, pinNumber, link }) {
     subject: `New feedback${ref ? ` ${ref}` : ''} on ${projectName}`,
     ...renderEmail({
       preheader: `${actor} left new feedback on ${projectName}.`,
-      eyebrow: 'New feedback',
       title: `${actor} left new feedback`,
+      subtitle: `on **${projectName}**`,
       blocks: [
-        { type: 'p', text: `A new pin was added to **${projectName}**.` },
         {
           type: 'details',
           rows: [
@@ -105,12 +110,11 @@ function comment({ actorName, projectName, commentBody, pinNumber, link }) {
     subject: `${actor} commented${ref ? ` on ${ref}` : ''} in ${projectName}`,
     ...renderEmail({
       preheader: truncate(`${actor}: ${preview}`, 110),
-      eyebrow: 'New comment',
-      title: `New comment on ${projectName}`,
+      title: 'New comment',
+      subtitle: `on **${projectName}**`,
       blocks: [
-        { type: 'p', text: `**${actor}** replied${ref ? ` on pin **${ref}**` : ''}:` },
-        { type: 'quote', author: actor, meta: ref, html: formatCommentForEmail(commentBody), text: preview },
-        { type: 'button', label: 'Reply', url: link },
+        { type: 'quote', author: actor, line: `**${actor}** commented${ref ? ` on **${ref}**` : ''}`, html: formatCommentForEmail(commentBody), text: preview },
+        { type: 'button', label: 'Reply in Kommently', url: link },
       ],
       ...projectFooter(projectName),
     }),
@@ -125,15 +129,16 @@ function mention({ actorName, projectName, commentBody, pinNumber, link }) {
     subject: `${actor} mentioned you in ${projectName}`,
     ...renderEmail({
       preheader: truncate(`${actor}: ${preview}`, 110),
-      eyebrow: 'Mention',
+      badge: projectName,
       title: `${actor} mentioned you`,
+      subtitle: `on **${projectName}**`,
       blocks: [
-        { type: 'p', text: `You were mentioned in a comment on **${projectName}**${ref ? ` (pin **${ref}**)` : ''}.` },
-        { type: 'quote', author: actor, meta: ref, html: formatCommentForEmail(commentBody), text: preview },
-        { type: 'button', label: 'Reply', url: link },
+        { type: 'quote', author: actor, line: `**${actor}** mentioned you${ref ? ` on **${ref}**` : ''}`, html: formatCommentForEmail(commentBody), text: preview },
+        { type: 'button', label: 'Reply in Kommently', url: link },
       ],
+      prefs: { title: 'Too many emails?', links: [{ label: `Mute ${projectName}`, url: notificationsUrl() }] },
       reason: `You're receiving this because **${actor}** mentioned you.`,
-      manage: { label: 'Manage email notifications', url: dashboardUrl() },
+      manage: { label: 'Manage notifications', url: notificationsUrl() },
     }),
   };
 }
@@ -147,11 +152,10 @@ function pinStatus({ actorName, projectName, newStatus, pinNumber, link }) {
     subject: `${actor} ${verb} ${ref || 'feedback'} in ${projectName}`,
     ...renderEmail({
       preheader: `${actor} marked ${ref || 'a pin'} as ${resolved ? 'resolved' : 'open'}.`,
-      eyebrow: resolved ? 'Resolved' : 'Reopened',
-      tone: resolved ? 'success' : 'warning',
       title: `Feedback${ref ? ` ${ref}` : ''} ${verb}`,
+      subtitle: `on **${projectName}**`,
       blocks: [
-        { type: 'p', text: `**${actor}** ${verb} ${ref ? `pin **${ref}**` : 'a pin'} on **${projectName}**.` },
+        { type: 'p', text: `**${actor}** ${verb} ${ref ? `pin **${ref}**` : 'a pin'}.` },
         {
           type: 'details',
           rows: [
@@ -167,52 +171,53 @@ function pinStatus({ actorName, projectName, newStatus, pinNumber, link }) {
   };
 }
 
-const DIGEST_SECTIONS = [
-  { type: 'mention', label: 'Mentions', tone: 'brand' },
-  { type: 'comment', label: 'Comments', tone: 'brand' },
-  { type: 'pin', label: 'New feedback', tone: 'neutral' },
-  { type: 'status', label: 'Status changes', tone: 'success' },
-];
+const DIGEST_NOUNS = { comment: 'comment', mention: 'mention', status: 'status change', pin: 'pin' };
 
 function digestItem(ev) {
   const actor = ev.actorName || 'Someone';
   const ref = pinRef(ev.pinNumber);
   const preview = ev.commentBody ? truncate(stripHtmlAndMentions(ev.commentBody), 90) : '';
+  const base = { actor, url: ev.link, at: ev.at };
   switch (ev.type) {
     case 'pin':
-      return { text: `**${actor}** added feedback${ref ? ` **${ref}**` : ''}${ev.pinPageUrl ? ` on ${pageLabel(ev.pinPageUrl)}` : ''}`, url: ev.link };
+      return { ...base, text: `**${actor}** added feedback${ref ? ` **${ref}**` : ''}${ev.pinPageUrl ? ` on ${pageLabel(ev.pinPageUrl)}` : ''}` };
     case 'status':
-      return { text: `**${actor}** ${ev.pinStatus === 'resolved' ? 'resolved' : 'reopened'} ${ref ? `**${ref}**` : 'a pin'}`, url: ev.link };
+      return { ...base, text: `**${actor}** ${ev.pinStatus === 'resolved' ? 'resolved' : 'reopened'} ${ref ? `**${ref}**` : 'a pin'}` };
     case 'comment':
-      return { text: `**${actor}** commented${ref ? ` on **${ref}**` : ''}`, preview, url: ev.link };
+      return { ...base, text: `**${actor}** commented${ref ? ` on **${ref}**` : ''}`, preview };
     case 'mention':
-      return { text: `**${actor}** mentioned you${ref ? ` on **${ref}**` : ''}`, preview, url: ev.link };
+      return { ...base, text: `**${actor}** mentioned you${ref ? ` on **${ref}**` : ''}`, preview };
     default:
       return null;
   }
 }
 
 function digest({ projectName, events }) {
-  const total = events.length;
-  const sections = DIGEST_SECTIONS
-    .map((s) => ({ ...s, items: events.filter((e) => e.type === s.type).map(digestItem).filter(Boolean) }))
-    .filter((s) => s.items.length > 0);
-  const summary = sections.map((s) => `${s.items.length} ${s.label.toLowerCase()}`).join(', ');
+  const items = events.map(digestItem).filter(Boolean);
+  const total = items.length;
+  // "2 new comments" when every item is the same kind, else "3 new updates"
+  const kinds = [...new Set(events.map((e) => e.type))];
+  const noun = kinds.length === 1 && DIGEST_NOUNS[kinds[0]] ? DIGEST_NOUNS[kinds[0]] : 'update';
+  const label = `new ${noun}${total === 1 ? '' : 's'}`;
+  const firstAt = events.map((e) => e.at).filter(Boolean).sort()[0];
 
   return {
-    subject: `${plural(total, 'new update')} on ${projectName}`,
+    subject: `${total} ${label} on ${projectName}`,
     ...renderEmail({
-      preheader: `${summary} on ${projectName}.`,
-      eyebrow: 'Activity summary',
-      title: `${plural(total, 'new update')} on ${projectName}`,
+      preheader: truncate(items.map((i) => plain(i.text) + (i.preview ? `: ${i.preview}` : '')).join(' · '), 110),
+      title: `${total} ${label} on ${projectName}`,
+      hero: { number: String(total), label, sub: firstAt ? `since ${formatDayTime(firstAt)}` : `on ${projectName}` },
       blocks: [
-        { type: 'p', text: 'Here\'s what your team has been up to since your last update.', muted: true },
-        { type: 'digest', sections },
-        { type: 'button', label: 'Open project', url: events[0]?.link || dashboardUrl() },
+        { type: 'digest', items },
+        { type: 'button', label: 'Review all in Kommently', url: events[0]?.link || dashboardUrl() },
       ],
       ...projectFooter(projectName),
     }),
   };
+}
+
+function plain(text) {
+  return String(text).replace(/\*\*(.+?)\*\*/g, '$1');
 }
 
 // ── Account ─────────────────────────────────────────────────────────────────
@@ -588,7 +593,10 @@ function deadlineReminder({ projectName, deadlineAt, url, forGuest = false, dead
         deadlineMessage ? { type: 'callout', tone: 'neutral', text: deadlineMessage } : null,
         { type: 'button', label: forGuest ? 'Open the review' : 'Open the project', url },
       ].filter(Boolean),
-      ...projectFooter(projectName),
+      // Guests have no account (no settings to mute in): only the unsubscribe link
+      ...(forGuest
+        ? { badge: projectName, reason: `You're receiving this because you left feedback on **${projectName}**.` }
+        : projectFooter(projectName)),
     }),
   };
 }

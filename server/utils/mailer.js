@@ -45,9 +45,11 @@ async function send(to, { subject, html, text }, { notification = false, replyTo
   if (replyTo) mail.replyTo = replyTo;
   if (notification) {
     const url = unsubscribeUrl(to);
+    // The layout puts the marker at the end of the footer's reason line
+    // ("… Manage notifications · Unsubscribe")
     mail.html = html.replace(
       '<!--k-unsubscribe-->',
-      `<p style="margin:0 0 8px;font-size:12px;line-height:18px;color:#6b7280;">Don't want these emails? <a href="${url}" style="color:#6b7280;text-decoration:underline;">Unsubscribe from notification emails</a></p>`,
+      ` &middot; <a href="${url}" style="color:#64748b;text-decoration:underline;">Unsubscribe</a>`,
     );
     mail.text = `${text}\nUnsubscribe from notification emails: ${url}`;
     mail.headers = {
